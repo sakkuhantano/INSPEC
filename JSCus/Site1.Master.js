@@ -189,41 +189,22 @@ document.addEventListener(
                 await getMeterDashboardSummary();
 
             if (page.indexOf("dashboard.aspx") >= 0) {
-                await refreshDashboardCounts(summary);
+            const features = getAuthorizedAppFeatures();
+            const inspectionShortcut = document.getElementById("btnDashboardInspection");
+            if (inspectionShortcut && !features.canInputInspection && !features.canApproveInspection) {
+                inspectionShortcut.classList.add("d-none");
             }
-
-            await updateTotalPendingSync(summary);
-            await updateConnectionStatus();
-            setInterval(async () => {
-              try {
-                let status = await checkConnectionStatus();
-                setConnectionStatus(status);
-              } catch (error) {
-                console.error("Gagal cek koneksi:", error);
-              }
-            }, 10000); // Jalan setiap 10 detik
-            // setInterval(async () => {
-            //     try {
-            //       await syncAllData();
-            //       console.log("Success sync all data");
-            //     } catch (error) {
-            //       console.error("Gagal sync data:", error);
-            //     }
-            // }, 180000); 
-                        
-        // }
-        
-        //var syncPanel = document.getElementById("syncPanel");
-        //if (syncPanel) {
-        //    syncPanel.addEventListener("show.bs.offcanvas",function () {
-        //        showSyncDetail();
-        //    });
-        //}
-        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
-            hideConfirmation();
-            if (confirmResolve) {
-                confirmResolve(true);
-                confirmResolve = null;
+            const pendingWO = document.getElementById("div_pendingWO");
+            if (features.canMyWorkOrder && pendingWO) {
+                pendingWO.addEventListener("click", function () {
+                    window.location.href = "workorder.aspx?type=entry";
+                });
+            }
+            const pendingApproval = document.getElementById("div_pendingAppr");
+            if (features.canApproveWorkOrder && pendingApproval) {
+                pendingApproval.addEventListener("click", function () {
+                    window.location.href = "workorder.aspx?type=approval";
+                });
             }
         });
 

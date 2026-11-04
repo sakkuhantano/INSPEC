@@ -18,6 +18,12 @@ namespace INSPECFO.Secure
 {
     public partial class workorder : System.Web.UI.Page
     {
+        private static DateTime ParseLastSync(string value)
+        {
+            DateTime parsed;
+            return DateTime.TryParse(value, out parsed) ? parsed : new DateTime(1753, 1, 1);
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
@@ -42,7 +48,7 @@ SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
 JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
 WHERE W.KeyHD=@KeyHD
-  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20012')
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -124,7 +130,7 @@ WHERE W.KeyHD=@KeyHD
         {
             string employeeID = isSPV
                 ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
-                : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
+                : INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
             string[] scope = (companyLocation ?? "").Split(';');
             if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
             INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, scope[0], scope[1]);
@@ -158,8 +164,7 @@ WHERE W.KeyHD=@KeyHD
                 else
                 {
                     //_condition += "isRespondDC=0 AND CompletedDate='' AND a.UpdateDate>='" + lastSync + "' AND (ReasonRespondDC<>'' OR (ReasonRespondDC='' AND ISNULL(RemarkTechnician,'')=''))";
-                    _condition += "TemplateWOPM<>'' AND a.UpdateDate>='" + lastSync +
-                        "' AND (" + (isTechnician ? "(isRespondDC=0 AND CompletedDate='')" : "(1=0)") +
+                    _condition += "TemplateWOPM<>'' AND a.UpdateDate>=@LastSync AND (" + (isTechnician ? "(isRespondDC=0 AND CompletedDate='')" : "(1=0)") +
                                   " OR " + (isSupervisor ? "(ISNULL(RemarkTechnician,'')<>'' AND ISNULL(a.IsSampling,0)=1 " +
                                                             "AND ((ReasonRespondDC='' AND isRespondDC=0 AND CompletedDate='') " +
                                                             "OR (ReasonRespondDC<>'' OR isRespondDC=1)))" : "(1=0)") + ")";
@@ -221,7 +226,8 @@ AND " + _condition +
                                     new SqlParameter("@CompanyLocation", companyLocation),
                                     new SqlParameter("@sectionlist", section),
                                     new SqlParameter("@CompanyID", selectedCompanyID),
-                                    new SqlParameter("@LocationID", selectedLocationID)
+                                    new SqlParameter("@LocationID", selectedLocationID),
+                                    new SqlParameter("@LastSync", ParseLastSync(lastSync))
                                 });
                 foreach (DataRow row in dt.Rows)
                 {
@@ -1015,9 +1021,9 @@ WHERE W.KeyHD=@KeyHD
       )
   AND
       (
-          (ISNULL(@ActionSPV,'')<>'' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20012') AND ISNULL(W.IsSampling,0)=1)
+          (ISNULL(@ActionSPV,'')<>'' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012') AND ISNULL(W.IsSampling,0)=1)
           OR
-          (ISNULL(@ActionSPV,'')='' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20011'))
+          (ISNULL(@ActionSPV,'')='' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20011'))
       )",
                             new SqlParameter[]
                             {

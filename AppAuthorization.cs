@@ -49,7 +49,7 @@ namespace INSPECFO
             if (String.IsNullOrWhiteSpace(employeeID) || String.IsNullOrWhiteSpace(menuID)) return false;
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"SELECT TOP 1 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') M WHERE M.MenuID=@MenuID",
+                DataTable dt = br.EQuery(@"SELECT TOP 1 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID=@MenuID",
                     "@EmployeeID=" + employeeID + GF.Str2 + "@MenuID=" + menuID);
                 return dt.Rows.Count > 0;
             }

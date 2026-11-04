@@ -20,12 +20,18 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
         {
+            if (!String.Equals(templateType, "W", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Invalid checklist template type.");
             employeeId = String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase)
                 ? INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20021", "20022")
                 : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
+                if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                    throw new HttpException(400, "Company/location is required for checklist download.");
+                INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
                 // Inspection master downloads must be scoped by the server-side UTL_User record,
                 // not by a section list supplied by browser localStorage.
                 if (String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
@@ -34,7 +40,7 @@ namespace INSPECFO.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                        @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                           FROM dbo.UTL_User U
                           WHERE U.EmployeeID=@EmployeeID
                             AND (
@@ -67,6 +73,19 @@ namespace INSPECFO.Secure
                     if (requestedSections.Count == 0 ||
                         requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
                         throw new HttpException(403, "Requested inspection section is not assigned to this employee.");
+                    section = String.Join(";", requestedSections);
+                }
+                else
+                {
+                    var allowedSections = INSPECFO.AppAuthorization.GetEmployeeSection(employeeId)
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                    var requestedSections = (section ?? "")
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    if (requestedSections.Count == 0 ||
+                        requestedSections.Any(s => !allowedSections.Contains(s, StringComparer.OrdinalIgnoreCase)))
+                        throw new HttpException(403, "Requested Work Order section is not assigned to this employee.");
                     section = String.Join(";", requestedSections);
                 }
                 DataTable dt = br.EQuery(
@@ -277,7 +296,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                       FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
                     new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 

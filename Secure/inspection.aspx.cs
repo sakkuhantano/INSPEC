@@ -56,6 +56,7 @@ namespace INSPECFO.Secure
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
+                    INSPECFO.AppAuthorization.RequireCompanyLocation(userId, TokenString(record, "CompanyID"), TokenString(record, "LocationID"));
                     string recordOwner = TokenString(record, "OwnerEmployeeID");
                     if (String.IsNullOrWhiteSpace(recordOwner) ||
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
@@ -428,13 +429,14 @@ SELECT ID FROM @AutoNumResult;",
             string scheduledTime, int templateId, string inspectionDate)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (
@@ -515,13 +517,14 @@ ORDER BY InspectionID DESC",
         public static object GetTodayInspectionSlots(string employeeId, string companyId, string locationId)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -593,7 +596,7 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
         {
             string sectionId = TokenString(record, "SectionID");
             DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -640,6 +643,7 @@ WHERE T.IDTemplate=@IDTemplate
             string clientInspectionId, string reasonCancel, string originalTransactionJson)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
                 String.IsNullOrWhiteSpace(originalTransactionJson))
                 throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
@@ -709,6 +713,7 @@ COMMIT TRANSACTION;",
             string clientInspectionId, string reasonCancel, string originalTransactionJson)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
                 String.IsNullOrWhiteSpace(originalTransactionJson))
                 throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
@@ -790,6 +795,7 @@ WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
         public static object GetInspectionEntryList(string employeeId, string companyId, string locationId, string fromDate, string thruDate)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
@@ -801,7 +807,7 @@ WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
+SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
        ISNULL(E.Name, U.EmployeeID) TechnicianName
 FROM dbo.UTL_User U
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=U.EmployeeID
@@ -892,6 +898,7 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string inspectionTypeDetailCode, string templateId)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
@@ -945,7 +952,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=U.EmployeeID))
+      WHERE U.EmployeeID=@EmployeeID AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=U.EmployeeID))
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1021,6 +1028,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
         public static object GetInspectionDashboardSummary(string employeeId, string companyId, string locationId)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
             using (var br = new WAL.BR.CF())
@@ -1046,7 +1054,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20022')
+      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1077,6 +1085,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         public static object GetReturnedInspectionPhotos(string clientInspectionId, string employeeId, string companyId, string locationId)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(clientInspectionId) || String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(400, "Inspection and technician identity are required.");
             using (var br = new WAL.BR.CF())
@@ -1090,7 +1099,7 @@ WHERE I.ClientInspectionID=@ClientInspectionID
   AND I.Status='DRAFT' AND I.IsApprove=0
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1163,7 +1172,7 @@ WHERE I.InspectionID=@InspectionID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20022')
+      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1362,6 +1371,7 @@ ORDER BY P.SeqNo",
         public static object GetReturnedInspections(string employeeId, string companyId, string locationId)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Technician identity is required.");
             using (var br = new WAL.BR.CF())
@@ -1377,7 +1387,7 @@ FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
               AND (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1558,6 +1568,7 @@ ORDER BY G.DisplayOrder",
             string companyId, string locationId, string remark)
         {
             employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
             if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&

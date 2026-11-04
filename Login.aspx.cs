@@ -230,7 +230,7 @@ namespace INSPECFO
                              [COUNTER], Line, ImageUrl, [DESCRIPTION], isActive, HeaderDetail
                       FROM dbo.F_SelectALLMenuAuthorization(@AppID, @EmployeeID, '')
                       ORDER BY [COUNTER], MenuID",
-                    "@AppID=INSPECFO" + GF.Str2 +
+                    "@AppID=inspecfo" + GF.Str2 +
                     "@EmployeeID=" + V_EmpID);
 
                 var menus = new List<Dictionary<string, object>>();
