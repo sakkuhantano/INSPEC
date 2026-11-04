@@ -27,6 +27,7 @@ namespace INSPECFO.Secure
         public static Dictionary<string, object> uploadMeter(object meterList, string companyId, string locationId, string userId)
         {
             userId = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20041", "20042", "20043");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(userId, companyId, locationId);
             var result = new Dictionary<string, object>();
             var failed = new List<Dictionary<object, object>>();
             var items = new List<object>();
@@ -87,6 +88,7 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static object getMeter(string companyId, string locationId, string lastSync, string lastPeriod, bool isELC, bool isWTR, bool isGAS)
         {            string employeeID = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20041", "20042", "20043");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, companyId, locationId);
             isELC = INSPECFO.AppAuthorization.HasMenu(employeeID, "20041");
             isWTR = INSPECFO.AppAuthorization.HasMenu(employeeID, "20042");
             isGAS = INSPECFO.AppAuthorization.HasMenu(employeeID, "20043");
