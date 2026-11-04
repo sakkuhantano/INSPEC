@@ -142,6 +142,11 @@ namespace INSPECFO.Secure
                     string companyId = Limit(TokenString(record, "CompanyID"), 10);
                     string locationId = Limit(TokenString(record, "LocationID"), 3);
                     string sectionId = Limit(TokenString(record, "SectionID"), 10);
+                    var employeeSections = INSPECFO.AppAuthorization.GetEmployeeSection(userId)
+                        .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(x => x.Trim());
+                    if (!employeeSections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
+                        throw new HttpException(403, "Inspection section is not assigned to the logged-in employee.");
                     string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 2);
                     string inspectionTypeDetailCode = Limit(TokenString(record, "InspectionTypeDetailCode"), 20);
                     DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
@@ -162,6 +167,18 @@ FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
   AND T.SectionID=@SectionID
   AND T.TemplateType='I'
+  AND T.IsActive=1
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
+  AND EXISTS (
+       SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+       WHERE V.IDTemplate=T.IDTemplate
+         AND V.IDVersion=@IDVersion
+         AND V.Version=@TemplateVersion
+         AND V.Status IN ('Active','Archieved')
+  )
   AND T.InspectionTypeCode=@InspectionTypeCode
   AND (
        ISNULL(T.InspectionTypeDetailCode,'')=''
@@ -173,7 +190,12 @@ WHERE T.IDTemplate=@IDTemplate
   )",
                             new SqlParameter[] {
                                 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+                                new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")),
+                                new SqlParameter("@TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
                                 new SqlParameter("@SectionID", sectionId),
+                                new SqlParameter("@CompanyID", companyId),
+                                new SqlParameter("@LocationID", locationId),
+                                new SqlParameter("@EmployeeID", userId),
                                 new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                 new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
                             });
@@ -1580,6 +1602,30 @@ ORDER BY G.DisplayOrder",
 
             using (var br = new WAL.BR.CF())
             {
+                DataTable authorized = br.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+WHERE I.InspectionID=@InspectionID
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(T.TemplateType,'W')='I' AND T.IsActive=1
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
+",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionID", inspectionId),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (authorized == null || authorized.Rows.Count == 0)
+                    throw new HttpException(403, "Inspection is outside the supervisor's authorized section, template, or company/location scope.");
+
                 DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Approval", new SqlParameter[] {
                     new SqlParameter("@p_InspectionID", inspectionId),
                     new SqlParameter("@p_Action", action.ToUpperInvariant()),
