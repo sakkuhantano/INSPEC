@@ -459,8 +459,9 @@ SELECT ID FROM @AutoNumResult;",
             {
                 DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
-FROM dbo.UTL_User U
-WHERE U.EmployeeID=@EmployeeID
+FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
@@ -547,8 +548,9 @@ ORDER BY InspectionID DESC",
             {
                 DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
-FROM dbo.UTL_User U
-WHERE U.EmployeeID=@EmployeeID
+FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
@@ -619,8 +621,9 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
             string sectionId = TokenString(record, "SectionID");
             DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
-FROM dbo.UTL_User U
-WHERE U.EmployeeID=@EmployeeID
+FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
@@ -973,8 +976,9 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND ISNULL(I.ReasonVoid,'')<>'')
   )
   AND EXISTS (
-      SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=U.EmployeeID))
+      SELECT 1 FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=U.EmployeeID))
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1075,8 +1079,9 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
              OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   )
   AND EXISTS (
-      SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
+      SELECT 1 FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1120,8 +1125,9 @@ WHERE I.ClientInspectionID=@ClientInspectionID
   AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.Status='DRAFT' AND I.IsApprove=0
   AND EXISTS (
-      SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+      SELECT 1 FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1193,8 +1199,9 @@ WHERE I.InspectionID=@InspectionID
        OR (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ReasonVoid,'')<>'')
   )
   AND EXISTS (
-      SELECT 1 FROM dbo.UTL_User U
-      WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
+      SELECT 1 FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1409,7 +1416,9 @@ FROM dbo.PIP_T_Inspection I
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-  AND EXISTS (SELECT 1 FROM dbo.UTL_User U WHERE U.EmployeeID=@EmployeeID AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
               AND (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -1605,7 +1614,8 @@ ORDER BY G.DisplayOrder",
                 DataTable authorized = br.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_Inspection I
-JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+JOIN dbo.UTL_User U ON U.UserID=SU.UserID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
 WHERE I.InspectionID=@InspectionID
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
