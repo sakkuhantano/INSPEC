@@ -432,7 +432,7 @@ FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.UserID AND C.AppID='pip'
+              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
@@ -518,7 +518,7 @@ SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_Selec
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.UserID AND C.AppID='pip'
+               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                   WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
@@ -590,7 +590,7 @@ SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_Selec
 FROM dbo.UTL_User U
 WHERE U.EmployeeID=@EmployeeID
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.UserID AND C.AppID='pip'
+               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                   WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
@@ -801,7 +801,7 @@ LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=U.EmployeeID
 WHERE U.EmployeeID=@EmployeeID
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.UserID AND C.AppID='pip'
+              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
@@ -942,7 +942,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
@@ -1043,7 +1043,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
@@ -1087,7 +1087,7 @@ WHERE I.ClientInspectionID=@ClientInspectionID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                    WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                       AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
             OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                        WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
@@ -1160,7 +1160,7 @@ WHERE I.InspectionID=@InspectionID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
@@ -1374,7 +1374,7 @@ WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
               AND (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                          WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                             AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
                   OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                              WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
