@@ -20,7 +20,13 @@ namespace INSPECFO.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
+            if (mode == "entry")
+                INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
+            else if (mode == "approval")
+                INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
+            else
+                throw new HttpException(400, "Invalid Work Order mode.");
         }
         [WebMethod]
         public static object approvevoidWorkOrder(int keyhd, string reason, string userid, string remark)
