@@ -277,7 +277,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                       FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
                     new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
