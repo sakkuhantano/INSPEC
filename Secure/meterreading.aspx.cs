@@ -39,6 +39,8 @@ namespace INSPECFO.Secure
             {
                 JArray arrMeters = JArray.FromObject(meterList);
                 DataTable dtMeter = GFC.JsonToDataTable(arrMeters);
+                if (!dtMeter.Columns.Contains("Type"))
+                    throw new HttpException(400, "Meter type is required for authorization.");
                 if (dtMeter.Columns.Contains("Type"))
                 {
                     foreach (DataRow meter in dtMeter.Rows)
