@@ -1,7 +1,13 @@
 -- INSPEC / SysWeb2 authorization function
 -- Source: SQL definition supplied by the project owner on 2026-11-04.
--- This function depends on dbo.SysWebUserUserGroup and dbo.SplitStringConvertToTable.
--- The supplied schema for SysWebUserUserGroup was not included in the DDL package.
+-- Dependencies:
+--   dbo.SysWebUserUserGroup (schema: SysWebUserUserGroup_Schema.sql)
+--   dbo.SplitStringConvertToTable (existing helper function).
+-- Verified helper behavior from the supplied example:
+--   dbo.SplitStringConvertToTable('ACON;MECH', ';')
+--   returns (id=1, val='ACON') and (id=2, val='MECH').
+-- Full helper definition is not required to document its behavior, but the
+-- function itself must exist in the target SQL Server database.
 
 CREATE FUNCTION [dbo].[F_SelectALLMenuAuthorization]
 (
