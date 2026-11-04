@@ -157,7 +157,7 @@ document.addEventListener(
         /* skip login page */
         if (page.indexOf("login.aspx") >= 0)
             return;
-        await checkLogin();
+        if (!await checkLogin()) return;
         loadSidebarMenu();
         initSidebarState();
         // INIT DB

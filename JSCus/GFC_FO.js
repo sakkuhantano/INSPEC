@@ -96,44 +96,25 @@ function showLogin() {
 }
 async function validateSession(browserGuid, serverGuid, token) {
     try {
-		const path = (window.location.pathname.toLowerCase().includes("login.aspx") ? "" : "../")
-        const response =
-            await fetch(path + "Login.aspx/ValidateSession", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    browserGuid: browserGuid,
-                    serverGuid: serverGuid,
-                    token: token
-                })
-            });
+        const path = (window.location.pathname.toLowerCase().includes("login.aspx") ? "" : "../");
+        const response = await fetch(path + "Login.aspx/ValidateSession", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                browserGuid: browserGuid,
+                serverGuid: serverGuid,
+                token: token
+            })
+        });
         if (!response.ok) {
             console.error("HTTP Error:", response.status);
-            return false;
+            return null;
         }
-
         const res = await response.json();
-		return res.d
-		
-        // if (res.d === true) {
-            // // kalau di login page → redirect ke dashboard
-            // if (window.location.pathname.toLowerCase().includes("login.aspx")) 
-            // {
-                // window.location.href = "dashboard.aspx";
-            // }
-        // }
-        // else {
-            // //localStorage.removeItem("loginData");
-            // showLogin();
-        // }
-    }
-    catch (err) {
+        return res.d === true;
+    } catch (err) {
         console.error("validateSession error:", err);
-        //localStorage.removeItem("loginData");
-        //showLogin();
-		return false;
+        return null;
     }
 }
 
@@ -141,23 +122,22 @@ async function checkLogin() {
     var data = getLoginData();
     if (!data) {
         showLogin();
-        return;
+        return false;
     }
-	var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
-	if (!success) {
-        data.lastsyncm="";
-        data.lastsyncw="";
+    // Cached IndexedDB workflows remain usable offline. Protected server WebMethods
+    // still require a valid HttpOnly session cookie when the device reconnects.
+    if (!navigator.onLine) return true;
+
+    var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
+    if (success === false) {
+        data.lastsyncm = "";
+        data.lastsyncw = "";
         setLoginData(data);
-		showLogin();
-	}
-	
-    // try {
-        // await validateSession(data.browserGuid, data.serverGuid, data.token);
-    // }
-    // catch (ex) {
-        // //localStorage.removeItem("loginData");
-        // showLogin();
-    // }
+        showLogin();
+        return false;
+    }
+    // null means the server could not be reached; retain cached offline access.
+    return true;
 }
 function setLoginData(data) {
     var encoded = btoa(JSON.stringify(data));
