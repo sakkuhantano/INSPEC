@@ -124,11 +124,11 @@ WHERE W.KeyHD=@KeyHD
         public static object getWorkOrders(string companyLocation, 
                                            string section, 
                                            string lastSync, 
-                                           bool isSPV = false,
+                                           bool isApprovalMode = false,
                                            string status = "",  // PENDING,APPROVED,VOID
-                                           int keyhd = 0, Dictionary<string, object> dataRole = null)
+                                           int keyhd = 0)
         {
-            string employeeID = isSPV
+            string employeeID = isApprovalMode
                 ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
                 : INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
             string[] scope = (companyLocation ?? "").Split(';');
@@ -152,7 +152,7 @@ WHERE W.KeyHD=@KeyHD
                 bool isTechnician = INSPECFO.AppAuthorization.HasMenu(employeeID, "20011");
                 string _modelCode = "";
 
-                if (isSPV)
+                if (isApprovalMode)
                 {
                     if (status == "PENDING")
                         _condition += "isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND CompletedDate='' AND ReasonRespondDC=''";
@@ -488,7 +488,7 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                                 <label class=""btn btn-outline-primary"" 
                                         for=""opt_{0}_{1}"">
                                     {2}
-                                </label>", item1["IDItem"].ToString(), ii.ToString(), item2, (isSPV ? "disabled " : "") + (item2 == item1["Value"].ToString() && isSPV ? "checked" : ""));
+                                </label>", item1["IDItem"].ToString(), ii.ToString(), item2, (isApprovalMode ? "disabled " : "") + (item2 == item1["Value"].ToString() && isApprovalMode ? "checked" : ""));
                                     }
                                     sCheckList += string.Format(@"
                             </div>
@@ -497,7 +497,7 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                             <input class=""form-control form-control-sm"" data-role=""remark"" placeholder=""Remark..."" type=""text"" {0} />
                         </div>
                     </div>
-                </div>", (isSPV ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
+                </div>", (isApprovalMode ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
                                     break;
                                 case "RANGE":
                                     sCheckList += string.Format(@"
@@ -522,8 +522,8 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                          item1["MinValue"].ToString(), item1["MaxValue"].ToString(),
                          (item1.Field<bool?>("IsValueRequired") ?? false ? "required" : ""),
                          (!string.IsNullOrEmpty(item1.Field<string>("Unit")) ? string.Format("<span class=\"input-group-text\">{0}</span>", item1.Field<string>("Unit")) : ""),
-                         (isSPV ? "value=\"" + item1["Value"] + "\" disabled" : ""),
-                         (isSPV ? "value=\"" + item1["Remark"] + "\" disabled" : ""));
+                         (isApprovalMode ? "value=\"" + item1["Value"] + "\" disabled" : ""),
+                         (isApprovalMode ? "value=\"" + item1["Remark"] + "\" disabled" : ""));
                                     break;
                                 case "TEXT":
                                     sCheckList += string.Format(@"
@@ -538,8 +538,8 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                         </div>
                     </div>
                 </div>", item1["IDItem"].ToString(), item1["ItemLabel"].ToString(),
-                         (isSPV ? "value=\"" + item1["Value"].ToString() + "\" disabled" : ""),
-                         (isSPV ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
+                         (isApprovalMode ? "value=\"" + item1["Value"].ToString() + "\" disabled" : ""),
+                         (isApprovalMode ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
                                     break;
                                 case "INPUT":
                                     sCheckList += string.Format(@"
@@ -557,8 +557,8 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                     </div>
                 </div>", item1["IDItem"].ToString(), item1["ItemLabel"].ToString(),
                          (!string.IsNullOrEmpty(item1.Field<string>("Unit")) ? string.Format("<span class=\"input-group-text\">{0}</span>", item1.Field<string>("Unit")) : ""),
-                         (isSPV ? "value=\"" + item1["Value"].ToString() + "\" disabled" : ""),
-                         (isSPV ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
+                         (isApprovalMode ? "value=\"" + item1["Value"].ToString() + "\" disabled" : ""),
+                         (isApprovalMode ? "value=\"" + item1["Remark"].ToString() + "\" disabled" : ""));
                                     break;
                                 case "GROUP":
                                     sCheckList += string.Format(@"
@@ -575,7 +575,7 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                                         foreach (string field in item2["FieldList"].ToString().Split(new char[] {';'}))
                                         {
                                             string _value = "";
-                                            if (isSPV)
+                                            if (isApprovalMode)
                                             {
                                                 DataTable dt2 = br.EQuery("SELECT * FROM PIP_T_WO_CheckList_SubValue WHERE IDResult=@IDResult AND FieldName=@FieldName",
                                                                          "@IDResult=" + item1["IDResult"].ToString() + GF.Str2 +
@@ -623,7 +623,7 @@ WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
                     sCheckList += "</div>";
                     string sPhotoBefore = "", sPhotoAfter = "";
                     string sPhotoInputBefore = "", sPhotoInputAfter = "";
-                    if (isSPV) 
+                    if (isApprovalMode) 
                     {
                         DataTable dt2 = br.EQuery("SELECT * FROM PIP_T_DocumentAttachment WHERE type IN ('WO1','WO2') AND CompanyID=@CompanyID AND LocationID=@LocationID AND DocNo=@DocNo",
                                                 "@CompanyID=" + row["CompanyID"].ToString() + GF.Str2 +
@@ -735,7 +735,7 @@ string.Format(@"
 </div>
 </div>", row["ReasonVoid"]) : ""));
 
-                    if (isSPV && !Convert.ToBoolean(row["isCompleteDC"]) && row["ReasonVoid"].ToString() == "")
+                    if (isApprovalMode && !Convert.ToBoolean(row["isCompleteDC"]) && row["ReasonVoid"].ToString() == "")
                     {
                         sCheckList += @"
 <div class=""d-flex gap-2"">
@@ -749,7 +749,7 @@ string.Format(@"
     </button>
 </div>";
                     }
-                    else if (!isSPV)
+                    else if (!isApprovalMode)
                     {
                         sCheckList += @"
 <div class=""d-flex gap-2"">
@@ -763,7 +763,7 @@ string.Format(@"
     </button>
 </div>";
                     }
-                    else if (isSPV && (Convert.ToBoolean(row["isCompleteDC"]) || row["ReasonVoid"].ToString() != ""))
+                    else if (isApprovalMode && (Convert.ToBoolean(row["isCompleteDC"]) || row["ReasonVoid"].ToString() != ""))
                     {
                         sCheckList += @"
 <div class=""d-flex gap-2"">
