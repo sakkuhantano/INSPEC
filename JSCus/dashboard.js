@@ -31,33 +31,33 @@ if (document.readyState !== "loading" && typeof db !== "undefined" && db && db.o
 // );
 function renderCards() {
 	let _cardsHTML = "";
-	const login = getLoginData().role;
+	const login = getAuthorizedAppFeatures();
 	// WATER
-	if (!login.IsWTR) {
+	if (!login.WTR) {
 		document.getElementById("cardWater").remove();
 	}
 	// ELECTRIC
-	if (!login.IsELC) {
+	if (!login.ELC) {
 		document.getElementById("cardElectric").remove();
 	}
 	// GAS
-	if (!login.IsGAS) {
+	if (!login.GAS) {
 		document.getElementById("cardGas").remove();
 	}
 	// SECTION METER
 	if (
-		!login.IsWTR &&
-		!login.IsELC &&
-		!login.IsGAS
+		!login.WTR &&
+		!login.ELC &&
+		!login.GAS
 	) {
 		document.getElementById("sectionMeter").remove();
 	}
 	// SECTION WORK ORDER
-	if (!login.IsWO && !login.IsSPV) {
+	if (!login.canMyWorkOrder && !login.canApproveWorkOrder) {
 		document.getElementById("sectionWO").remove();
 	}
 	else {
-		if (login.IsWO) {
+		if (login.canMyWorkOrder) {
 		_cardsHTML += 
 		`
 			<div class="col-12 col-md-6">
@@ -94,7 +94,7 @@ function renderCards() {
 			</div>
 		`;
 		}
-		if (login.IsSPV) {
+		if (login.canApproveWorkOrder) {
 		_cardsHTML +=     
 		`
 			<div class="col-12 col-md-4">
@@ -155,23 +155,23 @@ function renderCards() {
 
 async function renderInspectionDashboardCards() {
     const loginData = getLoginData();
-    const role = loginData && loginData.role ? loginData.role : {};
+    const role = getAuthorizedAppFeatures();
     const section = document.getElementById("sectionInspectionDashboard");
     const host = document.getElementById("inspectionDashboardCards");
     if (!section || !host) return;
 
     const cards = [];
-    if (role.IsWO) {
+    if (role.canInputInspection) {
         cards.push(
-            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx" class="dashboard-card text-reset text-decoration-none h-100">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?type=entry" class="dashboard-card text-reset text-decoration-none h-100">' +
             '<div class="dashboard-icon"><i class="bi bi-arrow-repeat"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Pending Sync</div>' +
             '<div class="dashboard-value" id="inspectionPendingSync">0</div></div></a></div>'
         );
     }
-    if (role.IsSPV) {
+    if (role.canApproveInspection) {
         cards.push(
-            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?mode=approval" class="dashboard-card card-pending text-reset text-decoration-none h-100">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?type=approval" class="dashboard-card card-pending text-reset text-decoration-none h-100">' +
             '<div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Pending Approval</div>' +
             '<div class="dashboard-value" id="inspectionPendingApproval">0</div></div></a></div>' +
@@ -192,7 +192,7 @@ async function renderInspectionDashboardCards() {
     section.classList.remove("d-none");
     host.innerHTML = cards.join("");
 
-    if (role.IsWO && typeof db !== "undefined" && db &&
+    if (role.canInputInspection && typeof db !== "undefined" && db &&
         db.objectStoreNames.contains("inspection_records")) {
         try {
             const scope = (loginData.curcompany || "").split(";");
@@ -216,7 +216,7 @@ async function renderInspectionDashboardCards() {
         }
     }
 
-    if (role.IsSPV && navigator.onLine) {
+    if (role.canApproveInspection && navigator.onLine) {
         try {
             const scope = (loginData.curcompany || "").split(";");
             const response = await fetch("inspection.aspx/GetInspectionDashboardSummary", {
