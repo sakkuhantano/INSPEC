@@ -221,6 +221,35 @@ namespace INSPECFO
                 string v_profitcenter = Convert.ToString(dt.Rows[0]["ProfitCenterNo"]);
                 string v_theme = String.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Theme"])) ? "L" : Convert.ToString(dt.Rows[0]["Theme"]);
                 string V_EmpID = Convert.ToString(dt.Rows[0]["EmployeeID"]).Trim();
+
+                // Load the authorized INSPEC front-end menu from SysWeb2.
+                // EmployeeID is the NIK used by SysWebUserUserGroup and the authorization function.
+                DataTable dtMenus = oUser.EQuery(
+                    @"SELECT MenuID, ParentMenuID, Caption, URL, AppID, IsReport,
+                             [COUNTER], Line, ImageUrl, [DESCRIPTION], isActive, HeaderDetail
+                      FROM dbo.F_SelectALLMenuAuthorization(@AppID, @EmployeeID, '')
+                      ORDER BY [COUNTER], MenuID",
+                    "@AppID=INSPECFO" + GF.Str2 +
+                    "@EmployeeID=" + V_EmpID);
+
+                var menus = new List<Dictionary<string, object>>();
+                foreach (DataRow menuRow in dtMenus.Rows)
+                {
+                    var menu = new Dictionary<string, object>();
+                    menu["MenuID"] = menuRow["MenuID"];
+                    menu["ParentMenuID"] = menuRow["ParentMenuID"];
+                    menu["Caption"] = menuRow["Caption"];
+                    menu["URL"] = menuRow["URL"];
+                    menu["AppID"] = menuRow["AppID"];
+                    menu["IsReport"] = menuRow["IsReport"];
+                    menu["COUNTER"] = menuRow["COUNTER"];
+                    menu["Line"] = menuRow["Line"];
+                    menu["ImageUrl"] = menuRow["ImageUrl"];
+                    menu["DESCRIPTION"] = menuRow["DESCRIPTION"];
+                    menu["isActive"] = menuRow["isActive"];
+                    menu["HeaderDetail"] = menuRow["HeaderDetail"];
+                    menus.Add(menu);
+                }
                 Dictionary<string, object> role = new Dictionary<string, object>();
                 role["IsELC"] = Convert.ToBoolean(dt.Rows[0]["IsELC"]);
                 role["IsWTR"] = Convert.ToBoolean(dt.Rows[0]["IsWTR"]);
@@ -256,7 +285,7 @@ COMMIT TRANSACTION;",
                     "@UserID=" + p_userid + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
                     "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
-                        companylist = _arrList, userid = p_userid, username = v_username, curcompany = v_currcompany,
+                        companylist = _arrList, menus = menus, userid = p_userid, username = v_username, curcompany = v_currcompany,
                         curcompanyname = v_currcompanyname, employeeid = V_EmpID, role = role, jobtitle = v_jobtitle,
                         email = v_email, profitcenter = v_profitcenter, theme = v_theme, section = v_section,
                         lastsyncm = Convert.ToDateTime(dt.Rows[0]["LastSyncMaster"]).ToString(GF.FormatDate2),
