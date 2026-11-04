@@ -206,7 +206,8 @@ document.addEventListener(
                     window.location.href = "workorder.aspx?type=approval";
                 });
             }
-        });
+        }
+    });
 
         document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
             hideConfirmation();
