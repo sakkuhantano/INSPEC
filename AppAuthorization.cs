@@ -72,7 +72,16 @@ namespace INSPECFO
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery("SELECT TOP 1 ISNULL(Section,'') Section FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + employeeID);
+                // Section scope is keyed by the authenticated SysWebUser.UserID.
+                // A missing UTL_User row intentionally means an empty section scope.
+                DataTable dt = br.EQueryP(
+                    @"SELECT TOP 1 ISNULL(U.Section,'') Section
+                      FROM dbo.SysWebUser S
+                      INNER JOIN dbo.UTL_User U ON U.UserID=S.UserID
+                      WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1",
+                    new System.Data.SqlClient.SqlParameter[] {
+                        new System.Data.SqlClient.SqlParameter("@EmployeeID", employeeID)
+                    });
                 return dt.Rows.Count == 0 ? "" : Convert.ToString(dt.Rows[0]["Section"]);
             }
         }
