@@ -256,17 +256,131 @@ window.addEventListener('resize', function() {
 
 function loadSidebarMenu() {
     try {
-        var role=appFeatures, nav=document.getElementById('sidebarMenu'); if(!nav)return;
-        nav.innerHTML='<a class="nav-link-custom" href="dashboard.aspx"><i class="bi bi-speedometer2 me-3 fs-5"></i><span>Dashboard</span></a>';
-        if(role.canMyWorkOrder||role.canApproveWorkOrder) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuWorkOrder" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuWorkOrder"><i class="bi bi-journal-check me-3 fs-5"></i><span class="flex-grow-1">Work Order</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuWorkOrder">'+(role.canMyWorkOrder?'<a class="nav-link-custom nav-child" href="workorder.aspx?type=entry"><i class="bi bi-clipboard2-check me-2"></i><span>My Work Order</span></a>':'')+(role.canApproveWorkOrder?'<a class="nav-link-custom nav-child" href="workorder.aspx?type=approval"><i class="bi bi-check2-square me-2"></i><span>Approve Work Order</span></a>':'')+'</div></div>';
-        if(role.canInputInspection||role.canApproveInspection) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuInspection" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuInspection"><i class="bi bi-clipboard-check me-3 fs-5"></i><span class="flex-grow-1">Inspection</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuInspection">'+(role.canInputInspection?'<a class="nav-link-custom nav-child" href="inspection.aspx?type=entry"><i class="bi bi-pencil-square me-2"></i><span>Input Inspection</span></a>':'')+(role.canApproveInspection?'<a class="nav-link-custom nav-child" href="inspection.aspx?type=approval"><i class="bi bi-check2-square me-2"></i><span>Approve Inspection</span></a>':'')+'</div></div>';
-        if(role.ELC||role.WTR||role.GAS) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuMeterReading" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuMeterReading"><i class="bi bi-speedometer me-3 fs-5"></i><span class="flex-grow-1">Meter Reading</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuMeterReading">'+(role.ELC?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=ELC"><i class="bi bi-lightning-charge me-2"></i><span>Electricity</span></a>':'')+(role.WTR?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=WTR"><i class="bi bi-droplet me-2"></i><span>Water</span></a>':'')+(role.GAS?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=GAS"><i class="bi bi-fire me-2"></i><span>Gas</span></a>':'')+'</div></div>';
-        if(role.canDailyLogEmployee) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuLogSheet" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuLogSheet"><i class="bi bi-journal-text me-3 fs-5"></i><span class="flex-grow-1">Log Sheet</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuLogSheet"><a class="nav-link-custom nav-child" href="T_DailyLogEmployee.aspx"><i class="bi bi-journal-text me-2"></i><span>Daily Log Employee</span></a></div></div>';
-        nav.innerHTML+='<a class="nav-link-custom" id="menuLogout" href="#"><i class="bi bi-box-arrow-right me-3 fs-5"></i><span>Logout</span></a>';
-        var page=window.location.pathname.toLowerCase().split('/').pop(), type=new URLSearchParams(window.location.search).get('type')||'';
-        nav.querySelectorAll('a.nav-child').forEach(function(link){var u=new URL(link.getAttribute('href'),window.location.href);if(page===u.pathname.toLowerCase().split('/').pop()&&type===(u.searchParams.get('type')||'')){link.classList.add('active');var par=link.closest('.nav-submenu');if(par){par.classList.add('show');var t=nav.querySelector('[href="#'+par.id+'"]');if(t){t.classList.add('active');t.setAttribute('aria-expanded','true');}}}});
-        setActiveMenu(); attachLogoutEvent();
-    }catch(ex){console.error('Failed to load sidebar menu:',ex);}
+        var nav = document.getElementById("sidebarMenu");
+        if (!nav) return;
+        var menus = (getLoginData() || {}).menus || [];
+        nav.textContent = "";
+
+        function makeAnchor(label, href, css, iconCss) {
+            var a = document.createElement("a");
+            a.className = css;
+            a.href = href;
+            var icon = document.createElement("i");
+            icon.className = iconCss;
+            a.appendChild(icon);
+            var span = document.createElement("span");
+            span.textContent = label;
+            a.appendChild(span);
+            return a;
+        }
+        function safeHref(item) {
+            var value = String(item.URL || item.Url || "").trim();
+            if (!value || value === "#" || value.indexOf("//") === 0 ||
+                !/^[A-Za-z0-9_./?&=%#-]+$/.test(value)) return "";
+            return value;
+        }
+        function labelOf(item) {
+            return String(item.Caption || item.DESCRIPTION || item.Description || item.MenuID || "");
+        }
+        function childrenOf(id) {
+            return menus.filter(function (item) {
+                return String(item.ParentMenuID || "").trim() === String(id);
+            });
+        }
+
+        nav.appendChild(makeAnchor("Dashboard", "dashboard.aspx", "nav-link-custom",
+            "bi bi-speedometer2 me-3 fs-5"));
+
+        var roots = menus.filter(function (item) {
+            var parentId = String(item.ParentMenuID || "").trim();
+            return !parentId || parentId === "0";
+        });
+        roots.sort(function (a, b) {
+            return Number(a.COUNTER || 0) - Number(b.COUNTER || 0);
+        });
+        var rendered = {};
+        roots.forEach(function (item, index) {
+            var id = String(item.MenuID || "").trim();
+            if (!id || rendered[id]) return;
+            var kids = childrenOf(id);
+            if (kids.length) {
+                var groupId = "sysMenu_" + id.replace(/[^A-Za-z0-9_-]/g, "_") + "_" + index;
+                var group = document.createElement("div");
+                group.className = "nav-menu-group";
+                var toggle = makeAnchor(labelOf(item), "#" + groupId,
+                    "nav-link-custom nav-parent", "bi bi-folder2 me-3 fs-5");
+                toggle.setAttribute("data-bs-toggle", "collapse");
+                toggle.setAttribute("role", "button");
+                toggle.setAttribute("aria-expanded", "false");
+                toggle.setAttribute("aria-controls", groupId);
+                var chevron = document.createElement("i");
+                chevron.className = "bi bi-chevron-down nav-chevron";
+                toggle.appendChild(chevron);
+                group.appendChild(toggle);
+
+                var sub = document.createElement("div");
+                sub.className = "collapse nav-submenu";
+                sub.id = groupId;
+                kids.sort(function (a, b) {
+                    return Number(a.COUNTER || 0) - Number(b.COUNTER || 0);
+                });
+                kids.forEach(function (kid) {
+                    var href = safeHref(kid);
+                    if (!href) return;
+                    sub.appendChild(makeAnchor(labelOf(kid), href, "nav-link-custom nav-child",
+                        "bi bi-circle me-2"));
+                    rendered[String(kid.MenuID)] = true;
+                });
+                group.appendChild(sub);
+                nav.appendChild(group);
+                rendered[id] = true;
+            } else {
+                var directHref = safeHref(item);
+                if (!directHref) return;
+                nav.appendChild(makeAnchor(labelOf(item), directHref, "nav-link-custom",
+                    "bi bi-circle me-3 fs-5"));
+                rendered[id] = true;
+            }
+        });
+
+        menus.forEach(function (item) {
+            var id = String(item.MenuID || "").trim();
+            var href = safeHref(item);
+            if (!id || rendered[id] || !href) return;
+            nav.appendChild(makeAnchor(labelOf(item), href, "nav-link-custom nav-child",
+                "bi bi-circle me-3"));
+            rendered[id] = true;
+        });
+
+        var logout = makeAnchor("Logout", "#", "nav-link-custom",
+            "bi bi-box-arrow-right me-3 fs-5");
+        logout.id = "menuLogout";
+        nav.appendChild(logout);
+
+        var page = window.location.pathname.toLowerCase().split("/").pop();
+        nav.querySelectorAll("a.nav-child").forEach(function (a) {
+            try {
+                var u = new URL(a.getAttribute("href"), window.location.href);
+                if (page === u.pathname.toLowerCase().split("/").pop() &&
+                    window.location.search.toLowerCase() === u.search.toLowerCase()) {
+                    a.classList.add("active");
+                    var group = a.closest(".nav-submenu");
+                    if (group) {
+                        group.classList.add("show");
+                        var parent = nav.querySelector('[href="#' + group.id + '"]');
+                        if (parent) {
+                            parent.classList.add("active");
+                            parent.setAttribute("aria-expanded", "true");
+                        }
+                    }
+                }
+            } catch (ignore) { }
+        });
+        setActiveMenu();
+        attachLogoutEvent();
+    } catch (ex) {
+        console.error("Failed to load sidebar menu:", ex);
+    }
 }
 function attachLogoutEvent() {
     var btn = document.getElementById("menuLogout");
