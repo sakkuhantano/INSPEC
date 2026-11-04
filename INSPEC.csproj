@@ -145,6 +145,7 @@
     </Compile>
     <Compile Include="GFC.cs" />
     <Compile Include="Login.aspx.cs" />
+    <Compile Include="AppAuthorization.cs" />
     <Compile Include="Login.aspx.designer.cs" />
     <Compile Include="MasterPages\Site1.Master.cs" />
     <Compile Include="MasterPages\Site1.Master.designer.cs" />
