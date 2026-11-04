@@ -21,7 +21,11 @@ namespace INSPECFO.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            string type = Convert.ToString(Request.QueryString["type"]).Trim().ToUpperInvariant();
+            string menuID = type == "ELC" ? "20041" : type == "WTR" ? "20042" : type == "GAS" ? "20043" : "";
+            if (menuID == "")
+                throw new HttpException(400, "Invalid Meter Reading type.");
+            INSPECFO.AppAuthorization.RequireMenuEmployee(menuID);
         }
         [WebMethod]
         public static Dictionary<string, object> uploadMeter(object meterList, string companyId, string locationId, string userId)
