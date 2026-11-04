@@ -197,7 +197,7 @@ namespace INSPEC.Secure
             {
                 using (WAL.BR.SysWebMenu sw = new WAL.BR.SysWebMenu())
                 {
-                    sw.AppID = PB.AppID;
+                    sw.AppID = "INSPECFO";
                     sw.MenuID = _MenuID;
                     if (sw.SelectOneByMenuID().Rows.Count > 0)
                     {
