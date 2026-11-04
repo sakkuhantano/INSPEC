@@ -46,7 +46,7 @@ namespace INSPECFO.Secure
                     DataTable allowed = auth.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
-JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+JOIN dbo.UTL_User U ON U.UserID=(SELECT TOP 1 S.UserID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
 WHERE W.KeyHD=@KeyHD
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
@@ -992,7 +992,7 @@ string.Format(@"
                         DataTable allowed = auth.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
-JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
+JOIN dbo.UTL_User U ON U.UserID=(SELECT TOP 1 S.UserID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
 WHERE W.KeyHD=@KeyHD
   AND W.CompanyID=@CompanyID
   AND W.LocationID=@LocationID
