@@ -126,7 +126,7 @@ WHERE W.KeyHD=@KeyHD
                                            string lastSync, 
                                            bool isApprovalMode = false,
                                            string status = "",  // PENDING,APPROVED,VOID
-                                           int keyhd = 0)
+                                           int keyhd = 0, object unused = null)
         {
             string employeeID = isApprovalMode
                 ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
