@@ -83,6 +83,10 @@ WHERE W.KeyHD=@KeyHD
                                                  string section)
         {
             string employeeID = INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
+            string[] scope = (companyLocation ?? "").Split(';');
+            if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, scope[0], scope[1]);
+            section = INSPECFO.AppAuthorization.GetEmployeeSection(employeeID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery("SELECT Pending=SUM(CASE WHEN isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND ReasonRespondDC='' THEN 1 ELSE 0 END), " +
@@ -115,6 +119,10 @@ WHERE W.KeyHD=@KeyHD
             string employeeID = isSPV
                 ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
                 : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
+            string[] scope = (companyLocation ?? "").Split(';');
+            if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
+            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, scope[0], scope[1]);
+            section = INSPECFO.AppAuthorization.GetEmployeeSection(employeeID);
             string[] badgeColors =
             {
                 "primary",
