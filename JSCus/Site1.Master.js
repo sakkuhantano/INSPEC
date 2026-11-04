@@ -103,13 +103,23 @@ window.addEventListener("inspectionConflict", function () {
 });
 
 
-window.appFeatures = {
-    ELC: getLoginData().role.IsELC,
-    GAS: getLoginData().role.IsGAS,
-    WTR: getLoginData().role.IsWTR,
-    technician: getLoginData().role.IsWO,
-    supervisor: getLoginData().role.IsSPV
-};      
+function getAuthorizedAppFeatures() {
+    var menus = (getLoginData() || {}).menus || [];
+    var f = { ELC:false, GAS:false, WTR:false, technician:false, supervisor:false };
+    menus.forEach(function (m) {
+        var t = (String(m.Caption || "") + " " + String(m.URL || "")).toLowerCase();
+        if (t.indexOf("electric") >= 0 || t.indexOf("elc") >= 0) f.ELC = true;
+        if (t.indexOf("water") >= 0 || t.indexOf("wtr") >= 0) f.WTR = true;
+        if (t.indexOf("gas") >= 0) f.GAS = true;
+        if (t.indexOf("work order") >= 0 || t.indexOf("workorder") >= 0 || t.indexOf("inspection") >= 0) {
+            if (t.indexOf("approval") >= 0 || t.indexOf("approve") >= 0 || t.indexOf("mode=approval") >= 0) f.supervisor = true;
+            else f.technician = true;
+        }
+    });
+    return f;
+}
+window.appFeatures = getAuthorizedAppFeatures();
+
 function toggleSidebar() {
     if (window.innerWidth >= 992) {
         sidebar.classList.toggle('collapsed');
