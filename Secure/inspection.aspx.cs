@@ -16,6 +16,13 @@ namespace INSPECFO.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+            string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
+            if (mode == "entry")
+                INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            else if (mode == "approval")
+                INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+            else
+                throw new HttpException(400, "Invalid Inspection mode.");
         }
 
         [WebMethod]
