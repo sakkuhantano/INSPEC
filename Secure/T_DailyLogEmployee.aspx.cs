@@ -29,9 +29,15 @@ namespace INSPEC.Secure
             // Daily Log uses the Site1 application toolbar instead of the legacy WAL toolbar.
         }
 
+        private string _loginEmployeeID;
         private string LoginEmployeeID
         {
-            get { return AppAuthorization.RequireMenuEmployee(_MenuID); }
+            get
+            {
+                if (String.IsNullOrEmpty(_loginEmployeeID))
+                    _loginEmployeeID = AppAuthorization.RequireMenuEmployee(_MenuID);
+                return _loginEmployeeID;
+            }
         }
 
         private const string IsoFormat = "yyyy-MM-dd";
