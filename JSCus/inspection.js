@@ -53,9 +53,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         inspectionCompanyID = companyLocation[0] || "";
         inspectionLocationID = companyLocation[1] || "";
 
-        const approvalMode = new URLSearchParams(window.location.search).get("mode") === "approval";
+        const approvalMode = new URLSearchParams(window.location.search).get("type") === "approval";
         if (approvalMode) {
-            if (!inspectionLogin.role || !inspectionLogin.role.IsSPV) {
+            if (!hasAuthorizedMenu(20022)) {
                 showInspectionNotice("Akun ini tidak memiliki akses approval Inspection.", "warning");
                 return;
             }
@@ -73,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             return;
         }
 
-        if (!inspectionLogin.role || !inspectionLogin.role.IsWO) {
+        if (!hasAuthorizedMenu(20021)) {
             showInspectionNotice("Akun ini tidak memiliki akses input inspeksi teknisi.", "warning");
             return;
         }
