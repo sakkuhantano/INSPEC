@@ -26,6 +26,7 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static Dictionary<string, object> uploadMeter(object meterList, string companyId, string locationId, string userId)
         {
+            userId = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20041", "20042", "20043");
             var result = new Dictionary<string, object>();
             var failed = new List<Dictionary<object, object>>();
             var items = new List<object>();
@@ -37,6 +38,16 @@ namespace INSPECFO.Secure
             {
                 JArray arrMeters = JArray.FromObject(meterList);
                 DataTable dtMeter = GFC.JsonToDataTable(arrMeters);
+                if (dtMeter.Columns.Contains("Type"))
+                {
+                    foreach (DataRow meter in dtMeter.Rows)
+                    {
+                        string type = Convert.ToString(meter["Type"]).Trim().ToUpperInvariant();
+                        string menuID = type == "ELC" ? "20041" : type == "WTR" ? "20042" : type == "GAS" ? "20043" : "";
+                        if (menuID == "" || !INSPECFO.AppAuthorization.HasMenu(userId, menuID))
+                            throw new HttpException(403, "Meter type is not authorized.");
+                    }
+                }
 
                 using (var br=new BRC.PIP_T_H_Billing())
                 {
@@ -75,7 +86,10 @@ namespace INSPECFO.Secure
         }
         [WebMethod]
         public static object getMeter(string companyId, string locationId, string lastSync, string lastPeriod, bool isELC, bool isWTR, bool isGAS)
-        {
+        {            string employeeID = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20041", "20042", "20043");
+            isELC = INSPECFO.AppAuthorization.HasMenu(employeeID, "20041");
+            isWTR = INSPECFO.AppAuthorization.HasMenu(employeeID, "20042");
+            isGAS = INSPECFO.AppAuthorization.HasMenu(employeeID, "20043");
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP("sp_UTL_UploadConsumption1",
