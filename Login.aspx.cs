@@ -204,7 +204,7 @@ namespace INSPECFO
                              a.UserName AS UserName1,
                              ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
                       FROM SysWebUser U
-                      LEFT JOIN UTL_User L ON L.UserID = U.UserID
+                      LEFT JOIN UTL_User L ON L.EmployeeID = U.employeeid
                       LEFT JOIN UserSession us ON us.IsActive = 1 AND U.UserID = us.UserID
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
                       WHERE U.UserID = @UserID AND U.IsActive = 1",
