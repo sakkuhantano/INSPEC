@@ -460,7 +460,7 @@ SELECT ID FROM @AutoNumResult;",
                 DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
