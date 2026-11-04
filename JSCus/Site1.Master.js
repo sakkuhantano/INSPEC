@@ -1148,13 +1148,13 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading checklist");
             await getCheckList();
-            if (role.canInputInspection) {
-                step++;
-                updateSyncProgress(step, totalSteps, "Downloading inspection templates");
-                await getInspectionData();
-            }
-            window.dispatchEvent(new CustomEvent("syncCompleted"));
         }
+        if (role.canInputInspection) {
+            step++;
+            updateSyncProgress(step, totalSteps, "Downloading inspection templates");
+            await getInspectionData();
+        }
+        window.dispatchEvent(new CustomEvent("syncCompleted"));
 
         // FINISH
         updateSyncProgress(totalSteps,totalSteps,"Sync Completed ✔");
