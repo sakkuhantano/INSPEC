@@ -38,7 +38,7 @@ let sectionFollowUp =
 document.addEventListener("DOMContentLoaded",async function () {
         if(!validatePageAccess())
             return;
-        currentMode = getQueryString("mode");
+        currentMode = getQueryString("type" );
         document.addEventListener("dbReady", async function () {
         if (currentMode == "approval") {
             document.getElementById("btnScan").classList.add("d-none");
@@ -3871,7 +3871,7 @@ document.querySelectorAll(".photo-upload").forEach(container => {
 
 function validatePageAccess() {
     const requestedMode =
-        getQueryString("mode");
+        getQueryString("type" );
     const validModes = ["entry","approval"];
     if(!requestedMode || !validModes.includes(requestedMode)) {
         showToast(
@@ -3888,7 +3888,7 @@ function validatePageAccess() {
     // ENTRY MODE (TECHNICIAN)
     // =====================================
     if(requestedMode === "entry") {
-        if(!appFeatures.technician) {
+        if(!appFeatures.canMyWorkOrder) {
             showToast(
                 "You do not have access to technician mode.",
                 "danger"
@@ -3905,7 +3905,7 @@ function validatePageAccess() {
     // APPROVAL MODE (SPV)
     // =====================================
     if(requestedMode === "approval") {
-        if(!appFeatures.supervisor) {
+        if(!appFeatures.canApproveWorkOrder) {
             showToast(
                 "You do not have access to approval mode.",
                 "danger"
