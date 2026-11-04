@@ -72,12 +72,12 @@ namespace INSPECFO
         {
             using (var br = new WAL.BR.CF())
             {
-                // Section scope is keyed by the authenticated SysWebUser.UserID.
+                // Section scope is keyed by the authenticated SysWebUser.EmployeeID.
                 // A missing UTL_User row intentionally means an empty section scope.
                 DataTable dt = br.EQueryP(
                     @"SELECT TOP 1 ISNULL(U.Section,'') Section
                       FROM dbo.SysWebUser S
-                      INNER JOIN dbo.UTL_User U ON U.UserID=S.UserID
+                      INNER JOIN dbo.UTL_User U ON U.EmployeeID=S.EmployeeID
                       WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1",
                     new System.Data.SqlClient.SqlParameter[] {
                         new System.Data.SqlClient.SqlParameter("@EmployeeID", employeeID)
