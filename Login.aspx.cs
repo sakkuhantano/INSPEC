@@ -197,9 +197,7 @@ namespace INSPECFO
             {
                 DataTable dt = oUser.EQuery(
                     @"SELECT U.UserID, U.UserName, U.employeeid AS EmployeeID, U.Password,
-                             ISNULL(L.IsELC, 0) AS IsELC, ISNULL(L.IsWTR, 0) AS IsWTR,
-                             ISNULL(L.IsGAS, 0) AS IsGAS, ISNULL(L.IsWO, 0) AS IsWO,
-                             ISNULL(L.IsSpv, 0) AS IsSPV, ISNULL(L.Section, '') AS Section,
+                             ISNULL(L.Section, '') AS Section,
                              ISNULL(NULLIF(L.Theme, ''), 'L') AS Theme,
                              a.JobTitleName, a.EmailAddress, a.ProfitCenterNo,
                              ISNULL(us.LastSyncMaster, CAST('' AS SMALLDATETIME)) AS LastSyncMaster,
@@ -253,12 +251,16 @@ namespace INSPECFO
                     menu["HeaderDetail"] = menuRow["HeaderDetail"];
                     menus.Add(menu);
                 }
+                var authorizedMenuIDs = new HashSet<string>(
+                    menus.Select(m => Convert.ToString(m["MenuID"])),
+                    StringComparer.OrdinalIgnoreCase);
                 Dictionary<string, object> role = new Dictionary<string, object>();
-                role["IsELC"] = Convert.ToBoolean(dt.Rows[0]["IsELC"]);
-                role["IsWTR"] = Convert.ToBoolean(dt.Rows[0]["IsWTR"]);
-                role["IsGAS"] = Convert.ToBoolean(dt.Rows[0]["IsGAS"]);
-                role["IsWO"] = Convert.ToBoolean(dt.Rows[0]["IsWO"]);
-                role["IsSPV"] = GF.GetBoolean(dt.Rows[0]["IsSPV"]);
+                // Compatibility fields now reflect SysWeb2 MenuIDs, never UTL_User role flags.
+                role["IsELC"] = authorizedMenuIDs.Contains("20041");
+                role["IsWTR"] = authorizedMenuIDs.Contains("20042");
+                role["IsGAS"] = authorizedMenuIDs.Contains("20043");
+                role["IsWO"] = authorizedMenuIDs.Contains("20011");
+                role["IsSPV"] = authorizedMenuIDs.Contains("20012");
                 foreach (DataRow row in oUser.EQuery(
                     "select companylocation, companyname from (" +
                     "select companylocation, companyname, sourcepriority, ROW_NUMBER() OVER (PARTITION BY companylocation ORDER BY sourcepriority) rn from (" +
