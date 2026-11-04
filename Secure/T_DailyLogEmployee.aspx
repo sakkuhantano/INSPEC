@@ -1,5 +1,5 @@
-﻿<%@ Page Title="" Language="C#" MaintainScrollPositionOnPostback="true" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="T_DailyLogEmployee.aspx.cs" Inherits="INSPEC.Secure.T_DailyLogEmployee" %>
-<%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
+﻿<%@ Page Title="" Language="C#" MaintainScrollPositionOnPostback="true" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="T_DailyLogEmployee.aspx.cs" Inherits="INSPEC.Secure.T_DailyLogEmployee" %>
+<%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link rel="stylesheet" href="../../WebFolder/bootstrap/css/bootstrap-datepicker3.css" />
