@@ -40,7 +40,7 @@ WHERE W.KeyHD=@KeyHD
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.UserID AND C.AppID='pip'
+               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
                   WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
@@ -991,7 +991,7 @@ WHERE W.KeyHD=@KeyHD
       (
           EXISTS (
               SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.UserID AND C.AppID='pip'
+              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
           )
           OR EXISTS (
