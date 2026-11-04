@@ -25,7 +25,7 @@ async function cleanupStaleCache(s,currentIds){
  }
 }
 window.syncInspectionApprovalOffline=async function(){
- const l=getLoginData();if(!l||!l.role||!l.role.IsSPV)return{synced:0,cached:0,conflicts:0};if(!navigator.onLine)throw new Error("Koneksi internet diperlukan untuk sync approval SPV.");
+ const l=getLoginData();if(!l||typeof hasAuthorizedMenu!=="function"||!hasAuthorizedMenu(20022))return{synced:0,cached:0,conflicts:0};if(!navigator.onLine)throw new Error("Koneksi internet diperlukan untuk sync approval SPV.");
  if(!db||![C,A,P].every(n=>db.objectStoreNames.contains(n)))throw new Error("IndexedDB approval belum siap.");
  const parts=String(l.curcompany||"").split(";"),s={e:String(l.employeeid),c:String(parts[0]||""),l:String(parts[1]||"")};let synced=0,conflicts=0;
  for(const a of (await all(A)).filter(x=>x.EmployeeID===s.e&&x.CompanyID===s.c&&x.LocationID===s.l&&x.Status==="PENDING").sort((x,y)=>String(x.CreatedAt||"").localeCompare(String(y.CreatedAt||"")))){
