@@ -167,7 +167,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 WHERE T.IDTemplate=@IDTemplate
   AND T.SectionID=@SectionID
   AND T.TemplateType='I'
-  AND T.IsActive=1
+  
   AND (ISNULL(T.CompanyScope,'S')='A'
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
@@ -1609,7 +1609,7 @@ JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
 WHERE I.InspectionID=@InspectionID
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND ISNULL(T.TemplateType,'W')='I' AND T.IsActive=1
+  AND ISNULL(T.TemplateType,'W')='I' 
   AND (ISNULL(T.CompanyScope,'S')='A'
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
