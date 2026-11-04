@@ -105,8 +105,19 @@ window.addEventListener("inspectionConflict", function () {
 
 function getAuthorizedAppFeatures() {
     var menus = (getLoginData() || {}).menus || [], ids = {};
-    menus.forEach(function (m) { var id = parseInt(m.MenuID, 10); if (!isNaN(id)) ids[id] = true; });
-    return { canMyWorkOrder:!!ids[20011], canApproveWorkOrder:!!ids[20012], canInputInspection:!!ids[20021], canApproveInspection:!!ids[20022], canDailyLogEmployee:!!ids[20031], ELC:!!ids[20041], WTR:!!ids[20042], GAS:!!ids[20043], technician:!!(ids[20011]||ids[20021]), supervisor:!!(ids[20012]||ids[20022]), IsWO:!!ids[20011], IsSPV:!!ids[20012], IsELC:!!ids[20041], IsWTR:!!ids[20042], IsGAS:!!ids[20043] };
+    menus.forEach(function (m) { var id = String(m.MenuID || "").trim(); if (id) ids[id] = true; });
+    return {
+        canMyWorkOrder: !!ids["20011"],
+        canApproveWorkOrder: !!ids["20012"],
+        canInputInspection: !!ids["20021"],
+        canApproveInspection: !!ids["20022"],
+        canDailyLogEmployee: !!ids["20031"],
+        ELC: !!ids["20041"],
+        WTR: !!ids["20042"],
+        GAS: !!ids["20043"],
+        technician: !!(ids["20011"] || ids["20021"]),
+        supervisor: !!(ids["20012"] || ids["20022"])
+    };
 }
 function hasAuthorizedMenu(menuId) { var menus=(getLoginData()||{}).menus||[]; return menus.some(function(m){return String(m.MenuID)===String(menuId);}); }
 window.appFeatures = getAuthorizedAppFeatures();
