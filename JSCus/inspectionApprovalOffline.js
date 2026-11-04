@@ -513,7 +513,7 @@
     }
 
     window.addEventListener("online", async function () {
-        if (!window.location.search.includes("mode=approval")) return;
+        if (!new URLSearchParams(window.location.search).get("type") === "approval") return;
         try {
             try { await syncPendingApprovalActions(); }
             catch (syncError) { console.warn("Approval sync on reconnect failed:", syncError); }
