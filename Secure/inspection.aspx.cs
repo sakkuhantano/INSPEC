@@ -834,9 +834,10 @@ WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
                 DataTable auth = br.EQueryP(@"
 SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
        ISNULL(E.Name, U.EmployeeID) TechnicianName
-FROM dbo.UTL_User U
-LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=U.EmployeeID
-WHERE U.EmployeeID=@EmployeeID
+FROM dbo.SysWebUser SU
+INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=SU.EmployeeID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
