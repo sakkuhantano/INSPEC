@@ -251,16 +251,6 @@ namespace INSPECFO
                     menu["HeaderDetail"] = menuRow["HeaderDetail"];
                     menus.Add(menu);
                 }
-                var authorizedMenuIDs = new HashSet<string>(
-                    menus.Select(m => Convert.ToString(m["MenuID"])),
-                    StringComparer.OrdinalIgnoreCase);
-                Dictionary<string, object> role = new Dictionary<string, object>();
-                // Compatibility fields now reflect SysWeb2 MenuIDs, never UTL_User role flags.
-                role["IsELC"] = authorizedMenuIDs.Contains("20041");
-                role["IsWTR"] = authorizedMenuIDs.Contains("20042");
-                role["IsGAS"] = authorizedMenuIDs.Contains("20043");
-                role["IsWO"] = authorizedMenuIDs.Contains("20011");
-                role["IsSPV"] = authorizedMenuIDs.Contains("20012");
                 foreach (DataRow row in oUser.EQuery(
                     "select companylocation, companyname from (" +
                     "select companylocation, companyname, sourcepriority, ROW_NUMBER() OVER (PARTITION BY companylocation ORDER BY sourcepriority) rn from (" +
@@ -292,7 +282,7 @@ COMMIT TRANSACTION;",
                     AppAuthorization.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
                         companylist = _arrList, menus = menus, userid = p_userid, username = v_username, curcompany = v_currcompany,
-                        curcompanyname = v_currcompanyname, employeeid = V_EmpID, role = role, jobtitle = v_jobtitle,
+                        curcompanyname = v_currcompanyname, employeeid = V_EmpID, jobtitle = v_jobtitle,
                         email = v_email, profitcenter = v_profitcenter, theme = v_theme, section = v_section,
                         lastsyncm = Convert.ToDateTime(dt.Rows[0]["LastSyncMaster"]).ToString(GF.FormatDate2),
                         lastsyncw = Convert.ToDateTime(dt.Rows[0]["LastSyncWO"]).ToString(GF.FormatDate2) };
