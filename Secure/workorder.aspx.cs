@@ -25,6 +25,7 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static object approvevoidWorkOrder(int keyhd, string reason, string userid, string remark)
         {
+            userid = INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
             //using (var br = new WAL.BR.CF())
             try
             {
@@ -35,7 +36,7 @@ SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
 JOIN dbo.UTL_User U ON U.EmployeeID=@EmployeeID
 WHERE W.KeyHD=@KeyHD
-  AND ISNULL(U.IsSPV,0)=1
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20012')
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -81,6 +82,7 @@ WHERE W.KeyHD=@KeyHD
         public static object getApprovalCounters(string companyLocation,
                                                  string section)
         {
+            string employeeID = INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery("SELECT Pending=SUM(CASE WHEN isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND ReasonRespondDC='' THEN 1 ELSE 0 END), " +
@@ -110,6 +112,9 @@ WHERE W.KeyHD=@KeyHD
                                            string status = "",  // PENDING,APPROVED,VOID
                                            int keyhd = 0, Dictionary<string, object> dataRole = null)
         {
+            string employeeID = isSPV
+                ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
+                : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
             string[] badgeColors =
             {
                 "primary",
@@ -123,8 +128,8 @@ WHERE W.KeyHD=@KeyHD
             {
                 var result = new List<Dictionary<object, object>>();
                 string _condition = "";
-                bool isSupervisor = Convert.ToBoolean(dataRole["IsSPV"]);
-                bool isTechnician = Convert.ToBoolean(dataRole["IsWO"]);
+                bool isSupervisor = INSPECFO.AppAuthorization.HasMenu(employeeID, "20012");
+                bool isTechnician = INSPECFO.AppAuthorization.HasMenu(employeeID, "20011");
                 string _modelCode = "";
 
                 if (isSPV)
@@ -900,6 +905,7 @@ string.Format(@"
         [WebMethod]
         public static object SyncWO(object checklists, object checklistgroups, object photos, string userid, object checklistsummarys, string companyLocation)
         {
+            userid = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
             try
             {
                 //System.IO.File.AppendAllText(
@@ -995,9 +1001,9 @@ WHERE W.KeyHD=@KeyHD
       )
   AND
       (
-          (ISNULL(@ActionSPV,'')<>'' AND ISNULL(U.IsSPV,0)=1 AND ISNULL(W.IsSampling,0)=1)
+          (ISNULL(@ActionSPV,'')<>'' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20012') AND ISNULL(W.IsSampling,0)=1)
           OR
-          (ISNULL(@ActionSPV,'')='' AND ISNULL(U.IsWO,0)=1)
+          (ISNULL(@ActionSPV,'')='' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20011'))
       )",
                             new SqlParameter[]
                             {
