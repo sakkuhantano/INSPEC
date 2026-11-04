@@ -44,7 +44,7 @@ namespace INSPECFO.Secure
                     foreach (DataRow meter in dtMeter.Rows)
                     {
                         string type = Convert.ToString(meter["Type"]).Trim().ToUpperInvariant();
-                        string menuID = type == "ELC" ? "20041" : type == "WTR" ? "20042" : type == "GAS" ? "20043" : "";
+                        string menuID = type == "ELC" ? "20041" : (type == "WTR" || type == "AIR") ? "20042" : type == "GAS" ? "20043" : "";
                         if (menuID == "" || !INSPECFO.AppAuthorization.HasMenu(userId, menuID))
                             throw new HttpException(403, "Meter type is not authorized.");
                     }
