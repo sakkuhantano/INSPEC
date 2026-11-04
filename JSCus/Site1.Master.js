@@ -858,7 +858,7 @@ async function refreshDashboardCounts(summary = null) {
     }
 
     const login = getLoginData();
-    const role = login.role;
+    const role = appFeatures;
 
     summary = summary || await getMeterDashboardSummary();
 
@@ -1300,9 +1300,9 @@ async function downloadMeter(type) {
                     locationId: locationId,
                     lastSync: login.lastMeterSync || "",
                     lastPeriod: login.lastMeterPeriod || "",
-                    isELC: login.role.ELC,
-                    isWTR: login.role.WTR,
-                    isGAS: login.role.GAS
+                    isELC: appFeatures.ELC,
+                    isWTR: appFeatures.WTR,
+                    isGAS: appFeatures.GAS
                 })
             });
 
@@ -1325,8 +1325,8 @@ async function downloadMeter(type) {
         // Simpan info sync (cukup sekali)
         // ===============================
         if(type=="GAS" ||
-           (!login.role.GAS && type=="AIR") ||
-           (!login.role.GAS && !login.role.WTR && type=="ELC")){
+           (!appFeatures.GAS && type=="AIR") ||
+           (!appFeatures.GAS && !appFeatures.WTR && type=="ELC")){
 
             login.lastMeterSync=meterSyncCache.ServerTime;
             if (meterSyncCache.FullDownload && meterSyncCache.Insert.length > 0)
@@ -1746,7 +1746,7 @@ async function downloadWorkOrder() {
         // =================================================================
         // PROSES 2: PROSES FOTO (KHUSUS SPV)
         // =================================================================
-        if (data.role.canApproveWorkOrder || data.role.canMyWorkOrder) {
+        if (appFeatures.canApproveWorkOrder || appFeatures.canMyWorkOrder) {
             for (let wo of workorders) {
                 let photoData = wo.DataPhotoJSON; 
                 if (!photoData) continue;
