@@ -235,7 +235,7 @@ document.addEventListener(
         });
 
 
-    });
+    // Stray duplicate closure removed; event listeners above are already registered.
 
 window.addEventListener('resize', function() {
     if (window.innerWidth >= 992) {
