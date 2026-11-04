@@ -20,6 +20,9 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
         {
+            employeeId = String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase)
+                ? INSPECFO.AppAuthorization.RequireMenuEmployee("20021")
+                : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
@@ -31,7 +34,7 @@ namespace INSPECFO.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT ISNULL(U.Section,'') Section, ISNULL(U.IsWO,0) IsWO
+                        @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
                           FROM dbo.UTL_User U
                           WHERE U.EmployeeID=@EmployeeID
                             AND (
@@ -267,13 +270,14 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
         [WebMethod]
         public static object getInspectionMasters(string section, string employeeId, string companyId, string locationId)
         {
+            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
             using (var br = new WAL.BR.CF())
             {
                 if (String.IsNullOrWhiteSpace(employeeId))
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT ISNULL(Section,'') Section, ISNULL(IsWO,0) IsWO
+                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('INSPECFO', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
                       FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
                     new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
@@ -378,6 +382,7 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
         [WebMethod]
         public static object getEmployees(string employeeid, string lastSync)
         {
+            employeeid = INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
             using (var br=new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
