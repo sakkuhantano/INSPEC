@@ -757,11 +757,11 @@ function closeRolloverModal(confirmed) {
 
 
 function validatePageAccess(type) {
-    const role = getLoginData().role;    
     if (
-        (!role.IsELC && type === "ELC") ||
-        (!role.IsWTR && type === "WTR") ||
-        (!role.IsGAS && type === "GAS")
+        (type === "ELC" && !hasAuthorizedMenu(20041)) ||
+        (type === "WTR" && !hasAuthorizedMenu(20042)) ||
+        (type === "GAS" && !hasAuthorizedMenu(20043)) ||
+        !["ELC", "WTR", "GAS"].includes(type)
        ) {
         showToast(
             "Invalid page mode.",
