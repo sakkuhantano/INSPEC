@@ -104,20 +104,11 @@ window.addEventListener("inspectionConflict", function () {
 
 
 function getAuthorizedAppFeatures() {
-    var menus = (getLoginData() || {}).menus || [];
-    var f = { ELC:false, GAS:false, WTR:false, technician:false, supervisor:false };
-    menus.forEach(function (m) {
-        var t = (String(m.Caption || "") + " " + String(m.URL || "")).toLowerCase();
-        if (t.indexOf("electric") >= 0 || t.indexOf("elc") >= 0) f.ELC = true;
-        if (t.indexOf("water") >= 0 || t.indexOf("wtr") >= 0) f.WTR = true;
-        if (t.indexOf("gas") >= 0) f.GAS = true;
-        if (t.indexOf("work order") >= 0 || t.indexOf("workorder") >= 0 || t.indexOf("inspection") >= 0) {
-            if (t.indexOf("approval") >= 0 || t.indexOf("approve") >= 0 || t.indexOf("mode=approval") >= 0) f.supervisor = true;
-            else f.technician = true;
-        }
-    });
-    return f;
+    var menus = (getLoginData() || {}).menus || [], ids = {};
+    menus.forEach(function (m) { var id = parseInt(m.MenuID, 10); if (!isNaN(id)) ids[id] = true; });
+    return { canMyWorkOrder:!!ids[20011], canApproveWorkOrder:!!ids[20012], canInputInspection:!!ids[20021], canApproveInspection:!!ids[20022], canDailyLogEmployee:!!ids[20031], ELC:!!ids[20041], WTR:!!ids[20042], GAS:!!ids[20043], technician:!!(ids[20011]||ids[20021]), supervisor:!!(ids[20012]||ids[20022]), IsWO:!!(ids[20011]||ids[20021]), IsSPV:!!(ids[20012]||ids[20022]), IsELC:!!ids[20041], IsWTR:!!ids[20042], IsGAS:!!ids[20043] };
 }
+function hasAuthorizedMenu(menuId) { var menus=(getLoginData()||{}).menus||[]; return menus.some(function(m){return String(m.MenuID)===String(menuId);}); }
 window.appFeatures = getAuthorizedAppFeatures();
 
 function toggleSidebar() {
@@ -261,7 +252,7 @@ document.addEventListener(
                         "click",
                         function () {
                             window.location.href =
-                                "workorder.aspx?mode=entry";
+                                "workorder.aspx?type=entry";
                         });
             }
 
@@ -271,7 +262,7 @@ document.addEventListener(
                         "click",
                         function () {
                             window.location.href =
-                                "workorder.aspx?mode=approval";
+                                "workorder.aspx?type=approval";
                         });
             }
         }
@@ -297,103 +288,17 @@ window.addEventListener('resize', function() {
 
 function loadSidebarMenu() {
     try {
-        var role = appFeatures;
-        var nav = document.getElementById("sidebarMenu");
-        if (!nav) return;
-
-        nav.innerHTML = `
-            <a class="nav-link-custom" href="dashboard.aspx">
-                <i class="bi bi-speedometer2 me-3 fs-5"></i>
-                <span>Dashboard</span>
-            </a>`;
-
-        // Parent menus are visible when at least one child is available to this role.
-        var canUseWorkOrder = !!(role.technician || role.supervisor);
-        var canUseInspection = !!(role.technician || role.supervisor);
-
-        if (canUseWorkOrder) {
-            nav.innerHTML += `
-                <div class="nav-menu-group">
-                    <a class="nav-link-custom nav-parent" href="#menuWorkOrder" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuWorkOrder">
-                        <i class="bi bi-journal-check me-3 fs-5"></i>
-                        <span class="flex-grow-1">Work Order</span>
-                        <i class="bi bi-chevron-down nav-chevron"></i>
-                    </a>
-                    <div class="collapse nav-submenu" id="menuWorkOrder">
-                        ${role.technician ? `
-                        <a class="nav-link-custom nav-child" href="workorder.aspx?mode=entry">
-                            <i class="bi bi-clipboard2-check me-2"></i><span>My Work Order</span>
-                        </a>` : ""}
-                        ${role.supervisor ? `
-                        <a class="nav-link-custom nav-child" href="workorder.aspx?mode=approval">
-                            <i class="bi bi-check2-square me-2"></i><span>Approve Work Order</span>
-                        </a>` : ""}
-                    </div>
-                </div>`;
-        }
-
-        if (canUseInspection) {
-            nav.innerHTML += `
-                <div class="nav-menu-group">
-                    <a class="nav-link-custom nav-parent" href="#menuInspection" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuInspection">
-                        <i class="bi bi-clipboard-check me-3 fs-5"></i>
-                        <span class="flex-grow-1">Inspection</span>
-                        <i class="bi bi-chevron-down nav-chevron"></i>
-                    </a>
-                    <div class="collapse nav-submenu" id="menuInspection">
-                        ${role.technician ? `
-                        <a class="nav-link-custom nav-child" href="inspection.aspx">
-                            <i class="bi bi-pencil-square me-2"></i><span>Input Inspection</span>
-                        </a>` : ""}
-                        ${role.supervisor ? `
-                        <a class="nav-link-custom nav-child" href="inspection.aspx?mode=approval">
-                            <i class="bi bi-check2-square me-2"></i><span>Approve Inspection</span>
-                        </a>` : ""}
-                    </div>
-                </div>`;
-        }
-
-        if (role.supervisor) {
-            nav.innerHTML += `
-                `;
-        }
-
-        nav.innerHTML += `
-            <a class="nav-link-custom" id="menuLogout" href="#">
-                <i class="bi bi-box-arrow-right me-3 fs-5"></i><span>Logout</span>
-            </a>`;
-
-        // Expand the relevant parent and highlight the active child for the current URL.
-        var currentUrl = window.location.pathname.toLowerCase() + window.location.search.toLowerCase();
-        nav.querySelectorAll("a.nav-child").forEach(function (link) {
-            var href = (link.getAttribute("href") || "").toLowerCase();
-            var path = href.split("?")[0];
-            var query = href.indexOf("?") >= 0 ? href.substring(href.indexOf("?")) : "";
-            var currentPath = window.location.pathname.toLowerCase();
-            var currentQuery = window.location.search.toLowerCase();
-            var currentPage = currentPath.substring(currentPath.lastIndexOf("/") + 1);
-            var linkPage = path.substring(path.lastIndexOf("/") + 1);
-            var isMatch = currentPage === linkPage &&
-                (query ? currentQuery === query : currentQuery === "");
-            if (isMatch) {
-                link.classList.add("active");
-                var parent = link.closest(".nav-submenu");
-                if (parent) {
-                    parent.classList.add("show");
-                    var toggle = nav.querySelector('[href="#' + parent.id + '"]');
-                    if (toggle) {
-                        toggle.classList.add("active");
-                        toggle.setAttribute("aria-expanded", "true");
-                    }
-                }
-            }
-        });
-
-        setActiveMenu();
-        attachLogoutEvent();
-    } catch (ex) {
-        console.error("Failed to load sidebar menu:", ex);
-    }
+        var role=appFeatures, nav=document.getElementById('sidebarMenu'); if(!nav)return;
+        nav.innerHTML='<a class="nav-link-custom" href="dashboard.aspx"><i class="bi bi-speedometer2 me-3 fs-5"></i><span>Dashboard</span></a>';
+        if(role.canMyWorkOrder||role.canApproveWorkOrder) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuWorkOrder" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuWorkOrder"><i class="bi bi-journal-check me-3 fs-5"></i><span class="flex-grow-1">Work Order</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuWorkOrder">'+(role.canMyWorkOrder?'<a class="nav-link-custom nav-child" href="workorder.aspx?type=entry"><i class="bi bi-clipboard2-check me-2"></i><span>My Work Order</span></a>':'')+(role.canApproveWorkOrder?'<a class="nav-link-custom nav-child" href="workorder.aspx?type=approval"><i class="bi bi-check2-square me-2"></i><span>Approve Work Order</span></a>':'')+'</div></div>';
+        if(role.canInputInspection||role.canApproveInspection) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuInspection" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuInspection"><i class="bi bi-clipboard-check me-3 fs-5"></i><span class="flex-grow-1">Inspection</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuInspection">'+(role.canInputInspection?'<a class="nav-link-custom nav-child" href="inspection.aspx?type=entry"><i class="bi bi-pencil-square me-2"></i><span>Input Inspection</span></a>':'')+(role.canApproveInspection?'<a class="nav-link-custom nav-child" href="inspection.aspx?type=approval"><i class="bi bi-check2-square me-2"></i><span>Approve Inspection</span></a>':'')+'</div></div>';
+        if(role.ELC||role.WTR||role.GAS) nav.innerHTML+='<div class="nav-menu-group"><a class="nav-link-custom nav-parent" href="#menuMeterReading" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="menuMeterReading"><i class="bi bi-speedometer me-3 fs-5"></i><span class="flex-grow-1">Meter Reading</span><i class="bi bi-chevron-down nav-chevron"></i></a><div class="collapse nav-submenu" id="menuMeterReading">'+(role.ELC?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=ELC"><i class="bi bi-lightning-charge me-2"></i><span>Electricity</span></a>':'')+(role.WTR?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=WTR"><i class="bi bi-droplet me-2"></i><span>Water</span></a>':'')+(role.GAS?'<a class="nav-link-custom nav-child" href="meterreading.aspx?type=GAS"><i class="bi bi-fire me-2"></i><span>Gas</span></a>':'')+'</div></div>';
+        if(role.canDailyLogEmployee)nav.innerHTML+='<a class="nav-link-custom nav-child" href="T_DailyLogEmployee.aspx"><i class="bi bi-journal-text me-3 fs-5"></i><span>Daily Log Employee</span></a>';
+        nav.innerHTML+='<a class="nav-link-custom" id="menuLogout" href="#"><i class="bi bi-box-arrow-right me-3 fs-5"></i><span>Logout</span></a>';
+        var page=window.location.pathname.toLowerCase().split('/').pop(), type=new URLSearchParams(window.location.search).get('type')||'';
+        nav.querySelectorAll('a.nav-child').forEach(function(link){var u=new URL(link.getAttribute('href'),window.location.href);if(page===u.pathname.toLowerCase().split('/').pop()&&type===(u.searchParams.get('type')||'')){link.classList.add('active');var par=link.closest('.nav-submenu');if(par){par.classList.add('show');var t=nav.querySelector('[href="#'+par.id+'"]');if(t){t.classList.add('active');t.setAttribute('aria-expanded','true');}}}});
+        setActiveMenu(); attachLogoutEvent();
+    }catch(ex){console.error('Failed to load sidebar menu:',ex);}
 }
 function attachLogoutEvent() {
     var btn = document.getElementById("menuLogout");
@@ -411,7 +316,7 @@ function attachLogoutEvent() {
 }
 function setActiveMenu() {
     // Match page and query parameters exactly; "inspection.aspx" must not
-    // also match "inspection.aspx?mode=approval".
+    // also match "inspection.aspx?type=approval".
     const currentPath = window.location.pathname.toLowerCase();
     const currentPage = currentPath.substring(currentPath.lastIndexOf("/") + 1);
     const currentQuery = window.location.search.toLowerCase();
