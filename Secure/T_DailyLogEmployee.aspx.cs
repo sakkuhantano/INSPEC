@@ -8,12 +8,13 @@ using System.Web.UI;
 using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
 using WAL;
+using INSPECFO;
 
 namespace INSPEC.Secure
 {
     public partial class T_DailyLogEmployee : WAL.PB, WAL.I_ToolBar_2
     {
-        private const string _MenuID = "11011";
+        private const string _MenuID = "20031";
 
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
         {
@@ -25,8 +26,12 @@ namespace INSPEC.Secure
         }
         private void InitToolbar()
         {
-            Master.TB_VisibleToolbar(true);
-            Master.TB_VisibleButton(WAL.ToolbarItem_2.Refresh, true);
+            // Daily Log uses the Site1 application toolbar instead of the legacy WAL toolbar.
+        }
+
+        private string LoginEmployeeID
+        {
+            get { return AppAuthorization.RequireMenuEmployee(_MenuID); }
         }
 
         private const string IsoFormat = "yyyy-MM-dd";
@@ -181,6 +186,7 @@ namespace INSPEC.Secure
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            string authenticatedEmployeeID = LoginEmployeeID;
             if (!IsPostBack)
             {
                 using (WAL.BR.SysWebMenu sw = new WAL.BR.SysWebMenu())
@@ -189,7 +195,7 @@ namespace INSPEC.Secure
                     sw.MenuID = _MenuID;
                     if (sw.SelectOneByMenuID().Rows.Count > 0)
                     {
-                        Master.Mn_lit_Title = WAL.PB.AppID + " -> " + sw.Description;
+                        Page.Title = sw.Description;
                     }
                 }
                 SelectedIso = TodayIso;
@@ -300,7 +306,7 @@ namespace INSPEC.Secure
                 employee = br.EQuery(
                     "SELECT TOP (1) mhe.ProfitCenterNo, mhe.SectionID " +
                     "FROM dbo.M_HRD_Employee AS mhe " +
-                    "WHERE mhe.EmployeeID = '" + Master.Mn_EmployeeID + "'");
+                    "WHERE mhe.EmployeeID = '" + LoginEmployeeID + "'");
             }
 
             if (employee == null || employee.Rows.Count == 0)
@@ -383,7 +389,7 @@ namespace INSPEC.Secure
                 " FROM dbo.Inspec_T_DailyLog_Hd h " +
                 " INNER JOIN dbo.Inspec_T_DailyLog_Dt d ON d.Idhd = h.Id " +
                 " LEFT JOIN m_hrd_employee m ON m.EmployeeID = d.EmployeeID " +
-                " WHERE h.EmployeeID = '" + Master.Mn_EmployeeID + "' " +
+                " WHERE h.EmployeeID = '" + LoginEmployeeID + "' " +
                 " AND h.PeriodDate = CONVERT(date, '" + period + "', 112) " +
                 " AND d.LogType = '" + selectedTypeSql + "' ";
             if (keyword.Length > 0)
@@ -556,7 +562,7 @@ namespace INSPEC.Secure
                     "      AND h.PeriodDate = CONVERT(date, '" + periodSql + "', 112) " +
                     "    ORDER BY d.StartDateTime, d.Id " +
                     ") f " +
-                    "WHERE loginEmp.EmployeeID = '" + Master.Mn_EmployeeID + "' AND member.TerminationDate = '' " +
+                    "WHERE loginEmp.EmployeeID = '" + LoginEmployeeID + "' AND member.TerminationDate = '' " +
                     "ORDER BY member.Name, member.EmployeeID;");
 
                 totalMembers = 0;
@@ -726,7 +732,7 @@ namespace INSPEC.Secure
                 "          SELECT 1 FROM m_hrd_Employee AS loginEmp " +
                 "          INNER JOIN m_hrd_Employee AS member " +
                 "            ON member.EmployeeID = d.EmployeeID " +
-                "          WHERE loginEmp.EmployeeID = '" + Master.Mn_EmployeeID + "' " +
+                "          WHERE loginEmp.EmployeeID = '" + LoginEmployeeID + "' " +
                 "            AND (member.EmployeeID = loginEmp.EmployeeID OR ( " +
                 "                 member.CompanyID = loginEmp.CompanyID " +
                 "                 AND member.LocationID = loginEmp.LocationID " +
@@ -735,7 +741,7 @@ namespace INSPEC.Secure
                 "       ) THEN 1 ELSE 0 END AS bit) AS IsCurrentMember " +
                 "FROM dbo.Inspec_T_DailyLog_Hd h " +
                 "INNER JOIN dbo.Inspec_T_DailyLog_Dt d ON d.Idhd = h.Id AND d.IsActive = 1 " +
-                "WHERE h.EmployeeID = '" + Master.Mn_EmployeeID + "' " +
+                "WHERE h.EmployeeID = '" + LoginEmployeeID + "' " +
                 "AND d.EmployeeID = '" + memberSql + "' " +
                 "AND d.LogType = '" + typeSql + "' " +
                 "AND h.PeriodDate = CONVERT(date, '" + periodSql + "', 112) " +
@@ -1092,7 +1098,7 @@ namespace INSPEC.Secure
                         throw new InvalidOperationException("Tanggal mulai tidak boleh berubah saat Edit.");
                 }
 
-                br.InsertUpdateData(editing, ExpandedMemberId, Master.Mn_EmployeeID, startAt, endAt, activity, 
+                br.InsertUpdateData(editing, ExpandedMemberId, LoginEmployeeID, startAt, endAt, activity, 
                                     SelectedEntryId, OriginalStart, OriginalEnd, OriginalActivity, startDate.Date);
             }
         }
@@ -1106,7 +1112,7 @@ namespace INSPEC.Secure
                 if (String.IsNullOrWhiteSpace(ExpandedMemberId) || ExpandedMemberId.Length > 10 ||
                     SelectedEntryId <= 0 || OriginalStart == DateTime.MinValue)
                     throw new InvalidOperationException("Aktivitas tidak valid. Buka ulang detail.");
-                br.DeleteData(SelectedEntryId, ExpandedMemberId, Master.Mn_EmployeeID, OriginalStart, OriginalEnd, OriginalActivity);
+                br.DeleteData(SelectedEntryId, ExpandedMemberId, LoginEmployeeID, OriginalStart, OriginalEnd, OriginalActivity);
             }
         }
 
