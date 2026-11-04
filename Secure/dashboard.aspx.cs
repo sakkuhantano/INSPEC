@@ -41,8 +41,9 @@ namespace INSPECFO.Secure
 
                     DataTable auth = br.EQueryP(
                         @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
-                          FROM dbo.UTL_User U
-                          WHERE U.EmployeeID=@EmployeeID
+                          FROM dbo.SysWebUser SU
+                          INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                             AND (
                                 EXISTS (
                                     SELECT 1 FROM dbo.SysWebUserCompanyLocation C
@@ -296,8 +297,10 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT ISNULL(Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
-                      FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID",
+                    @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                      FROM dbo.SysWebUser SU
+                      INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+                      WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1",
                     new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
@@ -320,8 +323,9 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
 
                 DataTable companyAuth = br.EQueryP(
                     @"SELECT U.UserID
-                      FROM dbo.UTL_User U
-                      WHERE U.EmployeeID=@EmployeeID
+                      FROM dbo.SysWebUser SU
+                          INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                         AND (
                             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                                     WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
