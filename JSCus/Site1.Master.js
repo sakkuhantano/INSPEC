@@ -221,32 +221,7 @@ document.addEventListener(
                 document.getElementById("btnConfirmCancel").click();
             }
         });
-        if (page.indexOf("dashboard.aspx") >= 0) {
-            const login = getLoginData().role;
-            const inspectionShortcut = document.getElementById("btnDashboardInspection");
-            if (inspectionShortcut && !login.IsWO) {
-                inspectionShortcut.classList.add("d-none");
-            }
-            if (login.IsWO) {
-                document.getElementById("div_pendingWO")
-                    .addEventListener(
-                        "click",
-                        function () {
-                            window.location.href =
-                                "workorder.aspx?type=entry";
-                        });
-            }
 
-            if (login.IsSPV) {
-                document.getElementById("div_pendingAppr")
-                    .addEventListener(
-                        "click",
-                        function () {
-                            window.location.href =
-                                "workorder.aspx?type=approval";
-                        });
-            }
-        }
 
     });
 
