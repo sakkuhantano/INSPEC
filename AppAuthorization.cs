@@ -52,6 +52,28 @@ namespace INSPECFO
                 return dt.Rows.Count > 0;
             }
         }
+        public static void RequireCompanyLocation(string employeeID, string companyID, string locationID)
+        {
+            if (String.IsNullOrWhiteSpace(employeeID) || String.IsNullOrWhiteSpace(companyID) || String.IsNullOrWhiteSpace(locationID))
+                throw new HttpException(400, "Company and location are required.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"SELECT TOP 1 1 FROM dbo.SysWebUser U
+                    WHERE U.employeeid=@EmployeeID AND U.IsActive=1 AND (
+                        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=@EmployeeID AND C.AppID='pip' AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+                        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', @EmployeeID, '') L WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
+                    "@EmployeeID=" + employeeID + GF.Str2 + "@CompanyID=" + companyID + GF.Str2 + "@LocationID=" + locationID);
+                if (dt.Rows.Count == 0) throw new HttpException(403, "Company/location is not authorized for this account.");
+            }
+        }
+        public static string GetEmployeeSection(string employeeID)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery("SELECT TOP 1 ISNULL(Section,'') Section FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + employeeID);
+                return dt.Rows.Count == 0 ? "" : Convert.ToString(dt.Rows[0]["Section"]);
+            }
+        }
         public static string RequireMenuEmployee(string menuID)
         {
             string id = CurrentEmployeeID();
