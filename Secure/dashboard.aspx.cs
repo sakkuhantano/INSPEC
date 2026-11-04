@@ -15,7 +15,9 @@ namespace INSPECFO.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            INSPECFO.AppAuthorization.RequireAnyMenuEmployee(
+                "20011", "20012", "20021", "20022", "20031",
+                "20041", "20042", "20043");
         }
         [WebMethod]
         public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
