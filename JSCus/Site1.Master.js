@@ -1024,12 +1024,12 @@ async function syncAllData() {
             updateSyncProgress(step,totalSteps,"Uploading workorder");
             await uploadPendingWO();
         }
-        if (role.canMyWorkOrder) {
+        if (role.canInputInspection) {
             step++;
             updateSyncProgress(step, totalSteps, "Uploading inspections");
             await uploadPendingInspections();
         }
-        if (role.canApproveWorkOrder) {
+        if (role.canApproveInspection) {
             step++;
             updateSyncProgress(step, totalSteps, "Syncing SPV inspection approvals");
             if (typeof window.syncInspectionApprovalOffline !== "function")
@@ -1066,7 +1066,7 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading checklist");
             await getCheckList();
-            if (role.canMyWorkOrder) {
+            if (role.canInputInspection) {
                 step++;
                 updateSyncProgress(step, totalSteps, "Downloading inspection templates");
                 await getInspectionData();
