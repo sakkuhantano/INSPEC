@@ -1,0 +1,1 @@
+namespace INSPECFO { public partial class Login { } }

@@ -85,6 +85,30 @@
     <Content Include="CSSCus\assignwoemployee.css" />
     <Content Include="CSSCus\template.css" />
     <Content Include="Default.aspx" />
+    <Content Include="Login.aspx" />
+    <Content Include="MasterPages\Site1.Master" />
+    <Content Include="UserControls\toast.ascx" />
+    <Content Include="Secure\dashboard.aspx" />
+    <Content Include="Secure\meterreading.aspx" />
+    <Content Include="Secure\workorder.aspx" />
+    <Content Include="Secure\inspection.aspx" />
+    <Content Include="Secure\profilesetting.aspx" />
+    <Content Include="JSCus\GFC_FO.js" />
+    <Content Include="JSCus\Login.js" />
+    <Content Include="JSCus\dashboard.js" />
+    <Content Include="JSCus\Site1.Master.js" />
+    <Content Include="JSCus\meterreading.js" />
+    <Content Include="JSCus\workorder.js" />
+    <Content Include="JSCus\sortable.js" />
+    <Content Include="JSCus\html5-qrcode.min.js" />
+    <Content Include="JSCus\inspection.js" />
+    <Content Include="JSCus\inspectionApprovalOffline.js" />
+    <Content Include="JSCus\inspectionApprovalSync.js" />
+    <Content Include="CSSCus\Site1.Master.css" />
+    <Content Include="CSSCus\dashboard.css" />
+    <Content Include="CSSCus\meterreading.css" />
+    <Content Include="CSSCus\workorder.css" />
+    <Content Include="app-version.txt" />
     <Content Include="ErrMsg.aspx" />
     <Content Include="JSCus\assignwoemployee.js" />
     <Content Include="JSCus\GFC.js" />
@@ -119,6 +143,23 @@
       <DependentUpon>Default.aspx</DependentUpon>
     </Compile>
     <Compile Include="GFC.cs" />
+    <Compile Include="Login.aspx.cs" />
+    <Compile Include="Login.aspx.designer.cs" />
+    <Compile Include="MasterPages\Site1.Master.cs" />
+    <Compile Include="MasterPages\Site1.Master.designer.cs" />
+    <Compile Include="UserControls\toast.ascx.cs" />
+    <Compile Include="UserControls\toast.ascx.designer.cs" />
+    <Compile Include="Secure\dashboard.aspx.cs" />
+    <Compile Include="Secure\dashboard.aspx.designer.cs" />
+    <Compile Include="Secure\meterreading.aspx.cs" />
+    <Compile Include="Secure\meterreading.aspx.designer.cs" />
+    <Compile Include="Secure\workorder.aspx.cs" />
+    <Compile Include="Secure\workorder.aspx.designer.cs" />
+    <Compile Include="Secure\inspection.aspx.cs" />
+    <Compile Include="Secure\inspection.aspx.designer.cs" />
+    <Compile Include="Secure\profilesetting.aspx.cs" />
+    <Compile Include="Secure\profilesetting.aspx.designer.cs" />
+    <Compile Include="BRC\PIP_T_WO.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SearchList_2.aspx.cs">
       <DependentUpon>SearchList_2.aspx</DependentUpon>
