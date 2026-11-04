@@ -105,6 +105,7 @@
     <Content Include="JSCus\inspectionApprovalOffline.js" />
     <Content Include="JSCus\inspectionApprovalSync.js" />
     <Content Include="CSSCus\Site1.Master.css" />
+    <Content Include="CSSCus\GFC.css" />
     <Content Include="CSSCus\dashboard.css" />
     <Content Include="CSSCus\meterreading.css" />
     <Content Include="CSSCus\workorder.css" />
