@@ -665,14 +665,14 @@ async function countPendingSyncWO() {
 //     var role = login.role;
 //  var page = window.location.pathname.toLowerCase();
 
-//     if (role.IsWTR) {
+//     if (role.WTR) {
 //      pending = await countPendingSyncMeter("WTR");
 //         total += pending;
 //      if (page.indexOf("dashboard.aspx") >= 0) {
 //          document.getElementById("syncWater").textContent = pending;
 //      }
 //  }
-//     if (role.IsELC) {
+//     if (role.ELC) {
 //      pending = await countPendingSyncMeter("ELC");
 //         total += pending;
 //      if (page.indexOf("dashboard.aspx") >= 0) {
@@ -680,7 +680,7 @@ async function countPendingSyncWO() {
 //      }
 //  }
 
-//     if (role.IsGAS) {
+//     if (role.GAS) {
 //      pending = await countPendingSyncMeter("GAS");
 //         total += pending;
 //      if (page.indexOf("dashboard.aspx") >= 0) {
@@ -688,7 +688,7 @@ async function countPendingSyncWO() {
 //      }
 //  }
     
-//     if (role.IsWO) {
+//     if (role.canMyWorkOrder) {
 //      pending = await countPendingSyncWO();
 //         total += pending;
 //      if (page.indexOf("dashboard.aspx") >= 0) {
@@ -710,13 +710,13 @@ async function calculateMeterSyncStatistics() {
     if (!login)
         return meterSyncStatistics;
 
-    if (login.role.IsELC)
+    if (appFeatures.ELC)
         await countMeterStatus("ELC");
 
-    if (login.role.IsWTR)
+    if (appFeatures.WTR)
         await countMeterStatus("WTR");
 
-    if (login.role.IsGAS)
+    if (appFeatures.GAS)
         await countMeterStatus("GAS");
 
     return meterSyncStatistics;
@@ -775,18 +775,18 @@ async function countMeterStatus(type) {
 //     if (!login)
 //         return 0;
 
-//     const role = login.role;
+//     const role = appFeatures;
 
-//     if (role.IsELC)
+//     if (role.ELC)
 //         total += await countPendingSyncMeter("ELC");
 
-//     if (role.IsWTR)
+//     if (role.WTR)
 //         total += await countPendingSyncMeter("WTR");
 
-//     if (role.IsGAS)
+//     if (role.GAS)
 //         total += await countPendingSyncMeter("GAS");
 
-//     if (role.IsWO)
+//     if (role.canMyWorkOrder)
 //         total += await countPendingSyncWO();
 
 //     return total;
@@ -862,33 +862,33 @@ async function refreshDashboardCounts(summary = null) {
 
     summary = summary || await getMeterDashboardSummary();
 
-    if (role.IsWTR) {
+    if (role.WTR) {
         document.getElementById("pendingWater").textContent =
             summary.entry.AIR;
         document.getElementById("syncWater").textContent =
             summary.sync.AIR;
     }
 
-    if (role.IsELC) {
+    if (role.ELC) {
         document.getElementById("pendingElectric").textContent =
             summary.entry.ELC;
         document.getElementById("syncElectric").textContent =
             summary.sync.ELC;
     }
 
-    if (role.IsGAS) {
+    if (role.GAS) {
         document.getElementById("pendingGas").textContent =
             summary.entry.GAS;
         document.getElementById("syncGas").textContent =
             summary.sync.GAS;
     }
 
-    if (role.IsWO) {
+    if (role.canMyWorkOrder) {
         document.getElementById("pendingWO").textContent =
             await countPendingWO();
     }
 
-    if (role.IsSPV) {
+    if (role.canApproveWorkOrder) {
         await countApproval();
     }
 
@@ -997,39 +997,39 @@ async function syncAllData() {
             throw new Error("Sync membutuhkan koneksi internet. Data offline tetap tersimpan dan belum dihapus.");
         }
 
-        let role = login.role;
+        let role = appFeatures;
         let totalSteps = 0;
-        const hasMeterRole = role.IsELC || role.IsWTR || role.IsGAS;
+        const hasMeterRole = role.ELC || role.WTR || role.GAS;
 
         if (hasMeterRole) totalSteps++; // upload meter
-        if (role.IsWO || role.IsSPV) totalSteps++; // upload WO / SPV actions
-        if (role.IsSPV) totalSteps++; // sync SPV inspection approvals and prepare offline cache
-        if (role.IsELC) totalSteps++;
-        if (role.IsWTR) totalSteps++;
-        if (role.IsGAS) totalSteps++;
-        if (role.IsWO || role.IsSPV) totalSteps += 2; // download WO and WO checklist
-        if (role.IsWO) totalSteps += 2; // upload pending inspections and download inspection data
+        if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps++; // upload WO / SPV actions
+        if (role.canApproveInspection) totalSteps++; // sync SPV inspection approvals and prepare offline cache
+        if (role.ELC) totalSteps++;
+        if (role.WTR) totalSteps++;
+        if (role.GAS) totalSteps++;
+        if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps += 2; // download WO and WO checklist
+        if (role.canInputInspection) totalSteps += 2; // upload pending inspections and download inspection data
 
         let step = 0;
 
         // UPLOAD METER
-        if (role.IsELC || role.IsWTR || role.IsGAS) {
+        if (role.ELC || role.WTR || role.GAS) {
             step++;
             updateSyncProgress(step,totalSteps,"Uploading meter");
             await uploadPendingMeter();
             await updateTotalPendingSync();
         }
-        if (role.IsWO || role.IsSPV) {
+        if (role.canMyWorkOrder || role.canApproveWorkOrder) {
             step++;
             updateSyncProgress(step,totalSteps,"Uploading workorder");
             await uploadPendingWO();
         }
-        if (role.IsWO) {
+        if (role.canMyWorkOrder) {
             step++;
             updateSyncProgress(step, totalSteps, "Uploading inspections");
             await uploadPendingInspections();
         }
-        if (role.IsSPV) {
+        if (role.canApproveWorkOrder) {
             step++;
             updateSyncProgress(step, totalSteps, "Syncing SPV inspection approvals");
             if (typeof window.syncInspectionApprovalOffline !== "function")
@@ -1040,23 +1040,23 @@ async function syncAllData() {
         }
 
         // DOWNLOAD METER
-        if (role.IsELC) {
+        if (role.ELC) {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading meter ELC");
             await downloadMeter("ELC");
         }
-        if (role.IsWTR) {
+        if (role.WTR) {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading meter WTR");
             await downloadMeter("AIR");
         }
-        if (role.IsGAS) {
+        if (role.GAS) {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading meter GAS");
             await downloadMeter("GAS");
         }
         // DOWNLOAD WO
-        if (role.IsWO || role.IsSPV) {
+        if (role.canMyWorkOrder || role.canApproveWorkOrder) {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading workorder");
             await downloadWorkOrder();
@@ -1066,7 +1066,7 @@ async function syncAllData() {
             step++;
             updateSyncProgress(step,totalSteps,"Downloading checklist");
             await getCheckList();
-            if (role.IsWO) {
+            if (role.canMyWorkOrder) {
                 step++;
                 updateSyncProgress(step, totalSteps, "Downloading inspection templates");
                 await getInspectionData();
@@ -1300,9 +1300,9 @@ async function downloadMeter(type) {
                     locationId: locationId,
                     lastSync: login.lastMeterSync || "",
                     lastPeriod: login.lastMeterPeriod || "",
-                    isELC: login.role.IsELC,
-                    isWTR: login.role.IsWTR,
-                    isGAS: login.role.IsGAS
+                    isELC: login.role.ELC,
+                    isWTR: login.role.WTR,
+                    isGAS: login.role.GAS
                 })
             });
 
@@ -1325,8 +1325,8 @@ async function downloadMeter(type) {
         // Simpan info sync (cukup sekali)
         // ===============================
         if(type=="GAS" ||
-           (!login.role.IsGAS && type=="AIR") ||
-           (!login.role.IsGAS && !login.role.IsWTR && type=="ELC")){
+           (!login.role.GAS && type=="AIR") ||
+           (!login.role.GAS && !login.role.WTR && type=="ELC")){
 
             login.lastMeterSync=meterSyncCache.ServerTime;
             if (meterSyncCache.FullDownload && meterSyncCache.Insert.length > 0)
@@ -1746,7 +1746,7 @@ async function downloadWorkOrder() {
         // =================================================================
         // PROSES 2: PROSES FOTO (KHUSUS SPV)
         // =================================================================
-        if (data.role.IsSPV || data.role.IsWO) {
+        if (data.role.canApproveWorkOrder || data.role.canMyWorkOrder) {
             for (let wo of workorders) {
                 let photoData = wo.DataPhotoJSON; 
                 if (!photoData) continue;
