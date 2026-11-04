@@ -31,7 +31,9 @@ namespace INSPECFO
             HttpContext c = HttpContext.Current;
             HttpCookie k = c == null ? null : c.Request.Cookies[CookieName];
             string token = k == null ? "" : Convert.ToString(k.Value).Trim();
-            if (String.IsNullOrEmpty(token)) throw new HttpException(401, "Authentication is required.");
+            Guid parsedToken;
+            if (String.IsNullOrEmpty(token) || !Guid.TryParse(token, out parsedToken))
+                throw new HttpException(401, "Authentication is required.");
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
