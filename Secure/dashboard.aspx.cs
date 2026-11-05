@@ -428,7 +428,7 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
             {
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncMaster=@V_GetDate WHERE IsActive=1
+UPDATE UserSession SET LastSyncMaster=@V_GetDate WHERE IsActive=1 AND UserID=@EmployeeID
 SELECT e.EmployeeID, e.Name, @V_GetDate LastSync   --, e.CompanyID, e.LocationID, e.ProfitCenterNo
 FROM M_HRD_Employee e
 WHERE EXISTS (
