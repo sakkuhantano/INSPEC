@@ -1203,8 +1203,10 @@ async function syncAllData() {
         hideSyncToast();
     }
     catch (err) {
-        console.error(err);
-        updateSyncProgress(0,1,"Sync Failed ❌");
+        const message = err && err.message ? err.message : String(err || "Unknown error");
+        console.error("Sync All Data failed:", err);
+        updateSyncProgress(0, 1, "Sync Failed: " + message);
+        showToast("Sync gagal: " + message, "warning");
     }
     finally {
         syncRunning = false;
