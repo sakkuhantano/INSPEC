@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="dashboard.aspx.cs" Inherits="INSPECFO.Secure.dashboard" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="dashboard.aspx.cs" Inherits="INSPEC.Secure.dashboard" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link rel="Stylesheet" type="text/css" href="../CSSCus/dashboard.css" />
