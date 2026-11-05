@@ -102,7 +102,7 @@ namespace INSPECFO
                           "@BrowserGuid=" + browserGuid + GF.Str2 +
                           "@ServerGuid=" + serverGuid + GF.Str2 +
                           "@Token=" + token).Rows.Count > 0;
-                if (valid) AppAuthorization.SetCookie(token);
+                if (valid) GFC.SetCookie(token);
                 return valid;
             }
 
@@ -122,7 +122,7 @@ namespace INSPECFO
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
                     "@Token=" + token);
-                AppAuthorization.ClearCookie();
+                GFC.ClearCookie();
                 return true;
             }
         }
@@ -279,7 +279,7 @@ VALUES (@NewID, @UserID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(D
 COMMIT TRANSACTION;",
                     "@UserID=" + p_userid + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
                     "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
-                    AppAuthorization.SetCookie(v_token);
+                    GFC.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
                         companylist = _arrList, menus = menus, userid = p_userid, username = v_username, curcompany = v_currcompany,
                         curcompanyname = v_currcompanyname, employeeid = V_EmpID, jobtitle = v_jobtitle,
