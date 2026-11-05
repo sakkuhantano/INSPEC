@@ -6,7 +6,7 @@
 <html>
 
 <head runat="server">
-<title>Global Utility Services</title>
+<title><asp:Literal ID="lit_Title" runat="server" Text="Global Utility Services" /></title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="stylesheet" type="text/css" href="/WebFolder/bootstrap-5.3.8-dist/css/bootstrap.min.css" />
 <link rel="stylesheet" href="/WebFolder/bootstrap-icons-1.11.3/font/bootstrap-icons.min.css"/>
@@ -261,6 +261,9 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 <asp:HiddenField ID="hfMnCompanyID" ClientIDMode="Static" runat="server" />
 <asp:HiddenField ID="hfMnLocationID" ClientIDMode="Static" runat="server" />
 <asp:HiddenField ID="hfMnCompanyName" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfMnEmployeeID" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfMnMPPosition" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfMnIsByPassLogonUser" ClientIDMode="Static" runat="server" />
 
 <%--<div class="container-fluid px-3 px-lg-4 px-xl-5 py-4" id="contentbody" style="margin-top: 38px;">--%>
 <div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
