@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" MaintainScrollPositionOnPostback="true" CodeBehind="Login.aspx.cs" Inherits="INSPECFO.Login" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" MaintainScrollPositionOnPostback="true" CodeBehind="Login.aspx.cs" Inherits="INSPEC.Login" %>
 
 <%@ Register Src="~/UserControls/toast.ascx" TagPrefix="uc1" TagName="toast" %>
 
