@@ -15,7 +15,7 @@ using System.Web.UI.HtmlControls;
 using System.Data.SqlClient;
 using System.Web.Services;
 
-namespace INSPECFO
+namespace INSPEC
 {
     public partial class Login : WAL.PB
     {
