@@ -355,7 +355,7 @@ namespace WAL
             if (c == null || c.Response == null) return;
             HttpCookie k = new HttpCookie(CookieName, token ?? "");
             k.HttpOnly = true; k.Secure = c.Request.IsSecureConnection;
-            k.Path = String.IsNullOrEmpty(c.Request.ApplicationPath) ? "/" : c.Request.ApplicationPath.TrimEnd('/') + "/";
+            k.Path = "/";
             k.Expires = DateTime.Now.AddDays(2); c.Response.Cookies.Add(k);
         }
         public static void ClearCookie()
@@ -364,7 +364,7 @@ namespace WAL
             if (c == null || c.Response == null) return;
             HttpCookie k = new HttpCookie(CookieName, "");
             k.HttpOnly = true; k.Secure = c.Request.IsSecureConnection;
-            k.Path = String.IsNullOrEmpty(c.Request.ApplicationPath) ? "/" : c.Request.ApplicationPath.TrimEnd('/') + "/";
+            k.Path = "/";
             k.Expires = DateTime.Now.AddDays(-1); c.Response.Cookies.Add(k);
         }
         public static string CurrentEmployeeID()
