@@ -28,16 +28,16 @@ namespace INSPECFO.Secure
         {
             string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
             if (mode == "entry")
-                INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
+                INSPECFO.GFC.RequireMenuEmployee("20011");
             else if (mode == "approval")
-                INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
+                INSPECFO.GFC.RequireMenuEmployee("20012");
             else
                 throw new HttpException(400, "Invalid Work Order mode.");
         }
         [WebMethod]
         public static object approvevoidWorkOrder(int keyhd, string reason, string userid, string remark)
         {
-            userid = INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
+            userid = INSPECFO.GFC.RequireMenuEmployee("20012");
             //using (var br = new WAL.BR.CF())
             try
             {
@@ -94,11 +94,11 @@ WHERE W.KeyHD=@KeyHD
         public static object getApprovalCounters(string companyLocation,
                                                  string section)
         {
-            string employeeID = INSPECFO.AppAuthorization.RequireMenuEmployee("20012");
+            string employeeID = INSPECFO.GFC.RequireMenuEmployee("20012");
             string[] scope = (companyLocation ?? "").Split(';');
             if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, scope[0], scope[1]);
-            section = INSPECFO.AppAuthorization.GetEmployeeSection(employeeID);
+            INSPECFO.GFC.RequireCompanyLocation(employeeID, scope[0], scope[1]);
+            section = INSPECFO.GFC.GetEmployeeSection(employeeID);
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery("SELECT Pending=SUM(CASE WHEN isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND ReasonRespondDC='' THEN 1 ELSE 0 END), " +
@@ -129,12 +129,12 @@ WHERE W.KeyHD=@KeyHD
                                            int keyhd = 0, object unused = null)
         {
             string employeeID = isApprovalMode
-                ? INSPECFO.AppAuthorization.RequireMenuEmployee("20012")
-                : INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
+                ? INSPECFO.GFC.RequireMenuEmployee("20012")
+                : INSPECFO.GFC.RequireMenuEmployee("20011");
             string[] scope = (companyLocation ?? "").Split(';');
             if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeID, scope[0], scope[1]);
-            section = INSPECFO.AppAuthorization.GetEmployeeSection(employeeID);
+            INSPECFO.GFC.RequireCompanyLocation(employeeID, scope[0], scope[1]);
+            section = INSPECFO.GFC.GetEmployeeSection(employeeID);
             string[] badgeColors =
             {
                 "primary",
@@ -148,8 +148,8 @@ WHERE W.KeyHD=@KeyHD
             {
                 var result = new List<Dictionary<object, object>>();
                 string _condition = "";
-                bool isSupervisor = INSPECFO.AppAuthorization.HasMenu(employeeID, "20012");
-                bool isTechnician = INSPECFO.AppAuthorization.HasMenu(employeeID, "20011");
+                bool isSupervisor = INSPECFO.GFC.HasMenu(employeeID, "20012");
+                bool isTechnician = INSPECFO.GFC.HasMenu(employeeID, "20011");
                 string _modelCode = "";
 
                 if (isApprovalMode)
@@ -925,7 +925,7 @@ string.Format(@"
         [WebMethod]
         public static object SyncWO(object checklists, object checklistgroups, object photos, string userid, object checklistsummarys, string companyLocation)
         {
-            userid = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
+            userid = INSPECFO.GFC.RequireAnyMenuEmployee("20011", "20012");
             try
             {
                 //System.IO.File.AppendAllText(
