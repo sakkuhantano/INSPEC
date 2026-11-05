@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="workorder.aspx.cs" Inherits="INSPECFO.Secure.workorder" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="workorder.aspx.cs" Inherits="INSPEC.Secure.workorder" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link rel="Stylesheet" type="text/css" href="../CSSCus/workorder.css" />
