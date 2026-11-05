@@ -462,10 +462,22 @@ function setActiveMenu() {
 }
 
 /* Company */
+function syncLegacyMasterCompanyFields(data) {
+    if (!data) return;
+    var parts = String(data.curcompany || "").split(";");
+    var company = document.getElementById("hfMnCompanyID");
+    var location = document.getElementById("hfMnLocationID");
+    var companyName = document.getElementById("hfMnCompanyName");
+    if (company) company.value = parts[0] || "";
+    if (location) location.value = parts[1] || "";
+    if (companyName) companyName.value = data.curcompanyname || "";
+}
+
 function loadCompanyName() {
     var data = getLoginData();
     if (!data) return;
     try {
+        syncLegacyMasterCompanyFields(data);
         //var current = data.curcompany;
         document.getElementById("lblCompanyLocation").innerText = data.curcompany;
         document.getElementById("lblNIK").innerText = data.employeeid;
