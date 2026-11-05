@@ -25,9 +25,15 @@ window.addEventListener("load", async function () {
     var data = getLoginData();
     if (data) {
         var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
-        if (success) {
+        if (success === true) {
             window.location.href = "Secure/dashboard.aspx";
+        } else if (success === false) {
+            // Invalid/expired session or revoked INSPEC authorization:
+            // remove the cached credentials so Login.aspx will not retry them.
+            localStorage.removeItem("loginData");
         }
+        // If validation fails due to a network/server error (null), keep the
+        // cached data for a later retry, but stay on the login page.
         //await getEmployees();
     }
 });
