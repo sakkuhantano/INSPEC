@@ -378,7 +378,7 @@ namespace WAL
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
-                    INNER JOIN dbo.SysWebUser U ON U.UserID=S.UserID
+                    INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
                     WHERE S.Token=@Token AND S.IsActive=1 AND S.ExpireTime>GETDATE() AND U.IsActive=1",
                     "@Token=" + token);
                 if (dt.Rows.Count != 1) throw new HttpException(401, "Login session is invalid or expired.");
