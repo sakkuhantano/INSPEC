@@ -29,7 +29,17 @@ namespace INSPEC.MasterPages {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.ContentPlaceHolder stickybar;
-        
+
+        /// <summary>
+        /// pnl_TB control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Panel pnl_TB;
+
+        /// <summary>
+        /// ucToolbar control.
+        /// </summary>
+        protected global::WAL.UC_Toolbar_2 ucToolbar;
+
         /// <summary>
         /// form1 control.
         /// </summary>
