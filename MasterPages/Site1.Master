@@ -1,4 +1,4 @@
-﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site1.master.cs" Inherits="INSPECFO.MasterPages.Site1" %>
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site1.master.cs" Inherits="INSPEC.MasterPages.Site1" %>
 <%@ Register Src="~/UserControls/toast.ascx" TagPrefix="uc1" TagName="toast" %>
 <!DOCTYPE html>
 
