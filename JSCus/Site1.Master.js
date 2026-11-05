@@ -220,17 +220,25 @@ document.addEventListener(
         }
     });
 
-        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
+        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
+            const resolve = confirmResolve;
+            if (!resolve) return;
             hideConfirmation();
-            if (confirmResolve) {
-                confirmResolve(false);
-                confirmResolve = null;
-            }
+            confirmResolve = null;
+            resolve(true);
+        });
+
+        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
+            const resolve = confirmResolve;
+            if (!resolve) return;
+            hideConfirmation();
+            confirmResolve = null;
+            resolve(false);
         });
 
         document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
             if (e.target.id === "globalConfirmOverlay") {
-                document.getElementById("btnConfirmCancel").click();
+                document.getElementById("btnConfirmCancel")?.click();
             }
         });
 
