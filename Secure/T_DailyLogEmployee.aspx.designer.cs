@@ -405,9 +405,9 @@ namespace INSPEC.Secure {
         /// <remarks>
         /// Auto-generated property.
         /// </remarks>
-        public new INSPECFO.MasterPages.Site1 Master {
+        public new INSPEC.MasterPages.Site1 Master {
             get {
-                return ((INSPECFO.MasterPages.Site1)(base.Master));
+                return ((INSPEC.MasterPages.Site1)(base.Master));
             }
         }
     }
