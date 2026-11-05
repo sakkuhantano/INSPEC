@@ -176,7 +176,7 @@ WHERE W.KeyHD=@KeyHD
                 string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1
+UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1 AND UserID=@EmployeeID
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
@@ -223,6 +223,7 @@ AND " + _condition +
 " ORDER BY a.KeyHD",
                                 new SqlParameter[] 
                                 {
+                                    new SqlParameter("@EmployeeID", employeeID),
                                     new SqlParameter("@CompanyLocation", companyLocation),
                                     new SqlParameter("@sectionlist", section),
                                     new SqlParameter("@CompanyID", selectedCompanyID),
