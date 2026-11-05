@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace INSPECFO.Secure {
+namespace INSPEC.Secure {
     
     
     public partial class workorder {
