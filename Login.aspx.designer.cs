@@ -1,1 +1,1 @@
-namespace INSPECFO { public partial class Login { } }
+namespace INSPEC { public partial class Login { } }
