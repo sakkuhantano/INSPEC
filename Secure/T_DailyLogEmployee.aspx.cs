@@ -8,7 +8,6 @@ using System.Web.UI;
 using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
 using WAL;
-using INSPECFO;
 
 namespace INSPEC.Secure
 {
