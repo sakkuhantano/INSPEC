@@ -468,10 +468,27 @@ function syncLegacyMasterCompanyFields(data) {
     var company = document.getElementById("hfMnCompanyID");
     var location = document.getElementById("hfMnLocationID");
     var companyName = document.getElementById("hfMnCompanyName");
+    var employeeID = document.getElementById("hfMnEmployeeID");
     if (company) company.value = parts[0] || "";
     if (location) location.value = parts[1] || "";
     if (companyName) companyName.value = data.curcompanyname || "";
+    if (employeeID) employeeID.value = data.employeeid || "";
 }
+
+// Keep the legacy Master scroll-position property working on Site1.
+(function () {
+    var positionField = document.getElementById("hfMnMPPosition");
+    if (!positionField) return;
+
+    window.addEventListener("load", function () {
+        var position = parseInt(positionField.value, 10);
+        if (!isNaN(position)) window.scrollTo(0, position);
+    });
+
+    window.addEventListener("scroll", function () {
+        positionField.value = String(window.pageYOffset || document.documentElement.scrollTop || 0);
+    }, { passive: true });
+})();
 
 function loadCompanyName() {
     var data = getLoginData();
