@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace INSPECFO {
+namespace INSPEC {
     
     
     public partial class toast {
