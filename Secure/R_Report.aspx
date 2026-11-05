@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MaintainScrollPositionOnPostback="true" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="T_DailyLogEmployee.aspx.cs" Inherits="INSPEC.Secure.T_DailyLogEmployee" %>
+﻿<%@ Page Title="" Language="C#" MaintainScrollPositionOnPostback="true" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="R_Report.aspx.cs" Inherits="INSPEC.Secure.R_Report" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
