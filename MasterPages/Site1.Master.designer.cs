@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace INSPECFO.MasterPages {
+namespace INSPEC.MasterPages {
     
     
     public partial class Site1 {
