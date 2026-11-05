@@ -35,8 +35,8 @@ namespace INSPEC.Secure
                     oUser.EQuery("UPDATE SysWebUser SET Password=@Password WHERE UserID=@UserID",
                         "@UserID=" + userID + GF.Str2 + "@Password=" + oUser.GetHashStringSQL(p_newpassword));
 
-                oUser.EQuery("UPDATE UTL_User SET Theme=@Theme WHERE UserID=@UserID",
-                    "@UserID=" + userID + GF.Str2 + "@Theme=" + (p_theme ?? ""));
+                oUser.EQuery("UPDATE UTL_User SET Theme=@Theme WHERE EmployeeID=@EmployeeID",
+                    "@EmployeeID=" + employeeID + GF.Str2 + "@Theme=" + (p_theme ?? ""));
                 return new { message = "ok" };
             }
         }
