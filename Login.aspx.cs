@@ -113,7 +113,11 @@ namespace INSPEC
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
                     "@Token=" + token).Rows.Count > 0;
-                if (valid) GFC.SetCookie(token);
+                if (valid)
+                    GFC.SetCookie(token);
+                else
+                    GFC.ClearCookie();
+
                 return valid;
             }
 
