@@ -7,7 +7,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace UTL1.Secure {
+namespace INSPEC.Secure {
     
     
     public partial class meterreading {
