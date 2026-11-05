@@ -181,7 +181,7 @@ namespace INSPEC
                         return new { success = false, message = "INSPEC account not found or inactive." };
 
                     string userID = Convert.ToString(dtUser.Rows[0]["UserID"]).Trim();
-                    return F_LoginWithHash(userID, passwordHash, p_browserGuid, p_deviceName);
+                    return F_LoginWithHash(employeeID, passwordHash, p_browserGuid, p_deviceName);
                 }
             }
             catch (Exception ex)
@@ -191,7 +191,7 @@ namespace INSPEC
         }
 
         [WebMethod]
-        private static object F_LoginWithHash(string p_userid, string V_Pwd, string p_browserGuid, string p_deviceName)
+        private static object F_LoginWithHash(string p_employeeid, string V_Pwd, string p_browserGuid, string p_deviceName)
         {
             using (var oUser = new WAL.BR.CF())
             {
@@ -207,8 +207,8 @@ namespace INSPEC
                       LEFT JOIN UTL_User L ON L.EmployeeID = U.employeeid
                       LEFT JOIN UserSession us ON us.IsActive = 1 AND U.UserID = us.UserID
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
-                      WHERE U.UserID = @UserID AND U.IsActive = 1",
-                    "@UserID=" + p_userid);
+                      WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
+                    "@EmployeeID=" + p_employeeid);
                 var _arrList = new ArrayList();
                 if (dt.Rows.Count == 0) return new { success = false, message = "user not found..." };
                 if (Convert.ToString(dt.Rows[0]["Password"]).Trim() != V_Pwd.Trim())
@@ -222,6 +222,7 @@ namespace INSPEC
                 string v_profitcenter = Convert.ToString(dt.Rows[0]["ProfitCenterNo"]);
                 string v_theme = String.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Theme"])) ? "L" : Convert.ToString(dt.Rows[0]["Theme"]);
                 string V_EmpID = Convert.ToString(dt.Rows[0]["EmployeeID"]).Trim();
+                string V_UserID = Convert.ToString(dt.Rows[0]["UserID"]).Trim();
 
                 // Load the authorized INSPEC front-end menu from SysWeb2.
                 // EmployeeID is the NIK used by SysWebUserUserGroup and the authorization function.
@@ -277,11 +278,11 @@ SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
 INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
 VALUES (@NewID, @UserID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
 COMMIT TRANSACTION;",
-                    "@UserID=" + p_userid + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
+                    "@UserID=" + V_UserID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
                     "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
                     GFC.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
-                        companylist = _arrList, menus = menus, userid = p_userid, username = v_username, curcompany = v_currcompany,
+                        companylist = _arrList, menus = menus, userid = V_UserID, username = v_username, curcompany = v_currcompany,
                         curcompanyname = v_currcompanyname, employeeid = V_EmpID, jobtitle = v_jobtitle,
                         email = v_email, profitcenter = v_profitcenter, theme = v_theme, section = v_section,
                         lastsyncm = Convert.ToDateTime(dt.Rows[0]["LastSyncMaster"]).ToString(GF.FormatDate2),
