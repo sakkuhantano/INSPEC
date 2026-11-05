@@ -317,7 +317,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                 DataTable auth = br.EQueryP(
                     @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                       FROM dbo.SysWebUser SU
-                      INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+                      INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
                       WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1",
                     new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
 
@@ -342,7 +342,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                 DataTable companyAuth = br.EQueryP(
                     @"SELECT U.UserID
                       FROM dbo.SysWebUser SU
-                          INNER JOIN dbo.UTL_User U ON U.UserID=SU.UserID
+                          INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
                           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                         AND (
                             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
