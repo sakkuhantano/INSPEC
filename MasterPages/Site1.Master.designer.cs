@@ -19,6 +19,10 @@ namespace INSPEC.MasterPages {
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfMnCompanyID;
+        protected global::System.Web.UI.WebControls.HiddenField hfMnLocationID;
+        protected global::System.Web.UI.WebControls.HiddenField hfMnCompanyName;
+
         protected global::System.Web.UI.WebControls.ContentPlaceHolder head;
         
         /// <summary>
