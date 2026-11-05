@@ -709,8 +709,11 @@ async function getInspectionData() {
                 locationId: companyLocation[1] || ""
             })
         });
-        if (!masterResponse.ok) throw new Error("Download Inspection Type failed");
         const masterResult = await masterResponse.json();
+        if (!masterResponse.ok) {
+            const serverMessage = masterResult && (masterResult.Message || masterResult.ExceptionMessage);
+            throw new Error(serverMessage || ("Download Inspection Type failed (HTTP " + masterResponse.status + ")"));
+        }
         const masters = masterResult.d || { types: [], details: [] };
 
         const templateResponse = await fetch("dashboard.aspx/getCheckList", {
@@ -727,8 +730,11 @@ async function getInspectionData() {
                 employeeId: login.employeeid || ""
             })
         });
-        if (!templateResponse.ok) throw new Error("Download Inspection templates failed");
         const templateResult = await templateResponse.json();
+        if (!templateResponse.ok) {
+            const serverMessage = templateResult && (templateResult.Message || templateResult.ExceptionMessage);
+            throw new Error(serverMessage || ("Download Inspection templates failed (HTTP " + templateResponse.status + ")"));
+        }
         const templates = (templateResult.d || []).map(function (template) {
             // Persist the version-level photo rule alongside the exact template version.
             const photoRequirement = String(template.PhotoRequirement || template.photoRequirement || "BOTH").toUpperCase();
