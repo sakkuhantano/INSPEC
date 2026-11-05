@@ -11,22 +11,9 @@ using WAL;
 
 namespace INSPEC.Secure
 {
-    public partial class T_DailyLogEmployee : WAL.PB, WAL.I_ToolBar_2
+    public partial class T_DailyLogEmployee : System.Web.UI.Page
     {
         private const string _MenuID = "20031";
-
-        public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
-        {
-            switch (e.ToolbarItem)
-            {
-                case ToolbarItem_2.Refresh:
-                    break;
-            }
-        }
-        private void InitToolbar()
-        {
-            // Daily Log uses the Site1 application toolbar instead of the legacy WAL toolbar.
-        }
 
         private string _loginEmployeeID;
         private string LoginEmployeeID
