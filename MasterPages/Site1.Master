@@ -1,5 +1,6 @@
 ﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site1.master.cs" Inherits="INSPEC.MasterPages.Site1" %>
 <%@ Register Src="~/UserControls/toast.ascx" TagPrefix="uc1" TagName="toast" %>
+<%@ Register Src="~/UserControls/UC_Toolbar_2.ascx" TagPrefix="uc2" TagName="UC_Toolbar_2" %>
 <!DOCTYPE html>
 
 <html>
@@ -249,6 +250,9 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 </div>
 <div id="pageStickyBar" runat="server">
 <asp:ContentPlaceHolder ID="stickybar" runat="server"></asp:ContentPlaceHolder>
+<asp:Panel ID="pnl_TB" runat="server" Visible="false" CssClass="mt-2">
+    <uc2:UC_Toolbar_2 ID="ucToolbar" runat="server" />
+</asp:Panel>
 </div>
 </div>
 </header>
