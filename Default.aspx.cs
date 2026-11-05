@@ -16,7 +16,7 @@ using System.Web.UI.HtmlControls;
 using System.Data.SqlClient;
 using System.Net;
 
-namespace Web
+namespace INSPEC
 {
     public partial class _Default : WAL.PB
     {
