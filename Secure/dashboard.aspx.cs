@@ -15,7 +15,7 @@ namespace INSPECFO.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            INSPECFO.AppAuthorization.RequireAnyMenuEmployee(
+            INSPECFO.GFC.RequireAnyMenuEmployee(
                 "20011", "20012", "20021", "20022", "20031",
                 "20041", "20042", "20043");
         }
@@ -26,14 +26,14 @@ namespace INSPECFO.Secure
                 !String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
                 throw new HttpException(400, "Invalid checklist template type.");
             employeeId = String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase)
-                ? INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20021", "20022")
-                : INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20011", "20012");
+                ? INSPECFO.GFC.RequireAnyMenuEmployee("20021", "20022")
+                : INSPECFO.GFC.RequireAnyMenuEmployee("20011", "20012");
             var result = new List<Dictionary<string, object>>();
             using (var br = new WAL.BR.CF())
             {
                 if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                     throw new HttpException(400, "Company/location is required for checklist download.");
-                INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+                INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
                 // Inspection master downloads must be scoped by the server-side UTL_User record,
                 // not by a section list supplied by browser localStorage.
                 if (String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
@@ -80,7 +80,7 @@ namespace INSPECFO.Secure
                 }
                 else
                 {
-                    var allowedSections = INSPECFO.AppAuthorization.GetEmployeeSection(employeeId)
+                    var allowedSections = INSPECFO.GFC.GetEmployeeSection(employeeId)
                         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
                     var requestedSections = (section ?? "")
@@ -292,7 +292,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
         [WebMethod]
         public static object getInspectionMasters(string section, string employeeId, string companyId, string locationId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireAnyMenuEmployee("20021", "20022");
+            employeeId = INSPECFO.GFC.RequireAnyMenuEmployee("20021", "20022");
             using (var br = new WAL.BR.CF())
             {
                 if (String.IsNullOrWhiteSpace(employeeId))
@@ -407,7 +407,7 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
         [WebMethod]
         public static object getEmployees(string employeeid, string lastSync)
         {
-            employeeid = INSPECFO.AppAuthorization.RequireMenuEmployee("20011");
+            employeeid = INSPECFO.GFC.RequireMenuEmployee("20011");
             using (var br=new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
