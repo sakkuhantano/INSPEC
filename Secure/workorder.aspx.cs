@@ -992,7 +992,8 @@ string.Format(@"
                         DataTable allowed = auth.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
-JOIN dbo.UTL_User U ON U.UserID=(SELECT TOP 1 S.UserID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
 WHERE W.KeyHD=@KeyHD
   AND W.CompanyID=@CompanyID
   AND W.LocationID=@LocationID
