@@ -85,8 +85,8 @@ namespace INSPEC.MasterPages
         }
 
 
-        // BS5 Master compatibility properties. INSPEC does not currently load
-        // several legacy profile fields, so those properties return safe defaults.
+        // BS5 Master compatibility properties.
+        // Profile values are loaded once from the same PIP login function used by BS5.
         private System.Data.DataRow _legacyUserRow;
 
         private System.Data.DataRow LegacyUserRow
@@ -96,17 +96,25 @@ namespace INSPEC.MasterPages
                 if (_legacyUserRow == null)
                 {
                     string employeeID = GFC.CurrentEmployeeID();
-                    using (var br = new WAL.BR.CF())
+                    if (!String.IsNullOrEmpty(employeeID))
                     {
-                        System.Data.DataTable dt = br.EQuery(
-                            @"SELECT TOP 1 U.UserID, U.UserName, A.UserName AS DisplayName,
-                                     A.JobTitleName, A.EmailAddress, A.ProfitCenterNo
-                              FROM dbo.SysWebUser U
-                              CROSS APPLY dbo.F_SelectOneLogin('pip', U.EmployeeID, '') A
-                              WHERE U.EmployeeID=@EmployeeID AND U.IsActive=1",
-                            "@EmployeeID=" + employeeID);
-                        if (dt.Rows.Count > 0)
-                            _legacyUserRow = dt.Rows[0];
+                        using (var br = new WAL.BR.CF())
+                        {
+                            System.Data.DataTable dt = br.EQuery(
+                                @"SELECT TOP 1
+                                      A.EmployeeID, A.UserID, A.UserName, A.UserGroupID,
+                                      A.IsAllowExportReport, A.CompanyID, A.CompanyName,
+                                      A.BussinessID, A.LocationID, A.LocationName,
+                                      A.HomeCurrencyID, A.HomeDecimal, A.ForeignCurrencyID,
+                                      A.ForeignDecimal, A.BuildingType, A.CompanyID_Asli,
+                                      A.LocationID_Asli, A.ParentEmployeeID, A.ParentePDR,
+                                      A.ProfitCenterNo, A.ProfitCenterName, A.CCEmailPC,
+                                      A.JobTitleID, A.JobTitleName, A.EmailAddress, A.CCEmail
+                                  FROM dbo.F_SelectOneLogin('PIP', @EmployeeID, '') A",
+                                "@EmployeeID=" + employeeID);
+                            if (dt.Rows.Count > 0)
+                                _legacyUserRow = dt.Rows[0];
+                        }
                     }
                 }
                 return _legacyUserRow;
@@ -120,17 +128,48 @@ namespace INSPEC.MasterPages
                 ? String.Empty : Convert.ToString(row[column]).Trim();
         }
 
-        public string Mn_hf_MP_Position { get; set; }
-        public bool Mn_IsByPassLogonUser { get; set; }
+        private int LegacyIntValue(string column)
+        {
+            int value;
+            return Int32.TryParse(LegacyValue(column), out value) ? value : 0;
+        }
+
+        private bool LegacyBoolValue(string column)
+        {
+            bool value;
+            return Boolean.TryParse(LegacyValue(column), out value) && value;
+        }
+
+        public string Mn_hf_MP_Position
+        {
+            get { return Request.Form[hfMnMPPosition.UniqueID] ?? hfMnMPPosition.Value; }
+            set { hfMnMPPosition.Value = value ?? String.Empty; }
+        }
+        public bool Mn_IsByPassLogonUser
+        {
+            get
+            {
+                string value = Request.Form[hfMnIsByPassLogonUser.UniqueID] ?? hfMnIsByPassLogonUser.Value;
+                return String.Equals(value, "true", StringComparison.OrdinalIgnoreCase) || value == "1";
+            }
+            set { hfMnIsByPassLogonUser.Value = value ? "true" : "false"; }
+        }
         public string Mn_lit_Title
         {
-            get { return Page.Title; }
-            set { Page.Title = value; }
+            get { return lit_Title.Text.Trim(); }
+            set { lit_Title.Text = value ?? String.Empty; }
         }
-        public string Mn_EmployeeID { get { return GFC.CurrentEmployeeID(); } }
+        public string Mn_EmployeeID
+        {
+            get
+            {
+                string value = Request.Form[hfMnEmployeeID.UniqueID] ?? hfMnEmployeeID.Value;
+                return String.IsNullOrWhiteSpace(value) ? GFC.CurrentEmployeeID() : value.Trim();
+            }
+        }
         public string Mn_UserID { get { return LegacyValue("UserID"); } }
-        public string Mn_UserName { get { return LegacyValue("DisplayName"); } }
-        public string Mn_UserGroupID { get { return String.Empty; } }
+        public string Mn_UserName { get { return LegacyValue("UserName"); } }
+        public string Mn_UserGroupID { get { return LegacyValue("UserGroupID"); } }
         public string Mn_CompanyID
         {
             get { return Request.Form[hfMnCompanyID.UniqueID] ?? hfMnCompanyID.Value; }
@@ -141,31 +180,31 @@ namespace INSPEC.MasterPages
             get { return Request.Form[hfMnCompanyName.UniqueID] ?? hfMnCompanyName.Value; }
             set { hfMnCompanyName.Value = value ?? String.Empty; }
         }
-        public string Mn_BussinessID { get; set; }
+        public string Mn_BussinessID { get { return LegacyValue("BussinessID"); } }
         public string Mn_LocationID
         {
             get { return Request.Form[hfMnLocationID.UniqueID] ?? hfMnLocationID.Value; }
             set { hfMnLocationID.Value = value ?? String.Empty; }
         }
-        public string Mn_LocationName { get; set; }
-        public string Mn_HomeCurrencyID { get; set; }
-        public string Mn_HomeDecimal { get; set; }
-        public string Mn_ForeignCurrencyID { get; set; }
-        public string Mn_ForeignDecimal { get; set; }
-        public string Mn_BuildingType { get; set; }
+        public string Mn_LocationName { get { return LegacyValue("LocationName"); } }
+        public string Mn_HomeCurrencyID { get { return LegacyValue("HomeCurrencyID"); } }
+        public string Mn_HomeDecimal { get { return LegacyValue("HomeDecimal"); } }
+        public string Mn_ForeignCurrencyID { get { return LegacyValue("ForeignCurrencyID"); } }
+        public string Mn_ForeignDecimal { get { return LegacyValue("ForeignDecimal"); } }
+        public string Mn_BuildingType { get { return LegacyValue("BuildingType"); } }
         public string Mn_ActivePeriod { get; set; }
-        public string Mn_CompanyID_Asli { get { return String.Empty; } }
-        public string Mn_LocationID_Asli { get { return String.Empty; } }
-        public bool Mn_IsAllowExportReport { get { return false; } }
-        public string Mn_ParentEmployeeID { get { return String.Empty; } }
-        public string Mn_ParentePDR { get { return String.Empty; } }
+        public string Mn_CompanyID_Asli { get { return LegacyValue("CompanyID_Asli"); } }
+        public string Mn_LocationID_Asli { get { return LegacyValue("LocationID_Asli"); } }
+        public bool Mn_IsAllowExportReport { get { return LegacyBoolValue("IsAllowExportReport"); } }
+        public string Mn_ParentEmployeeID { get { return LegacyValue("ParentEmployeeID"); } }
+        public string Mn_ParentePDR { get { return LegacyValue("ParentePDR"); } }
         public string Mn_ProfitCenterNo { get { return LegacyValue("ProfitCenterNo"); } }
-        public string Mn_ProfitCenterName { get { return String.Empty; } }
-        public int Mn_CCEmailPC { get { return 0; } }
-        public string Mn_JobTitleID { get { return String.Empty; } }
+        public string Mn_ProfitCenterName { get { return LegacyValue("ProfitCenterName"); } }
+        public int Mn_CCEmailPC { get { return LegacyIntValue("CCEmailPC"); } }
+        public string Mn_JobTitleID { get { return LegacyValue("JobTitleID"); } }
         public string Mn_JobTitleName { get { return LegacyValue("JobTitleName"); } }
         public string Mn_EmailAddress { get { return LegacyValue("EmailAddress"); } }
-        public int Mn_CCEmail { get { return 0; } }
+        public int Mn_CCEmail { get { return LegacyIntValue("CCEmail"); } }
 
         protected void Page_Load(object sender, EventArgs e)
         {
