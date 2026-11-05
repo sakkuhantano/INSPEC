@@ -1,1 +1,1 @@
-namespace INSPECFO.Secure { public partial class profilesetting { } }
+namespace INSPEC.Secure { public partial class profilesetting { } }
