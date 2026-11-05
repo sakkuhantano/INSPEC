@@ -18,9 +18,9 @@ namespace INSPECFO.Secure
         {
             string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
             if (mode == "entry")
-                INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+                INSPECFO.GFC.RequireMenuEmployee("20021");
             else if (mode == "approval")
-                INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+                INSPECFO.GFC.RequireMenuEmployee("20022");
             else
                 throw new HttpException(400, "Invalid Inspection mode.");
         }
@@ -28,7 +28,7 @@ namespace INSPECFO.Secure
         [WebMethod]
         public static object SyncInspections(object inspections, string userId)
         {
-            userId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
+            userId = INSPECFO.GFC.RequireMenuEmployee("20021");
             var outcomes = new List<object>();
             if (String.IsNullOrWhiteSpace(userId))
                 return new { success = false, message = "Login employee is required.", results = outcomes };
@@ -56,7 +56,7 @@ namespace INSPECFO.Secure
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
-                    INSPECFO.AppAuthorization.RequireCompanyLocation(userId, TokenString(record, "CompanyID"), TokenString(record, "LocationID"));
+                    INSPECFO.GFC.RequireCompanyLocation(userId, TokenString(record, "CompanyID"), TokenString(record, "LocationID"));
                     string recordOwner = TokenString(record, "OwnerEmployeeID");
                     if (String.IsNullOrWhiteSpace(recordOwner) ||
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
@@ -142,7 +142,7 @@ namespace INSPECFO.Secure
                     string companyId = Limit(TokenString(record, "CompanyID"), 10);
                     string locationId = Limit(TokenString(record, "LocationID"), 3);
                     string sectionId = Limit(TokenString(record, "SectionID"), 10);
-                    var employeeSections = INSPECFO.AppAuthorization.GetEmployeeSection(userId)
+                    var employeeSections = INSPECFO.GFC.GetEmployeeSection(userId)
                         .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                         .Select(x => x.Trim());
                     if (!employeeSections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
@@ -450,8 +450,8 @@ SELECT ID FROM @AutoNumResult;",
             string sectionId, string inspectionTypeCode, string inspectionTypeDetailCode,
             string scheduledTime, int templateId, string inspectionDate)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
@@ -539,8 +539,8 @@ ORDER BY InspectionID DESC",
         [WebMethod]
         public static object GetTodayInspectionSlots(string employeeId, string companyId, string locationId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
@@ -667,8 +667,8 @@ WHERE T.IDTemplate=@IDTemplate
         public static object ArchiveInspectionDelete(string employeeId, string companyId, string locationId,
             string clientInspectionId, string reasonCancel, string originalTransactionJson)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
                 String.IsNullOrWhiteSpace(originalTransactionJson))
                 throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
@@ -737,8 +737,8 @@ COMMIT TRANSACTION;",
         public static object DeactivateVoidedInspection(string employeeId, string companyId, string locationId,
             string clientInspectionId, string reasonCancel, string originalTransactionJson)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(clientInspectionId) ||
                 String.IsNullOrWhiteSpace(originalTransactionJson))
                 throw new HttpException(400, "Employee, client transaction ID, and transaction snapshot are required.");
@@ -819,8 +819,8 @@ WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
         [WebMethod]
         public static object GetInspectionEntryList(string employeeId, string companyId, string locationId, string fromDate, string thruDate)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                 throw new HttpException(400, "Employee, company, and location are required.");
 
@@ -923,8 +923,8 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20022");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
@@ -1054,8 +1054,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
         [WebMethod]
         public static object GetInspectionDashboardSummary(string employeeId, string companyId, string locationId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20022");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
             using (var br = new WAL.BR.CF())
@@ -1112,8 +1112,8 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.
         [WebMethod]
         public static object GetReturnedInspectionPhotos(string clientInspectionId, string employeeId, string companyId, string locationId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(clientInspectionId) || String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(400, "Inspection and technician identity are required.");
             using (var br = new WAL.BR.CF())
@@ -1167,7 +1167,7 @@ ORDER BY P.SeqNo",
         [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20022");
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
@@ -1400,8 +1400,8 @@ ORDER BY P.SeqNo",
         [WebMethod]
         public static object GetReturnedInspections(string employeeId, string companyId, string locationId)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20021");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20021");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Technician identity is required.");
             using (var br = new WAL.BR.CF())
@@ -1599,8 +1599,8 @@ ORDER BY G.DisplayOrder",
         public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
         {
-            employeeId = INSPECFO.AppAuthorization.RequireMenuEmployee("20022");
-            INSPECFO.AppAuthorization.RequireCompanyLocation(employeeId, companyId, locationId);
+            employeeId = INSPECFO.GFC.RequireMenuEmployee("20022");
+            INSPECFO.GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
             if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
