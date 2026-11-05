@@ -7,7 +7,7 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using WAL;
 
-namespace Web.Secure
+namespace INSPEC.Secure
 {
     public partial class Main : WAL.PB
     {
