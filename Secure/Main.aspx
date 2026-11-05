@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="Main.aspx.cs" Inherits="Web.Secure.Main" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="Main.aspx.cs" Inherits="INSPEC.Secure.Main" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
