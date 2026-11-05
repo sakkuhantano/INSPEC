@@ -99,7 +99,7 @@ namespace INSPEC
             {
                 bool valid = br.EQuery(@"SELECT TOP 1 S.UserID
                     FROM UserSession S
-                    INNER JOIN SysWebUser U ON U.UserID = S.UserID
+                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
                     WHERE S.BrowserGuid = @BrowserGuid
                       AND S.ServerGuid = @ServerGuid
                       AND S.Token = @Token
@@ -221,7 +221,7 @@ namespace INSPEC
                              ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
                       FROM SysWebUser U
                       LEFT JOIN UTL_User L ON L.EmployeeID = U.employeeid
-                      LEFT JOIN UserSession us ON us.IsActive = 1 AND U.UserID = us.UserID
+                      LEFT JOIN UserSession us ON us.IsActive = 1 AND U.EmployeeID = us.UserID
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
                       WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
                     "@EmployeeID=" + p_employeeid);
@@ -297,13 +297,13 @@ namespace INSPEC
 BEGIN TRANSACTION;
 DECLARE @NewID INT;
 SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
-UPDATE UserSession SET IsActive = 0 WHERE IsActive = 1 AND UserID = @UserID;
+UPDATE UserSession SET IsActive = 0 WHERE IsActive = 1 AND UserID = @EmployeeID;
 DELETE FROM UserSession WHERE ISNULL(IsActive, 0) = 0;
 SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
 INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
-VALUES (@NewID, @UserID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
+VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
 COMMIT TRANSACTION;",
-                    "@UserID=" + V_UserID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
+                    "@EmployeeID=" + V_EmpID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
                     "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
                     GFC.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
