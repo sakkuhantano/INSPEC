@@ -259,6 +259,38 @@ function loadSidebarMenu() {
         var nav = document.getElementById("sidebarMenu");
         if (!nav) return;
         var menus = (getLoginData() || {}).menus || [];
+
+        // Company selection is already available in the company dropdown above the sidebar.
+        // Hide Utility and company-setting menu branches, and suppress a SysWeb2 Logout
+        // entry because this sidebar creates and wires exactly one Logout item below.
+        var hiddenMenuIds = {};
+        menus.forEach(function (item) {
+            var label = String(item.Caption || item.DESCRIPTION || item.Description || "")
+                .toLowerCase().replace(/[^a-z]/g, "");
+            if (label === "utility" || label === "settingcompany" || label === "companysetting") {
+                var id = String(item.MenuID || "").trim();
+                if (id) hiddenMenuIds[id] = true;
+            }
+        });
+        var changedHiddenMenus = true;
+        while (changedHiddenMenus) {
+            changedHiddenMenus = false;
+            menus.forEach(function (item) {
+                var id = String(item.MenuID || "").trim();
+                var parentId = String(item.ParentMenuID || "").trim();
+                if (id && parentId && hiddenMenuIds[parentId] && !hiddenMenuIds[id]) {
+                    hiddenMenuIds[id] = true;
+                    changedHiddenMenus = true;
+                }
+            });
+        }
+        menus = menus.filter(function (item) {
+            var id = String(item.MenuID || "").trim();
+            var label = String(item.Caption || item.DESCRIPTION || item.Description || "")
+                .toLowerCase().replace(/[^a-z]/g, "");
+            return !hiddenMenuIds[id] && label !== "logout";
+        });
+
         nav.textContent = "";
 
         function makeAnchor(label, href, css, iconCss) {
