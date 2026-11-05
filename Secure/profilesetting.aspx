@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="profilesetting.aspx.cs" Inherits="INSPECFO.Secure.profilesetting" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="profilesetting.aspx.cs" Inherits="INSPEC.Secure.profilesetting" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <%@ Register Src="~/UserControls/toast.ascx" TagPrefix="uc1" TagName="toast" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
