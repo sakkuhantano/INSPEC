@@ -2161,6 +2161,46 @@ function populateInspectionParameters(record) {
     const detailSelect = document.getElementById("selInspectionDetail");
     const scheduleTimeSelect = document.getElementById("selInspectionScheduleTime");
 
+    // Submitted/synced records are read-only. Their original master rows may no longer
+    // exist in this device's IndexedDB, so render the transaction's saved parameter values
+    // directly instead of looking them up in the current master dropdown caches.
+    if (currentInspectionReadOnly) {
+        const typeCode = String(record.InspectionTypeCode || "");
+        const typeName = String(record.InspectionTypeName || "");
+        const detailCode = String(record.InspectionTypeDetailCode || "");
+        const detailName = String(record.InspectionTypeDetailName || "");
+        const templateId = record.IDTemplate != null && String(record.IDTemplate) !== ""
+            ? String(record.IDTemplate) : "__server_template__";
+        const templateLabel = [record.TemplateNo || "Template",
+            record.TemplateVersion ? "v" + record.TemplateVersion : ""].filter(Boolean).join(" / ");
+
+        typeSelect.innerHTML = '<option value="' + escInspection(typeCode || "__server_type__") + '">' +
+            escInspection([typeCode, typeName].filter(Boolean).join(" - ") || "-") + '</option>';
+        typeSelect.value = typeCode || "__server_type__";
+
+        detailSelect.innerHTML = '<option value="' + escInspection(detailCode || "__server_detail__") + '">' +
+            escInspection([detailCode, detailName].filter(Boolean).join(" - ") || "-") + '</option>';
+        detailSelect.value = detailCode || "__server_detail__";
+
+        scheduleTimeSelect.innerHTML = '<option value="' + escInspection(record.ScheduledTime || "") + '">' +
+            escInspection(record.ScheduledTime || "Tanpa jadwal") + '</option>';
+        scheduleTimeSelect.value = record.ScheduledTime || "";
+
+        templateSelect.innerHTML = '<option value="' + escInspection(templateId) + '">' +
+            escInspection(templateLabel || "-") + '</option>';
+        templateSelect.value = templateId;
+
+        [typeSelect, detailSelect, scheduleTimeSelect, templateSelect].forEach(select => {
+            select.disabled = true;
+        });
+        document.getElementById("txtInspectionDate").value =
+            inspectionDateInputValue(record.InspectionDate);
+        document.getElementById("txtInspectionDate").disabled = true;
+        updateStartButton();
+        updateInspectionParameterTabGate();
+        return;
+    }
+
     typeSelect.value = record.InspectionTypeCode || "";
     onInspectionTypeChanged();
 
