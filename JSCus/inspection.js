@@ -1680,9 +1680,19 @@ async function refreshSavedInspectionList() {
     const drafts = inspectionRecords.filter(record =>
         record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
 
+    // Submitted must only contain sections assigned to the currently logged-in employee.
+    // Local IndexedDB may retain completed records created under an older section assignment.
+    const allowedSectionIds = new Set(
+        String(inspectionLogin.section || "").split(";")
+            .map(section => section.trim().toUpperCase())
+            .filter(Boolean)
+    );
+
     // Keep completed local transactions visible until sync succeeds, regardless of InspectionDate.
     // Synced local copies follow the selected date range; the server remains the source for synced rows.
+    // Apply the current employee section authorization before adding either local or server rows.
     const submittedCandidates = inspectionRecords.filter(record =>
+        allowedSectionIds.has(String(record.SectionID || "").trim().toUpperCase()) &&
         record.Status === "DONE" &&
         record.SyncStatus !== "CONFLICT" &&
         record.SyncStatus !== "DELETE_PENDING" &&
@@ -1690,6 +1700,8 @@ async function refreshSavedInspectionList() {
             isInspectionWithinSubmittedRange(record, fromDate, thruDate)));
 
     serverSubmittedInspectionRecords.forEach(record => {
+        if (!allowedSectionIds.has(String(record.SectionID || "").trim().toUpperCase())) return;
+
         // Server rows appear in Submitted by the server-side approval/void date range.
         const syncDate = parseInspectionDate(record && record.SyncDate);
         if (!syncDate || syncDate < fromDate || syncDate > thruDate) return;
