@@ -15,7 +15,7 @@ using Newtonsoft.Json.Linq;
 using WAL;
 using UTL1;
 
-namespace INSPECFO.Secure
+namespace INSPEC.Secure
 {
     public partial class meterreading : System.Web.UI.Page
     {
@@ -25,13 +25,13 @@ namespace INSPECFO.Secure
             string menuID = type == "ELC" ? "20041" : type == "WTR" ? "20042" : type == "GAS" ? "20043" : "";
             if (menuID == "")
                 throw new HttpException(400, "Invalid Meter Reading type.");
-            INSPECFO.GFC.RequireMenuEmployee(menuID);
+            GFC.RequireMenuEmployee(menuID);
         }
         [WebMethod]
         public static Dictionary<string, object> uploadMeter(object meterList, string companyId, string locationId, string userId)
         {
-            userId = INSPECFO.GFC.RequireAnyMenuEmployee("20041", "20042", "20043");
-            INSPECFO.GFC.RequireCompanyLocation(userId, companyId, locationId);
+            userId = GFC.RequireAnyMenuEmployee("20041", "20042", "20043");
+            GFC.RequireCompanyLocation(userId, companyId, locationId);
             var result = new Dictionary<string, object>();
             var failed = new List<Dictionary<object, object>>();
             var items = new List<object>();
@@ -51,7 +51,7 @@ namespace INSPECFO.Secure
                     {
                         string type = Convert.ToString(meter["Type"]).Trim().ToUpperInvariant();
                         string menuID = type == "ELC" ? "20041" : (type == "WTR" || type == "AIR") ? "20042" : type == "GAS" ? "20043" : "";
-                        if (menuID == "" || !INSPECFO.GFC.HasMenu(userId, menuID))
+                        if (menuID == "" || !GFC.HasMenu(userId, menuID))
                             throw new HttpException(403, "Meter type is not authorized.");
                     }
                 }
@@ -93,11 +93,11 @@ namespace INSPECFO.Secure
         }
         [WebMethod]
         public static object getMeter(string companyId, string locationId, string lastSync, string lastPeriod, bool isELC, bool isWTR, bool isGAS)
-        {            string employeeID = INSPECFO.GFC.RequireAnyMenuEmployee("20041", "20042", "20043");
-            INSPECFO.GFC.RequireCompanyLocation(employeeID, companyId, locationId);
-            isELC = INSPECFO.GFC.HasMenu(employeeID, "20041");
-            isWTR = INSPECFO.GFC.HasMenu(employeeID, "20042");
-            isGAS = INSPECFO.GFC.HasMenu(employeeID, "20043");
+        {            string employeeID = GFC.RequireAnyMenuEmployee("20041", "20042", "20043");
+            GFC.RequireCompanyLocation(employeeID, companyId, locationId);
+            isELC = GFC.HasMenu(employeeID, "20041");
+            isWTR = GFC.HasMenu(employeeID, "20042");
+            isGAS = GFC.HasMenu(employeeID, "20043");
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP("sp_UTL_UploadConsumption1",
