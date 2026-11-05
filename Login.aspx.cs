@@ -97,11 +97,22 @@ namespace INSPEC
         {
             using (var br=new WAL.BR.CF())
             {
-                bool valid = br.EQuery("SELECT * FROM UserSession WHERE BrowserGuid = @BrowserGuid AND ServerGuid = @ServerGuid " +
-                          "AND Token = @Token AND IsActive = 1 AND ExpireTime > GETDATE()",
-                          "@BrowserGuid=" + browserGuid + GF.Str2 +
-                          "@ServerGuid=" + serverGuid + GF.Str2 +
-                          "@Token=" + token).Rows.Count > 0;
+                bool valid = br.EQuery(@"SELECT TOP 1 S.UserID
+                    FROM UserSession S
+                    INNER JOIN SysWebUser U ON U.UserID = S.UserID
+                    WHERE S.BrowserGuid = @BrowserGuid
+                      AND S.ServerGuid = @ServerGuid
+                      AND S.Token = @Token
+                      AND S.IsActive = 1
+                      AND S.ExpireTime > GETDATE()
+                      AND U.IsActive = 1
+                      AND EXISTS (
+                          SELECT 1
+                          FROM dbo.F_SelectALLMenuAuthorization('inspecfo', U.EmployeeID, '')
+                      )",
+                    "@BrowserGuid=" + browserGuid + GF.Str2 +
+                    "@ServerGuid=" + serverGuid + GF.Str2 +
+                    "@Token=" + token).Rows.Count > 0;
                 if (valid) GFC.SetCookie(token);
                 return valid;
             }
@@ -233,6 +244,9 @@ namespace INSPEC
                       ORDER BY [COUNTER], MenuID",
                     "@AppID=inspecfo" + GF.Str2 +
                     "@EmployeeID=" + V_EmpID);
+
+                if (dtMenus.Rows.Count == 0)
+                    return new { success = false, message = "You are not authorized to access INSPEC." };
 
                 var menus = new List<Dictionary<string, object>>();
                 foreach (DataRow menuRow in dtMenus.Rows)
