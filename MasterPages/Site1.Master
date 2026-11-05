@@ -248,9 +248,6 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 </div>
 
 </div>
-<asp:HiddenField ID="hfMnCompanyID" ClientIDMode="Static" runat="server" />
-<asp:HiddenField ID="hfMnLocationID" ClientIDMode="Static" runat="server" />
-<asp:HiddenField ID="hfMnCompanyName" ClientIDMode="Static" runat="server" />
 <div id="pageStickyBar" runat="server">
 <asp:ContentPlaceHolder ID="stickybar" runat="server"></asp:ContentPlaceHolder>
 <asp:Panel ID="pnl_TB" runat="server" Visible="false" CssClass="mt-2">
@@ -261,6 +258,10 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 </header>
 <!-- Dashboard Body -->
 <form id="form1" runat="server">
+<asp:HiddenField ID="hfMnCompanyID" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfMnLocationID" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfMnCompanyName" ClientIDMode="Static" runat="server" />
+
 <%--<div class="container-fluid px-3 px-lg-4 px-xl-5 py-4" id="contentbody" style="margin-top: 38px;">--%>
 <div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
 <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
