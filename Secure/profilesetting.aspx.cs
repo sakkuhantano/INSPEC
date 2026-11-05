@@ -5,19 +5,19 @@ using System.Web.Services;
 using System.Web.UI;
 using WAL;
 
-namespace INSPECFO.Secure
+namespace INSPEC.Secure
 {
     public partial class profilesetting : System.Web.UI.Page
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            INSPECFO.AppAuthorization.CurrentEmployeeID();
+            GFC.CurrentEmployeeID();
         }
 
         [WebMethod]
         public static object SaveSetting(string p_userid, string p_oldpassword, string p_newpassword, string p_theme)
         {
-            string employeeID = INSPECFO.AppAuthorization.CurrentEmployeeID();
+            string employeeID = GFC.CurrentEmployeeID();
             using (var oUser = new WAL.BR.CF())
             {
                 DataTable dt = oUser.EQuery(
