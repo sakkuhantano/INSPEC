@@ -108,7 +108,8 @@ namespace INSPEC
                       AND U.IsActive = 1
                       AND EXISTS (
                           SELECT 1
-                          FROM dbo.F_SelectALLMenuAuthorization('inspecfo', U.EmployeeID, '')
+                          FROM dbo.F_SelectALLMenuAuthorization('inspecfo', U.EmployeeID, '') M
+                          WHERE M.MenuID IN ('20011','20012','20021','20022','20031','20041','20042','20043')
                       )",
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
@@ -249,7 +250,13 @@ namespace INSPEC
                     "@AppID=inspecfo" + GF.Str2 +
                     "@EmployeeID=" + V_EmpID);
 
-                if (dtMenus.Rows.Count == 0)
+                // Match the same authorized child-menu set required by dashboard.aspx.
+                // Parent menus or unrelated INSPEC menus alone must not create a session.
+                string[] allowedMenuIDs = { "20011", "20012", "20021", "20022", "20031", "20041", "20042", "20043" };
+                bool hasAllowedMenu = dtMenus.AsEnumerable().Any(row =>
+                    allowedMenuIDs.Contains(Convert.ToString(row["MenuID"]).Trim()));
+
+                if (!hasAllowedMenu)
                     return new { success = false, message = "You are not authorized to access INSPEC." };
 
                 var menus = new List<Dictionary<string, object>>();
