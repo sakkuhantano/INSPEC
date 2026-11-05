@@ -130,9 +130,9 @@ async function checkLogin() {
 
     var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
     if (success === false) {
-        data.lastsyncm = "";
-        data.lastsyncw = "";
-        setLoginData(data);
+        // Do not preserve an invalid session: otherwise every page load can
+        // retry it and send the browser back to Login.aspx repeatedly.
+        localStorage.removeItem("loginData");
         showLogin();
         return false;
     }
