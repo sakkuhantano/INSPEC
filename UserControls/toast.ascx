@@ -1,4 +1,4 @@
-﻿<%@ Control Language="C#" AutoEventWireup="true" CodeBehind="toast.ascx.cs" Inherits="INSPECFO.toast" %>
+﻿<%@ Control Language="C#" AutoEventWireup="true" CodeBehind="toast.ascx.cs" Inherits="INSPEC.toast" %>
 
 
 <style>
