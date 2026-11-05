@@ -35,7 +35,7 @@ namespace INSPEC.Secure
             get
             {
                 if (String.IsNullOrEmpty(_loginEmployeeID))
-                    _loginEmployeeID = AppAuthorization.RequireMenuEmployee(_MenuID);
+                    _loginEmployeeID = GFC.RequireMenuEmployee(_MenuID);
                 return _loginEmployeeID;
             }
         }
