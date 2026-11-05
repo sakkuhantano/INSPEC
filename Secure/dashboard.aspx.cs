@@ -15,9 +15,25 @@ namespace INSPEC.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            GFC.RequireAnyMenuEmployee(
-                "20011", "20012", "20021", "20022", "20031",
-                "20041", "20042", "20043");
+            try
+            {
+                GFC.RequireAnyMenuEmployee(
+                    "20011", "20012", "20021", "20022", "20031",
+                    "20041", "20042", "20043");
+            }
+            catch (HttpException ex)
+            {
+                // An invalid/expired session or missing INSPEC authorization
+                // must return the user to Login.aspx instead of showing ASP.NET 401/403.
+                if (ex.GetHttpCode() == 401 || ex.GetHttpCode() == 403)
+                {
+                    Response.Redirect(ResolveUrl("~/Login.aspx"), false);
+                    Context.ApplicationInstance.CompleteRequest();
+                    return;
+                }
+
+                throw;
+            }
         }
         [WebMethod]
         public static object getCheckList(string section, string templateNo, string version, string modelcode = "", string companyId = "", string locationId = "", string templateType = "W", string employeeId = "")
