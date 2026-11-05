@@ -196,11 +196,17 @@ async function renderInspectionDashboardCards() {
         db.objectStoreNames.contains("inspection_records")) {
         try {
             const scope = (loginData.curcompany || "").split(";");
+            const allowedSectionIds = new Set(
+                String(loginData.section || "").split(";")
+                    .map(section => section.trim().toUpperCase())
+                    .filter(Boolean)
+            );
             const pending = await new Promise((resolve, reject) => {
                 const tx = db.transaction("inspection_records", "readonly");
                 const req = tx.objectStore("inspection_records").getAll();
                 req.onsuccess = () => resolve((req.result || []).filter(x =>
                     x.OwnerEmployeeID === loginData.employeeid &&
+                    allowedSectionIds.has(String(x.SectionID || "").trim().toUpperCase()) &&
                     x.CompanyID === (scope[0] || "") &&
                     x.LocationID === (scope[1] || "") &&
                     x.Status === "DONE" &&
