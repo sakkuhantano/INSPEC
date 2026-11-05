@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="meterreading.aspx.cs" Inherits="UTL1.Secure.meterreading" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site1.Master" AutoEventWireup="true" CodeBehind="meterreading.aspx.cs" Inherits="INSPEC.Secure.meterreading" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <link rel="Stylesheet" type="text/css" href="../CSSCus/meterreading.css" />
