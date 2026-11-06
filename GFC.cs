@@ -452,7 +452,7 @@ namespace WAL
             k.Path = "/";
             k.Expires = DateTime.Now.AddDays(-1); c.Response.Cookies.Add(k);
         }
-        private static void RedirectExpiredPageRequest(HttpContext context, bool hasNewAuthCookie)
+        private static void RedirectExpiredPageRequest(HttpContext context)
         {
             if (context == null || context.Request == null || context.Response == null)
                 return;
@@ -464,22 +464,13 @@ namespace WAL
                 return;
 
             string currentPath = context.Request.AppRelativeCurrentExecutionFilePath ?? "";
-            if (String.Equals(currentPath, "~/Login.aspx", StringComparison.OrdinalIgnoreCase) ||
-                String.Equals(currentPath, "~/Default.aspx", StringComparison.OrdinalIgnoreCase))
+            if (String.Equals(currentPath, "~/Login.aspx", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            if (hasNewAuthCookie)
-            {
-                ClearCookie();
-                context.Response.Redirect(
-                    VirtualPathUtility.ToAbsolute("~/Login.aspx") + "?session=expired",
-                    true);
-            }
-            else
-            {
-                // No INSPECFO cookie: send the user to the original INSPEC login.
-                context.Response.Redirect(VirtualPathUtility.ToAbsolute("~/Default.aspx"), true);
-            }
+            ClearCookie();
+            context.Response.Redirect(
+                VirtualPathUtility.ToAbsolute("~/Login.aspx") + "?session=expired",
+                true);
         }
 
         public static string CurrentEmployeeID()
@@ -487,45 +478,28 @@ namespace WAL
             HttpContext c = HttpContext.Current;
             HttpCookie k = c == null ? null : c.Request.Cookies[CookieName];
             string token = k == null ? "" : Convert.ToString(k.Value).Trim();
-            bool hasNewAuthCookie = !String.IsNullOrWhiteSpace(token);
-
-            // First support the INSPECFO authentication flow.
             Guid parsedToken;
-            if (!String.IsNullOrEmpty(token) && Guid.TryParse(token, out parsedToken))
+            if (String.IsNullOrEmpty(token) || !Guid.TryParse(token, out parsedToken))
             {
-                using (var br = new WAL.BR.CF())
+                RedirectExpiredPageRequest(c);
+                throw new HttpException(401, "Authentication is required.");
+            }
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
+                    INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
+                    WHERE S.Token=@Token AND S.IsActive=1 AND S.ExpireTime>GETDATE() AND U.IsActive=1",
+                    "@Token=" + token);
+
+                if (dt.Rows.Count != 1)
                 {
-                    DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
-                        INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
-                        WHERE S.Token=@Token AND S.IsActive=1 AND S.ExpireTime>GETDATE() AND U.IsActive=1",
-                        "@Token=" + token);
-
-                    if (dt.Rows.Count == 1)
-                        return Convert.ToString(dt.Rows[0]["employeeid"]).Trim();
+                    RedirectExpiredPageRequest(c);
+                    throw new HttpException(401, "Login session is invalid or expired.");
                 }
-            }
 
-            // INSPEC legacy login stores its authenticated user in WAL.PB,
-            // not in INSPEC_AUTH/UserSession. Keep that session valid on Site1.Master.
-            try
-            {
-                using (WAL.PB pb = new WAL.PB())
-                {
-                    if (pb.CacheLoggedOnUser != null)
-                    {
-                        string employeeID = Convert.ToString(pb.EmployeeID).Trim();
-                        if (!String.IsNullOrWhiteSpace(employeeID))
-                            return employeeID;
-                    }
-                }
+                return Convert.ToString(dt.Rows[0]["employeeid"]).Trim();
             }
-            catch
-            {
-                // Neither authentication mechanism is available; handle below.
-            }
-
-            RedirectExpiredPageRequest(c, hasNewAuthCookie);
-            throw new HttpException(401, "Authentication is required or the login session has expired.");
         }
         public static bool HasMenu(string employeeID, string menuID)
         {
