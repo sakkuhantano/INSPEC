@@ -46,7 +46,7 @@ namespace INSPEC.Secure
                     DataTable allowed = auth.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
-JOIN dbo.UTL_User U ON SU.EmployeeID=(SELECT TOP 1 S.EmployeeID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
 WHERE W.KeyHD=@KeyHD
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=W.SectionID)
@@ -65,7 +65,7 @@ WHERE W.KeyHD=@KeyHD
              OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
   )",
                         new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
                             new SqlParameter("@EmployeeID", userid),
                             new SqlParameter("@KeyHD", keyhd)
                         });
@@ -1031,6 +1031,7 @@ WHERE W.KeyHD=@KeyHD
                             new SqlParameter[]
                             {
                                 new SqlParameter("@EmployeeID", userid),
+                                new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
                                 new SqlParameter("@KeyHD", keyHD),
                                 new SqlParameter("@ActionSPV", actionSPV),
                                 new SqlParameter("@CompanyID", selectedCompanyID),
