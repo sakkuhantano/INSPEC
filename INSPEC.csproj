@@ -118,6 +118,7 @@
     <Content Include="SearchList_2.aspx" />
     <Content Include="Secure\assignwoemployee.aspx" />
     <Content Include="Secure\R_Report.aspx" />
+    <Content Include="Secure\R_Reports.aspx" />
     <Content Include="Secure\template.aspx" />
     <Content Include="Secure\T_DailyLogEmployee.aspx" />
     <Content Include="Secure\Main.aspx" />
@@ -182,6 +183,10 @@
     </Compile>
     <Compile Include="Secure\R_Report.aspx.designer.cs">
       <DependentUpon>R_Report.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Secure\R_Reports.aspx.cs">
+      <DependentUpon>R_Reports.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Secure\template.aspx.cs">
       <DependentUpon>template.aspx</DependentUpon>
