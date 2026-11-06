@@ -213,7 +213,7 @@ namespace INSPEC
             {
                 DataTable dt = oUser.EQuery(
                     @"SELECT U.UserID, U.UserName, U.employeeid AS EmployeeID, U.Password,
-                             ISNULL(L.Section, '') AS Section,
+                             ISNULL(L.SectionList, '') AS Section,
                              ISNULL(NULLIF(L.Theme, ''), 'L') AS Theme,
                              a.JobTitleName, a.EmailAddress, a.ProfitCenterNo,
                              ISNULL(us.LastSyncMaster, CAST('' AS SMALLDATETIME)) AS LastSyncMaster,
@@ -232,12 +232,12 @@ namespace INSPEC
                 string v_currcompany = "", v_currcompanyname = "";
                 string v_serverguid = Guid.NewGuid().ToString(), v_token = Guid.NewGuid().ToString();
                 string v_username = Convert.ToString(dt.Rows[0]["UserName1"]);
+                string V_EmpID = Convert.ToString(dt.Rows[0]["EmployeeID"]).Trim();
                 string v_section = GFC.GetEmployeeSection(V_EmpID);
                 string v_jobtitle = Convert.ToString(dt.Rows[0]["JobTitleName"]);
                 string v_email = Convert.ToString(dt.Rows[0]["EmailAddress"]);
                 string v_profitcenter = Convert.ToString(dt.Rows[0]["ProfitCenterNo"]);
                 string v_theme = String.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Theme"])) ? "L" : Convert.ToString(dt.Rows[0]["Theme"]);
-                string V_EmpID = Convert.ToString(dt.Rows[0]["EmployeeID"]).Trim();
                 string V_UserID = Convert.ToString(dt.Rows[0]["UserID"]).Trim();
 
                 // Load the authorized INSPEC front-end menu from SysWeb2.
