@@ -25,6 +25,13 @@
 <!-- Sidebar -->
 <aside class="sidebar overflow-hidden collapsed" id="sidebar" style="overflow-y: hidden !important;">
 <div class="sidebar-logo-container py-3 px-3">
+<div class="mobile-inspection-brand mb-3">
+    <div class="mobile-inspection-brand-mark"><i class="bi bi-clipboard2-check"></i></div>
+    <div class="mobile-inspection-brand-text">
+        <div class="mobile-inspection-brand-name">Mobile Inspection</div>
+        <div class="mobile-inspection-brand-subtitle">Inspection Management System</div>
+    </div>
+</div>
 <div class="dropdown">
 <button aria-expanded="false" class="btn btn-link p-0 text-start text-decoration-none dropdown-toggle w-100" data-bs-toggle="dropdown" type="button">
 <img alt="Global Utility Services Logo" class="sidebar-logo mb-2" src="/WebFolder/Images/muliaLogo.png" />
@@ -206,10 +213,11 @@ type="button">
 <i class="bi bi-list fs-4"></i>
 </button>
 
-<h2 class="h5 mb-0 fw-bold text-primary text-truncate"
-style="letter-spacing: -0.02em; max-width: 150px;">
-<span id="lblCompany"></span>
-</h2>
+<div class="master-app-title d-none d-sm-block">
+<div class="master-app-name">Mobile Inspection</div>
+<div class="master-app-company"><span id="lblCompany"></span></div>
+</div>
+<div class="d-sm-none master-app-name-mobile">Mobile Inspection</div>
 <div id="connectionStatus">
 <%--<div class="vr d-none d-md-block mx-2" style="height: 16px;"></div>--%>
 
@@ -270,19 +278,33 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 <div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
 <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
 <!-- Footer -->
-<footer class="mt-auto pt-4 border-top">
-<div class="row align-items-center">
-<div class="col-12 col-md-6 text-center text-md-start mb-2 mb-md-0">
-<small class="text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.1em;">
-                            System Version: 4.2.0-STABLE | Last Connection: 2m ago
-                        </small>
+<footer class="master-footer mt-auto pt-4">
+<div class="master-footer-panel">
+    <div class="master-footer-brand">
+        <div class="master-footer-icon"><i class="bi bi-clipboard2-check"></i></div>
+        <div>
+            <div class="master-footer-title">Mobile Inspection</div>
+            <div class="master-footer-subtitle">Inspection Management System</div>
+        </div>
+    </div>
+    <div class="master-footer-meta">
+        <div class="master-footer-item">
+            <span class="master-footer-label">Version</span>
+            <strong>4.2.0-STABLE</strong>
+        </div>
+        <div class="master-footer-item">
+            <span class="master-footer-label">Connection</span>
+            <strong id="footerConnection">Checking...</strong>
+        </div>
+        <div class="master-footer-item">
+            <span class="master-footer-label">Status</span>
+            <strong><span class="status-dot"></span> Ready</strong>
+        </div>
+    </div>
 </div>
-<div class="col-12 col-md-6 text-center text-md-end">
-<div class="d-flex gap-4 justify-content-center justify-content-md-end">
-<a class="text-decoration-none text-muted fw-bold text-uppercase" href="#" style="font-size: 9px; letter-spacing: 0.1em;">Privacy Policy</a>
-<a class="text-decoration-none text-muted fw-bold text-uppercase" href="#" style="font-size: 9px; letter-spacing: 0.1em;">Operator Manual</a>
-</div>
-</div>
+<div class="master-footer-bottom">
+    <span>© Global Utility Services</span>
+    <span>Field Inspection • Work Order • Meter Reading</span>
 </div>
 </footer>
 </div>
