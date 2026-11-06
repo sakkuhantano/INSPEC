@@ -112,18 +112,11 @@ namespace INSPEC.Secure {
         protected global::System.Web.UI.WebControls.DropDownList ddlReportLayout;
         
         /// <summary>
-        /// pnlDetails control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        /// <summary>
         /// ddlGroupingBy control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
-        /// To modify move field declaration from code-behind file.
+        /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.DropDownList ddlGroupingBy;
         
@@ -132,10 +125,17 @@ namespace INSPEC.Secure {
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
-        /// To modify move field declaration from code-behind file.
+        /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HiddenField hidGroupingBy;
         
+        /// <summary>
+        /// pnlDetails control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
         protected global::System.Web.UI.WebControls.Panel pnlDetails;
         
         /// <summary>
