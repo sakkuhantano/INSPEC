@@ -17,9 +17,7 @@ namespace INSPEC.Secure
         {
             try
             {
-                GFC.RequireAnyMenuEmployee(
-                    "20011", "20012", "20021", "20022", "20031",
-                    "20041", "20042", "20043");
+                GFC.RequireAnyMenuEmployee();
             }
             catch (HttpException ex)
             {
