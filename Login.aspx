@@ -24,16 +24,101 @@
 
         body {
             min-height: 100vh;
+            min-height: 100dvh;
             margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             color: var(--mi-dark);
             background: #eef5f5;
             overflow-x: hidden;
         }
 
+        /* Animated background bubbles, adapted from the original login page. */
+        .page-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at top left, rgba(10,138,138,.25), transparent 40%),
+                radial-gradient(circle at bottom right, rgba(0,0,0,.08), transparent 45%),
+                #f4f7fb;
+        }
+
+        .page-bg::before,
+        .page-bg::after {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .page-bg::before {
+            width: 420px;
+            height: 420px;
+            top: -140px;
+            left: -140px;
+            background: radial-gradient(circle, rgba(10,138,138,.35), rgba(10,138,138,.05) 70%, transparent 75%);
+        }
+
+        .page-bg::after {
+            width: 320px;
+            height: 320px;
+            right: -120px;
+            bottom: -120px;
+            background: radial-gradient(circle, rgba(0,0,0,.12), rgba(0,0,0,.03) 65%, transparent 75%);
+        }
+
+        .bg-bubbles {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        .bg-bubbles span {
+            position: absolute;
+            bottom: -150px;
+            border-radius: 50%;
+            background: rgba(10,138,138,.18);
+            animation: floatUp 18s infinite ease-in-out;
+        }
+
+        .bg-bubbles span:nth-child(1) {
+            width: 220px;
+            height: 220px;
+            left: 10%;
+            animation-duration: 22s;
+        }
+
+        .bg-bubbles span:nth-child(2) {
+            width: 140px;
+            height: 140px;
+            left: 55%;
+            animation-duration: 18s;
+            background: rgba(0,0,0,.1);
+        }
+
+        .bg-bubbles span:nth-child(3) {
+            width: 180px;
+            height: 180px;
+            left: 80%;
+            animation-duration: 25s;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translateY(-120vh) scale(1.2); opacity: 0; }
+        }
+
         .login-shell {
+            width: 100%;
             min-height: 100vh;
+            min-height: 100dvh;
             position: relative;
+            z-index: 1;
             display: flex;
             align-items: stretch;
             overflow: hidden;
@@ -383,7 +468,11 @@
                 min-height: 100dvh;
             }
 
+            .login-shell { align-items: center; }
+
             .login-panel {
+                align-items: center;
+                background: rgba(248,251,251,.78);
                 padding: max(12px, env(safe-area-inset-top)) 19px max(12px, env(safe-area-inset-bottom));
             }
 
@@ -446,7 +535,7 @@
         }
 
         @media (max-width: 575.98px) and (max-height: 700px) {
-            .login-panel { align-items: flex-start; }
+            .login-panel { align-items: center; }
             .mobile-brand { margin-bottom: 10px; }
             .login-heading { margin-bottom: 12px; }
             .field { margin-bottom: 9px; }
@@ -457,6 +546,13 @@
 </head>
 
 <body>
+    <div class="page-bg" aria-hidden="true">
+        <div class="bg-bubbles">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
     <div class="login-shell">
         <section class="login-art">
             <div class="art-content">
