@@ -581,7 +581,23 @@ SELECT ISNULL(@SectionList,'') Section;",
         public static string RequireAnyMenuEmployee(params string[] menuIDs)
         {
             string id = CurrentEmployeeID();
-            foreach (string menuID in menuIDs) if (HasMenu(id, menuID)) return id;
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.SysWebUserUserGroup UG
+INNER JOIN dbo.SysWebUserGroupMenu GM ON GM.UserGroupID=UG.UserGroupID
+INNER JOIN dbo.SysWebMenu M ON M.MenuID=GM.MenuID
+WHERE UG.UserID=@EmployeeID
+  AND M.AppID='inspecfo'",
+                    new System.Data.SqlClient.SqlParameter[] {
+                        new System.Data.SqlClient.SqlParameter("@EmployeeID", id)
+                    });
+
+                if (dt.Rows.Count > 0) return id;
+            }
+
             throw new HttpException(403, "You are not authorized to access this function.");
         }
         #endregion
