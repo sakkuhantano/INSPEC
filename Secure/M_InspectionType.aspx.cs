@@ -280,6 +280,16 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
             txtDetailCode.ReadOnly = false;
             lBtnAddNewDetail.Visible = false;
         }
+        private string NormalizeGroupingBy(string value)
+        {
+            string[] allowed = new[] { "InspectionTypeCode", "InspectionTypeDetailCode", "ScheduleTime" };
+            return String.Join(";", (value ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => allowed.Contains(x))
+                .Distinct()
+                .ToArray());
+        }
+
         protected string GetScheduleSummary(object value)
         {
             string[] times = (Convert.ToString(value) ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -330,7 +340,7 @@ ORDER BY InspectionTypeDetailCode, ScheduleTime",
                     p_MaxRecord = "1";
                 }
 
-                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout " +
+                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy " +
                 "FROM pip_m_inspectiontype h WHERE h.isActive=1 " +
                 (p_Condition != string.Empty ? " AND " + p_Condition : "") + _Condition +
                 " Order By InspectionTypeCode"));
