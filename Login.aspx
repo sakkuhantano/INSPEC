@@ -81,7 +81,8 @@
             position: absolute;
             bottom: -150px;
             border-radius: 50%;
-            background: rgba(10,138,138,.18);
+            background: rgba(10,138,138,.23);
+            box-shadow: inset -12px -14px 28px rgba(255,255,255,.12);
             animation: floatUp 18s infinite ease-in-out;
         }
 
@@ -239,9 +240,10 @@
             align-items: center;
             justify-content: center;
             padding: 40px 6vw;
+            /* Keep the panel lightly translucent so the animated bubbles remain visible on desktop. */
             background:
-                radial-gradient(circle at 80% 10%, rgba(10,138,138,.08), transparent 30%),
-                #f8fbfb;
+                radial-gradient(circle at 80% 10%, rgba(10,138,138,.10), transparent 34%),
+                rgba(248,251,251,.76);
         }
 
         .login-card {
