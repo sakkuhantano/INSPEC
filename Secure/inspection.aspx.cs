@@ -981,16 +981,45 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND ISNULL(I.ReasonVoid,'')<>'')
   )
   AND EXISTS (
-      SELECT 1 FROM dbo.SysWebUser SU
-
-WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=SU.EmployeeID))
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+      SELECT 1
+      FROM dbo.SysWebUser SU
+      WHERE SU.EmployeeID=@EmployeeID
+        AND SU.IsActive=1
         AND (
-          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+             EXISTS (
+                 SELECT 1
+                 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                 WHERE AM.MenuID='20022'
+             )
+             OR (
+                 EXISTS (
+                     SELECT 1
+                     FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                     WHERE AM.MenuID='20021'
+                 )
+                 AND I.OwnerEmployeeID=SU.EmployeeID
+             )
+        )
+        AND EXISTS (
+            SELECT 1
+            FROM dbo.SplitStringConvertToTable(@SectionList,';') S
+            WHERE S.val=I.SectionID
+        )
+        AND (
+            EXISTS (
+                SELECT 1
+                FROM dbo.SysWebUserCompanyLocation C
+                WHERE C.UserID=SU.EmployeeID
+                  AND C.AppID='pip'
+                  AND C.CompanyID=I.CompanyID
+                  AND C.LocationID=I.LocationID
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                WHERE L.CompanyID=I.CompanyID
+                  AND L.LocationID=I.LocationID
+            )
         )
   )";
 
@@ -1035,7 +1064,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
-new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                        new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@DateFrom", fromDate),
                         new SqlParameter("@DateThru", thruDate),
