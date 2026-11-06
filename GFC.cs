@@ -438,6 +438,7 @@ namespace WAL
         {
             HttpContext c = HttpContext.Current;
             if (c == null || c.Response == null) return;
+            c.Items["INSPEC_AUTH_TOKEN"] = token ?? "";
             HttpCookie k = new HttpCookie(CookieName, token ?? "");
             k.HttpOnly = true; k.Secure = c.Request.IsSecureConnection;
             k.Path = "/";
@@ -447,10 +448,41 @@ namespace WAL
         {
             HttpContext c = HttpContext.Current;
             if (c == null || c.Response == null) return;
+            c.Items.Remove("INSPEC_AUTH_TOKEN");
             HttpCookie k = new HttpCookie(CookieName, "");
             k.HttpOnly = true; k.Secure = c.Request.IsSecureConnection;
             k.Path = "/";
             k.Expires = DateTime.Now.AddDays(-1); c.Response.Cookies.Add(k);
+        }
+        public static string TryCurrentEmployeeID()
+        {
+            HttpContext c = HttpContext.Current;
+            if (c == null) return String.Empty;
+
+            string token = Convert.ToString(c.Items["INSPEC_AUTH_TOKEN"]).Trim();
+            if (String.IsNullOrEmpty(token))
+            {
+                HttpCookie cookie = c.Request.Cookies[CookieName];
+                token = cookie == null ? "" : Convert.ToString(cookie.Value).Trim();
+            }
+
+            Guid parsedToken;
+            if (String.IsNullOrEmpty(token) || !Guid.TryParse(token, out parsedToken))
+                return String.Empty;
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"SELECT TOP 1 U.EmployeeID
+                    FROM dbo.UserSession S
+                    INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
+                    WHERE S.Token=@Token AND S.IsActive=1
+                      AND S.ExpireTime>GETDATE() AND U.IsActive=1",
+                    "@Token=" + token);
+
+                return dt.Rows.Count == 1
+                    ? Convert.ToString(dt.Rows[0]["EmployeeID"]).Trim()
+                    : String.Empty;
+            }
         }
         private static void RedirectExpiredPageRequest(HttpContext context)
         {
@@ -476,30 +508,12 @@ namespace WAL
         public static string CurrentEmployeeID()
         {
             HttpContext c = HttpContext.Current;
-            HttpCookie k = c == null ? null : c.Request.Cookies[CookieName];
-            string token = k == null ? "" : Convert.ToString(k.Value).Trim();
-            Guid parsedToken;
-            if (String.IsNullOrEmpty(token) || !Guid.TryParse(token, out parsedToken))
-            {
-                RedirectExpiredPageRequest(c);
-                throw new HttpException(401, "Authentication is required.");
-            }
+            string employeeID = TryCurrentEmployeeID();
+            if (!String.IsNullOrEmpty(employeeID))
+                return employeeID;
 
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
-                    INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
-                    WHERE S.Token=@Token AND S.IsActive=1 AND S.ExpireTime>GETDATE() AND U.IsActive=1",
-                    "@Token=" + token);
-
-                if (dt.Rows.Count != 1)
-                {
-                    RedirectExpiredPageRequest(c);
-                    throw new HttpException(401, "Login session is invalid or expired.");
-                }
-
-                return Convert.ToString(dt.Rows[0]["employeeid"]).Trim();
-            }
+            RedirectExpiredPageRequest(c);
+            throw new HttpException(401, "Login session is invalid or expired.");
         }
         public static bool HasMenu(string employeeID, string menuID)
         {
