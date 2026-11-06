@@ -444,8 +444,8 @@
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" aria-label="Approved date from" /></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" lang="id-ID" class="form-control form-control-sm" aria-label="Approved date from" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" lang="id-ID" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -575,11 +575,11 @@
             <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
                 <div class="inspection-date-control">
                     <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                    <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" />
+                    <input type="date" id="txtSubmittedFrom" lang="id-ID" class="form-control form-control-sm" />
                 </div>
                 <div class="inspection-date-control">
                     <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                    <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" />
+                    <input type="date" id="txtSubmittedThru" lang="id-ID" class="form-control form-control-sm" />
                 </div>
                 <button type="button" id="btnFilterSubmitted" class="btn btn-sm btn-primary">
                     <i class="bi bi-search"></i> Filter
@@ -653,7 +653,7 @@
 
         <div class="mb-3">
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
-            <input id="txtInspectionDate" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
+            <input id="txtInspectionDate" lang="id-ID" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
     </div>
