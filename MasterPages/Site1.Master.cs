@@ -65,8 +65,41 @@ namespace INSPEC.MasterPages
 
             if (!String.IsNullOrEmpty(legacyEmployeeID))
             {
+                string savedEmployeeID = Convert.ToString(
+                    context.Session["INSPECFO_LEGACY_EMPLOYEEID"]).Trim();
+                string savedLoginData = Convert.ToString(
+                    context.Session["INSPECFO_LEGACY_LOGIN_DATA"]);
+                HttpCookie authCookie = context.Request.Cookies[GFC.CookieName];
+                string requestToken = authCookie == null
+                    ? String.Empty : Convert.ToString(authCookie.Value).Trim();
+
+                bool savedDataMatches = false;
+                if (!String.IsNullOrEmpty(savedLoginData) &&
+                    String.Equals(savedEmployeeID, legacyEmployeeID,
+                        StringComparison.OrdinalIgnoreCase) &&
+                    !String.IsNullOrEmpty(requestToken))
+                {
+                    try
+                    {
+                        System.Web.Script.Serialization.JavaScriptSerializer checkSerializer =
+                            new System.Web.Script.Serialization.JavaScriptSerializer();
+                        Dictionary<string, object> saved =
+                            checkSerializer.Deserialize<Dictionary<string, object>>(savedLoginData);
+                        savedDataMatches = saved != null &&
+                            saved.ContainsKey("token") &&
+                            String.Equals(Convert.ToString(saved["token"]), requestToken,
+                                StringComparison.Ordinal);
+                    }
+                    catch
+                    {
+                        savedDataMatches = false;
+                    }
+                }
+
+                // Provision once per legacy browser session. Re-provision if the
+                // HttpOnly token no longer matches the bootstrap data saved in Session.
                 if (!String.Equals(authenticatedEmployeeID, legacyEmployeeID,
-                    StringComparison.OrdinalIgnoreCase))
+                        StringComparison.OrdinalIgnoreCase) || !savedDataMatches)
                 {
                     string browserGuid = Convert.ToString(
                         context.Session["INSPECFO_BROWSER_GUID"]).Trim();
@@ -97,7 +130,6 @@ namespace INSPEC.MasterPages
 
                     if (!success)
                     {
-                        GFC.ClearCookie();
                         RedirectToInspecFOLogin(context);
                         return;
                     }
@@ -111,17 +143,7 @@ namespace INSPEC.MasterPages
                 }
                 else
                 {
-                    string savedEmployeeID = Convert.ToString(
-                        context.Session["INSPECFO_LEGACY_EMPLOYEEID"]).Trim();
-                    string savedLoginData = Convert.ToString(
-                        context.Session["INSPECFO_LEGACY_LOGIN_DATA"]);
-
-                    if (String.Equals(savedEmployeeID, legacyEmployeeID,
-                        StringComparison.OrdinalIgnoreCase) &&
-                        !String.IsNullOrEmpty(savedLoginData))
-                    {
-                        hfLegacyLoginData.Value = savedLoginData;
-                    }
+                    hfLegacyLoginData.Value = savedLoginData;
                 }
 
                 return;
@@ -137,6 +159,7 @@ namespace INSPEC.MasterPages
             if (context == null || context.Response == null)
                 return;
 
+            GFC.ClearCookie();
             string loginUrl = VirtualPathUtility.ToAbsolute("~/Login.aspx") +
                 "?session=expired";
             context.Response.Redirect(loginUrl, true);
