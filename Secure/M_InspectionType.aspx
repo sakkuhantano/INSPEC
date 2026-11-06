@@ -10,6 +10,12 @@
     .schedule-time-chip-remove { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 1rem; cursor: pointer; }
     .schedule-time-chip-remove:hover, .schedule-time-chip-remove:focus { background: rgba(0,0,0,.1); outline: none; }
     .schedule-time-empty { color: var(--bs-secondary-color, #6c757d); font-size: .8rem; }
+    .grouping-by-editor { min-width: 0; }
+    .grouping-by-chips { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; min-height: 2.25rem; padding-top: .45rem; }
+    .grouping-by-chip { display: inline-flex; align-items: center; gap: .45rem; padding: .25rem .55rem; border: 1px solid var(--bs-info-border-subtle, #9eeaf9); border-radius: 999px; background: var(--bs-info-bg-subtle, #cff4fc); color: var(--bs-info-text-emphasis, #055160); font-size: .85rem; line-height: 1.35; }
+    .grouping-by-chip-remove { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 1rem; cursor: pointer; }
+    .grouping-by-chip-remove:hover, .grouping-by-chip-remove:focus { background: rgba(0,0,0,.1); outline: none; }
+    .grouping-by-empty { color: var(--bs-secondary-color, #6c757d); font-size: .8rem; }
 </style>
 <script type="text/javascript">
 (function () {
@@ -47,6 +53,64 @@
 
         return false;
     };
+
+    function getGroupingBy() {
+        var field = document.getElementById("hidGroupingBy");
+        return (field && field.value ? field.value.split(";") : [])
+            .map(function (x) { return x.trim(); })
+            .filter(function (x) { return x !== ""; })
+            .filter(function (x, i, all) { return all.indexOf(x) === i; });
+    }
+
+    function renderGroupingBy() {
+        var field = document.getElementById("hidGroupingBy");
+        var ddl = document.getElementById("ddlGroupingBy");
+        var host = document.getElementById("groupingByChips");
+        if (!field || !ddl || !host) return;
+
+        var items = getGroupingBy();
+        field.value = items.join(";");
+        host.innerHTML = "";
+
+        Array.prototype.forEach.call(ddl.options, function (option) {
+            option.disabled = option.value !== "" && items.indexOf(option.value) >= 0;
+        });
+        ddl.value = "";
+
+        if (!items.length) {
+            var empty = document.createElement("span");
+            empty.className = "grouping-by-empty";
+            empty.textContent = "Belum ada grouping. Pilih field lalu tekan Tambah.";
+            host.appendChild(empty);
+            return;
+        }
+
+        items.forEach(function (item) {
+            var option = Array.prototype.find.call(ddl.options, function (x) { return x.value === item; });
+            var labelText = option ? option.text : item;
+
+            var chip = document.createElement("span");
+            chip.className = "grouping-by-chip";
+
+            var label = document.createElement("span");
+            label.textContent = labelText;
+
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "grouping-by-chip-remove";
+            remove.setAttribute("aria-label", "Hapus grouping " + labelText);
+            remove.title = "Hapus " + labelText;
+            remove.textContent = "×";
+            remove.addEventListener("click", function () {
+                field.value = getGroupingBy().filter(function (x) { return x !== item; }).join(";");
+                renderGroupingBy();
+            });
+
+            chip.appendChild(label);
+            chip.appendChild(remove);
+            host.appendChild(chip);
+        });
+    }
 
     function getTimes() {
         var field = document.getElementById("hidScheduleTimes");
@@ -91,6 +155,32 @@
         });
     }
     document.addEventListener("DOMContentLoaded", function () {
+        var groupingAdd = document.getElementById("btnAddGroupingBy");
+        var groupingDdl = document.getElementById("ddlGroupingBy");
+
+        if (groupingAdd && groupingDdl) groupingAdd.addEventListener("click", function () {
+            var value = groupingDdl.value;
+            if (!value) {
+                groupingDdl.focus();
+                return;
+            }
+
+            var items = getGroupingBy();
+            if (items.indexOf(value) < 0) items.push(value);
+            document.getElementById("hidGroupingBy").value = items.join(";");
+            renderGroupingBy();
+            groupingDdl.focus();
+        });
+
+        if (groupingDdl) groupingDdl.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                if (groupingAdd) groupingAdd.click();
+            }
+        });
+
+        renderGroupingBy();
+
         var add = document.getElementById("btnAddScheduleTime");
         var input = document.getElementById("scheduleTimeInput");
         if (add && input) add.addEventListener("click", function () {
@@ -174,6 +264,25 @@
                         <asp:ListItem Text="Vertical" Value="V"></asp:ListItem>
                         <asp:ListItem Text="Horizontal" Value="H"></asp:ListItem>
                     </asp:DropDownList>
+                </div>
+            </div>
+
+            <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">
+                    Grouping By
+                </div>
+                <div class="col-sm-8 grouping-by-editor">
+                    <div class="input-group input-group-sm">
+                        <asp:DropDownList ID="ddlGroupingBy" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm fz-custom1">
+                            <asp:ListItem Text="" Value="" Selected="True"></asp:ListItem>
+                            <asp:ListItem Text="Inspection Type Code" Value="InspectionTypeCode"></asp:ListItem>
+                            <asp:ListItem Text="Inspection Detail Code" Value="InspectionTypeDetailCode"></asp:ListItem>
+                            <asp:ListItem Text="Schedule Time" Value="ScheduleTime"></asp:ListItem>
+                        </asp:DropDownList>
+                        <button type="button" id="btnAddGroupingBy" class="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" title="Tambah grouping"><i class="fas fa-plus"></i></button>
+                    </div>
+                    <asp:HiddenField ID="hidGroupingBy" runat="server" ClientIDMode="Static" />
+                    <div id="groupingByChips" class="grouping-by-chips" aria-live="polite"></div>
                 </div>
             </div>
         </div>
