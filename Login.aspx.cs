@@ -207,7 +207,7 @@ namespace INSPEC
         }
 
         [WebMethod]
-        private static object F_LoginWithHash(string p_employeeid, string V_Pwd, string p_browserGuid, string p_deviceName)
+        public static object F_LoginWithHash(string p_employeeid, string V_Pwd, string p_browserGuid, string p_deviceName)
         {
             using (var oUser = new WAL.BR.CF())
             {
