@@ -452,6 +452,27 @@ namespace WAL
             k.Path = "/";
             k.Expires = DateTime.Now.AddDays(-1); c.Response.Cookies.Add(k);
         }
+        private static void RedirectExpiredPageRequest(HttpContext context)
+        {
+            if (context == null || context.Request == null || context.Response == null)
+                return;
+
+            // Only redirect normal WebForms page requests. PageMethods/AJAX calls
+            // must keep their HTTP 401 response so their callers can handle it.
+            if (!(context.CurrentHandler is Page) ||
+                !String.IsNullOrEmpty(context.Request.PathInfo))
+                return;
+
+            string currentPath = context.Request.AppRelativeCurrentExecutionFilePath ?? "";
+            if (String.Equals(currentPath, "~/Login.aspx", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            ClearCookie();
+            context.Response.Redirect(
+                VirtualPathUtility.ToAbsolute("~/Login.aspx") + "?session=expired",
+                true);
+        }
+
         public static string CurrentEmployeeID()
         {
             HttpContext c = HttpContext.Current;
@@ -459,14 +480,24 @@ namespace WAL
             string token = k == null ? "" : Convert.ToString(k.Value).Trim();
             Guid parsedToken;
             if (String.IsNullOrEmpty(token) || !Guid.TryParse(token, out parsedToken))
+            {
+                RedirectExpiredPageRequest(c);
                 throw new HttpException(401, "Authentication is required.");
+            }
+
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"SELECT TOP 1 U.employeeid FROM dbo.UserSession S
                     INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
                     WHERE S.Token=@Token AND S.IsActive=1 AND S.ExpireTime>GETDATE() AND U.IsActive=1",
                     "@Token=" + token);
-                if (dt.Rows.Count != 1) throw new HttpException(401, "Login session is invalid or expired.");
+
+                if (dt.Rows.Count != 1)
+                {
+                    RedirectExpiredPageRequest(c);
+                    throw new HttpException(401, "Login session is invalid or expired.");
+                }
+
                 return Convert.ToString(dt.Rows[0]["employeeid"]).Trim();
             }
         }
