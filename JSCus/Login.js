@@ -14,8 +14,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.addEventListener("load", async function () {
+    var query = new URLSearchParams(window.location.search);
+    if (query.get("session") === "expired") {
+        localStorage.removeItem("loginData");
+        showToast("Sesi login telah berakhir. Silakan login kembali.", "warning", 5000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Portal-selected identity takes precedence over a cached UTL1 session.
-    var infoID = new URLSearchParams(window.location.search).get("InfoID");
+    var infoID = query.get("InfoID");
     if (infoID) {
         window.history.replaceState({}, document.title, window.location.pathname);
         F_LoginByPortal(infoID);
