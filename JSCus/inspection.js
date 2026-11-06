@@ -2891,8 +2891,7 @@ let inspectionApprovalRows = [];
 let currentInspectionApprovalTab = "OUTSTANDING";
 let inspectionApprovalLoadSequence = 0;
 let inspectionApprovalSort = { key: "InspectionDate", direction: "asc" };
-// Configure this URL when the separate Excel-report solution exposes its preview endpoint.
-const inspectionApprovalPreviewEndpoint = "";
+// Excel preview is generated server-side and opened with a short-lived Session token.
 
 function addInspectionApprovalListener(id, eventName, handler) {
     const element = document.getElementById(id);
@@ -3191,36 +3190,54 @@ function renderInspectionApprovalQueue() {
     updateInspectionApprovalSelectAll();
 }
 
-function updateInspectionApprovalSelectAll() {
-    const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]"));
-    const all = document.getElementById("chkAllInspectionApproval");
-    const everySelected = currentInspectionApprovalTab === "OUTSTANDING" && boxes.length > 0 && boxes.every(box => box.checked);
-    if (all) all.checked = everySelected;
-    const preview = document.getElementById("btnInspectionApprovalPreview");
-    if (preview) preview.disabled = !everySelected;
+function getSelectedInspectionApprovalRows() {
+    const ids = new Set(Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:checked"))
+        .map(box => Number(box.value)).filter(id => id > 0));
+    return inspectionApprovalRows.filter(row => ids.has(Number(row.InspectionID)));
 }
 
-function previewSelectedInspections() {
+function validateSelectedInspectionApprovalType(rows) {
+    rows = rows || [];
+    if (!rows.length) {
+        showToast("Pilih minimal satu inspeksi terlebih dahulu.", "warning");
+        return false;
+    }
+    const types = Array.from(new Set(rows.map(row => String(row.InspectionTypeCode || "").trim().toUpperCase()).filter(Boolean)));
+    if (types.length !== 1 || rows.some(row => !String(row.InspectionTypeCode || "").trim())) {
+        showToast("Inspection Type tidak boleh dicampur. Pilih transaksi dari satu Inspection Type saja.", "warning");
+        return false;
+    }
+    return true;
+}
+
+function updateInspectionApprovalSelectAll() {
     const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]"));
-    if (!boxes.length || !boxes.every(box => box.checked)) {
-        showToast("Centang semua inspeksi yang tampil terlebih dahulu untuk Preview.", "warning");
+    const selectedBoxes = boxes.filter(box => box.checked);
+    const all = document.getElementById("chkAllInspectionApproval");
+    if (all) all.checked = boxes.length > 0 && selectedBoxes.length === boxes.length;
+    const preview = document.getElementById("btnInspectionApprovalPreview");
+    if (preview) preview.disabled = currentInspectionApprovalTab !== "OUTSTANDING" || selectedBoxes.length === 0;
+}
+
+async function previewSelectedInspections() {
+    const rows = getSelectedInspectionApprovalRows();
+    if (!validateSelectedInspectionApprovalType(rows)) return;
+    if (!navigator.onLine) {
+        showToast("Preview report memerlukan koneksi ke server.", "warning");
         return;
     }
-    if (!inspectionApprovalPreviewEndpoint) {
-        showToast("Tombol Preview siap, tetapi URL endpoint report Excel dari solution lain belum dikonfigurasi.", "warning");
-        return;
+    try {
+        const result = await inspectionApprovalPost("CreateInspectionReport", {
+            inspectionIds: rows.map(row => Number(row.InspectionID)),
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        if (!result || !result.success || !result.url) throw new Error("Server tidak mengembalikan alamat report.");
+        window.location.href = result.url;
+    } catch (err) {
+        showToast(err.message || "Gagal membuat preview report.", "warning");
     }
-    const selectedIds = new Set(boxes.map(box => Number(box.value)));
-    const inspectionNos = inspectionApprovalRows
-        .filter(row => selectedIds.has(Number(row.InspectionID)))
-        .map(row => String(row.InspectionNo || "").trim()).filter(Boolean);
-    if (!inspectionNos.length) {
-        showToast("Nomor transaksi inspeksi tidak ditemukan untuk pilihan ini.", "warning");
-        return;
-    }
-    const url = new URL(inspectionApprovalPreviewEndpoint, window.location.href);
-    url.searchParams.set("inspectionno", inspectionNos.join(";"));
-    window.open(url.toString(), "_blank", "noopener");
 }
 
 function openInspectionApprovalDetail(inspectionId) {
@@ -3265,6 +3282,7 @@ function openInspectionApprovalAction(action, batch) {
         showToast(batch ? "Pilih minimal satu inspeksi terlebih dahulu." : "Pilih inspeksi terlebih dahulu.", "warning");
         return;
     }
+    if (batch && !validateSelectedInspectionApprovalType(getSelectedInspectionApprovalRows())) return;
     if (!navigator.onLine) {
         showToast("Approval memerlukan koneksi ke server.", "warning");
         return;
@@ -3318,25 +3336,22 @@ async function confirmInspectionApprovalAction() {
 async function executeInspectionApprovalAction(ids, action, remark) {
     const isSingleVoid = action === "VOID" && ids.length === 1 &&
         selectedInspectionApproval && Number(selectedInspectionApproval.InspectionID) === Number(ids[0]);
-    const failures = [];
-    let succeeded = 0;
-    for (const inspectionId of ids) {
-        try {
-            const result = await inspectionApprovalPost("ProcessInspectionApproval", {
-                inspectionId: inspectionId, action: action,
-                employeeId: inspectionLogin.employeeid,
-                companyId: inspectionCompanyID, locationId: inspectionLocationID, remark: remark
-            });
-            succeeded++;
-        } catch (err) {
-            failures.push("Inspection #" + inspectionId + ": " + (err.message || "gagal"));
-        }
+    try {
+        const result = await inspectionApprovalPost("ProcessInspectionApprovalBatch", {
+            inspectionIds: ids,
+            action: action,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID,
+            remark: remark
+        });
+        if (isSingleVoid) showInspectionApprovalQueueView();
+        await loadInspectionApprovalQueue();
+        showToast((result.count || ids.length) + " inspeksi berhasil diproses.", "success");
+    } catch (err) {
+        showToast(err.message || "Gagal memproses approval.", "warning");
+        await loadInspectionApprovalQueue();
     }
-    if (isSingleVoid && succeeded === 1) showInspectionApprovalQueueView();
-    await loadInspectionApprovalQueue();
-    showToast(succeeded + " berhasil diproses; " + failures.length + " gagal." +
-        (failures.length ? " " + failures.slice(0, 3).join(" | ") : ""),
-        failures.length ? "warning" : "success");
 }
 
 async function processBatchInspectionApproval(action) {
