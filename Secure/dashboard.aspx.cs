@@ -50,7 +50,7 @@ namespace INSPEC.Secure
                 if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
                     throw new HttpException(400, "Company/location is required for checklist download.");
                 GFC.RequireCompanyLocation(employeeId, companyId, locationId);
-                // Inspection master downloads must be scoped by the server-side UTL_User record,
+                // Inspection master downloads must be scoped by the server-side section resolver,
                 // not by a section list supplied by browser localStorage.
                 if (String.Equals(templateType, "I", StringComparison.OrdinalIgnoreCase))
                 {
@@ -355,8 +355,7 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                         )",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@CompanyID", companyId),
+new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
                 if (companyAuth.Rows.Count == 0)
