@@ -46,15 +46,15 @@ namespace INSPEC.Secure
                     DataTable allowed = auth.EQueryP(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
-JOIN dbo.UTL_User U ON U.EmployeeID=(SELECT TOP 1 S.EmployeeID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
+JOIN dbo.UTL_User U ON SU.EmployeeID=(SELECT TOP 1 S.EmployeeID FROM dbo.SysWebUser S WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1)
 WHERE W.KeyHD=@KeyHD
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=W.SectionID)
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=W.SectionID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                   WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
   )
   AND EXISTS (
@@ -65,6 +65,7 @@ WHERE W.KeyHD=@KeyHD
              OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
   )",
                         new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                             new SqlParameter("@EmployeeID", userid),
                             new SqlParameter("@KeyHD", keyhd)
                         });
@@ -994,22 +995,22 @@ string.Format(@"
 SELECT TOP 1 1
 FROM dbo.PIP_T_WO W
 JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE W.KeyHD=@KeyHD
   AND W.CompanyID=@CompanyID
   AND W.LocationID=@LocationID
   AND EXISTS
-      (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
+      (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S
        WHERE S.val=W.SectionID)
   AND
       (
           EXISTS (
               SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
           )
           OR EXISTS (
-              SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+              SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
               WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
           )
       )
