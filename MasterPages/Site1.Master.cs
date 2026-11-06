@@ -118,7 +118,7 @@ namespace INSPEC.MasterPages
                         context.Session["INSPECFO_BROWSER_GUID"] = browserGuid;
                     }
 
-                    object loginResult = INSPEC.Login.F_LoginWithHash(
+                    object loginResult = INSPEC.Login.F_LoginFromLegacySession(
                         legacyEmployeeID,
                         legacyPasswordHash,
                         browserGuid,
