@@ -129,6 +129,7 @@
             width: 46%;
             min-height: 100vh;
             position: relative;
+            isolation: isolate;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -236,6 +237,9 @@
         .login-panel {
             width: 54%;
             min-height: 100vh;
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -249,7 +253,48 @@
         .login-card {
             width: 100%;
             max-width: 440px;
+            position: relative;
+            z-index: 2;
         }
+
+        /* Separate bubble layers sit above each panel background, but below its content. */
+        .panel-bubbles,
+        .art-bubbles {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .panel-bubbles span,
+        .art-bubbles span {
+            position: absolute;
+            bottom: -125px;
+            display: block;
+            border-radius: 50%;
+            animation: floatUp 16s linear infinite;
+            will-change: transform, opacity;
+        }
+
+        .panel-bubbles span {
+            background: rgba(10,138,138,.16);
+            box-shadow: inset -10px -12px 22px rgba(10,138,138,.05);
+        }
+
+        .art-bubbles span {
+            background: rgba(255,255,255,.13);
+            box-shadow: inset -10px -12px 22px rgba(255,255,255,.06);
+        }
+
+        .panel-bubbles span:nth-child(1), .art-bubbles span:nth-child(1) { width: 58px; height: 58px; left: 5%; animation-duration: 17s; animation-delay: -11s; }
+        .panel-bubbles span:nth-child(2), .art-bubbles span:nth-child(2) { width: 105px; height: 105px; left: 18%; animation-duration: 23s; animation-delay: -4s; }
+        .panel-bubbles span:nth-child(3), .art-bubbles span:nth-child(3) { width: 38px; height: 38px; left: 31%; animation-duration: 15s; animation-delay: -8s; }
+        .panel-bubbles span:nth-child(4), .art-bubbles span:nth-child(4) { width: 76px; height: 76px; left: 43%; animation-duration: 20s; animation-delay: -15s; }
+        .panel-bubbles span:nth-child(5), .art-bubbles span:nth-child(5) { width: 125px; height: 125px; left: 58%; animation-duration: 25s; animation-delay: -6s; }
+        .panel-bubbles span:nth-child(6), .art-bubbles span:nth-child(6) { width: 48px; height: 48px; left: 72%; animation-duration: 16s; animation-delay: -12s; }
+        .panel-bubbles span:nth-child(7), .art-bubbles span:nth-child(7) { width: 88px; height: 88px; left: 86%; animation-duration: 21s; animation-delay: -2s; }
+        .panel-bubbles span:nth-child(8), .art-bubbles span:nth-child(8) { width: 32px; height: 32px; left: 95%; animation-duration: 14s; animation-delay: -9s; }
 
         .mobile-brand {
             display: flex;
@@ -568,6 +613,10 @@
     </div>
     <div class="login-shell">
         <section class="login-art">
+            <div class="art-bubbles" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+            </div>
             <div class="art-content">
                 <div class="brand-mark"><i class="bi bi-clipboard2-check"></i></div>
                 <%--<div class="brand-kicker">Global Utility Services</div>--%>
@@ -595,6 +644,10 @@
         </section>
 
         <section class="login-panel">
+            <div class="panel-bubbles" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span>
+            </div>
             <main class="login-card">
                 <div class="mobile-brand">
                     <img src="../WebFolder/Images/muliaLogo.png"
