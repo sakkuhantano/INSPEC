@@ -1615,7 +1615,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
         public static DataTable GetAuthorizedInspectionSelection(long[] inspectionIds, string companyId, string locationId)
         {
             string employeeId = GFC.RequireMenuEmployee("20022");
-            GFC.RequireCompanyLocation(employeeId, companyId);
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (inspectionIds == null || inspectionIds.Length == 0)
                 throw new HttpException(400, "Pilih minimal satu transaksi inspeksi.");
             inspectionIds = inspectionIds.Where(id => id > 0).Distinct().ToArray();
