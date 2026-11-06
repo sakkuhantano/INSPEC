@@ -250,7 +250,30 @@
         }
 
         .mobile-brand {
-            display: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            text-align: center;
+            margin: 0 auto 22px;
+        }
+
+        .mobile-brand img {
+            display: block;
+            width: auto;
+            height: 88px;
+            max-width: min(220px, 70vw);
+            object-fit: contain;
+        }
+
+        .mobile-brand strong {
+            display: block;
+            color: #123b3d;
+            font-size: 1.85rem;
+            line-height: 1.08;
+            letter-spacing: -.045em;
+            font-weight: 800;
         }
 
         .login-heading {
@@ -267,11 +290,11 @@
         }
 
         .login-heading h2 {
-            font-size: 2rem;
-            letter-spacing: -.035em;
-            font-weight: 800;
-            margin-bottom: 8px;
-            color: #123b3d;
+            font-size: 1.15rem;
+            letter-spacing: -.02em;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #31575a;
         }
 
         .login-heading p {
@@ -421,36 +444,17 @@
             .login-card { max-width: 430px; }
 
             .mobile-brand {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                margin-bottom: 42px;
+                margin-bottom: 18px;
+                gap: 7px;
             }
 
-            .mobile-brand .brand-mark {
-                width: 44px;
-                height: 44px;
-                border-radius: 14px;
-                margin: 0;
-                background: linear-gradient(135deg, #045d5d, #0a8a8a);
-                color: #fff;
-                box-shadow: 0 10px 24px rgba(4,93,93,.18);
-                font-size: 1.15rem;
+            .mobile-brand img {
+                height: 78px;
+                max-width: min(200px, 68vw);
             }
 
             .mobile-brand strong {
-                color: #123b3d;
-                font-size: .95rem;
-                letter-spacing: -.01em;
-            }
-
-            .mobile-brand small {
-                display: block;
-                color: #829596;
-                font-size: .65rem;
-                margin-top: 1px;
-                letter-spacing: .08em;
-                text-transform: uppercase;
+                font-size: 1.65rem;
             }
         }
 
@@ -488,23 +492,20 @@
             .login-card { max-width: 430px; }
 
             .mobile-brand {
-                margin-bottom: 16px;
-                gap: 10px;
+                margin-bottom: 12px;
+                gap: 5px;
             }
 
-            .mobile-brand .brand-mark {
-                width: 38px;
-                height: 38px;
-                border-radius: 12px;
-                font-size: 1rem;
+            .mobile-brand img {
+                height: 68px;
+                max-width: min(180px, 65vw);
             }
 
-            .mobile-brand strong { font-size: .88rem; }
-            .mobile-brand small { font-size: .6rem; }
+            .mobile-brand strong { font-size: 1.48rem; }
 
             .login-heading { margin-bottom: 18px; }
             .login-heading .eyebrow { font-size: .62rem; margin-bottom: 5px; }
-            .login-heading h2 { font-size: 1.55rem; margin-bottom: 4px; }
+            .login-heading h2 { font-size: 1.05rem; margin-bottom: 4px; }
             .login-heading p { font-size: .83rem; line-height: 1.4; }
 
             .field { margin-bottom: 13px; }
@@ -545,7 +546,8 @@
 
         @media (max-width: 575.98px) and (max-height: 700px) {
             .login-panel { align-items: center; }
-            .mobile-brand { margin-bottom: 10px; }
+            .mobile-brand { margin-bottom: 8px; }
+            .mobile-brand img { height: 60px; }
             .login-heading { margin-bottom: 12px; }
             .field { margin-bottom: 9px; }
             .security-note { margin-top: 9px; }
@@ -593,11 +595,10 @@
         <section class="login-panel">
             <main class="login-card">
                 <div class="mobile-brand">
-                    <div class="brand-mark"><i class="bi bi-clipboard2-check"></i></div>
-                    <div>
-                        <strong>Mobile Inspection</strong>
-                        <%--<small>Global Utility Services</small>--%>
-                    </div>
+                    <img src="../WebFolder/Images/muliaLogo.png"
+                         alt="Global Utility Services"
+                         loading="eager" />
+                    <strong>Mobile Inspection</strong>
                 </div>
 
                 <div class="login-heading">
