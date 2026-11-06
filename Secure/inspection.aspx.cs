@@ -496,8 +496,7 @@ WHERE T.IDTemplate=@IDTemplate
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@IDTemplate", templateId),
+new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@SectionID", sectionId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
@@ -518,8 +517,7 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
   AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
 ORDER BY InspectionID DESC",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@CompanyID", companyId),
+new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionID", sectionId),
                         new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
@@ -658,8 +656,7 @@ WHERE T.IDTemplate=@IDTemplate
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
                 new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                    new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                     new SqlParameter("@SectionID", sectionId),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
@@ -715,8 +712,7 @@ BEGIN
 END;
 COMMIT TRANSACTION;",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
+new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
                         new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
@@ -733,8 +729,7 @@ COMMIT TRANSACTION;",
                 DataTable confirmed = br.EQueryP(
                     "SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
+new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50))
                     });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
@@ -801,8 +796,7 @@ BEGIN
 END;
 COMMIT TRANSACTION;",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
+new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
@@ -815,8 +809,7 @@ SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
 WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
   AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID AND IsActive=0",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
+new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
@@ -1042,8 +1035,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@CompanyID", companyId),
+new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@DateFrom", fromDate),
                         new SqlParameter("@DateThru", thruDate),
@@ -1244,7 +1236,7 @@ LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.Inspection
 WHERE I.InspectionID=@InspectionID
 ORDER BY R.DisplayOrder, V.FieldName",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@InspectionID", inspectionId) });
+new SqlParameter("@InspectionID", inspectionId) });
 
                 var groupedItems = new Dictionary<int, Dictionary<string, object>>();
                 foreach (DataRow row in results.Rows)
@@ -1282,8 +1274,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
                     new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
+new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
                         new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
                     });
                 if (meta.Rows.Count > 0)
@@ -1306,7 +1297,7 @@ ORDER BY S.DisplayOrder,
      CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
      I.DisplayOrder",
                         new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                     DataTable templateGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
@@ -1315,7 +1306,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
                         new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
 
                     var sections = templateItems.AsEnumerable()
                         .GroupBy(row => new {
@@ -1467,7 +1458,7 @@ LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.Inspection
 WHERE R.InspectionID=@InspectionID
 ORDER BY R.DisplayOrder, V.FieldName",
                         new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@InspectionID", id) });
+new SqlParameter("@InspectionID", id) });
                     var grouped = new Dictionary<int, Dictionary<string, object>>();
                     foreach (DataRow row in rows.Rows)
                     {
@@ -1504,8 +1495,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
                         new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                            new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
+new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
                             new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
                         });
                     if (meta.Rows.Count > 0)
@@ -1528,7 +1518,7 @@ ORDER BY S.DisplayOrder,
          CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
          I.DisplayOrder",
                             new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                         DataTable templateGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
@@ -1537,7 +1527,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
                             new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 
                         var sections = templateItems.AsEnumerable()
                             .GroupBy(row => new {
