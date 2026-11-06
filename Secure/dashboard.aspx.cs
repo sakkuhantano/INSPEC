@@ -58,23 +58,24 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                        @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                           FROM dbo.SysWebUser SU
-                          INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+                          
                           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                             AND (
                                 EXISTS (
                                     SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                                       AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
                                 )
                                 OR EXISTS (
-                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                                     WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
                                 )
                             )",
                         new SqlParameter[] {
                             new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                             new SqlParameter("@CompanyID", companyId),
                             new SqlParameter("@LocationID", locationId)
                         });
@@ -315,11 +316,12 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                    @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
                       FROM dbo.SysWebUser SU
-                      INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+                      
                       WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1",
-                    new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId) });
+                    new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@EmployeeID", employeeId) });
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -340,19 +342,20 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                     throw new HttpException(400, "Company and location are required for inspection master download.");
 
                 DataTable companyAuth = br.EQueryP(
-                    @"SELECT U.UserID
+                    @"SELECT SU.UserID
                       FROM dbo.SysWebUser SU
-                          INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+                          
                           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                         AND (
                             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                                       AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                                        WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
                         )",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
