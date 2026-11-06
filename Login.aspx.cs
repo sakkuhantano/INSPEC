@@ -206,8 +206,18 @@ namespace INSPEC
             }
         }
 
+        public static object F_LoginFromLegacySession(string employeeID, string passwordHash, string browserGuid, string deviceName)
+        {
+            if (String.IsNullOrWhiteSpace(employeeID) ||
+                String.IsNullOrWhiteSpace(passwordHash) ||
+                String.IsNullOrWhiteSpace(browserGuid))
+                return new { success = false, message = "Legacy INSPEC session is invalid." };
+
+            return F_LoginWithHash(employeeID, passwordHash, browserGuid, deviceName);
+        }
+
         [WebMethod]
-        public static object F_LoginWithHash(string p_employeeid, string V_Pwd, string p_browserGuid, string p_deviceName)
+        private static object F_LoginWithHash(string p_employeeid, string V_Pwd, string p_browserGuid, string p_deviceName)
         {
             using (var oUser = new WAL.BR.CF())
             {
