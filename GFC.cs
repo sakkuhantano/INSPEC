@@ -413,16 +413,77 @@ namespace WAL
         {
             using (var br = new WAL.BR.CF())
             {
-                // Section scope is keyed by the authenticated SysWebUser.EmployeeID.
-                // A missing UTL_User row intentionally means an empty section scope.
-                DataTable dt = br.EQueryP(
-                    @"SELECT TOP 1 ISNULL(U.Section,'') Section
-                      FROM dbo.SysWebUser S
-                      INNER JOIN dbo.UTL_User U ON U.EmployeeID=S.EmployeeID
-                      WHERE S.EmployeeID=@EmployeeID AND S.IsActive=1",
-                    new System.Data.SqlClient.SqlParameter[] {
-                        new System.Data.SqlClient.SqlParameter("@EmployeeID", employeeID)
-                    });
+                // Section priority:
+                // 1. administrator -> PENG/PHKP/PSEC
+                // 2. INSPEC_User.SectionList
+                // 3. SysWebUserProfit -> PIP_M_Section (or PENG/PHKP/PSEC for *ALL)
+                // 4. M_HRD_Employee.SectionID
+                DataTable dt = br.EQueryP(@"
+DECLARE @SectionList VARCHAR(8000);
+SET @SectionList='';
+
+IF EXISTS (
+    SELECT 1
+    FROM dbo.SysWebUserUserGroup
+    WHERE UserID=@EmployeeID
+      AND UserGroupID='administrator'
+)
+BEGIN
+    SELECT @SectionList=ISNULL(STUFF((
+        SELECT ';'+S.SectionID
+        FROM dbo.PIP_M_Section S
+        WHERE S.ProfitCenterNo IN ('peng','phkp','psec')
+        FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+END;
+
+IF ISNULL(@SectionList,'')=''
+BEGIN
+    SELECT TOP 1 @SectionList=ISNULL(I.SectionList,'')
+    FROM dbo.INSPEC_User I
+    WHERE I.UserID=@EmployeeID
+      AND ISNULL(I.IsActive,0)=1;
+END;
+
+IF ISNULL(@SectionList,'')=''
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.SysWebUserProfit P
+        WHERE P.AppID='inspec'
+          AND P.UserID=@EmployeeID
+          AND P.ProfitCenterNo='*ALL'
+    )
+    BEGIN
+        SELECT @SectionList=ISNULL(STUFF((
+            SELECT ';'+S.SectionID
+            FROM dbo.PIP_M_Section S
+            WHERE S.ProfitCenterNo IN ('peng','phkp','psec')
+            FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+    END
+    ELSE
+    BEGIN
+        SELECT @SectionList=ISNULL(STUFF((
+            SELECT DISTINCT ';'+S.SectionID
+            FROM dbo.SysWebUserProfit P
+            INNER JOIN dbo.PIP_M_Section S ON S.ProfitCenterNo=P.ProfitCenterNo
+            WHERE P.AppID='inspec'
+              AND P.UserID=@EmployeeID
+              AND ISNULL(P.ProfitCenterNo,'')<>''
+            FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+    END
+END;
+
+IF ISNULL(@SectionList,'')=''
+BEGIN
+    SELECT TOP 1 @SectionList=ISNULL(E.SectionID,'')
+    FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=@EmployeeID;
+END;
+
+SELECT ISNULL(@SectionList,'') Section;",
+                new System.Data.SqlClient.SqlParameter[] {
+                    new System.Data.SqlClient.SqlParameter("@EmployeeID", employeeID)
+                });
                 return dt.Rows.Count == 0 ? "" : Convert.ToString(dt.Rows[0]["Section"]);
             }
         }
