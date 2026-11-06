@@ -25,13 +25,6 @@
 <!-- Sidebar -->
 <aside class="sidebar overflow-hidden collapsed" id="sidebar" style="overflow-y: hidden !important;">
 <div class="sidebar-logo-container py-3 px-3">
-<div class="mobile-inspection-brand mb-3">
-    <div class="mobile-inspection-brand-mark"><i class="bi bi-clipboard2-check"></i></div>
-    <div class="mobile-inspection-brand-text">
-        <div class="mobile-inspection-brand-name">Mobile Inspection</div>
-        <div class="mobile-inspection-brand-subtitle">Inspection Management System</div>
-    </div>
-</div>
 <div class="dropdown">
 <button aria-expanded="false" class="btn btn-link p-0 text-start text-decoration-none dropdown-toggle w-100" data-bs-toggle="dropdown" type="button">
 <img alt="Global Utility Services Logo" class="sidebar-logo mb-2" src="/WebFolder/Images/muliaLogo.png" />
@@ -278,34 +271,12 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 <div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
 <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server"></asp:ContentPlaceHolder>
 <!-- Footer -->
-<footer class="master-footer mt-auto pt-4">
-<div class="master-footer-panel">
-    <div class="master-footer-brand">
-        <div class="master-footer-icon"><i class="bi bi-clipboard2-check"></i></div>
-        <div>
-            <div class="master-footer-title">Mobile Inspection</div>
-            <div class="master-footer-subtitle">Inspection Management System</div>
-        </div>
+<footer class="master-footer mt-auto">
+    <div class="master-footer-line">
+        <span>© Global Utility Services</span>
+        <span>Version 4.2.0-STABLE</span>
+        <span>Connection: <strong id="footerConnection">Offline</strong></span>
     </div>
-    <div class="master-footer-meta">
-        <div class="master-footer-item">
-            <span class="master-footer-label">Version</span>
-            <strong>4.2.0-STABLE</strong>
-        </div>
-        <div class="master-footer-item">
-            <span class="master-footer-label">Connection</span>
-            <strong id="footerConnection">Checking...</strong>
-        </div>
-        <div class="master-footer-item">
-            <span class="master-footer-label">Status</span>
-            <strong><span class="status-dot"></span> Ready</strong>
-        </div>
-    </div>
-</div>
-<div class="master-footer-bottom">
-    <span>© Global Utility Services</span>
-    <span>Field Inspection • Work Order • Meter Reading</span>
-</div>
 </footer>
 </div>
 </form>
