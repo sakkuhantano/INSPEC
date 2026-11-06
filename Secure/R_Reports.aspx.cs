@@ -45,13 +45,11 @@ namespace INSPEC.Secure
                     "InspectionDate", "TemplateNo", "TemplateName",
                     "OwnerEmployeeID", "Status", "IsApprove");
                 sheet.Cells["A3"].LoadFromDataTable(export, true);
-                using (var header = sheet.Cells[3, 1, 3, export.Columns.Count])
-                {
-                    header.Style.Font.Bold = true;
-                    header.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    header.Style.Fill.BackgroundColor.SetColor(Color.LightSteelBlue);
-                    header.Style.WrapText = true;
-                }
+                var header = sheet.Cells[3, 1, 3, export.Columns.Count];
+                header.Style.Font.Bold = true;
+                header.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                header.Style.Fill.BackgroundColor.SetColor(Color.LightSteelBlue);
+                header.Style.WrapText = true;
                 sheet.View.FreezePanes(4, 1);
                 sheet.Cells[sheet.Dimension.Address].AutoFitColumns();
                 byte[] file = package.GetAsByteArray();
