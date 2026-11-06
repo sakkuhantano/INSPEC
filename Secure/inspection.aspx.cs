@@ -1725,20 +1725,6 @@ ORDER BY I.InspectionID";
             return new { success = true, count = results.Count, results = results };
         }
 
-        [WebMethod(EnableSession = true)]
-        public static object CreateInspectionReport(long[] inspectionIds, string employeeId,
-            string companyId, string locationId)
-        {
-            employeeId = GFC.RequireMenuEmployee("20022");
-            DataTable selected = GetAuthorizedInspectionSelection(inspectionIds, companyId, locationId);
-            long[] ids = selected.AsEnumerable().Select(row => Convert.ToInt64(row["InspectionID"])).ToArray();
-            string token = Guid.NewGuid().ToString("N");
-            HttpContext.Current.Session["InspectionReport_" + token] = ids;
-            HttpContext.Current.Session["InspectionReportCompany_" + token] = companyId;
-            HttpContext.Current.Session["InspectionReportLocation_" + token] = locationId;
-            return new { success = true, url = "R_Reports.aspx?token=" + token };
-        }
-
         [WebMethod]
         public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
