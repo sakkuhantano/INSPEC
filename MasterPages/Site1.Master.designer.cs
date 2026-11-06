@@ -25,6 +25,7 @@ namespace INSPEC.MasterPages {
         protected global::System.Web.UI.WebControls.HiddenField hfMnEmployeeID;
         protected global::System.Web.UI.WebControls.HiddenField hfMnMPPosition;
         protected global::System.Web.UI.WebControls.HiddenField hfMnIsByPassLogonUser;
+        protected global::System.Web.UI.WebControls.HiddenField hfLegacyLoginData;
         protected global::System.Web.UI.WebControls.Literal lit_Title;
 
         protected global::System.Web.UI.WebControls.ContentPlaceHolder head;
