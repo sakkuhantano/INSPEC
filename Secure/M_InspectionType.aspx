@@ -281,6 +281,11 @@
                         </asp:DropDownList>
                         <button type="button" id="btnAddGroupingBy" class="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" title="Tambah grouping"><i class="fas fa-plus"></i></button>
                     </div>
+                </div>
+            </div>
+            <div class="row mt-1">
+                <div class="col-sm-4"></div>
+                <div class="col-sm-8 grouping-by-editor">
                     <asp:HiddenField ID="hidGroupingBy" runat="server" ClientIDMode="Static" />
                     <div id="groupingByChips" class="grouping-by-chips" aria-live="polite"></div>
                 </div>
