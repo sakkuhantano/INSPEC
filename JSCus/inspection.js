@@ -3227,14 +3227,23 @@ async function previewSelectedInspections() {
         return;
     }
     try {
-        const result = await inspectionApprovalPost("CreateInspectionReport", {
-            inspectionIds: rows.map(row => Number(row.InspectionID)),
-            employeeId: inspectionLogin.employeeid,
-            companyId: inspectionCompanyID,
-            locationId: inspectionLocationID
+        const response = await fetch("R_Reports.aspx/GenerateReport", {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({
+                inspectionIds: rows.map(row => Number(row.InspectionID)),
+                employeeId: inspectionLogin.employeeid,
+                companyId: inspectionCompanyID,
+                locationId: inspectionLocationID
+            })
         });
-        if (!result || !result.success || !result.url) throw new Error("Server tidak mengembalikan alamat report.");
-        window.location.href = result.url;
+        const payload = await response.json();
+        const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+        if (!response.ok || !result || !result.success || !result.filePath)
+            throw new Error(result && result.message ? result.message : "Server gagal membuat file Excel.");
+
+        showToast("Report berhasil dibuat: " + result.fileName, "success");
+        window.location.href = result.filePath;
     } catch (err) {
         showToast(err.message || "Gagal membuat preview report.", "warning");
     }
