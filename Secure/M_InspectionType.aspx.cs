@@ -122,6 +122,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
             txtIsNew.Text = "1";
             txtDetailOriginalCode.Text = "";
             hidGroupingBy.Value = "";
+            GF.SelectListItem(ref ddlGroupingBy, "");
             GF.SelectListItem(ref ddlReportLayout, "");
             lBtnInspectionTypeCode.Attributes["onClick"] = GF.JSOpenSearchList_2("154", "Master Inspection Type", txtInspectionTypeCode.ClientID, false, txtInspectionTypeCode.ClientID);
             txtInspectionTypeCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("154", "Master Inspection Type", txtInspectionTypeCode.ClientID, true, txtInspectionTypeCode.ClientID);
