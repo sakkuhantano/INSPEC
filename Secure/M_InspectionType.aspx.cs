@@ -121,6 +121,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
         {
             txtIsNew.Text = "1";
             txtDetailOriginalCode.Text = "";
+            hidGroupingBy.Value = "";
             GF.SelectListItem(ref ddlReportLayout, "");
             lBtnInspectionTypeCode.Attributes["onClick"] = GF.JSOpenSearchList_2("154", "Master Inspection Type", txtInspectionTypeCode.ClientID, false, txtInspectionTypeCode.ClientID);
             txtInspectionTypeCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("154", "Master Inspection Type", txtInspectionTypeCode.ClientID, true, txtInspectionTypeCode.ClientID);
@@ -151,6 +152,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                 txtInspectionTypeName.Text = dt.Rows[0]["InspectionTypeName"].ToString();
                 txtSectionID.Text = dt.Rows[0]["SectionID"].ToString();
                 GF.SelectListItem(ref ddlReportLayout, dt.Rows[0]["ReportLayout"].ToString());
+                hidGroupingBy.Value = NormalizeGroupingBy(dt.Rows[0]["GroupingBy"].ToString());
                 _OpenSection();
                 Master.TB_VisibleButton(ToolbarItem_2.Save, true);
                 Master.TB_VisibleButton(ToolbarItem_2.Delete, true);
@@ -194,6 +196,18 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                     new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
                     new SqlParameter("@p_D_LocationID", Master.Mn_LocationID)
                 }, true);
+            using (var br = new WAL.BR.CF())
+                br.EQueryP(@"UPDATE dbo.PIP_M_InspectionType
+SET GroupingBy=@GroupingBy
+WHERE InspectionTypeCode=@InspectionTypeCode
+  AND CompanyID=@CompanyID
+  AND LocationID=@LocationID",
+                    new SqlParameter[] {
+                        new SqlParameter("@GroupingBy", NormalizeGroupingBy(hidGroupingBy.Value)),
+                        new SqlParameter("@InspectionTypeCode", txtInspectionTypeCode.Text.Trim().ToUpperInvariant()),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    }, true);
             _Open();
             return true;
         }
