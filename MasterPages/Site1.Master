@@ -3,7 +3,7 @@
 <%@ Register Src="~/UserControls/UC_Toolbar_2.ascx" TagPrefix="uc2" TagName="UC_Toolbar_2" %>
 <!DOCTYPE html>
 
-<html>
+<html lang="id-ID">
 
 <head runat="server">
 <title><asp:Literal ID="lit_Title" runat="server" Text="Global Utility Services" /></title>
