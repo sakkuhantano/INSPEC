@@ -264,6 +264,7 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 <asp:HiddenField ID="hfMnEmployeeID" ClientIDMode="Static" runat="server" />
 <asp:HiddenField ID="hfMnMPPosition" ClientIDMode="Static" runat="server" />
 <asp:HiddenField ID="hfMnIsByPassLogonUser" ClientIDMode="Static" runat="server" />
+<asp:HiddenField ID="hfLegacyLoginData" ClientIDMode="Static" runat="server" />
 
 <%--<div class="container-fluid px-3 px-lg-4 px-xl-5 py-4" id="contentbody" style="margin-top: 38px;">--%>
 <div class="container-fluid px-3 px-lg-4 px-xl-5 py-2" id="contentbody">
@@ -327,6 +328,52 @@ class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-
 
 </div>
 <script type="text/javascript" src="../JSCus/GFC_FO.js"></script>
+<script type="text/javascript">
+(function () {
+    var field = document.getElementById("hfLegacyLoginData");
+    if (!field || !field.value) return;
+
+    try {
+        var d = JSON.parse(field.value);
+        if (!d || d.success !== true) return;
+
+        var loginData = {
+            userid: d.userid || "",
+            browserGuid: d.browserGuid || "",
+            serverGuid: d.serverguid || "",
+            token: d.token || "",
+            username: d.username || "",
+            curcompany: d.curcompany || "",
+            companylist: d.companylist || [],
+            curcompanyname: d.curcompanyname || "",
+            employeeid: d.employeeid || "",
+            menus: d.menus || [],
+            role: d.role,
+            jobtitle: d.jobtitle || "",
+            email: d.email || "",
+            profitcenter: d.profitcenter || "",
+            theme: d.theme || "L",
+            section: d.section || "",
+            lastsyncw: d.lastsyncw || "",
+            lastMeterPeriod: "",
+            lastMeterSync: "1900-01-02"
+        };
+
+        setLoginData(loginData);
+        initIndexedDB().then(function () {
+            return saveCompanyList(loginData.companylist);
+        }).then(function () {
+            var parts = (loginData.curcompany || "").split(";");
+            if (parts.length === 2 && parts[0] && parts[1])
+                return setLastSyncData(parts[0], parts[1]);
+        }).catch(function (error) {
+            console.error("Unable to initialize legacy INSPEC login data:", error);
+        });
+    } catch (error) {
+        console.error("Unable to restore legacy INSPEC login data:", error);
+    }
+})();
+</script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalSync.js"></script>
 <script type="text/javascript" src="../JSCus/Site1.Master.js"></script>
 <%--<script type="text/javascript" src="/WebFolder/bootstrap-5.3.0-dist/js/bootstrap.bundle.min.js"></script>--%>
