@@ -1610,6 +1610,105 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
             }
         }
 
+
+        // Server-side authorization and one-InspectionType validation for selected transactions.
+        public static DataTable GetAuthorizedInspectionSelection(long[] inspectionIds, string companyId, string locationId)
+        {
+            string employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId);
+            if (inspectionIds == null || inspectionIds.Length == 0)
+                throw new HttpException(400, "Pilih minimal satu transaksi inspeksi.");
+            inspectionIds = inspectionIds.Where(id => id > 0).Distinct().ToArray();
+            if (inspectionIds.Length == 0 || inspectionIds.Length > 200)
+                throw new HttpException(400, "Jumlah transaksi tidak valid. Maksimal 200 transaksi.");
+
+            List<SqlParameter> parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter("@EmployeeID", employeeId));
+            parameters.Add(new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)));
+            parameters.Add(new SqlParameter("@CompanyID", companyId));
+            parameters.Add(new SqlParameter("@LocationID", locationId));
+            List<string> idParameters = new List<string>();
+            for (int i = 0; i < inspectionIds.Length; i++)
+            {
+                string name = "@InspectionID" + i.ToString(CultureInfo.InvariantCulture);
+                idParameters.Add(name);
+                parameters.Add(new SqlParameter(name, inspectionIds[i]));
+            }
+
+            string sql = @"
+SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName, I.InspectionDate, I.TemplateNo, I.TemplateName,
+       I.OwnerEmployeeID, I.Status, I.IsApprove
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+WHERE I.InspectionID IN (" + String.Join(",", idParameters.ToArray()) + @")
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                 AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                  WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+  )
+ORDER BY I.InspectionID";
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(sql, parameters.ToArray());
+                if (rows == null || rows.Rows.Count != inspectionIds.Length)
+                    throw new HttpException(403, "Satu atau lebih transaksi tidak ditemukan atau berada di luar hak akses Supervisor.");
+                List<string> types = rows.AsEnumerable()
+                    .Select(row => Convert.ToString(row["InspectionTypeCode"]).Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (types.Count != 1 || String.IsNullOrWhiteSpace(types[0]))
+                    throw new HttpException(400, "Inspection Type berbeda. Pilih transaksi dengan Inspection Type yang sama saja.");
+                return rows;
+            }
+        }
+
+        [WebMethod]
+        public static object ProcessInspectionApprovalBatch(long[] inspectionIds, string action,
+            string employeeId, string companyId, string locationId, string remark)
+        {
+            employeeId = GFC.RequireMenuEmployee("20022");
+            if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Invalid inspection action.");
+            if (String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase) &&
+                String.IsNullOrWhiteSpace(remark))
+                throw new HttpException(400, "Reason for void is required.");
+
+            DataTable selected = GetAuthorizedInspectionSelection(inspectionIds, companyId, locationId);
+            List<object> results = new List<object>();
+            foreach (DataRow row in selected.Rows)
+                results.Add(ProcessInspectionApproval(Convert.ToInt64(row["InspectionID"]),
+                    action, employeeId, companyId, locationId, remark));
+            return new { success = true, count = results.Count, results = results };
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object CreateInspectionReport(long[] inspectionIds, string employeeId,
+            string companyId, string locationId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20022");
+            DataTable selected = GetAuthorizedInspectionSelection(inspectionIds, companyId, locationId);
+            long[] ids = selected.AsEnumerable().Select(row => Convert.ToInt64(row["InspectionID"])).ToArray();
+            string token = Guid.NewGuid().ToString("N");
+            HttpContext.Current.Session["InspectionReport_" + token] = ids;
+            HttpContext.Current.Session["InspectionReportCompany_" + token] = companyId;
+            HttpContext.Current.Session["InspectionReportLocation_" + token] = locationId;
+            return new { success = true, url = "R_Reports.aspx?token=" + token };
+        }
+
         [WebMethod]
         public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
