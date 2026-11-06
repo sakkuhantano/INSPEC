@@ -220,7 +220,7 @@ namespace INSPEC
                              a.UserName AS UserName1,
                              ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
                       FROM SysWebUser U
-                      LEFT JOIN UTL_User L ON L.EmployeeID = U.employeeid
+                      LEFT JOIN INSPEC_User L ON L.UserID = U.employeeid
                       LEFT JOIN UserSession us ON us.IsActive = 1 AND U.EmployeeID = us.UserID
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
                       WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
@@ -232,7 +232,7 @@ namespace INSPEC
                 string v_currcompany = "", v_currcompanyname = "";
                 string v_serverguid = Guid.NewGuid().ToString(), v_token = Guid.NewGuid().ToString();
                 string v_username = Convert.ToString(dt.Rows[0]["UserName1"]);
-                string v_section = Convert.ToString(dt.Rows[0]["Section"]);
+                string v_section = GFC.GetEmployeeSection(V_EmpID);
                 string v_jobtitle = Convert.ToString(dt.Rows[0]["JobTitleName"]);
                 string v_email = Convert.ToString(dt.Rows[0]["EmailAddress"]);
                 string v_profitcenter = Convert.ToString(dt.Rows[0]["ProfitCenterNo"]);
