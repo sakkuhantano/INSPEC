@@ -370,10 +370,88 @@
         }
 
         @media (max-width: 575.98px) {
-            .login-panel { padding: 24px 19px; }
-            .mobile-brand { margin-bottom: 24px; }
-            .login-heading h2 { font-size: 1.8rem; }
-            .login-footer { flex-direction: column; text-align: center; }
+            /* Keep the complete login screen inside the phone's visible viewport. */
+            body {
+                min-height: 100svh;
+                min-height: 100dvh;
+                overflow-y: auto;
+            }
+
+            .login-shell,
+            .login-panel {
+                min-height: 100svh;
+                min-height: 100dvh;
+            }
+
+            .login-panel {
+                padding: max(12px, env(safe-area-inset-top)) 19px max(12px, env(safe-area-inset-bottom));
+            }
+
+            .login-card { max-width: 430px; }
+
+            .mobile-brand {
+                margin-bottom: 16px;
+                gap: 10px;
+            }
+
+            .mobile-brand .brand-mark {
+                width: 38px;
+                height: 38px;
+                border-radius: 12px;
+                font-size: 1rem;
+            }
+
+            .mobile-brand strong { font-size: .88rem; }
+            .mobile-brand small { font-size: .6rem; }
+
+            .login-heading { margin-bottom: 18px; }
+            .login-heading .eyebrow { font-size: .62rem; margin-bottom: 5px; }
+            .login-heading h2 { font-size: 1.55rem; margin-bottom: 4px; }
+            .login-heading p { font-size: .83rem; line-height: 1.4; }
+
+            .field { margin-bottom: 13px; }
+            .field-label { font-size: .66rem; margin-bottom: 5px; }
+
+            .input-wrap .form-control {
+                height: 47px;
+                border-radius: 12px;
+                font-size: .88rem;
+                padding-left: 43px;
+            }
+
+            .input-wrap .input-icon { left: 14px; }
+            .password-toggle { right: 12px; }
+
+            .login-button {
+                height: 48px;
+                border-radius: 12px;
+                font-size: .9rem;
+            }
+
+            .security-note {
+                margin-top: 13px;
+                font-size: .65rem;
+                text-align: center;
+            }
+
+            .login-footer {
+                margin-top: 17px;
+                padding-top: 11px;
+                flex-direction: row;
+                justify-content: space-between;
+                gap: 8px;
+                font-size: .62rem;
+                text-align: left;
+            }
+        }
+
+        @media (max-width: 575.98px) and (max-height: 700px) {
+            .login-panel { align-items: flex-start; }
+            .mobile-brand { margin-bottom: 10px; }
+            .login-heading { margin-bottom: 12px; }
+            .field { margin-bottom: 9px; }
+            .security-note { margin-top: 9px; }
+            .login-footer { margin-top: 11px; padding-top: 8px; }
         }
     </style>
 </head>
