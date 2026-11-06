@@ -275,7 +275,7 @@ function loadSidebarMenu() {
         menus.forEach(function (item) {
             var label = String(item.Caption || item.DESCRIPTION || item.Description || "")
                 .toLowerCase().replace(/[^a-z]/g, "");
-            if (label === "utility" || label === "settingcompany" || label === "companysetting") {
+            if (label === "home" || label === "utility" || label === "settingcompany" || label === "companysetting") {
                 var id = String(item.MenuID || "").trim();
                 if (id) hiddenMenuIds[id] = true;
             }
