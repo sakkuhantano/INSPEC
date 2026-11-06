@@ -10,10 +10,18 @@ namespace INSPEC.MasterPages
 {
     public partial class Site1 : System.Web.UI.MasterPage
     {
+        private string _legacyLoginBootstrapJson = String.Empty;
+
         protected void Page_Init(object sender, EventArgs e)
         {
             ucToolbar.ToolbarClick += UC_ToolbarClick;
+            Page.PreRender += Site1_PreRender;
             EnsureAuthentication();
+        }
+
+        private void Site1_PreRender(object sender, EventArgs e)
+        {
+            hfLegacyLoginData.Value = _legacyLoginBootstrapJson ?? String.Empty;
         }
 
         private void EnsureAuthentication()
@@ -139,11 +147,11 @@ namespace INSPEC.MasterPages
 
                     context.Session["INSPECFO_LEGACY_EMPLOYEEID"] = legacyEmployeeID;
                     context.Session["INSPECFO_LEGACY_LOGIN_DATA"] = resultJson;
-                    hfLegacyLoginData.Value = resultJson;
+                    _legacyLoginBootstrapJson = resultJson;
                 }
                 else
                 {
-                    hfLegacyLoginData.Value = savedLoginData;
+                    _legacyLoginBootstrapJson = savedLoginData;
                 }
 
                 return;
