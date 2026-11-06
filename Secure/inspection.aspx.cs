@@ -458,19 +458,20 @@ SELECT ID FROM @AutoNumResult;",
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
   )",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -495,6 +496,7 @@ WHERE T.IDTemplate=@IDTemplate
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@SectionID", sectionId),
                         new SqlParameter("@CompanyID", companyId),
@@ -516,6 +518,7 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
   AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
 ORDER BY InspectionID DESC",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionID", sectionId),
@@ -547,17 +550,18 @@ ORDER BY InspectionID DESC",
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                   WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -620,17 +624,18 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
         {
             string sectionId = TokenString(record, "SectionID");
             DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                  AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                   WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
                 new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId)
                 });
@@ -653,6 +658,7 @@ WHERE T.IDTemplate=@IDTemplate
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
                 new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                     new SqlParameter("@SectionID", sectionId),
                     new SqlParameter("@CompanyID", companyId),
@@ -709,6 +715,7 @@ BEGIN
 END;
 COMMIT TRANSACTION;",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
@@ -726,6 +733,7 @@ COMMIT TRANSACTION;",
                 DataTable confirmed = br.EQueryP(
                     "SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50))
                     });
@@ -793,6 +801,7 @@ BEGIN
 END;
 COMMIT TRANSACTION;",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
@@ -806,6 +815,7 @@ SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
 WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
   AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID AND IsActive=0",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
@@ -832,21 +842,22 @@ WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
             using (var br = new WAL.BR.CF())
             {
                 DataTable auth = br.EQueryP(@"
-SELECT ISNULL(U.Section,'') Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
-       ISNULL(E.Name, U.EmployeeID) TechnicianName
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
+       ISNULL(E.Name, SU.EmployeeID) TechnicianName
 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=SU.EmployeeID
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
   AND (
       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
   )",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -978,20 +989,21 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
-WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=U.EmployeeID))
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022') OR (EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') AND I.OwnerEmployeeID=SU.EmployeeID))
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
   )";
 
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                 new SqlParameter("@CompanyID", companyId),
                 new SqlParameter("@LocationID", locationId),
                 new SqlParameter("@DateFrom", fromDate),
@@ -1030,6 +1042,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@DateFrom", fromDate),
@@ -1081,19 +1094,20 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
   )",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -1127,14 +1141,14 @@ WHERE I.ClientInspectionID=@ClientInspectionID
   AND I.Status='DRAFT' AND I.IsApprove=0
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                    WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                       AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                        WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
   )
@@ -1142,6 +1156,7 @@ ORDER BY P.SeqNo",
                     new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", clientInspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -1201,18 +1216,19 @@ WHERE I.InspectionID=@InspectionID
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                      WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
         )
   )",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId)
                     });
@@ -1227,7 +1243,8 @@ JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
 WHERE I.InspectionID=@InspectionID
 ORDER BY R.DisplayOrder, V.FieldName",
-                    new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@InspectionID", inspectionId) });
 
                 var groupedItems = new Dictionary<int, Dictionary<string, object>>();
                 foreach (DataRow row in results.Rows)
@@ -1265,6 +1282,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
                     new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
                         new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
                     });
@@ -1287,7 +1305,8 @@ WHERE V.IDVersion=@IDVersion
 ORDER BY S.DisplayOrder,
      CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
      I.DisplayOrder",
-                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                        new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                     DataTable templateGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
@@ -1295,7 +1314,8 @@ JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
-                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                        new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
 
                     var sections = templateItems.AsEnumerable()
                         .GroupBy(row => new {
@@ -1418,19 +1438,20 @@ WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
-INNER JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
-              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
               AND (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                          WHERE C.UserID=U.EmployeeID AND C.AppID='pip'
+                          WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                             AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                              WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
               ))
 ORDER BY I.UpdateDate DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
@@ -1445,7 +1466,8 @@ FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
 WHERE R.InspectionID=@InspectionID
 ORDER BY R.DisplayOrder, V.FieldName",
-                        new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                        new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@InspectionID", id) });
                     var grouped = new Dictionary<int, Dictionary<string, object>>();
                     foreach (DataRow row in rows.Rows)
                     {
@@ -1482,6 +1504,7 @@ FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
                         new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                             new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
                             new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
                         });
@@ -1504,7 +1527,8 @@ WHERE V.IDVersion=@IDVersion
 ORDER BY S.DisplayOrder,
          CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
          I.DisplayOrder",
-                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                            new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                         DataTable templateGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
@@ -1512,7 +1536,8 @@ JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
-                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                            new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 
                         var sections = templateItems.AsEnumerable()
                             .GroupBy(row => new {
@@ -1616,7 +1641,7 @@ ORDER BY G.DisplayOrder",
 SELECT TOP 1 1
 FROM dbo.PIP_T_Inspection I
 JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-JOIN dbo.UTL_User U ON U.EmployeeID=SU.EmployeeID
+
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
 WHERE I.InspectionID=@InspectionID
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
@@ -1625,12 +1650,13 @@ WHERE I.InspectionID=@InspectionID
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
 ",
                     new SqlParameter[] {
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
                     });
