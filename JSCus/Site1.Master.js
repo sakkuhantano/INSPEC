@@ -169,6 +169,9 @@ document.addEventListener(
         if (page.indexOf("login.aspx") >= 0)
             return;
         if (!await checkLogin()) return;
+        // Show browser connectivity immediately; server ping will refine the status.
+        setConnectionStatus(navigator.onLine);
+        updateConnectionStatus();
         loadSidebarMenu();
         initSidebarState();
         // INIT DB
