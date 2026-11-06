@@ -22,18 +22,14 @@ namespace INSPEC.Secure
 
         private static List<string> GetAllowedSections(string employeeId)
         {
-            string hrSection = "";
-            string overrideSection = "";
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dtEmployee = br.EQuery("SELECT ISNULL(SectionID, '') SectionID FROM dbo.M_HRD_Employee WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + (employeeId ?? "").Trim());
-                if (dtEmployee.Rows.Count > 0) hrSection = Convert.ToString(dtEmployee.Rows[0]["SectionID"]).Trim();
-                DataTable dtOverride = br.EQuery("SELECT TOP 1 ISNULL(Section, '') Section FROM dbo.UTL_User WHERE EmployeeID=@EmployeeID", "@EmployeeID=" + (employeeId ?? "").Trim());
-                if (dtOverride.Rows.Count > 0) overrideSection = Convert.ToString(dtOverride.Rows[0]["Section"]).Trim();
-            }
-            string source = String.IsNullOrWhiteSpace(overrideSection) ? hrSection : overrideSection;
-            return (source ?? "").Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x != "").Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            return (GFC.GetEmployeeSection(employeeId) ?? "")
+                .Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .Where(x => x != "")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
+
 
         private void SetClientContext(DataRow user)
         {
