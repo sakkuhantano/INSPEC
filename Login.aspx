@@ -459,18 +459,27 @@
             body {
                 min-height: 100svh;
                 min-height: 100dvh;
+                width: 100%;
+                overflow-x: hidden;
                 overflow-y: auto;
+                align-items: stretch;
+                justify-content: stretch;
             }
 
-            .login-shell,
-            .login-panel {
+            .login-shell {
+                width: 100%;
+                height: 100svh;
+                height: 100dvh;
                 min-height: 100svh;
                 min-height: 100dvh;
+                align-items: stretch;
             }
 
-            .login-shell { align-items: center; }
-
             .login-panel {
+                width: 100%;
+                height: 100%;
+                min-height: 100svh;
+                min-height: 100dvh;
                 align-items: center;
                 background: rgba(248,251,251,.78);
                 padding: max(12px, env(safe-area-inset-top)) 19px max(12px, env(safe-area-inset-bottom));
