@@ -252,6 +252,51 @@
         #inspectionScrollTools .btn { right: .5rem; width: 38px; height: 38px; }
         #inspectionScrollUp { bottom: 4rem; top: auto; }
         #inspectionScrollDown { bottom: .75rem; top: auto; }
+
+        /* Technician Submitted filters sit below the tabs instead of extending the tab row off-screen. */
+        .inspection-record-tabbar {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: stretch !important;
+            overflow: visible !important;
+            gap: .65rem !important;
+        }
+        #inspectionRecordTabs {
+            display: flex;
+            flex: 1 1 100%;
+            width: 100%;
+            overflow: visible;
+        }
+        #inspectionRecordTabs .nav-item { flex: 1 1 0; }
+        #inspectionRecordTabs .nav-link {
+            width: 100%;
+            padding: .55rem .45rem;
+            font-size: .82rem;
+            text-align: center;
+        }
+        #inspectionSubmittedFilters:not(.d-none) {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            flex: 1 1 100% !important;
+            width: 100%;
+            min-width: 0;
+            margin-left: 0;
+            gap: .55rem !important;
+            white-space: normal;
+        }
+        #inspectionSubmittedFilters .inspection-date-control {
+            width: 100%;
+            min-width: 0;
+            flex: initial;
+        }
+        #inspectionSubmittedFilters input[type="date"] {
+            width: 100%;
+            min-width: 0;
+        }
+        #btnFilterSubmitted {
+            grid-column: 1 / -1;
+            width: 100%;
+        }
     }
 
     /* Draft and Submitted lists: turn the six-column grid into readable cards on phones. */
