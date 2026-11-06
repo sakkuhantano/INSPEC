@@ -35,8 +35,33 @@ namespace INSPEC.Secure
                     oUser.EQuery("UPDATE SysWebUser SET Password=@Password WHERE UserID=@UserID",
                         "@UserID=" + userID + GF.Str2 + "@Password=" + oUser.GetHashStringSQL(p_newpassword));
 
-                oUser.EQuery("UPDATE UTL_User SET Theme=@Theme WHERE EmployeeID=@EmployeeID",
-                    "@EmployeeID=" + employeeID + GF.Str2 + "@Theme=" + (p_theme ?? ""));
+                DataTable inspecUser = oUser.EQuery(
+                    "SELECT TOP 1 UserID, Theme, IsActive, SectionList FROM INSPEC_User WHERE UserID=@EmployeeID",
+                    "@EmployeeID=" + employeeID);
+
+                if (inspecUser.Rows.Count == 0)
+                {
+                    DataTable employee = oUser.EQuery(
+                        "SELECT TOP 1 ISNULL(SectionID, '') SectionID FROM M_HRD_Employee WHERE EmployeeID=@EmployeeID",
+                        "@EmployeeID=" + employeeID);
+                    string sectionList = employee.Rows.Count == 0
+                        ? ""
+                        : Convert.ToString(employee.Rows[0]["SectionID"]).Trim();
+
+                    oUser.EQuery(
+                        @"INSERT INTO INSPEC_User (UserID, Theme, IsActive, SectionList)
+                          VALUES (@UserID, @Theme, 1, @SectionList)",
+                        "@UserID=" + employeeID + GF.Str2 +
+                        "@Theme=" + (p_theme ?? "") + GF.Str2 +
+                        "@SectionList=" + sectionList);
+                }
+                else
+                {
+                    oUser.EQuery(
+                        "UPDATE INSPEC_User SET Theme=@Theme WHERE UserID=@UserID",
+                        "@UserID=" + employeeID + GF.Str2 + "@Theme=" + (p_theme ?? ""));
+                }
+
                 return new { message = "ok" };
             }
         }
