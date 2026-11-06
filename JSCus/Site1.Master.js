@@ -2794,15 +2794,18 @@ async function getMeterDashboardSummary() {
 }
 function setConnectionStatus(isOnline) {
     let label = document.getElementById("lblConnection");
+    let footerLabel = document.getElementById("footerConnection");
 
     if (isOnline) {
         label.innerHTML = "Online";
         label.className =
         "badge bg-success";
+        if (footerLabel) footerLabel.innerHTML = "Online";
     } else {
         label.innerHTML = "Offline";
         label.className =
         "badge bg-danger";
+        if (footerLabel) footerLabel.innerHTML = "Offline";
     }
 }
 
