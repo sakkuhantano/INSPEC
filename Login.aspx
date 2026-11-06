@@ -371,7 +371,7 @@
 
         @media (max-width: 575.98px) {
             .login-panel { padding: 24px 19px; }
-            .mobile-brand { margin-bottom: 34px; }
+            .mobile-brand { margin-bottom: 24px; }
             .login-heading h2 { font-size: 1.8rem; }
             .login-footer { flex-direction: column; text-align: center; }
         }
@@ -383,7 +383,7 @@
         <section class="login-art">
             <div class="art-content">
                 <div class="brand-mark"><i class="bi bi-clipboard2-check"></i></div>
-                <div class="brand-kicker">Global Utility Services</div>
+                <%--<div class="brand-kicker">Global Utility Services</div>--%>
                 <h1>Mobile<br/>Inspection</h1>
                 <p class="lead">
                     A focused workspace for field inspections, work orders,
@@ -413,7 +413,7 @@
                     <div class="brand-mark"><i class="bi bi-clipboard2-check"></i></div>
                     <div>
                         <strong>Mobile Inspection</strong>
-                        <small>Global Utility Services</small>
+                        <%--<small>Global Utility Services</small>--%>
                     </div>
                 </div>
 
@@ -462,8 +462,8 @@
                 </div>
 
                 <div class="login-footer">
-                    <span>Mobile Inspection</span>
-                    <span>Inspection Management System</span>
+                    <span>© 2026 Mulia Group</span>
+                    <span>Version 1.0.0-STABLE</span>
                 </div>
             </main>
         </section>
