@@ -347,6 +347,91 @@ namespace WAL
 
 
 
+        public static object getData(DataTable dt)
+        {
+            List<Dictionary<string, object>> list =
+                new List<Dictionary<string, object>>();
+
+            foreach (DataRow row in dt.Rows)
+            {
+                Dictionary<string, object> dict =
+                    new Dictionary<string, object>();
+
+                foreach (DataColumn col in dt.Columns)
+                {
+                    if (col.ColumnName.ToUpper() != "LASTSYNC")
+                        dict[col.ColumnName] = row[col];
+                }
+                list.Add(dict);
+            }
+            return new
+            {
+                data = list,
+                serverTime = GF.DBSDatetime().ToString("yyyy-MM-ddTHH:mm:ss")
+            };
+        }
+
+        public static DataTable JsonToDataTable(JArray arr)
+        {
+            DataTable dt = new DataTable();
+
+            if (arr == null || arr.Count == 0)
+                return dt;
+
+            // Sediakan Unix Epoch di awal (Kompatibel C# 5.0 / VS 2013)
+            DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            // BUILD COLUMNS
+            foreach (JToken token in arr)
+            {
+                JObject obj = (JObject)token;
+
+                foreach (var prop in obj.Properties())
+                {
+                    if (!dt.Columns.Contains(prop.Name))
+                    {
+                        dt.Columns.Add(prop.Name, typeof(string));
+                    }
+                }
+            }
+
+            // ROWS
+            foreach (JToken token in arr)
+            {
+                JObject obj = (JObject)token;
+                DataRow row = dt.NewRow();
+
+                foreach (var prop in obj.Properties())
+                {
+                    if (prop.Value == null || prop.Value.Type == JTokenType.Null)
+                    {
+                        row[prop.Name] = "";
+                    }
+                    else
+                    {
+                        string valStr = prop.Value.ToString();
+
+                        // Cek apakah string berisi format /Date(...)/
+                        if (valStr.StartsWith("/Date(") && valStr.EndsWith(")/"))
+                        {
+                            string msString = Regex.Match(valStr, @"\d+").Value;
+                            long ms = long.Parse(msString);
+                            DateTime dateVal = epoch.AddMilliseconds(ms).ToLocalTime();
+                            row[prop.Name] = dateVal.ToString("yyyy-MM-dd HH:mm:ss");
+                        }
+                        else
+                        {
+                            row[prop.Name] = valStr;
+                        }
+                    }
+                }
+
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
+
         #region INSPEC SysWeb2 Authorization
         public const string CookieName = "INSPEC_AUTH";
         public static void SetCookie(string token)
