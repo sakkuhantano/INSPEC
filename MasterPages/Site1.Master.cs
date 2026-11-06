@@ -13,6 +13,133 @@ namespace INSPEC.MasterPages
         protected void Page_Init(object sender, EventArgs e)
         {
             ucToolbar.ToolbarClick += UC_ToolbarClick;
+            EnsureAuthentication();
+        }
+
+        private void EnsureAuthentication()
+        {
+            HttpContext context = HttpContext.Current;
+            if (context == null)
+                return;
+
+            string legacyEmployeeID = String.Empty;
+            string legacyPasswordHash = String.Empty;
+
+            // Read the same legacy DataSet session used by Site_BS_5.Master.
+            try
+            {
+                using (WAL.PB pb = new WAL.PB())
+                {
+                    System.Data.DataSet legacyData = pb.CacheLoggedOnUser;
+                    if (legacyData != null &&
+                        legacyData.Tables.Contains("User") &&
+                        legacyData.Tables["User"].Rows.Count > 0)
+                    {
+                        legacyEmployeeID = Convert.ToString(pb.EmployeeID).Trim();
+                        legacyPasswordHash = Convert.ToString(pb.pwd).Trim();
+
+                        System.Data.DataTable userTable = legacyData.Tables["User"];
+                        if (userTable.Columns.Contains("EmployeeID"))
+                        {
+                            string dataSetEmployeeID =
+                                Convert.ToString(userTable.Rows[0]["EmployeeID"]).Trim();
+
+                            if (!String.IsNullOrEmpty(dataSetEmployeeID) &&
+                                !String.Equals(dataSetEmployeeID, legacyEmployeeID,
+                                    StringComparison.OrdinalIgnoreCase))
+                            {
+                                legacyEmployeeID = String.Empty;
+                                legacyPasswordHash = String.Empty;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                legacyEmployeeID = String.Empty;
+                legacyPasswordHash = String.Empty;
+            }
+
+            string authenticatedEmployeeID = GFC.TryCurrentEmployeeID();
+
+            if (!String.IsNullOrEmpty(legacyEmployeeID))
+            {
+                if (!String.Equals(authenticatedEmployeeID, legacyEmployeeID,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    string browserGuid = Convert.ToString(
+                        context.Session["INSPECFO_BROWSER_GUID"]).Trim();
+
+                    if (String.IsNullOrEmpty(browserGuid))
+                    {
+                        browserGuid = Guid.NewGuid().ToString();
+                        context.Session["INSPECFO_BROWSER_GUID"] = browserGuid;
+                    }
+
+                    object loginResult = INSPEC.Login.F_LoginWithHash(
+                        legacyEmployeeID,
+                        legacyPasswordHash,
+                        browserGuid,
+                        context.Request.UserAgent ?? "Legacy INSPEC session");
+
+                    System.Web.Script.Serialization.JavaScriptSerializer serializer =
+                        new System.Web.Script.Serialization.JavaScriptSerializer();
+                    serializer.MaxJsonLength = Int32.MaxValue;
+
+                    string resultJson = serializer.Serialize(loginResult);
+                    Dictionary<string, object> result =
+                        serializer.Deserialize<Dictionary<string, object>>(resultJson);
+
+                    bool success = result != null &&
+                        result.ContainsKey("success") &&
+                        Convert.ToBoolean(result["success"]);
+
+                    if (!success)
+                    {
+                        GFC.ClearCookie();
+                        RedirectToInspecFOLogin(context);
+                        return;
+                    }
+
+                    result["browserGuid"] = browserGuid;
+                    resultJson = serializer.Serialize(result);
+
+                    context.Session["INSPECFO_LEGACY_EMPLOYEEID"] = legacyEmployeeID;
+                    context.Session["INSPECFO_LEGACY_LOGIN_DATA"] = resultJson;
+                    hfLegacyLoginData.Value = resultJson;
+                }
+                else
+                {
+                    string savedEmployeeID = Convert.ToString(
+                        context.Session["INSPECFO_LEGACY_EMPLOYEEID"]).Trim();
+                    string savedLoginData = Convert.ToString(
+                        context.Session["INSPECFO_LEGACY_LOGIN_DATA"]);
+
+                    if (String.Equals(savedEmployeeID, legacyEmployeeID,
+                        StringComparison.OrdinalIgnoreCase) &&
+                        !String.IsNullOrEmpty(savedLoginData))
+                    {
+                        hfLegacyLoginData.Value = savedLoginData;
+                    }
+                }
+
+                return;
+            }
+
+            // INSPECFO users without a legacy DataSet continue with their own token.
+            if (String.IsNullOrEmpty(authenticatedEmployeeID))
+                RedirectToInspecFOLogin(context);
+        }
+
+        private void RedirectToInspecFOLogin(HttpContext context)
+        {
+            if (context == null || context.Response == null)
+                return;
+
+            string loginUrl = VirtualPathUtility.ToAbsolute("~/Login.aspx") +
+                "?session=expired";
+            context.Response.Redirect(loginUrl, true);
         }
 
         private void UC_ToolbarClick(object sender, ToolBarEventArgs_2 e)
