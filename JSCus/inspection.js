@@ -990,6 +990,34 @@ function applyInspectionPhotoRequirement(record) {
     return requirement;
 }
 
+window.mountInspectionBatchSummary = function (record) {
+    const host = document.getElementById("inspectionMapSummaryHost");
+    const checklistPane = document.getElementById("inspectionChecklistPane");
+    const followUp = document.getElementById("inspectionFollowUpPanel");
+    const summary = document.getElementById("inspectionSummaryPanel");
+    if (!host || !checklistPane || !followUp || !summary) return;
+    const isBatch = record && String(record.InspectionMode || "").toUpperCase() === "BATCH";
+    if (isBatch) {
+        host.appendChild(followUp);
+        host.appendChild(summary);
+        host.classList.remove("d-none");
+        followUp.classList.remove("d-none");
+        summary.classList.remove("d-none");
+        const readOnly = currentInspectionReadOnly || record.Status === "DONE";
+        document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => { el.disabled = readOnly; });
+        document.getElementById("inspectionFollowUpSection").disabled = readOnly;
+        document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(el => { el.disabled = readOnly; });
+        document.getElementById("txtInspectionFollowUpRemark").disabled = readOnly;
+        document.getElementById("txtInspectionSummary").disabled = readOnly;
+    } else {
+        checklistPane.appendChild(followUp);
+        checklistPane.appendChild(summary);
+        host.classList.add("d-none");
+        followUp.classList.remove("d-none");
+        summary.classList.remove("d-none");
+    }
+};
+
 async function renderInspectionForm(record, readOnly) {
     currentInspectionRecord = record;
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
@@ -1127,6 +1155,8 @@ async function renderInspectionForm(record, readOnly) {
             summaryPanel.insertAdjacentElement("afterend", reasonVoidNode);
         }
     }
+    if (typeof window.mountInspectionBatchSummary === "function")
+        window.mountInspectionBatchSummary(record);
 }
 
 function updateInspectionFollowUpPanel() {
