@@ -20,6 +20,7 @@ namespace INSPEC.Secure
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (Page.Form != null) Page.Form.Enctype = "multipart/form-data";
             if (!IsPostBack)
             {
                 if (base.AllowRead(_MenuID) == 2)
