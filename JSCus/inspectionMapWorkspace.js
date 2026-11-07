@@ -11,6 +11,13 @@
     var listPage = 1;
     var listPageSize = 20;
     var listKeyword = "";
+    var mapZoom = 1;
+    var mapPanX = 0;
+    var mapPanY = 0;
+    var mapPointers = {};
+    var mapGesture = null;
+    var mapMinZoom = 1;
+    var mapMaxZoom = 4;
 
     function esc(value) {
         return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
@@ -237,11 +244,123 @@
         }
     }
 
+    function getMapElements() {
+        return {
+            viewport: document.getElementById("inspectionMapCanvas"),
+            stage: document.getElementById("inspectionMapPdfStage"),
+            points: document.getElementById("inspectionMapPoints"),
+            zoomLabel: document.getElementById("inspectionMapZoomLabel")
+        };
+    }
+
+    function applyMapTransform() {
+        var elements = getMapElements();
+        if (!elements.stage) return;
+        elements.stage.style.transformOrigin = "center top";
+        elements.stage.style.transform = "translate3d(" + mapPanX + "px," + mapPanY + "px,0) scale(" + mapZoom + ")";
+        if (elements.points) elements.points.style.setProperty("--inspection-map-marker-scale", String(1 / mapZoom));
+        if (elements.zoomLabel) elements.zoomLabel.textContent = Math.round(mapZoom * 100) + "%";
+        var viewport = elements.viewport;
+        if (viewport) viewport.classList.toggle("inspection-map-zoomed", mapZoom > 1.001);
+    }
+
+    function resetMapView() {
+        mapZoom = 1;
+        mapPanX = 0;
+        mapPanY = 0;
+        mapPointers = {};
+        mapGesture = null;
+        applyMapTransform();
+    }
+
+    function zoomMapTo(nextZoom, clientX, clientY) {
+        var elements = getMapElements();
+        if (!elements.viewport || !elements.stage) return;
+        var rect = elements.viewport.getBoundingClientRect();
+        var x = clientX == null ? rect.left + rect.width / 2 : clientX;
+        var y = clientY == null ? rect.top + rect.height / 2 : clientY;
+        var localX = x - rect.left - rect.width / 2;
+        var localY = y - rect.top;
+        var next = Math.max(mapMinZoom, Math.min(mapMaxZoom, nextZoom));
+        if (Math.abs(next - mapZoom) < 0.001) return;
+        var ratio = next / mapZoom;
+        mapPanX = (mapPanX - localX) * ratio + localX;
+        mapPanY = (mapPanY - localY) * ratio + localY;
+        mapZoom = next;
+        applyMapTransform();
+    }
+
+    function wireMapGestures() {
+        var elements = getMapElements();
+        var viewport = elements.viewport;
+        if (!viewport || viewport.getAttribute("data-map-gestures") === "1") return;
+        viewport.setAttribute("data-map-gestures", "1");
+
+        viewport.addEventListener("wheel", function (event) {
+            if (!currentPdfDocument) return;
+            event.preventDefault();
+            var factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+            zoomMapTo(mapZoom * factor, event.clientX, event.clientY);
+        }, { passive: false });
+
+        viewport.addEventListener("pointerdown", function (event) {
+            if (!currentPdfDocument || (event.target.closest && event.target.closest(".inspection-map-point"))) return;
+            if (event.pointerType === "mouse" && event.button !== 0) return;
+            try { viewport.setPointerCapture(event.pointerId); } catch (_) { }
+            mapPointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+            var ids = Object.keys(mapPointers);
+            if (ids.length >= 2) {
+                var p1 = mapPointers[ids[0]], p2 = mapPointers[ids[1]];
+                var dx = p2.x - p1.x, dy = p2.y - p1.y;
+                mapGesture = { type: "pinch", distance: Math.sqrt(dx * dx + dy * dy), zoom: mapZoom };
+            } else {
+                mapGesture = { type: "pan", x: event.clientX, y: event.clientY, panX: mapPanX, panY: mapPanY };
+            }
+        });
+
+        viewport.addEventListener("pointermove", function (event) {
+            if (!Object.prototype.hasOwnProperty.call(mapPointers, event.pointerId)) return;
+            mapPointers[event.pointerId] = { x: event.clientX, y: event.clientY };
+            var ids = Object.keys(mapPointers);
+            if (ids.length >= 2) {
+                var p1 = mapPointers[ids[0]], p2 = mapPointers[ids[1]];
+                var dx = p2.x - p1.x, dy = p2.y - p1.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                if (mapGesture && mapGesture.type === "pinch" && mapGesture.distance > 0) {
+                    var midpointX = (p1.x + p2.x) / 2;
+                    var midpointY = (p1.y + p2.y) / 2;
+                    zoomMapTo(mapGesture.zoom * (distance / mapGesture.distance), midpointX, midpointY);
+                } else {
+                    mapGesture = { type: "pinch", distance: distance, zoom: mapZoom };
+                }
+            } else if (mapGesture && mapGesture.type === "pan") {
+                mapPanX = mapGesture.panX + event.clientX - mapGesture.x;
+                mapPanY = mapGesture.panY + event.clientY - mapGesture.y;
+                applyMapTransform();
+            }
+        });
+
+        function finishPointer(event) {
+            delete mapPointers[event.pointerId];
+            var ids = Object.keys(mapPointers);
+            if (ids.length === 1) {
+                var p = mapPointers[ids[0]];
+                mapGesture = { type: "pan", x: p.x, y: p.y, panX: mapPanX, panY: mapPanY };
+            } else if (!ids.length) {
+                mapGesture = null;
+            }
+        }
+        viewport.addEventListener("pointerup", finishPointer);
+        viewport.addEventListener("pointercancel", finishPointer);
+        viewport.addEventListener("lostpointercapture", finishPointer);
+    }
+
     async function renderPdf(map) {
         var message = document.getElementById("inspectionMapPdfMessage");
         var canvas = document.getElementById("inspectionMapPdfCanvas");
         var stage = document.getElementById("inspectionMapPdfStage");
         if (!canvas || !stage) return;
+        resetMapView();
 
         if (currentPdfDocument && currentPdfDocument.destroy) {
             try { await currentPdfDocument.destroy(); } catch (_) { }
@@ -298,6 +417,7 @@
             stage.style.minHeight = "0";
             await page.render({ canvasContext: context, viewport: viewport }).promise;
             if (message) message.classList.add("d-none");
+            applyMapTransform();
             renderPoints();
         } catch (error) {
             console.error("Inspection PDF render failed:", error);
@@ -367,7 +487,15 @@
             var checklistPane = document.getElementById("inspectionChecklistPane");
             if (paramPane) paramPane.classList.add("d-none");
             if (checklistPane) checklistPane.classList.add("d-none");
-            var mapTab = document.getElementById("btnInspectionMapTab");
+            wireMapGestures();
+        var zoomIn = document.getElementById("btnInspectionMapZoomIn");
+        var zoomOut = document.getElementById("btnInspectionMapZoomOut");
+        var zoomReset = document.getElementById("btnInspectionMapZoomReset");
+        if (zoomIn) zoomIn.addEventListener("click", function () { zoomMapTo(mapZoom * 1.25); });
+        if (zoomOut) zoomOut.addEventListener("click", function () { zoomMapTo(mapZoom / 1.25); });
+        if (zoomReset) zoomReset.addEventListener("click", resetMapView);
+
+        var mapTab = document.getElementById("btnInspectionMapTab");
             var paramTab = document.getElementById("btnInspectionParamTab");
             var checklistTab = document.getElementById("btnInspectionChecklistTab");
             if (mapTab) mapTab.classList.add("active");
@@ -431,13 +559,13 @@
         if (reset) reset.addEventListener("click", function () {
             switchMapList(false);
             closePoint();
-            var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(currentMapId); });
-            renderPdf(map || null);
+            resetMapView();
         });
 
         var mapSelect = document.getElementById("inspectionMapSelect");
         if (mapSelect) mapSelect.addEventListener("change", function () {
             currentMapId = this.value;
+            resetMapView();
             listPage = 1;
             renderList();
             updateSummary();
