@@ -332,7 +332,7 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
 UPDATE dbo.PIP_M_InspectionMap
 SET MapCode=@MapCode, MapName=@MapName, Description=@Description, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
+                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])), true);
                         }
                         else
                         {
@@ -379,7 +379,20 @@ WHERE MapID=@OldMapID;",
                     else
                     {
                         if (savedPath == "") throw new Exception("Pilih file PDF denah terlebih dahulu.");
-                        int version = 1;
+                        int version;
+                        using (var brVersion = new WAL.BR.CF())
+                        {
+                            DataTable next = brVersion.EQueryP(@"
+SELECT ISNULL(MAX(MapVersion),0)+1 AS NextVersion
+FROM dbo.PIP_M_InspectionMap
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapCode=@MapCode",
+                                new SqlParameter[] {
+                                    new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                                    new SqlParameter("@LocationID", Master.Mn_LocationID),
+                                    new SqlParameter("@MapCode", code)
+                                });
+                            version = Convert.ToInt32(next.Rows[0]["NextVersion"]);
+                        }
                         long newID = NextId("dbo.PIP_M_InspectionMap", "MapID");
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionMap
