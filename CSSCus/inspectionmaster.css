@@ -52,3 +52,17 @@
  .inspection-master-content .card-body{padding:.45rem}
  .inspection-master-content .d-flex.flex-wrap{row-gap:.35rem}
 }
+
+/* Map-centric screen: legacy registered-map list is intentionally not rendered. */
+.inspection-master-content .map-legacy-list{display:none!important}
+.inspection-master-content #tab-map>.row{display:block}
+.inspection-master-content #tab-map>.row>[class*="col-"]{width:100%;max-width:100%}
+.inspection-master-content #tab-map .card-body>.mb-3{display:inline-block;vertical-align:top;width:32%;padding-right:.45rem}
+.inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(3){width:32%}
+.inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(4){width:32%}
+.inspection-master-content #tab-map .card-body>.d-flex{margin-top:.25rem}
+@media(max-width:767.98px){
+ .inspection-master-content #tab-map .card-body>.mb-3,
+ .inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(3),
+ .inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(4){display:block;width:100%;padding-right:0}
+}
