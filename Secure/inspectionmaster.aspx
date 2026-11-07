@@ -191,7 +191,7 @@
                                         <asp:BoundField DataField="PointName" HeaderText="Point Name" />
                                         <asp:BoundField DataField="InspectionTypeCode" HeaderText="Type" />
                                         <asp:BoundField DataField="InspectionTypeDetailCode" HeaderText="Detail" />
-                                        <asp:BoundField DataField="PointObjectType" HeaderText="Object" />
+
                                         <asp:TemplateField HeaderText="Status">
                                             <ItemTemplate><span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "text-bg-success" : "text-bg-secondary" %>"><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></ItemTemplate>
                                         </asp:TemplateField>
