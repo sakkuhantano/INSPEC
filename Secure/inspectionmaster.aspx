@@ -142,7 +142,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <asp:DropDownList ID="ddlEditorMap" runat="server" Visible="false" />
                                 <asp:HiddenField ID="hidSwapPointID" runat="server" ClientIDMode="Static" />
                                 <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-2">
                                     <div class="border rounded p-2">
