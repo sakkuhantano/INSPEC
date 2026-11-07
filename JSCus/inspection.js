@@ -3994,7 +3994,8 @@ async function loadInspectionApprovalDetail(inspectionId) {
         checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
             (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
         if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints);
-        document.getElementById("btnApproveInspection").disabled = isApproved || (isBatchApproval && !batchPoints.length);
+        document.getElementById("btnApproveInspection").disabled = isApproved ||
+            (isBatchApproval && (!batchPoints.length || !templateAvailable));
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
         selectedInspectionApproval = null;
