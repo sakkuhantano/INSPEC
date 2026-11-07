@@ -102,6 +102,10 @@ namespace INSPEC
                         case "33":
                             e.Item.Cells[6].Attributes.Add("style", "text-align:right;");
                             break;
+                        case "154":
+                            e.Item.Cells[4].Attributes.Add("style", "display:none;");
+                            e.Item.Cells[5].Attributes.Add("style", "display:none;");
+                            break;
                     }
                     break;
                 case ListItemType.Item:
@@ -175,6 +179,10 @@ namespace INSPEC
                             break;
                         case "58":
                             e.Item.Cells[2].Text = (Convert.ToDateTime(e.Item.Cells[2].Text)).ToString(GF.FormatDate);
+                            break;
+                        case "154":
+                            e.Item.Cells[4].Attributes.Add("style", "display:none;");
+                            e.Item.Cells[5].Attributes.Add("style", "display:none;");
                             break;
                         case "59":
                             e.Item.Cells[16].Attributes.Add("style", "text-align:right;");
@@ -363,6 +371,14 @@ namespace INSPEC
                     _retval[0] = "Vendor ID; Vendor Name";
                     _retval[1] = "VendorID; VendorName";
                     break;
+                case "32":
+                    _retval[0] = "SectionID; Description";
+                    _retval[1] = "SectionID; [Description]";
+                    break;
+                case "154":
+                    _retval[0] = "InspectionTypeCode;InspectionTypeName";
+                    _retval[1] = "InspectionTypeCode;InspectionTypeName";
+                    break;
             }
 
             ucfsl.ListFieldText = _retval[0];
@@ -491,6 +507,21 @@ namespace INSPEC
                                                          " ORDER BY a.VendorID").DefaultView;
                             }
                             break;
+                        case "32":
+                            using (var ocom = new BRC.PIP_M_Section())
+                            {
+                                if (Request.QueryString["2"] != string.Empty)
+                                    Condition = "profitcenterno='" + Request.QueryString["2"] + "'";
+                                _retval = ocom.SelectSLSection(MaxRecord, Condition).DefaultView;
+                            }
+                            break;
+                        case "154":
+                            _retval = INSPEC.Secure.M_InspectionType.F_SelectSLInspectionType(
+                                                            "",
+                                                            MaxRecord,
+                                                            Condition);
+                            break;
+
                     }
                 //    break;
                 //default:
