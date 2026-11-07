@@ -1053,7 +1053,7 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                             { "MapID", mapId },
                             { "MapCode", GF.GetString(row["MapCode"]) },
                             { "MapName", GF.GetString(row["MapName"]) },
-                            { "MapUrl", GF.GetString(row["MapUrl"]) },
+                            { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"])) },
                             { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) }
                         });
                     }
@@ -1659,7 +1659,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "MapID", mapID },
                                 { "MapCode", GF.GetString(pointRow["MapCode"]) },
                                 { "MapName", GF.GetString(pointRow["MapName"]) },
-                                { "MapUrl", GF.GetString(pointRow["MapUrl"]) },
+                                { "MapUrl", ResolveInspectionMapUrl(GF.GetString(pointRow["MapUrl"])) },
                                 { "MapVersion", pointRow["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapVersion"]) }
                             });
                         }
@@ -2243,6 +2243,21 @@ WHERE I.InspectionID=@InspectionID
         {
             bool value;
             return Boolean.TryParse(TokenString(obj, name), out value) && value;
+        }
+
+        private static string ResolveInspectionMapUrl(string storedPath)
+        {
+            string path = (storedPath ?? "").Trim();
+            if (path == "") return "";
+            Uri absoluteUrl;
+            if (Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl) &&
+                (absoluteUrl.Scheme == Uri.UriSchemeHttp || absoluteUrl.Scheme == Uri.UriSchemeHttps))
+                return path;
+            if (path.StartsWith("~/", StringComparison.Ordinal))
+                return VirtualPathUtility.ToAbsolute(path);
+            if (path.StartsWith("/", StringComparison.Ordinal))
+                return path;
+            return VirtualPathUtility.ToAbsolute("~/" + path.TrimStart('/'));
         }
 
         private static object DbString(string value)
