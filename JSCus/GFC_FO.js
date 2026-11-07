@@ -766,6 +766,7 @@ async function getInspectionData() {
         // This keeps new batch inspections usable offline after the global Sync completes.
         const batchTypes = (masters.types || []).filter(type =>
             String(type.InspectionMode || "STANDARD").toUpperCase() === "BATCH");
+        const cachedInspectionPdfBlobs = new Map();
         for (const type of batchTypes) {
             type.BatchMapSetups = type.BatchMapSetups || {};
             const typeDetails = details.filter(detail =>
@@ -789,9 +790,16 @@ async function getInspectionData() {
                     if (!mapSetup || mapSetup.success !== true) continue;
                     for (const map of (mapSetup.maps || [])) {
                         if (!map.MapUrl) continue;
+                        if (cachedInspectionPdfBlobs.has(String(map.MapID))) {
+                            map.PdfBlob = cachedInspectionPdfBlobs.get(String(map.MapID));
+                            continue;
+                        }
                         try {
                             const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
-                            if (pdfResponse.ok) map.PdfBlob = await pdfResponse.blob();
+                            if (pdfResponse.ok) {
+                                map.PdfBlob = await pdfResponse.blob();
+                                cachedInspectionPdfBlobs.set(String(map.MapID), map.PdfBlob);
+                            }
                         } catch (pdfError) {
                             console.warn("Inspection PDF could not be cached:", map.MapCode, pdfError);
                         }
