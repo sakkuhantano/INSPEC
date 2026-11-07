@@ -206,18 +206,6 @@ BEGIN
                 PointCode
             ),
 
-        CONSTRAINT FK_PIP_M_InspectionPoint_TypeDetail
-            FOREIGN KEY
-            (
-                InspectionTypeCode,
-                InspectionTypeDetailCode
-            )
-            REFERENCES dbo.PIP_M_InspectionTypeDetail
-            (
-                InspectionTypeCode,
-                InspectionTypeDetailCode
-            ),
-
         CONSTRAINT FK_PIP_M_InspectionPoint_Map
             FOREIGN KEY (MapID)
             REFERENCES dbo.PIP_M_InspectionMap(MapID)
