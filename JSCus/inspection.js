@@ -2378,6 +2378,11 @@ async function closeInspectionForm() {
         Number(closingRecord.ActiveInspectionPointID || 0) > 0 && !currentInspectionReadOnly) {
         await saveBatchInspectionPoint("DRAFT");
     }
+    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH" && !currentInspectionReadOnly) {
+        closingRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+        Object.assign(closingRecord, collectInspectionFollowUp());
+        await persistInspectionRecord(closingRecord);
+    }
     if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() !== "BATCH" &&
         inspectionPhotoBaseline !== null && !currentInspectionReadOnly) {
         const baseline = inspectionPhotoBaseline;
