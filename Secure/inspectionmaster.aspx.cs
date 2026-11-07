@@ -505,13 +505,21 @@ ORDER BY DisplayOrder, PointCode",
         {
             using (var br = new WAL.BR.CF())
                 return br.EQueryP(@"
-SELECT MapID, MapCode, MapName, ImagePath, MapVersion, IsActive, Description
-FROM dbo.PIP_M_InspectionMap
-WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.Description
+FROM dbo.PIP_M_InspectionMap M
+WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
+      (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
+       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+       WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@MapID", mapID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@EmployeeID", Master.Mn_EmployeeID),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
         }
 
