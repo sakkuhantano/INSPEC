@@ -2339,9 +2339,8 @@ async function closeInspectionForm() {
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error("Gagal membatalkan perubahan foto inspeksi."));
         });
-    } else if (closingRecord && !inspectionRecords.some(r =>
-        r.LocalInspectionID === closingRecord.LocalInspectionID
-    )) {
+    } else if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() !== "BATCH" &&
+        !inspectionRecords.some(r => r.LocalInspectionID === closingRecord.LocalInspectionID)) {
         await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_photos", "readwrite");
             const req = tx.objectStore("inspection_photos").index("LocalInspectionID")
