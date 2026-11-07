@@ -379,7 +379,10 @@ namespace INSPEC
                     _retval[0] = "InspectionTypeCode;InspectionTypeName";
                     _retval[1] = "InspectionTypeCode;InspectionTypeName";
                     break;
-            }
+                case "155":
+                    _retval[0] = "MapCode;MapName;Version";
+                    _retval[1] = "M.MapCode;M.MapName;M.MapVersion";
+                    break;            }
 
             ucfsl.ListFieldText = _retval[0];
             ucfsl.ListFieldValue = _retval[1];
