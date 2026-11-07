@@ -978,9 +978,9 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
         public static object GetBatchInspectionMap(string inspectionTypeCode, string inspectionTypeDetailCode,
             string employeeId, string companyId, string locationId)
         {
-            employeeId = GFC.RequireMenuEmployee("20021");
+            employeeId = GFC.RequireAnyMenuEmployee("20021", "20022");
             if (String.IsNullOrWhiteSpace(employeeId))
-                throw new HttpException(403, "Inspector identity is required.");
+                throw new HttpException(403, "Inspection identity is required.");
 
             companyId = (companyId ?? "").Trim();
             locationId = (locationId ?? "").Trim();
