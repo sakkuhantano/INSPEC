@@ -468,6 +468,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
             hidSwapPointID.Value = "";
+            btnSwapPosition.Visible = false;
             pnlEditor.Visible = false;
             pnlPointEditor.Visible = false;
         }
@@ -1015,6 +1016,7 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 if (dt.Rows.Count == 0) return;
                 DataRow row = dt.Rows[0];
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+                btnSwapPosition.Visible = true;
                 ShowPointEditor();
                 ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
                 BindInspectionDetails();
@@ -1242,6 +1244,7 @@ SELECT P.InspectionPointID,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointCode ELSE 'Occupied' END AS PointCode,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointName ELSE 'Occupied by another Profit Center' END AS PointName,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN LEFT(P.PointCode,4) ELSE '•' END AS MarkerLabel,
+       CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN 1 ELSE 0 END AS CanSwap,
        P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
