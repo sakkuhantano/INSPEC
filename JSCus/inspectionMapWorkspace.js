@@ -487,15 +487,7 @@
             var checklistPane = document.getElementById("inspectionChecklistPane");
             if (paramPane) paramPane.classList.add("d-none");
             if (checklistPane) checklistPane.classList.add("d-none");
-            wireMapGestures();
-        var zoomIn = document.getElementById("btnInspectionMapZoomIn");
-        var zoomOut = document.getElementById("btnInspectionMapZoomOut");
-        var zoomReset = document.getElementById("btnInspectionMapZoomReset");
-        if (zoomIn) zoomIn.addEventListener("click", function () { zoomMapTo(mapZoom * 1.25); });
-        if (zoomOut) zoomOut.addEventListener("click", function () { zoomMapTo(mapZoom / 1.25); });
-        if (zoomReset) zoomReset.addEventListener("click", resetMapView);
-
-        var mapTab = document.getElementById("btnInspectionMapTab");
+            var mapTab = document.getElementById("btnInspectionMapTab");
             var paramTab = document.getElementById("btnInspectionParamTab");
             var checklistTab = document.getElementById("btnInspectionChecklistTab");
             if (mapTab) mapTab.classList.add("active");
@@ -519,6 +511,14 @@
     window.wireInspectionMapWorkspace = function () {
         if (wired) return;
         wired = true;
+
+        wireMapGestures();
+        var zoomIn = document.getElementById("btnInspectionMapZoomIn");
+        var zoomOut = document.getElementById("btnInspectionMapZoomOut");
+        var zoomReset = document.getElementById("btnInspectionMapZoomReset");
+        if (zoomIn) zoomIn.addEventListener("click", function () { zoomMapTo(mapZoom * 1.25); });
+        if (zoomOut) zoomOut.addEventListener("click", function () { zoomMapTo(mapZoom / 1.25); });
+        if (zoomReset) zoomReset.addEventListener("click", resetMapView);
 
         var mapTab = document.getElementById("btnInspectionMapTab");
         if (mapTab) mapTab.addEventListener("click", async function () {
