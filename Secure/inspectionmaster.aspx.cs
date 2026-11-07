@@ -1315,6 +1315,8 @@ WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRY
 BEGIN TRANSACTION;
 DECLARE @CurrentX DECIMAL(9,4), @CurrentY DECIMAL(9,4),
         @OtherX DECIMAL(9,4), @OtherY DECIMAL(9,4);
@@ -1328,9 +1330,7 @@ WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
   AND CompanyID=@CompanyID AND LocationID=@LocationID;
 IF @CurrentX IS NULL OR @CurrentY IS NULL OR @OtherX IS NULL OR @OtherY IS NULL
 BEGIN
-    ROLLBACK TRANSACTION;
     RAISERROR('Kedua Inspection Point harus sudah memiliki koordinat pada Map yang sama.',16,1);
-    RETURN;
 END;
 UPDATE dbo.PIP_M_InspectionPoint
 SET MapX=@OtherX,MapY=@OtherY,UpdateUser=@UserID,UpdateDate=GETDATE()
@@ -1340,7 +1340,14 @@ UPDATE dbo.PIP_M_InspectionPoint
 SET MapX=@CurrentX,MapY=@CurrentY,UpdateUser=@UserID,UpdateDate=GETDATE()
 WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
   AND CompanyID=@CompanyID AND LocationID=@LocationID;
-COMMIT TRANSACTION;",
+COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
+    DECLARE @SwapError NVARCHAR(4000);
+    SET @SwapError=ERROR_MESSAGE();
+    RAISERROR(@SwapError,16,1);
+END CATCH;",
                         new SqlParameter[] {
                             new SqlParameter("@PointID", pointID),
                             new SqlParameter("@OtherPointID", otherPointID),
