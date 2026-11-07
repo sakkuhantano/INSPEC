@@ -998,7 +998,7 @@ ORDER BY M.MapVersion DESC",
             }
 
             if (e.CommandName != "EditPoint") return;
-            long pointID;
+            //long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
 
             using (var br = new WAL.BR.CF())
