@@ -1817,7 +1817,7 @@ window.submitInspectionBatch = async function () {
     await persistInspectionRecord(record);
     showInspectionNotice("Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
     await refreshSavedInspectionList();
-    closeInspectionForm();
+    await closeInspectionForm();
 };
 
 async function saveInspection(status) {
