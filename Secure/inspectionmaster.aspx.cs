@@ -1279,6 +1279,33 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 return;
             }
 
+            using (var access = new WAL.BR.CF())
+            {
+                DataTable allowed = access.EQueryP(@"
+SELECT COUNT(DISTINCT P.InspectionPointID) AS TotalRows
+FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
+  AND P.MapID=@MapID AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                    new SqlParameter[] {
+                        new SqlParameter("@PointID", pointID),
+                        new SqlParameter("@OtherPointID", otherPointID),
+                        new SqlParameter("@MapID", Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) != 2)
+                {
+                    ShowMessage("Kedua Inspection Point tidak valid atau tidak termasuk Profit Center Anda.", true);
+                    SetTab("#tab-point");
+                    return;
+                }
+            }
+
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -1318,6 +1345,18 @@ COMMIT TRANSACTION;",
                             new SqlParameter("@LocationID", Master.Mn_LocationID),
                             new SqlParameter("@UserID", Master.Mn_EmployeeID)
                         });
+                    DataTable currentPosition = br.EQueryP(@"
+SELECT MapX,MapY FROM dbo.PIP_M_InspectionPoint
+WHERE InspectionPointID=@PointID AND MapID=@MapID",
+                        new SqlParameter[] {
+                            new SqlParameter("@PointID", pointID),
+                            new SqlParameter("@MapID", Convert.ToInt64(hidMapID.Value))
+                        });
+                    if (currentPosition.Rows.Count > 0)
+                    {
+                        txtMarkerX.Text = Convert.ToDecimal(currentPosition.Rows[0]["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
+                        txtMarkerY.Text = Convert.ToDecimal(currentPosition.Rows[0]["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
+                    }
                 }
                 hidSwapPointID.Value = "";
                 BindMapElements();
