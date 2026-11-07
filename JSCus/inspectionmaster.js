@@ -51,6 +51,7 @@
         restoreTab();
         window.requestAnimationFrame(renderInspectionPdf);
         var board = document.getElementById('inspectionCoordinateBoard');
+        var content = document.getElementById('inspectionCoordinateContent');
         var markerX = document.getElementById('txtMarkerX');
         var markerY = document.getElementById('txtMarkerY');
         if (board && content && markerX && markerY) {
