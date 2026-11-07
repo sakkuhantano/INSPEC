@@ -84,6 +84,7 @@
   <ItemGroup>
     <Content Include="CSSCus\assignwoemployee.css" />
     <Content Include="CSSCus\template.css" />
+    <Content Include="CSSCus\inspectionmaster.css" />
     <Content Include="Default.aspx" />
     <Content Include="Login.aspx" />
     <Content Include="MasterPages\Site1.Master" />
@@ -92,6 +93,7 @@
     <Content Include="Secure\meterreading.aspx" />
     <Content Include="Secure\workorder.aspx" />
     <Content Include="Secure\inspection.aspx" />
+    <Content Include="Secure\inspectionmaster.aspx" />
     <Content Include="Secure\profilesetting.aspx" />
     <Content Include="JSCus\GFC_FO.js" />
     <Content Include="JSCus\Login.js" />
@@ -102,6 +104,7 @@
     <Content Include="JSCus\sortable.js" />
     <Content Include="JSCus\html5-qrcode.min.js" />
     <Content Include="JSCus\inspection.js" />
+    <Content Include="JSCus\inspectionmaster.js" />
     <Content Include="JSCus\inspectionApprovalOffline.js" />
     <Content Include="JSCus\inspectionApprovalSync.js" />
     <Content Include="CSSCus\Site1.Master.css" />
@@ -148,6 +151,7 @@
     <Compile Include="Login.aspx.cs" />
     <Compile Include="Login.aspx.designer.cs" />
     <Compile Include="MasterPages\Site1.Master.cs" />
+    <Compile Include="MasterPages\Site_BS_5.Master.cs" />
     <Compile Include="MasterPages\Site1.Master.designer.cs" />
     <Compile Include="UserControls\toast.ascx.cs" />
     <Compile Include="UserControls\toast.ascx.designer.cs" />
@@ -158,6 +162,13 @@
     <Compile Include="Secure\workorder.aspx.cs" />
     <Compile Include="Secure\workorder.aspx.designer.cs" />
     <Compile Include="Secure\inspection.aspx.cs" />
+    <Compile Include="Secure\inspectionmaster.aspx.cs">
+      <DependentUpon>inspectionmaster.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\inspectionmaster.aspx.designer.cs">
+      <DependentUpon>inspectionmaster.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Secure\inspection.aspx.designer.cs" />
     <Compile Include="Secure\profilesetting.aspx.cs" />
     <Compile Include="Secure\profilesetting.aspx.designer.cs" />
