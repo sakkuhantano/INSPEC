@@ -728,7 +728,6 @@
             <div id="inspectionMapPointDescription" class="small text-muted mt-2"></div>
             <div class="d-flex gap-2 mt-3">
                 <button type="button" id="btnOpenInspectionPointChecklist" class="btn btn-primary flex-fill"><i class="bi bi-clipboard-check me-1"></i>Open Checklist</button>
-                <button type="button" id="btnMarkInspectionPointDone" class="btn btn-outline-success"><i class="bi bi-check2"></i></button>
             </div>
         </div>
     </div>
