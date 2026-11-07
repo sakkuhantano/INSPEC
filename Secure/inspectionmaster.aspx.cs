@@ -151,26 +151,161 @@ ORDER BY InspectionTypeDetailCode",
             }
         }
 
-        private void BindPoints()
+        private int PointPageIndex
         {
-            using (var br = new WAL.BR.CF())
+            get { return ViewState["PointPageIndex"] == null ? 0 : Convert.ToInt32(ViewState["PointPageIndex"]); }
+            set { ViewState["PointPageIndex"] = Math.Max(0, value); }
+        }
+
+        private int PointPageSize
+        {
+            get
             {
-                gvPoints.DataSource = br.EQueryP(@"
-SELECT P.InspectionPointID, P.PointCode, P.PointName,
-       P.InspectionTypeCode, P.InspectionTypeDetailCode,
-       P.PointObjectType, P.IsActive, ISNULL(M.MapCode,'') AS MapCode
-FROM dbo.PIP_M_InspectionPoint P
-LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
-ORDER BY P.InspectionTypeCode, P.InspectionTypeDetailCode, P.DisplayOrder, P.PointCode",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
-                    });
-                gvPoints.DataBind();
+                int size;
+                return Int32.TryParse(ddlPointPageSize.SelectedValue, out size)
+                    ? Math.Max(10, Math.Min(100, size)) : 20;
             }
         }
 
+        private void BindPoints()
+        {
+            int totalRecords = 0;
+            string keyword = txtPointSearch.Text.Trim();
+            int pageSize = PointPageSize;
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable count = br.EQueryP(@"
+SELECT COUNT(1) AS TotalRecords
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@Keyword", keyword)
+                    });
+                if (count != null && count.Rows.Count > 0)
+                    totalRecords = Convert.ToInt32(count.Rows[0]["TotalRecords"]);
+
+                int totalPages = Math.Max(1, (int)Math.Ceiling((double)totalRecords / pageSize));
+                if (PointPageIndex >= totalPages) PointPageIndex = totalPages - 1;
+                int startRow = PointPageIndex * pageSize + 1;
+                int endRow = startRow + pageSize - 1;
+
+                DataTable page = br.EQueryP(@"
+WITH PointRows AS
+(
+    SELECT P.InspectionPointID, P.PointCode, P.PointName,
+           P.InspectionTypeCode, P.InspectionTypeDetailCode,
+           P.PointObjectType, P.IsActive, ISNULL(M.MapCode,'') AS MapCode,
+           ROW_NUMBER() OVER
+           (ORDER BY P.InspectionTypeCode, P.InspectionTypeDetailCode, P.DisplayOrder, P.PointCode, P.InspectionPointID) AS RowNum
+    FROM dbo.PIP_M_InspectionPoint P
+    LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+    WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+      AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+)
+SELECT InspectionPointID, PointCode, PointName, InspectionTypeCode,
+       InspectionTypeDetailCode, PointObjectType, IsActive, MapCode
+FROM PointRows
+WHERE RowNum BETWEEN @StartRow AND @EndRow
+ORDER BY RowNum",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@Keyword", keyword),
+                        new SqlParameter("@StartRow", startRow),
+                        new SqlParameter("@EndRow", endRow)
+                    });
+
+                gvPoints.DataSource = page;
+                gvPoints.DataBind();
+
+                int firstRecord = totalRecords == 0 ? 0 : startRow;
+                int lastRecord = Math.Min(endRow, totalRecords);
+                lblPointPageInfo.Text = "Showing " + firstRecord + "–" + lastRecord + " of " + totalRecords + " points";
+                lblPointPageTotal.Text = "of " + totalPages;
+                txtPointGoToPage.Text = (PointPageIndex + 1).ToString(CultureInfo.InvariantCulture);
+
+                bool hasPrevious = PointPageIndex > 0;
+                bool hasNext = PointPageIndex < totalPages - 1;
+                btnPointFirst.Enabled = btnPointPrevious.Enabled = hasPrevious;
+                btnPointNext.Enabled = btnPointLast.Enabled = hasNext;
+            }
+        }
+
+        protected void btnSearchPoint_Click(object sender, EventArgs e)
+        {
+            PointPageIndex = 0;
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void ddlPointPageSize_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            PointPageIndex = 0;
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void btnPointFirst_Click(object sender, EventArgs e)
+        {
+            PointPageIndex = 0;
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void btnPointPrevious_Click(object sender, EventArgs e)
+        {
+            PointPageIndex = Math.Max(0, PointPageIndex - 1);
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void btnPointNext_Click(object sender, EventArgs e)
+        {
+            PointPageIndex++;
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void btnPointLast_Click(object sender, EventArgs e)
+        {
+            int totalRecords;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT COUNT(1) AS TotalRecords
+FROM dbo.PIP_M_InspectionPoint
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+  AND (@Keyword='' OR PointCode LIKE '%' + @Keyword + '%')",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@Keyword", txtPointSearch.Text.Trim())
+                    });
+                totalRecords = Convert.ToInt32(dt.Rows[0]["TotalRecords"]);
+            }
+            PointPageIndex = Math.Max(0, (int)Math.Ceiling((double)totalRecords / PointPageSize) - 1);
+            BindPoints();
+            SetTab("#tab-point");
+        }
+
+        protected void btnPointGoToPage_Click(object sender, EventArgs e)
+        {
+            int page;
+            if (!Int32.TryParse(txtPointGoToPage.Text.Trim(), out page) || page < 1)
+            {
+                ShowMessage("Nomor halaman tidak valid.", true);
+                BindPoints();
+                SetTab("#tab-point");
+                return;
+            }
+            PointPageIndex = page - 1;
+            BindPoints();
+            SetTab("#tab-point");
+        }
         private void BindEditorMaps()
         {
             string mapID = ddlEditorMap.SelectedValue;
