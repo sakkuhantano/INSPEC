@@ -15,7 +15,7 @@ namespace INSPEC.Secure
     {
         // Reuse the Inspection Type master permission while the dedicated
         // Inspection Setup menu entry is registered in the menu master.
-        private const string _MenuID = "1530";
+        private const string _MenuID = "10013";
         private const int _MaxPdfBytes = 50 * 1024 * 1024;
 
         protected void Page_Load(object sender, EventArgs e)
@@ -342,7 +342,7 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
 UPDATE dbo.PIP_M_InspectionMap
 SET MapCode=@MapCode, MapName=@MapName, Description=@Description, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])), true);
+                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
                         }
                         else
                         {
@@ -382,7 +382,7 @@ WHERE MapID=@OldMapID;",
                                     new SqlParameter("@ImagePath", savedPath), new SqlParameter("@MapVersion", version),
                                     new SqlParameter("@Description", txtMapDescription.Text.Trim()),
                                     new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
-                                }, true);
+                                });
                             hidMapID.Value = newID.ToString(CultureInfo.InvariantCulture);
                         }
                     }
@@ -417,7 +417,7 @@ VALUES
                                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", savedPath),
                                 new SqlParameter("@MapVersion", version), new SqlParameter("@Description", txtMapDescription.Text.Trim()),
                                 new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
-                            }, true);
+                            });
                         hidMapID.Value = newID.ToString(CultureInfo.InvariantCulture);
                     }
                 }
@@ -647,7 +647,7 @@ SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     ObjectReferenceCode=@ReferenceCode, MapID=@MapID, DisplayOrder=@DisplayOrder,
     IsActive=@IsActive, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order), true);
+                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
                     }
                     else
                     {
@@ -660,7 +660,7 @@ INSERT INTO dbo.PIP_M_InspectionPoint
 VALUES
 (@PointID,@CompanyID,@LocationID,@TypeCode,@DetailCode,@PointCode,@PointName,@ObjectType,
  @Description,@ObjectType,'',@ReferenceCode,@MapID,@DisplayOrder,@IsActive,@UserID,@UserID)",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order), true);
+                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
