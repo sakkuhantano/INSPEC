@@ -5,7 +5,7 @@
     <script src="../JSCus/inspectionmaster.js"></script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-    <asp:HiddenField ID="hidActiveTab" runat="server" Value="#tab-map" />
+    <asp:HiddenField ID="hidActiveTab" runat="server" ClientIDMode="Static" Value="#tab-map" />
     <asp:HiddenField ID="hidMapID" runat="server" />
     <asp:HiddenField ID="hidPointID" runat="server" />
     <asp:HiddenField ID="hidElementID" runat="server" />
@@ -208,7 +208,7 @@
         <div class="tab-pane fade" id="tab-editor" role="tabpanel">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
-                    <div class="fw-semibold">Map Point Editor</div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><div class="fw-semibold">Map Point Editor</div><asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="btn btn-sm btn-outline-primary" Visible="false">Open selected PDF <i class="bi bi-box-arrow-up-right ms-1"></i></asp:HyperLink></div>
                     <div class="small text-muted">Pilih denah dan inspection point, lalu tentukan posisi marker pada bidang koordinat denah.</div>
                 </div>
                 <div class="card-body">
@@ -228,14 +228,14 @@
                     <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-3">
                         <div class="row g-3">
                             <div class="col-lg-8">
-                                <div class="inspection-coordinate-board">
+                                <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
                                     <div class="inspection-coordinate-grid"></div>
                                     <asp:Repeater ID="rptMapElements" runat="server">
                                         <ItemTemplate>
                                             <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
                                         </ItemTemplate>
                                     </asp:Repeater>
-                                    <div class="inspection-coordinate-hint">Coordinate board 0–100% · PDF dibuka pada panel Map PDF</div>
+                                    <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
                                 </div>
                             </div>
                             <div class="col-lg-4">
@@ -243,11 +243,11 @@
                                     <div class="fw-semibold mb-2">Place / Update Marker</div>
                                     <div class="mb-3">
                                         <label class="form-label">X Position (%)</label>
-                                        <asp:TextBox ID="txtMarkerX" runat="server" CssClass="form-control" Text="50" />
+                                        <asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control" Text="50" />
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Y Position (%)</label>
-                                        <asp:TextBox ID="txtMarkerY" runat="server" CssClass="form-control" Text="50" />
+                                        <asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control" Text="50" />
                                     </div>
                                     <div class="form-text mb-3">Isi posisi relatif terhadap lebar dan tinggi denah (0 sampai 100). Marker akan tersimpan sebagai koordinat relatif sehingga tetap proporsional saat tampilan diperbesar atau diperkecil.</div>
                                     <asp:LinkButton ID="btnSaveMarker" runat="server" CssClass="btn btn-primary w-100" OnClick="btnSaveMarker_Click"><i class="bi bi-pin-angle me-1"></i> Save Marker</asp:LinkButton>
