@@ -163,7 +163,7 @@
                                                     <ItemTemplate>
                                                         <button type="button" class='inspection-coordinate-marker <%# Convert.ToString(Eval("InspectionPointID")) == hidPointID.Value ? "inspection-coordinate-marker-current" : "" %>'
                                                             style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;'
-                                                            data-point-id='<%# Eval("InspectionPointID") %>'
+                                                            data-point-id='<%# Eval("InspectionPointID") %>' data-can-swap='<%# Eval("CanSwap") %>'
                                                             title='<%# Eval("PointCode") + " - " + Eval("PointName") %>'>
                                                             <%# Eval("MarkerLabel") %>
                                                         </button>
