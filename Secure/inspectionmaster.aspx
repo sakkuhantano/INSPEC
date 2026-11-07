@@ -169,7 +169,7 @@
                                                         </button>
                                                     </ItemTemplate>
                                                 </asp:Repeater>
-                                                <div class="inspection-coordinate-hint">Marker biru = point lain · Marker oranye = point aktif · Klik area kosong untuk memilih posisi</div>
+                                                <div class="inspection-coordinate-hint">Marker biru = point lain · Oranye = point aktif · Hijau = posisi baru · Klik marker lain untuk Swap</div>
                                             </div>
                                         </div>
                                         <div class="row g-2 mt-2 align-items-end">
@@ -227,7 +227,7 @@
                                             </asp:TemplateField>
                                             <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
                                                 <ItemTemplate>
-                                                    <asp:LinkButton ID="btnMapPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Open Map Editor" CommandName="MapEditor" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="fas fa-map-marker-alt"></i></asp:LinkButton>
+                                                    <asp:LinkButton ID="btnMapPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Point and Map Coordinate" CommandName="MapEditor" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="fas fa-map-marker-alt"></i></asp:LinkButton>
                                                 </ItemTemplate>
                                             </asp:TemplateField>
                                             <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
