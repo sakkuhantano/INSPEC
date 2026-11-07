@@ -235,6 +235,25 @@ BEGIN
 
     IF EXISTS
     (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionPoint M
+        WHERE M.CompanyID=@p_CompanyID AND M.LocationID=@p_LocationID
+          AND M.InspectionTypeCode=@p_InspectionTypeCode
+          AND M.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND M.IsActive=1
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM @p_Points P
+              WHERE ISNUMERIC(P.C2)=1 AND CAST(P.C2 AS BIGINT)=M.InspectionPointID
+          )
+    )
+    BEGIN
+        RAISERROR('Every active Inspection Point for this BATCH must be submitted.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
         SELECT 1 FROM @p_Points
         WHERE ISNULL(C4,'') NOT IN ('DONE','ABNORMAL')
     )
