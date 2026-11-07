@@ -728,6 +728,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
        I.Status, I.IsApprove, I.ReasonVoid
 FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
@@ -1140,8 +1141,10 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
-       I.IsApprove, I.ApprovedDate, I.SyncDate, I.ReasonVoid
+       I.IsApprove, I.ApprovedDate, I.SyncDate, I.ReasonVoid,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
@@ -1325,7 +1328,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
        I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
-       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo" + fromWhere + @"
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
