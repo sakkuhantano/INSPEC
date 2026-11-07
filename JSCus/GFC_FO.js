@@ -1045,6 +1045,28 @@ async function downloadReturnedInspections() {
             }
             local.ServerInspectionID = Number(serverRecord.InspectionID || local.ServerInspectionID || 0);
             local.InspectionNo = serverRecord.InspectionNo || local.InspectionNo || "";
+            local.InspectionMode = String(serverRecord.InspectionMode || local.InspectionMode || "STANDARD").toUpperCase();
+            if (local.InspectionMode === "BATCH") {
+                local.Points = Array.isArray(serverRecord.Points) ? serverRecord.Points : (local.Points || []);
+                try {
+                    const typeRows = await new Promise((resolve, reject) => {
+                        const tx = db.transaction("inspection_types_scoped", "readonly");
+                        const req = tx.objectStore("inspection_types_scoped").getAll();
+                        req.onsuccess = () => resolve(req.result || []);
+                        req.onerror = () => reject(req.error);
+                    });
+                    const cachedType = typeRows.find(type =>
+                        String(type.InspectionTypeCode || "") === String(local.InspectionTypeCode || "") &&
+                        String(type.SectionID || "") === String(local.SectionID || "") &&
+                        String(type.CompanyID || "") === String(local.CompanyID || "") &&
+                        String(type.LocationID || "") === String(local.LocationID || ""));
+                    local.BatchMapSetup = cachedType && cachedType.BatchMapSetups
+                        ? cachedType.BatchMapSetups[String(local.InspectionTypeDetailCode || "").toUpperCase()] || null
+                        : (local.BatchMapSetup || null);
+                } catch (cacheError) {
+                    console.warn("BATCH map cache lookup for returned inspection failed:", cacheError);
+                }
+            }
             local.Status = "DRAFT";
             local.SyncStatus = "SYNCED";
             local.Items = serverRecord.Items || [];
@@ -1105,6 +1127,7 @@ async function downloadReturnedInspections() {
                             const blob = new Blob([bytes], { type: mimeType });
                             store.add({
                                 LocalInspectionID: photoUpdate.LocalInspectionID,
+                                PointID: String(photo.PointID || ""),
                                 Type: String(photo.Type || "").toUpperCase(),
                                 FileName: photo.FileName || "",
                                 SeqNo: Number(photo.SeqNo || photo.OrderNo || 0),
