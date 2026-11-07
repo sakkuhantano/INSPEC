@@ -360,9 +360,9 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
             if (String.IsNullOrWhiteSpace(url))
                 throw new Exception("File PDF untuk map ini belum tersedia.");
 
-            string viewerUrl = url + (url.IndexOf("#", StringComparison.Ordinal) >= 0 ? "" : "#toolbar=0&navpanes=0&scrollbar=0&view=Fit");
-            litEditorPdfBackground.Text = "<iframe class='inspection-coordinate-pdf' title='Selected inspection floor plan' src='" +
-                HttpUtility.HtmlAttributeEncode(viewerUrl) + "'></iframe>";
+            litEditorPdfBackground.Text = "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-pdf-url='" +
+                HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas>" +
+                "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah PDF...</div>";
             lnkEditorPdf.NavigateUrl = url;
             lnkEditorPdf.Visible = true;
         }
