@@ -32,10 +32,22 @@ namespace INSPEC.Secure
                 PrepareMap();
                 PreparePoint();
             }
-            string mapSearchArgs = Master.Mn_CompanyID + ";" + Master.Mn_LocationID + ";" + Master.Mn_ProfitCenterNo + ";" + Master.Mn_EmployeeID;
-            lBtnMapCode.Attributes["onClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
-            txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
-            txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
+            PrepareScreen();
+        }
+
+        private void PrepareScreen()
+        {
+            string mapSearchArgs = Master.Mn_CompanyID + GF.Str + ";" +
+                Master.Mn_LocationID + GF.Str + ";" +
+                Master.Mn_ProfitCenterNo + GF.Str + ";" +
+                Master.Mn_EmployeeID;
+
+            lBtnMapCode.Attributes["onclick"] = GF.JSOpenSearchList_2(
+                "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
+            txtMapCode.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
+                "155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
+            txtMapCode.Attributes["ondblclick"] = GF.JSOpenSearchList_2(
+                "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
         }
 
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
@@ -496,6 +508,7 @@ ORDER BY DisplayOrder, PointCode",
             PreparePoint();
             BindEditorMaps();
             pnlEditor.Visible = false;
+            pnlMapEditorSection.Visible = false;
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
@@ -947,23 +960,31 @@ ORDER BY M.MapVersion DESC",
             SetTab("#tab-point");
         }
 
+        private void ShowPointEditor()
+        {
+            pnlPointEditor.Visible = true;
+            ScriptManager.RegisterStartupScript(this, GetType(), "showInspectionPointModal",
+                "var m=document.getElementById('pnlPointEditor');if(m){var x=bootstrap.Modal.getOrCreateInstance(m);x.show();}", true);
+        }
+
         protected void ddlInspectionType_SelectedIndexChanged(object sender, EventArgs e)
         {
             BindInspectionDetails();
+            ShowPointEditor();
             SetTab("#tab-point");
         }
 
         protected void btnNewPoint_Click(object sender, EventArgs e)
         {
             PreparePoint();
-            pnlPointEditor.Visible = true;
+            ShowPointEditor();
             SetTab("#tab-point");
         }
 
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
             PreparePoint();
-            pnlPointEditor.Visible = true;
+            ShowPointEditor();
             SetTab("#tab-point");
         }
 
@@ -975,6 +996,7 @@ ORDER BY M.MapVersion DESC",
             if (e.CommandName == "MapEditor")
             {
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+                pnlMapEditorSection.Visible = true;
                 BindEditorMaps();
                 if (ddlEditorPoint.Items.FindByValue(pointID.ToString(CultureInfo.InvariantCulture)) != null)
                     ddlEditorPoint.SelectedValue = pointID.ToString(CultureInfo.InvariantCulture);
@@ -989,6 +1011,7 @@ ORDER BY M.MapVersion DESC",
                 }
                 catch (Exception ex)
                 {
+                    pnlMapEditorSection.Visible = true;
                     pnlEditor.Visible = false;
                     litEditorPdfBackground.Text = "";
                     lnkEditorPdf.Visible = false;
@@ -1020,7 +1043,7 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 if (dt.Rows.Count == 0) return;
                 DataRow row = dt.Rows[0];
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
-                pnlPointEditor.Visible = true;
+                ShowPointEditor();
                 ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
                 BindInspectionDetails();
                 if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
@@ -1202,6 +1225,7 @@ VALUES
             }
             try
             {
+                pnlMapEditorSection.Visible = true;
                 LoadEditorMapPdf();
                 BindMapElements();
                 pnlEditor.Visible = true;
@@ -1356,6 +1380,7 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                 BindEditorPoints();
                 LoadEditorMapPdf();
                 BindMapElements();
+                pnlMapEditorSection.Visible = true;
                 pnlEditor.Visible = true;
                 ShowMessage("Marker berhasil disimpan.", false);
             }
@@ -1393,6 +1418,7 @@ WHERE E.MapElementID=@ID AND E.MapID=@MapID",
                     txtMarkerY.Text = y.ToString("0.####", CultureInfo.InvariantCulture);
                 }
             }
+            pnlMapEditorSection.Visible = true;
             pnlEditor.Visible = true;
             BindMapElements();
             SetTab("#tab-editor");
