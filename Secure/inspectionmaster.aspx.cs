@@ -313,24 +313,58 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                     });
         }
 
+        private string ResolveMapPdfUrl(string storedPath)
+        {
+            string path = (storedPath ?? "").Trim();
+            if (path == "") return "";
+
+            Uri absoluteUrl;
+            if (Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl) &&
+                (absoluteUrl.Scheme == Uri.UriSchemeHttp || absoluteUrl.Scheme == Uri.UriSchemeHttps))
+                return path;
+
+            if (path.StartsWith("~/", StringComparison.Ordinal))
+                return ResolveUrl(path);
+
+            if (path.StartsWith("/", StringComparison.Ordinal))
+                return path;
+
+            return ResolveUrl("~/" + path.TrimStart('/'));
+        }
+
         private void ShowMapPreview(DataRow row)
         {
-            string path = Convert.ToString(row["ImagePath"]);
-            string url = path;
-            Uri absoluteUrl;
-            if (!Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl))
-            {
-                if (path.StartsWith("~/", StringComparison.Ordinal))
-                    url = ResolveUrl(path);
-                else if (!path.StartsWith("/", StringComparison.Ordinal))
-                    url = ResolveUrl("~/" + path.TrimStart('/'));
-            }
+            string url = ResolveMapPdfUrl(Convert.ToString(row["ImagePath"]));
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " +
                 Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
             litMapPreview.Text = "<iframe class='inspection-pdf-preview' title='Inspection floor plan' src='" +
                 HttpUtility.HtmlAttributeEncode(url) + "'></iframe>";
             pnlMapPreview.Visible = true;
+        }
+
+        private void LoadEditorMapPdf()
+        {
+            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
+            {
+                litEditorPdfBackground.Text = "";
+                lnkEditorPdf.Visible = false;
+                return;
+            }
+
+            DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
+            if (selectedMap == null || selectedMap.Rows.Count == 0)
+                throw new Exception("Map yang dipilih tidak ditemukan.");
+
+            string url = ResolveMapPdfUrl(Convert.ToString(selectedMap.Rows[0]["ImagePath"]));
+            if (String.IsNullOrWhiteSpace(url))
+                throw new Exception("File PDF untuk map ini belum tersedia.");
+
+            string viewerUrl = url + (url.IndexOf("#", StringComparison.Ordinal) >= 0 ? "" : "#toolbar=0&navpanes=0&scrollbar=0&view=Fit");
+            litEditorPdfBackground.Text = "<iframe class='inspection-coordinate-pdf' title='Selected inspection floor plan' src='" +
+                HttpUtility.HtmlAttributeEncode(viewerUrl) + "'></iframe>";
+            lnkEditorPdf.NavigateUrl = url;
+            lnkEditorPdf.Visible = true;
         }
 
         protected void btnSaveMap_Click(object sender, EventArgs e)
@@ -723,6 +757,7 @@ VALUES
         {
             BindEditorPoints();
             pnlEditor.Visible = false;
+            litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             SetTab("#tab-editor");
         }
@@ -735,16 +770,19 @@ VALUES
                 SetTab("#tab-editor");
                 return;
             }
-            BindEditorPoints();
-            DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
-            if (selectedMap.Rows.Count > 0)
+            try
             {
-                string pdfPath = ResolveUrl("~/" + Convert.ToString(selectedMap.Rows[0]["ImagePath"]).TrimStart('/'));
-                lnkEditorPdf.NavigateUrl = pdfPath;
-                lnkEditorPdf.Visible = true;
+                LoadEditorMapPdf();
+                BindMapElements();
+                pnlEditor.Visible = true;
             }
-            BindMapElements();
-            pnlEditor.Visible = true;
+            catch (Exception ex)
+            {
+                litEditorPdfBackground.Text = "";
+                lnkEditorPdf.Visible = false;
+                pnlEditor.Visible = false;
+                ShowMessage("Gagal memuat denah pada Map Editor: " + ex.Message, true);
+            }
             SetTab("#tab-editor");
         }
 
@@ -853,6 +891,7 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                         });
                 }
                 BindEditorPoints();
+                LoadEditorMapPdf();
                 BindMapElements();
                 pnlEditor.Visible = true;
                 ShowMessage("Marker berhasil disimpan.", false);
