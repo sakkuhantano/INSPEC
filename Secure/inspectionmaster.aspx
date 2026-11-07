@@ -178,7 +178,23 @@
                 </div>
                 <div class="col-xl-8">
                     <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white fw-semibold">Inspection Points</div>
+                        <div class="card-header bg-white">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <span class="fw-semibold">Inspection Points</span>
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <div class="input-group input-group-sm" style="width:250px;max-width:100%;">
+                                        <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control" MaxLength="50" placeholder="Search Point Code..." />
+                                        <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-outline-primary" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="bi bi-search"></i></asp:LinkButton>
+                                    </div>
+                                    <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm" Width="85px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
+                                        <asp:ListItem Value="10">10</asp:ListItem>
+                                        <asp:ListItem Value="20" Selected="True">20</asp:ListItem>
+                                        <asp:ListItem Value="50">50</asp:ListItem>
+                                        <asp:ListItem Value="100">100</asp:ListItem>
+                                    </asp:DropDownList>
+                                </div>
+                            </div>
+                        </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" CssClass="table table-hover align-middle mb-0 inspection-master-grid"
@@ -199,6 +215,21 @@
                                         </asp:TemplateField>
                                     </Columns>
                                 </asp:GridView>
+                            </div>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 border-top">
+                                <asp:Label ID="lblPointPageInfo" runat="server" CssClass="small text-muted" />
+                                <div class="d-flex flex-wrap align-items-center gap-2">
+                                    <div class="btn-group btn-group-sm" role="group" aria-label="Inspection point pagination">
+                                        <asp:LinkButton ID="btnPointFirst" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointFirst_Click" CausesValidation="false" ToolTip="First page"><i class="bi bi-chevron-double-left"></i></asp:LinkButton>
+                                        <asp:LinkButton ID="btnPointPrevious" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointPrevious_Click" CausesValidation="false" ToolTip="Previous page"><i class="bi bi-chevron-left"></i></asp:LinkButton>
+                                        <asp:LinkButton ID="btnPointNext" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointNext_Click" CausesValidation="false" ToolTip="Next page"><i class="bi bi-chevron-right"></i></asp:LinkButton>
+                                        <asp:LinkButton ID="btnPointLast" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointLast_Click" CausesValidation="false" ToolTip="Last page"><i class="bi bi-chevron-double-right"></i></asp:LinkButton>
+                                    </div>
+                                    <span class="small text-muted">Page</span>
+                                    <asp:TextBox ID="txtPointGoToPage" runat="server" CssClass="form-control form-control-sm" Width="58px" Text="1" />
+                                    <asp:LinkButton ID="btnPointGoToPage" runat="server" CssClass="btn btn-sm btn-outline-primary" OnClick="btnPointGoToPage_Click" CausesValidation="false">Go</asp:LinkButton>
+                                    <asp:Label ID="lblPointPageTotal" runat="server" CssClass="small text-muted" />
+                                </div>
                             </div>
                         </div>
                     </div>
