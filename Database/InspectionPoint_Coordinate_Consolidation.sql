@@ -30,7 +30,7 @@ BEGIN
         (
             SELECT E.InspectionPointID, E.MapID, E.ShapeAttributes,
                    ROW_NUMBER() OVER
-                   (PARTITION BY E.InspectionPointID ORDER BY E.UpdateDate DESC, E.MapElementID DESC) AS RowNo
+                   (PARTITION BY E.InspectionPointID, E.MapID ORDER BY E.UpdateDate DESC, E.MapElementID DESC) AS RowNo
             FROM dbo.PIP_M_InspectionMapElement E
             WHERE E.IsActive=1 AND E.IsDeleted=0
         ),
