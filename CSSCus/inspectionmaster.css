@@ -66,3 +66,22 @@
  .inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(3),
  .inspection-master-content #tab-map .card-body>.mb-3:nth-of-type(4){display:block;width:100%;padding-right:0}
 }
+
+/* Horizontal label/input rhythm follows M_InspectionType.aspx. */
+#tab-point .col-xl-4 .card-body>.mb-3{display:flex;align-items:center;gap:.45rem;margin-bottom:.38rem!important}
+#tab-point .col-xl-4 .card-body>.mb-3>.form-label{flex:0 0 36%;width:36%;margin:0}
+#tab-point .col-xl-4 .card-body>.mb-3>.form-control,
+#tab-point .col-xl-4 .card-body>.mb-3>.form-select{flex:1 1 auto;min-width:0}
+#tab-point .col-xl-4 .card-body>.mb-3 .form-text{display:none}
+#tab-point .col-xl-4 .card-body>.row.g-2{margin-top:.25rem}
+#tab-point .col-xl-4 .card-body>.d-flex{margin-top:.45rem!important}
+#tab-point .card-header{padding:.35rem .55rem}
+#tab-point .card-header .input-group{max-width:260px}
+#tab-point .card-body.p-0 .table{margin-bottom:0}
+#tab-point .card-body.p-0 .border-top{background:#fafbfc}
+#tab-editor .card-header .small{font-size:.72rem}
+#tab-editor .border.rounded-3{border-radius:.35rem!important}
+@media(max-width:767.98px){
+ #tab-point .col-xl-4 .card-body>.mb-3>.form-label{flex-basis:34%;width:34%}
+ #tab-point .col-xl-4 .card-body>.mb-3{gap:.35rem}
+}
