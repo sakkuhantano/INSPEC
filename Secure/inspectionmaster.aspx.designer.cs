@@ -34,6 +34,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.LinkButton btnSavePoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPoint;
         protected global::System.Web.UI.WebControls.GridView gvPoints;
+        protected global::System.Web.UI.WebControls.HyperLink lnkEditorPdf;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorMap;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorPoint;
         protected global::System.Web.UI.WebControls.LinkButton btnLoadEditor;
