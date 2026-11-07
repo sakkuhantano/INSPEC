@@ -1003,6 +1003,9 @@ async function renderInspectionForm(record, readOnly) {
     const isVoidedServerRecord = isVoidedServerInspectionRecord(record);
     currentInspectionReadOnly = !isVoidedServerRecord && (!!readOnly || record.Status === "DONE");
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
+    const mapTabButton = document.getElementById("btnInspectionMapTab");
+    if (mapTabButton && mapTabButton.closest("li"))
+        mapTabButton.closest("li").classList.toggle("d-none", String(record.InspectionMode || "STANDARD").toUpperCase() !== "BATCH");
     document.getElementById("inspectionStartButtonRow").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
@@ -2362,6 +2365,8 @@ async function closeInspectionForm() {
     }
     inspectionPhotoBaseline = null;
     currentInspectionRecord=null; currentInspectionReadOnly=false;
+    const mapWorkspace = document.getElementById("inspectionMapWorkspace");
+    if (mapWorkspace) mapWorkspace.classList.add("d-none");
     document.getElementById("inspectionEditorTabs").classList.add("d-none"); document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none"); document.getElementById("inspectionStartButtonRow").classList.remove("d-none");
     showInspectionRecordsScreen(); await refreshSavedInspectionList();
