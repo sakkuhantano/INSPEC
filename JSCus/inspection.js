@@ -2314,7 +2314,12 @@ function resetInspectionSelection() {
 async function closeInspectionForm() {
     if (inspectionAutoSaveTimer) await flushInspectionAutosave();
     const closingRecord = currentInspectionRecord;
-    if (closingRecord && inspectionPhotoBaseline !== null && !currentInspectionReadOnly) {
+    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
+        Number(closingRecord.ActiveInspectionPointID || 0) > 0 && !currentInspectionReadOnly) {
+        await saveBatchInspectionPoint("DRAFT");
+    }
+    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() !== "BATCH" &&
+        inspectionPhotoBaseline !== null && !currentInspectionReadOnly) {
         const baseline = inspectionPhotoBaseline;
         await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_photos", "readwrite");
