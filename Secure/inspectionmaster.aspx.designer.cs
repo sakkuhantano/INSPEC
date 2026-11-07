@@ -50,6 +50,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorMap;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorPoint;
         protected global::System.Web.UI.WebControls.LinkButton btnLoadEditor;
+        protected global::System.Web.UI.WebControls.Panel pnlMapEditorSection;
         protected global::System.Web.UI.WebControls.Panel pnlEditor;
         protected global::System.Web.UI.WebControls.Repeater rptMapElements;
         protected global::System.Web.UI.WebControls.TextBox txtMarkerX;
