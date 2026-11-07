@@ -89,7 +89,7 @@
                     </asp:Panel>
 
                     <asp:Panel ID="pnlPointEditor" runat="server" Visible="false" CssClass="modal fade" ClientIDMode="Static" role="dialog" aria-labelledby="inspectionPointModalTitle" tabindex="-1">
-                        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
                             <div class="modal-content">
                         <div class="row my-1">
                             <div class="col border rounded shadow-sm">
@@ -142,10 +142,51 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row my-1">
-                                    <div class="col-sm-6"></div>
-                                    <div class="col-sm-6 d-flex justify-content-end">
-                                        <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Point</asp:LinkButton>
+                                <asp:DropDownList ID="ddlEditorMap" runat="server" Visible="false" />
+                                <asp:HiddenField ID="hidSwapPointID" runat="server" ClientIDMode="Static" />
+                                <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-2">
+                                    <div class="border rounded p-2">
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                                            <div class="fw-bold small">Map Coordinate <asp:Label ID="lblPointMapCode" runat="server" CssClass="text-muted fw-normal" /></div>
+                                            <div class="inspection-map-toolbar d-flex align-items-center gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit">Fit</button>
+                                                <span class="small text-muted" id="lblMapZoom">100%</span>
+                                                <asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1" Visible="false">Open PDF</asp:HyperLink>
+                                            </div>
+                                        </div>
+                                        <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
+                                            <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
+                                                <asp:Literal ID="litEditorPdfBackground" runat="server" />
+                                                <div class="inspection-coordinate-grid"></div>
+                                                <asp:Repeater ID="rptMapElements" runat="server">
+                                                    <ItemTemplate>
+                                                        <button type="button" class='inspection-coordinate-marker <%# Convert.ToString(Eval("InspectionPointID")) == hidPointID.Value ? "inspection-coordinate-marker-current" : "" %>'
+                                                            style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;'
+                                                            data-point-id='<%# Eval("InspectionPointID") %>'
+                                                            title='<%# Eval("PointCode") + " - " + Eval("PointName") %>'>
+                                                            <%# Eval("DisplayOrder") %>
+                                                        </button>
+                                                    </ItemTemplate>
+                                                </asp:Repeater>
+                                                <div class="inspection-coordinate-hint">Marker biru = point lain · Marker oranye = point aktif · Klik area kosong untuk memilih posisi</div>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mt-2 align-items-end">
+                                            <div class="col-6 col-md-2"><label class="small">X (%)</label><asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" /></div>
+                                            <div class="col-6 col-md-2"><label class="small">Y (%)</label><asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" /></div>
+                                            <div class="col-12 col-md d-flex flex-wrap align-items-center gap-2">
+                                                <asp:LinkButton ID="btnClearCoordinate" runat="server" CssClass="btn btn-sm btn-outline-secondary" OnClick="btnClearCoordinate_Click" CausesValidation="false"><i class="fas fa-eraser"></i> Clear Coordinate</asp:LinkButton>
+                                                <asp:LinkButton ID="btnSwapPosition" runat="server" CssClass="btn btn-sm btn-outline-warning" OnClick="btnSwapPosition_Click" CausesValidation="false"><i class="fas fa-exchange-alt"></i> Swap with selected marker</asp:LinkButton>
+                                                <span id="lblSwapTarget" class="small text-muted">Klik marker lain untuk memilih target swap.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </asp:Panel>
+                                <div class="row my-2">
+                                    <div class="col d-flex justify-content-end">
+                                        <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Inspection Point</asp:LinkButton>
                                     </div>
                                 </div>
                                 </div>
@@ -220,76 +261,6 @@
                         </div>
                     </div>
 
-                    <asp:Panel ID="pnlMapEditorSection" runat="server" Visible="false" ClientIDMode="Static" CssClass="row my-1">
-                        <div class="col border rounded shadow-sm">
-                            <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
-                                <div class="col d-flex align-items-center">Map Editor</div>
-                                <div class="col-auto d-flex align-items-center">
-                                    <asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1" Visible="false">Open PDF</asp:HyperLink>
-                                </div>
-                            </div>
-                            <div class="row my-1">
-                                <div class="col-sm-8">
-                                    <div class="row mt-1">
-                                        <div class="col-sm-4 d-flex align-items-center">Inspection Point</div>
-                                        <div class="col-sm-8"><asp:DropDownList ID="ddlEditorPoint" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" /></div>
-                                    </div>
-                                </div>
-                                <div class="col-sm-4 d-flex align-items-end">
-                                    <asp:LinkButton ID="btnLoadEditor" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4 w-100" OnClick="btnLoadEditor_Click"><i class="fas fa-sync-alt"></i> Load</asp:LinkButton>
-                                </div>
-                            </div>
-                            <asp:Panel ID="pnlEditor" runat="server" Visible="false">
-                                <div class="row my-1">
-                                    <div class="col-lg-8">
-                                        <div class="inspection-map-toolbar d-flex flex-wrap align-items-center gap-2 mb-2">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit"><i class="bi bi-arrows-angle-contract me-1"></i> Fit</button>
-                                            <span class="small text-muted" id="lblMapZoom">100%</span>
-                                        </div>
-                                        <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
-                                            <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
-                                                <asp:Literal ID="litEditorPdfBackground" runat="server" />
-                                                <div class="inspection-coordinate-grid"></div>
-                                                <asp:Repeater ID="rptMapElements" runat="server">
-                                                    <ItemTemplate>
-                                                        <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
-                                                    </ItemTemplate>
-                                                </asp:Repeater>
-                                                <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-lg-4">
-                                        <div class="border rounded p-2">
-                                            <div class="small fw-bold mb-1">Marker Position</div>
-                                            <div class="row">
-                                                <div class="col-6"><div class="small">X (%)</div><asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm fz-custom1" Text="50" /></div>
-                                                <div class="col-6"><div class="small">Y (%)</div><asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm fz-custom1" Text="50" /></div>
-                                            </div>
-                                            <div class="row mt-2"><div class="col"><asp:LinkButton ID="btnSaveMarker" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 w-100" OnClick="btnSaveMarker_Click"><i class="fas fa-map-marker-alt"></i> Save Marker</asp:LinkButton></div></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row my-1">
-                                    <div class="col">
-                                        <asp:GridView ID="gvMapElements" runat="server" OnRowCommand="gvMapElements_RowCommand" AutoGenerateColumns="false" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" EmptyDataText="No marker">
-                                            <HeaderStyle CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
-                                            <RowStyle CssClass="CUS-fz-5 dtgrddt-custom1" />
-                                            <Columns>
-                                                <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
-                                                <asp:BoundField DataField="PointName" HeaderText="Point Name" />
-                                                <asp:BoundField DataField="XPercent" HeaderText="X %" DataFormatString="{0:0.00}" />
-                                                <asp:BoundField DataField="YPercent" HeaderText="Y %" DataFormatString="{0:0.00}" />
-                                                <asp:TemplateField HeaderText=""><ItemTemplate><asp:LinkButton ID="btnEditMarker" runat="server" CssClass="CUS-lbtn-1" CommandName="EditMarker" CommandArgument='<%# Eval("MapElementID") %>'><i class="far fa-edit"></i></asp:LinkButton></ItemTemplate></asp:TemplateField>
-                                            </Columns>
-                                        </asp:GridView>
-                                    </div>
-                                </div>
-                            </asp:Panel>
-                        </div>
-                    </asp:Panel>
                 </div>
             </div>
         </td></tr>
