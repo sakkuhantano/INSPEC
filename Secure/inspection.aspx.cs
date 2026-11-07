@@ -820,6 +820,127 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
         }
 
         [WebMethod]
+        public static object GetBatchInspectionMap(string inspectionTypeCode, string inspectionTypeDetailCode,
+            string employeeId, string companyId, string locationId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20021");
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Inspector identity is required.");
+
+            companyId = (companyId ?? "").Trim();
+            locationId = (locationId ?? "").Trim();
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+
+            string sectionList = GFC.GetEmployeeSection(employeeId);
+            string typeCode = Limit(inspectionTypeCode, 2).ToUpperInvariant();
+            string detailCode = Limit(inspectionTypeDetailCode, 20).ToUpperInvariant();
+            if (typeCode == "" || detailCode == "")
+                throw new HttpException(400, "Inspection Type and Detail are required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable type = br.EQueryP(@"
+SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID
+FROM dbo.PIP_M_InspectionType IT
+WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
+  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)",
+                    new SqlParameter[] {
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@SectionList", sectionList)
+                    });
+                if (type == null || type.Rows.Count == 0)
+                    throw new HttpException(403, "Inspection Type is not configured for BATCH or not assigned to this inspector.");
+
+                DataTable detail = br.EQueryP(@"
+SELECT InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime
+FROM dbo.PIP_M_InspectionTypeDetail
+WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+                    new SqlParameter[] {
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (detail == null || detail.Rows.Count == 0)
+                    throw new HttpException(404, "Inspection Type Detail is not active for this company/location.");
+
+                DataTable points = br.EQueryP(@"
+SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
+       P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
+       P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY, P.DisplayOrder,
+       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
+FROM dbo.PIP_M_InspectionPoint P
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND P.InspectionTypeCode=@TypeCode
+  AND P.InspectionTypeDetailCode=@DetailCode
+  AND P.IsActive=1
+  AND (P.MapID IS NULL OR (M.IsCurrentVersion=1 AND M.IsActive=1))
+ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode)
+                    });
+
+                var mapRows = new List<Dictionary<string, object>>();
+                var mapIds = new HashSet<long>();
+                var pointRows = new List<Dictionary<string, object>>();
+                foreach (DataRow row in points.Rows)
+                {
+                    long mapId = row["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(row["MapID"]);
+                    if (mapId > 0 && mapIds.Add(mapId))
+                    {
+                        mapRows.Add(new Dictionary<string, object> {
+                            { "MapID", mapId },
+                            { "MapCode", GF.GetString(row["MapCode"]) },
+                            { "MapName", GF.GetString(row["MapName"]) },
+                            { "MapUrl", GF.GetString(row["MapUrl"]) },
+                            { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) }
+                        });
+                    }
+
+                    pointRows.Add(new Dictionary<string, object> {
+                        { "InspectionPointID", Convert.ToInt64(row["InspectionPointID"]) },
+                        { "PointCode", GF.GetString(row["PointCode"]) },
+                        { "PointName", GF.GetString(row["PointName"]) },
+                        { "PointObjectType", GF.GetString(row["PointObjectType"]) },
+                        { "PointDescription", GF.GetString(row["PointDescription"]) },
+                        { "ObjectReferenceType", GF.GetString(row["ObjectReferenceType"]) },
+                        { "ObjectReferenceID", GF.GetString(row["ObjectReferenceID"]) },
+                        { "ObjectReferenceCode", GF.GetString(row["ObjectReferenceCode"]) },
+                        { "MapID", mapId },
+                        { "MapX", row["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapX"]) },
+                        { "MapY", row["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapY"]) },
+                        { "DisplayOrder", Convert.ToInt32(row["DisplayOrder"]) },
+                        { "MapCode", GF.GetString(row["MapCode"]) }
+                    });
+                }
+
+                DataRow t = type.Rows[0];
+                DataRow d = detail.Rows[0];
+                return new {
+                    success = true,
+                    inspectionType = new {
+                        InspectionTypeCode = GF.GetString(t["InspectionTypeCode"]),
+                        InspectionTypeName = GF.GetString(t["InspectionTypeName"]),
+                        SectionID = GF.GetString(t["SectionID"])
+                    },
+                    inspectionDetail = new {
+                        InspectionTypeDetailCode = GF.GetString(d["InspectionTypeDetailCode"]),
+                        InspectionTypeDetailName = GF.GetString(d["InspectionTypeDetailName"]),
+                        ScheduleTime = GF.GetString(d["ScheduleTime"])
+                    },
+                    maps = mapRows,
+                    points = pointRows
+                };
+            }
+        }
+
+        [WebMethod]
         public static object GetInspectionEntryList(string employeeId, string companyId, string locationId, string fromDate, string thruDate)
         {
             employeeId = GFC.RequireMenuEmployee("20021");
