@@ -229,15 +229,24 @@
                     <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-3">
                         <div class="row g-3">
                             <div class="col-lg-8">
+                                <div class="inspection-map-toolbar d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit"><i class="bi bi-arrows-angle-contract me-1"></i> Fit</button>
+                                    <span class="small text-muted" id="lblMapZoom">100%</span>
+                                    <span class="small text-muted ms-auto">Saat zoom, drag denah untuk menggeser.</span>
+                                </div>
                                 <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
-                                    <asp:Literal ID="litEditorPdfBackground" runat="server" />
-                                    <div class="inspection-coordinate-grid"></div>
-                                    <asp:Repeater ID="rptMapElements" runat="server">
-                                        <ItemTemplate>
-                                            <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
-                                        </ItemTemplate>
-                                    </asp:Repeater>
-                                    <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
+                                    <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
+                                        <asp:Literal ID="litEditorPdfBackground" runat="server" />
+                                        <div class="inspection-coordinate-grid"></div>
+                                        <asp:Repeater ID="rptMapElements" runat="server">
+                                            <ItemTemplate>
+                                                <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
+                                            </ItemTemplate>
+                                        </asp:Repeater>
+                                        <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-lg-4">
