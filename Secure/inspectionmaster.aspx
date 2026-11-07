@@ -10,6 +10,11 @@
     <asp:HiddenField ID="hidMapID" runat="server" />
     <asp:HiddenField ID="hidPointID" runat="server" />
     <asp:HiddenField ID="hidElementID" runat="server" />
+    <div class="d-none">
+        <asp:DropDownList ID="ddlPointObjectType" runat="server"><asp:ListItem Value="GENERAL" Selected="True">General</asp:ListItem></asp:DropDownList>
+        <asp:DropDownList ID="ddlPointMap" runat="server" />
+        <asp:DropDownList ID="ddlEditorMap" runat="server" />
+    </div>
     <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert alert-info alert-dismissible fade show mb-3">
         <asp:Literal ID="litMessage" runat="server" />
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
