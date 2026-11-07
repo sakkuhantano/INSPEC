@@ -59,6 +59,12 @@
             var zoomLabel = document.getElementById('lblMapZoom');
             function applyView() {
                 content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+                // Keep marker circles readable and easy to select while the PDF is zoomed.
+                // The parent scales up, so each marker receives the inverse scale.
+                var markers = content.querySelectorAll('.inspection-coordinate-marker, .inspection-coordinate-preview');
+                for (var i = 0; i < markers.length; i++) {
+                    markers[i].style.transform = 'translate(-50%, -50%) scale(' + (1 / zoom) + ')';
+                }
                 if (zoomLabel) zoomLabel.textContent = Math.round(zoom * 100) + '%';
                 board.classList.toggle('inspection-map-zoomed', zoom > 1);
             }
