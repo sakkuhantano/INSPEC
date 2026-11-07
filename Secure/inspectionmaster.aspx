@@ -165,7 +165,7 @@
                                                             style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;'
                                                             data-point-id='<%# Eval("InspectionPointID") %>'
                                                             title='<%# Eval("PointCode") + " - " + Eval("PointName") %>'>
-                                                            <%# Eval("DisplayOrder") %>
+                                                            <%# Eval("MarkerLabel") %>
                                                         </button>
                                                     </ItemTemplate>
                                                 </asp:Repeater>
