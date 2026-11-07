@@ -49,17 +49,16 @@
     }
 
     function getVisiblePoints() {
-        var mapId = Number(currentMapId || 0);
-        return currentPoints.filter(function (point) {
-            return !mapId || Number(point.MapID || 0) === mapId;
-        });
+        return currentPoints.slice();
     }
 
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
-        var points = getVisiblePoints().filter(function (point) {
-            return point.MapX !== null && point.MapX !== undefined &&
+        var mapId = Number(currentMapId || 0);
+        var points = currentPoints.filter(function (point) {
+            return mapId && Number(point.MapID || 0) === mapId &&
+                point.MapX !== null && point.MapX !== undefined &&
                 point.MapY !== null && point.MapY !== undefined;
         });
         host.innerHTML = points.map(function (point) {
