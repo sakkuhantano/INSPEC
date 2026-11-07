@@ -16,7 +16,6 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.LinkButton btnSaveMap;
         protected global::System.Web.UI.WebControls.LinkButton btnNewMap;
         protected global::System.Web.UI.WebControls.Label lblMapVersion;
-        protected global::System.Web.UI.WebControls.LinkButton btnRefreshMap;
                 protected global::System.Web.UI.WebControls.Panel pnlMapPreview;
         protected global::System.Web.UI.WebControls.Label lblMapPreviewTitle;
         protected global::System.Web.UI.WebControls.HyperLink lnkMapPdf;
@@ -34,7 +33,6 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.LinkButton btnSavePoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPointGrid;
-        protected global::System.Web.UI.WebControls.LinkButton lBtnInspectionType;
         protected global::System.Web.UI.WebControls.Panel pnlPointEditor;
         protected global::System.Web.UI.WebControls.TextBox txtPointSearch;
         protected global::System.Web.UI.WebControls.LinkButton btnSearchPoint;
