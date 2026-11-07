@@ -1883,6 +1883,74 @@ new SqlParameter("@InspectionID", id) });
                         record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
                     record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
 
+                    if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase))
+                    {
+                        DataTable returnedPoints = br.EQueryP(@"
+SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
+       TP.InspectionDateTime,TP.Status,P.PointCode,P.PointName,P.PointObjectType,
+       P.PointDescription,P.MapID,P.MapX,P.MapY
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY P.DisplayOrder,P.PointCode",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                        DataTable returnedPointItems = br.EQueryP(@"
+SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.FieldName,V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                        var pointGroups = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
+                        foreach (DataRow pointItemRow in returnedPointItems.Rows)
+                        {
+                            long pointTransactionID = Convert.ToInt64(pointItemRow["InspectionPointTransactionID"]);
+                            int itemID = Convert.ToInt32(pointItemRow["IDItem"]);
+                            if (!pointGroups.ContainsKey(pointTransactionID))
+                                pointGroups[pointTransactionID] = new Dictionary<int, Dictionary<string, object>>();
+                            Dictionary<string, object> pointItem;
+                            if (!pointGroups[pointTransactionID].TryGetValue(itemID, out pointItem))
+                            {
+                                pointItem = new Dictionary<string, object> {
+                                    { "IDItem", itemID },
+                                    { "ItemLabel", GF.GetString(pointItemRow["ItemLabel"]) },
+                                    { "Type", GF.GetString(pointItemRow["ItemType"]) },
+                                    { "Value", GF.GetString(pointItemRow["Value"]) },
+                                    { "Remark1", GF.GetString(pointItemRow["Remark1"]) },
+                                    { "Remark2", GF.GetString(pointItemRow["Remark2"]) },
+                                    { "IsAnomali", pointItemRow["IsAnomali"] != DBNull.Value && Convert.ToBoolean(pointItemRow["IsAnomali"]) },
+                                    { "DisplayOrder", pointItemRow["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(pointItemRow["DisplayOrder"]) },
+                                    { "Values", new Dictionary<string, object>() }
+                                };
+                                pointGroups[pointTransactionID].Add(itemID, pointItem);
+                            }
+                            if (pointItemRow["FieldName"] != DBNull.Value)
+                                ((Dictionary<string, object>)pointItem["Values"])[GF.GetString(pointItemRow["FieldName"])] = GF.GetString(pointItemRow["FieldValue"]);
+                        }
+
+                        var returnedPointList = new List<Dictionary<string, object>>();
+                        foreach (DataRow pointRow in returnedPoints.Rows)
+                        {
+                            long pointTransactionID = Convert.ToInt64(pointRow["InspectionPointTransactionID"]);
+                            returnedPointList.Add(new Dictionary<string, object> {
+                                { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
+                                { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
+                                { "PointCode", GF.GetString(pointRow["PointCode"]) },
+                                { "PointName", GF.GetString(pointRow["PointName"]) },
+                                { "PointObjectType", GF.GetString(pointRow["PointObjectType"]) },
+                                { "PointDescription", GF.GetString(pointRow["PointDescription"]) },
+                                { "MapID", pointRow["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapID"]) },
+                                { "MapX", pointRow["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapX"]) },
+                                { "MapY", pointRow["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapY"]) },
+                                { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
+                                { "Status", GF.GetString(pointRow["Status"]) },
+                                { "Items", pointGroups.ContainsKey(pointTransactionID) ? (object)pointGroups[pointTransactionID].Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList() : new List<Dictionary<string, object>>() }
+                            });
+                        }
+                        record["Points"] = returnedPointList;
+                    }
+
                     DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
        V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
