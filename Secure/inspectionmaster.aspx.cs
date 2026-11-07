@@ -30,6 +30,8 @@ namespace INSPEC.Secure
                 BindAll();
                 PrepareMap();
                 PreparePoint();
+                txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, txtMapCode.ClientID);
+                txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, txtMapCode.ClientID);
             }
         }
 
@@ -53,19 +55,37 @@ namespace INSPEC.Secure
             hidActiveTab.Value = tab;
         }
 
+        private bool IsAdministrator()
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"SELECT CASE WHEN EXISTS
+(SELECT 1 FROM dbo.syswebuserusergroup WHERE usergroupid='administrator' AND userid=@EmployeeID)
+THEN 1 ELSE 0 END AS IsAdmin",
+                    new SqlParameter[] { new SqlParameter("@EmployeeID", Master.Mn_EmployeeID) });
+                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["IsAdmin"]) == 1;
+            }
+        }
+
         private void BindMaps()
         {
             using (var br = new WAL.BR.CF())
             {
                 gvMaps.DataSource = br.EQueryP(@"
-SELECT MapID, MapCode, MapName, MapVersion, IsActive, ImagePath
-FROM dbo.PIP_M_InspectionMap
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  AND IsCurrentVersion=1
-ORDER BY MapCode",
+SELECT M.MapID, M.MapCode, M.MapName, M.MapVersion, M.IsActive, M.ImagePath
+FROM dbo.PIP_M_InspectionMap M
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
+AND (@IsAdmin=1 OR EXISTS (
+ SELECT 1 FROM dbo.PIP_M_InspectionPoint P
+ INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+ INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+ WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+ORDER BY M.MapCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 gvMaps.DataBind();
             }
@@ -75,11 +95,16 @@ ORDER BY MapCode",
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable types = br.EQuery(@"
-SELECT InspectionTypeCode, InspectionTypeName
-FROM dbo.PIP_M_InspectionType
-WHERE IsActive=1
-ORDER BY InspectionTypeCode");
+                DataTable types = br.EQueryP(@"
+SELECT IT.InspectionTypeCode, IT.InspectionTypeName
+FROM dbo.PIP_M_InspectionType IT
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+WHERE IT.IsActive=1 AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
+ORDER BY IT.InspectionTypeCode",
+                    new SqlParameter[] {
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
                 ddlInspectionType.Items.Clear();
                 ddlInspectionType.Items.Add(new ListItem("-- Select Inspection Type --", ""));
                 if (types != null)
@@ -132,13 +157,18 @@ ORDER BY MapCode",
 SELECT InspectionTypeDetailCode, InspectionTypeDetailName
 FROM dbo.PIP_M_InspectionTypeDetail
 WHERE InspectionTypeCode=@TypeCode
-  AND CompanyID=@CompanyID AND LocationID=@LocationID
-  AND IsActive=1
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+              INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+              WHERE IT.InspectionTypeCode=@TypeCode
+                AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY InspectionTypeDetailCode",
                     new SqlParameter[] {
                         new SqlParameter("@TypeCode", selected),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 if (details != null)
                 {
@@ -178,12 +208,18 @@ ORDER BY InspectionTypeDetailCode",
                 DataTable count = br.EQueryP(@"
 SELECT COUNT(1) AS TotalRecords
 FROM dbo.PIP_M_InspectionPoint P
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
-  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')",
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@Keyword", keyword)
+                        new SqlParameter("@Keyword", keyword),
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 if (count != null && count.Rows.Count > 0)
                     totalRecords = Convert.ToInt32(count.Rows[0]["TotalRecords"]);
@@ -203,8 +239,11 @@ WITH PointRows AS
            (ORDER BY P.InspectionTypeCode, P.InspectionTypeDetailCode, P.DisplayOrder, P.PointCode, P.InspectionPointID) AS RowNum
     FROM dbo.PIP_M_InspectionPoint P
     LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-    WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+    WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
       AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+      AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+          INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+          WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))
 )
 SELECT InspectionPointID, PointCode, PointName, InspectionTypeCode,
        InspectionTypeDetailCode, PointObjectType, IsActive, MapCode
@@ -215,6 +254,9 @@ ORDER BY RowNum",
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
                         new SqlParameter("@Keyword", keyword),
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo),
                         new SqlParameter("@StartRow", startRow),
                         new SqlParameter("@EndRow", endRow)
                     });
@@ -308,9 +350,17 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID
         }
         private void BindEditorMaps()
         {
-            string mapID = ddlEditorMap.SelectedValue;
-            if (!String.IsNullOrEmpty(mapID) && ddlEditorMap.Items.FindByValue(mapID) != null)
-                ddlEditorMap.SelectedValue = mapID;
+            ddlEditorMap.Items.Clear();
+            ddlEditorMap.Items.Add(new ListItem("", ""));
+            if (!String.IsNullOrWhiteSpace(hidMapID.Value))
+            {
+                DataTable map = GetMap(Convert.ToInt64(hidMapID.Value));
+                if (map.Rows.Count > 0)
+                {
+                    ddlEditorMap.Items.Add(new ListItem(Convert.ToString(map.Rows[0]["MapCode"]), hidMapID.Value));
+                    ddlEditorMap.SelectedValue = hidMapID.Value;
+                }
+            }
             BindEditorPoints();
         }
 
@@ -318,7 +368,7 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID
         {
             ddlEditorPoint.Items.Clear();
             ddlEditorPoint.Items.Add(new ListItem("-- Select Inspection Point --", ""));
-            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue)) return;
+            if (String.IsNullOrWhiteSpace(hidMapID.Value)) return;
 
             using (var br = new WAL.BR.CF())
             {
@@ -326,7 +376,7 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID
 SELECT InspectionPointID, PointCode, PointName
 FROM dbo.PIP_M_InspectionPoint
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  AND IsActive=1 AND (MapID IS NULL OR MapID=@MapID)
+  AND IsActive=1 AND MapID=@MapID
 ORDER BY DisplayOrder, PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -365,6 +415,7 @@ ORDER BY DisplayOrder, PointCode",
             if (ddlInspectionType.Items.Count > 0) ddlInspectionType.SelectedIndex = 0;
             BindInspectionDetails();
             if (ddlPointMap.Items.Count > 0) ddlPointMap.SelectedIndex = 0;
+            if (!String.IsNullOrWhiteSpace(hidMapID.Value)) BindEditorMaps();
         }
 
         protected void btnNewMap_Click(object sender, EventArgs e)
@@ -773,11 +824,12 @@ VALUES
             {
                 DataTable dt = br.EQueryP(@"
 SELECT * FROM dbo.PIP_M_InspectionPoint
-WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
                     new SqlParameter[] {
                         new SqlParameter("@ID", pointID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value))
                     });
                 if (dt.Rows.Count == 0) return;
                 DataRow row = dt.Rows[0];
@@ -821,8 +873,13 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID"
                 return;
             }
 
-            object mapValue = String.IsNullOrWhiteSpace(ddlPointMap.SelectedValue)
-                ? (object)DBNull.Value : Convert.ToInt64(ddlPointMap.SelectedValue);
+            if (String.IsNullOrWhiteSpace(hidMapID.Value))
+            {
+                ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
+                SetTab("#tab-map");
+                return;
+            }
+            object mapValue = Convert.ToInt64(hidMapID.Value);
             long pointID;
             bool editing = Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0;
             try
@@ -838,7 +895,7 @@ SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
     ObjectReferenceCode=@ReferenceCode, MapID=@MapID, DisplayOrder=@DisplayOrder,
     IsActive=@IsActive, UpdateUser=@UserID, UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
                             PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
                     }
                     else
@@ -971,7 +1028,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
         {
             long mapID, pointID;
             decimal x, y;
-            if (!Int64.TryParse(ddlEditorMap.SelectedValue, out mapID) ||
+            if (!Int64.TryParse(hidMapID.Value, out mapID) ||
                 !Int64.TryParse(ddlEditorPoint.SelectedValue, out pointID))
             {
                 ShowMessage("Pilih Map dan Inspection Point.", true);
