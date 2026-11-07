@@ -8,6 +8,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.HiddenField hidElementID;
         protected global::System.Web.UI.WebControls.Panel pnlMessage;
         protected global::System.Web.UI.WebControls.Literal litMessage;
+        protected global::System.Web.UI.WebControls.LinkButton lBtnMapCode;
         protected global::System.Web.UI.WebControls.TextBox txtMapCode;
         protected global::System.Web.UI.WebControls.TextBox txtMapName;
         protected global::System.Web.UI.WebControls.TextBox txtMapDescription;
