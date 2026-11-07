@@ -802,6 +802,52 @@ VALUES
             }
         }
 
+        protected void txtMapCode_TextChanged(object sender, EventArgs e)
+        {
+            string code = txtMapCode.Text.Trim();
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath
+FROM dbo.PIP_M_InspectionMap M
+WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND M.IsCurrentVersion=1
+  AND (@IsAdmin=1 OR EXISTS
+      (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
+       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+       WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+ORDER BY M.MapVersion DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@MapCode", code),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                if (dt.Rows.Count == 0)
+                {
+                    hidMapID.Value = "";
+                    ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
+                    BindPoints();
+                    SetTab("#tab-map");
+                    return;
+                }
+                DataRow row = dt.Rows[0];
+                hidMapID.Value = Convert.ToString(row["MapID"]);
+                txtMapCode.Text = Convert.ToString(row["MapCode"]);
+                txtMapName.Text = Convert.ToString(row["MapName"]);
+                txtMapDescription.Text = Convert.ToString(row["Description"]);
+                lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
+                ShowMapPreview(row);
+            }
+            PreparePoint();
+            BindEditorMaps();
+            BindPoints();
+            ShowMessage("Map " + txtMapCode.Text + " berhasil dibuka.", false);
+            SetTab("#tab-point");
+        }
+
         protected void ddlInspectionType_SelectedIndexChanged(object sender, EventArgs e)
         {
             BindInspectionDetails();
