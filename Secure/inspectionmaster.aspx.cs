@@ -146,26 +146,8 @@ THEN 1 ELSE 0 END AS IsAdmin",
 
         private void BindMaps()
         {
-            using (var br = new WAL.BR.CF())
-            {
-                gvMaps.DataSource = br.EQueryP(@"
-SELECT M.MapID, M.MapCode, M.MapName, M.MapVersion, M.IsActive, M.ImagePath
-FROM dbo.PIP_M_InspectionMap M
-WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
-AND (@IsAdmin=1 OR EXISTS (
- SELECT 1 FROM dbo.PIP_M_InspectionPoint P
- INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
- INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
- WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
-ORDER BY M.MapCode",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
-                    });
-                gvMaps.DataBind();
-            }
+            // Registered Map grid is intentionally not displayed.
+            // Map is opened directly by Map Code / SearchList.
         }
 
         private void BindPointLookups()
@@ -505,6 +487,7 @@ ORDER BY DisplayOrder, PointCode",
             BindInspectionDetails();
             if (ddlPointMap.Items.Count > 0) ddlPointMap.SelectedIndex = 0;
             if (!String.IsNullOrWhiteSpace(hidMapID.Value)) BindEditorMaps();
+            pnlPointEditor.Visible = false;
         }
 
         protected void btnNewMap_Click(object sender, EventArgs e)
@@ -973,11 +956,47 @@ ORDER BY M.MapVersion DESC",
         protected void btnNewPoint_Click(object sender, EventArgs e)
         {
             PreparePoint();
+            pnlPointEditor.Visible = true;
+            SetTab("#tab-point");
+        }
+
+        protected void btnNewPointGrid_Click(object sender, EventArgs e)
+        {
+            PreparePoint();
+            pnlPointEditor.Visible = true;
             SetTab("#tab-point");
         }
 
         protected void gvPoints_RowCommand(object sender, GridViewCommandEventArgs e)
         {
+            long pointID;
+            if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
+
+            if (e.CommandName == "MapEditor")
+            {
+                hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+                BindEditorMaps();
+                if (ddlEditorPoint.Items.FindByValue(pointID.ToString(CultureInfo.InvariantCulture)) != null)
+                    ddlEditorPoint.SelectedValue = pointID.ToString(CultureInfo.InvariantCulture);
+
+                try
+                {
+                    LoadEditorMapPdf();
+                    BindMapElements();
+                    pnlEditor.Visible = true;
+                    ScriptManager.RegisterStartupScript(this, GetType(), "scrollMapEditor",
+                        "window.setTimeout(function(){var e=document.getElementById('map-editor');if(e)e.scrollIntoView({behavior:'smooth',block:'start'});},100);", true);
+                }
+                catch (Exception ex)
+                {
+                    pnlEditor.Visible = false;
+                    litEditorPdfBackground.Text = "";
+                    lnkEditorPdf.Visible = false;
+                    ShowMessage("Gagal memuat Map Editor: " + ex.Message, true);
+                }
+                return;
+            }
+
             if (e.CommandName != "EditPoint") return;
             long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
@@ -1001,6 +1020,7 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 if (dt.Rows.Count == 0) return;
                 DataRow row = dt.Rows[0];
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+                pnlPointEditor.Visible = true;
                 ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
                 BindInspectionDetails();
                 if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
@@ -1130,6 +1150,7 @@ VALUES
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+                pnlPointEditor.Visible = false;
                 BindPoints();
                 BindEditorPoints();
                 ShowMessage("Inspection Point berhasil disimpan.", false);
