@@ -33,7 +33,18 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.CheckBox chkPointActive;
         protected global::System.Web.UI.WebControls.LinkButton btnSavePoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPoint;
+        protected global::System.Web.UI.WebControls.TextBox txtPointSearch;
+        protected global::System.Web.UI.WebControls.LinkButton btnSearchPoint;
+        protected global::System.Web.UI.WebControls.DropDownList ddlPointPageSize;
         protected global::System.Web.UI.WebControls.GridView gvPoints;
+        protected global::System.Web.UI.WebControls.Label lblPointPageInfo;
+        protected global::System.Web.UI.WebControls.LinkButton btnPointFirst;
+        protected global::System.Web.UI.WebControls.LinkButton btnPointPrevious;
+        protected global::System.Web.UI.WebControls.LinkButton btnPointNext;
+        protected global::System.Web.UI.WebControls.LinkButton btnPointLast;
+        protected global::System.Web.UI.WebControls.TextBox txtPointGoToPage;
+        protected global::System.Web.UI.WebControls.LinkButton btnPointGoToPage;
+        protected global::System.Web.UI.WebControls.Label lblPointPageTotal;
         protected global::System.Web.UI.WebControls.HyperLink lnkEditorPdf;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorMap;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorPoint;
