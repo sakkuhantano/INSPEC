@@ -3619,6 +3619,124 @@ async function processBatchInspectionApproval(action) {
     openInspectionApprovalAction(action, true);
 }
 
+function renderInspectionApprovalBatchPoints(template, points, photos) {
+    if (!Array.isArray(points) || !points.length)
+        return '<div class="alert alert-warning small">Batch ini belum memiliki Inspection Point transaction.</div>';
+    return '<div class="inspection-approval-batch-points">' + points.map(function (point, index) {
+        const pointId = String(point.InspectionPointTransactionID || "");
+        const status = String(point.Status || "PENDING").toUpperCase();
+        const statusClass = status === "DONE" ? "text-bg-success" :
+            status === "ABNORMAL" ? "text-bg-danger" :
+            status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
+        const pointPhotos = (photos || []).filter(photo => String(photo.PointID || "") === pointId);
+        const photoStage = type => {
+            const rows = pointPhotos.filter(photo => String(photo.Type || "").toUpperCase() === type);
+            return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div>' +
+                (rows.length ? '<div class="d-flex flex-wrap gap-2">' + rows.map(photo =>
+                    '<div class="inspection-photo-item"><img src="' + escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></div>'
+                ).join("") + '</div>' : '<div class="inspection-muted">Foto ' + type + ' belum tersedia.</div>') + '</div>';
+        };
+        const checklist = Array.isArray(template.sections) && template.sections.length
+            ? renderInspectionSections(template, point.Items || [], true, "inspectionApprovalPoint_" + pointId.replace(/[^a-zA-Z0-9_-]/g, "_"))
+            : '<div class="alert alert-danger small">Template version tidak tersedia.</div>';
+        return '<div class="card border mb-3" id="inspectionApprovalPoint_' + escInspection(pointId) + '">' +
+            '<div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
+                '<div><div class="fw-bold">' + escInspection(point.PointCode || ("Point " + (index + 1))) + ' · ' + escInspection(point.PointName || "") + '</div>' +
+                '<small class="text-muted">' + escInspection(point.PointObjectType || "GENERAL") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
+                '<span class="badge ' + statusClass + '">' + escInspection(status) + '</span>' +
+            '</div><div class="card-body">' + photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
+    }).join("") + '</div>';
+}
+
+async function renderInspectionApprovalBatchMap(maps, points) {
+    const host = document.getElementById("inspectionApprovalBatchMap");
+    if (!host) return;
+    maps = Array.isArray(maps) ? maps : [];
+    points = Array.isArray(points) ? points : [];
+    if (!points.length) { host.innerHTML = ""; return; }
+
+    host.innerHTML = '<div class="border rounded-3 p-3 mb-3">' +
+        '<div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">' +
+            '<div><div class="fw-bold"><i class="bi bi-map me-2"></i>BATCH INSPECTION MAP</div><small class="text-muted">' + points.length + ' inspected point(s)</small></div>' +
+            (maps.length > 1 ? '<select id="inspectionApprovalMapSelect" class="form-select form-select-sm" style="max-width:260px">' +
+                maps.map(map => '<option value="' + escInspection(map.MapID) + '">' + escInspection(map.MapCode + " - " + map.MapName) + '</option>').join("") +
+             '</select>' : '') +
+        '</div>' +
+        (maps.length ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mb-3"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>' :
+            '<div class="alert alert-light small">Denah PDF tidak tersedia untuk point pada batch ini. Gunakan daftar Inspection Point di bawah.</div>') +
+        '<div class="inspection-point-list-tools mb-2"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div>' +
+        '<div id="inspectionApprovalPointList" class="d-flex flex-column gap-1"></div>' +
+    '</div>';
+
+    const listHost = document.getElementById("inspectionApprovalPointList");
+    const renderList = function (keyword) {
+        const q = String(keyword || "").trim().toLowerCase();
+        const rows = points.filter(point => !q ||
+            String(point.PointCode || "").toLowerCase().indexOf(q) >= 0 ||
+            String(point.PointName || "").toLowerCase().indexOf(q) >= 0);
+        listHost.innerHTML = rows.map(point =>
+            '<button type="button" class="btn btn-sm btn-outline-secondary text-start" data-approval-point-target="' +
+            escInspection(point.InspectionPointTransactionID) + '">' +
+            '<span class="fw-semibold">' + escInspection(point.PointCode) + '</span> · ' + escInspection(point.PointName) +
+            ' <span class="badge ms-1 ' + (String(point.Status).toUpperCase() === "ABNORMAL" ? "text-bg-danger" : "text-bg-success") + '">' +
+            escInspection(point.Status) + '</span></button>'
+        ).join("") || '<div class="text-muted small py-2">Tidak ada point yang cocok.</div>';
+        listHost.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
+            const target = document.getElementById("inspectionApprovalPoint_" + this.dataset.approvalPointTarget);
+            if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }));
+    };
+    const search = document.getElementById("inspectionApprovalPointSearch");
+    if (search) search.addEventListener("input", function () { renderList(this.value); });
+    renderList("");
+
+    if (!maps.length || !window.pdfjsLib) return;
+    const select = document.getElementById("inspectionApprovalMapSelect");
+    const renderMap = async function (map) {
+        const canvas = document.getElementById("inspectionApprovalMapCanvas");
+        const overlay = document.getElementById("inspectionApprovalMapPoints");
+        const stage = document.getElementById("inspectionApprovalMapStage");
+        if (!canvas || !overlay || !stage || !map || !map.MapUrl) return;
+        try {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "../JSCus/pdf.worker.min.js";
+            const pdf = await window.pdfjsLib.getDocument({ url: map.MapUrl, withCredentials: true }).promise;
+            const page = await pdf.getPage(1);
+            const base = page.getViewport({ scale: 1 });
+            const width = Math.max(300, Math.min(1100, host.clientWidth - 32));
+            const scale = width / base.width;
+            const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+            const viewport = page.getViewport({ scale: scale * ratio });
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.width = Math.floor(viewport.width / ratio) + "px";
+            canvas.style.height = Math.floor(viewport.height / ratio) + "px";
+            stage.style.width = canvas.style.width;
+            await page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise;
+            const mapPoints = points.filter(point => Number(point.MapID) === Number(map.MapID) &&
+                point.MapX != null && point.MapY != null);
+            overlay.innerHTML = mapPoints.map(point =>
+                '<button type="button" class="inspection-map-point ' +
+                String(point.Status || "PENDING").toLowerCase() + '" style="left:' + Number(point.MapX) +
+                '%;top:' + Number(point.MapY) + '%" data-approval-point-target="' +
+                escInspection(point.InspectionPointTransactionID) + '" title="' +
+                escInspection(point.PointCode + " - " + point.PointName) + '">' +
+                '<span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' +
+                escInspection(point.PointCode) + '</span></button>'
+            ).join("");
+            overlay.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
+                const target = document.getElementById("inspectionApprovalPoint_" + this.dataset.approvalPointTarget);
+                if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }));
+        } catch (error) {
+            console.warn("Approval BATCH map could not be rendered:", error);
+            stage.innerHTML = '<div class="alert alert-warning small">Denah PDF gagal dimuat. Daftar Inspection Point tetap dapat digunakan.</div>';
+        }
+    };
+    const selectedMap = () => maps.find(map => Number(map.MapID) === Number(select ? select.value : maps[0].MapID)) || maps[0];
+    if (select) select.addEventListener("change", () => renderMap(selectedMap()));
+    await renderMap(selectedMap());
+}
+
 async function loadInspectionApprovalDetail(inspectionId) {
     const checklistHost = document.getElementById("inspectionApprovalDetail");
     checklistHost.innerHTML = '<div class="text-muted">Memuat checklist...</div>';
@@ -3667,6 +3785,9 @@ async function loadInspectionApprovalDetail(inspectionId) {
         document.getElementById("btnVoidInspection").classList.toggle("d-none", isFinalized);
         const items = result.items || [];
         const photos = result.photos || [];
+        const batchPoints = result.points || [];
+        const batchMaps = result.maps || [];
+        const isBatchApproval = String(h.InspectionMode || "").toUpperCase() === "BATCH";
         window.currentInspectionApprovalPhotos = photos;
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
@@ -3687,8 +3808,10 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Template</div>' +
             '<div><strong>Template:</strong> ' + escInspection(h.TemplateNo || "-") + ' / v' + escInspection(h.TemplateVersion || "-") + '</div>' +
             '</div></div></div>';
-        const renderApprovalPhotoStage = type => {
-            const stagePhotos = photos.filter(photo => String(photo.Type || "").toUpperCase() === type);
+        const renderApprovalPhotoStage = (type, pointId) => {
+            const stagePhotos = photos.filter(photo =>
+                String(photo.Type || "").toUpperCase() === type &&
+                (pointId == null ? !String(photo.PointID || "") : String(photo.PointID || "") === String(pointId)));
             if (!stagePhotos.length) return '<div class="inspection-muted mb-3">Foto ' + type + ' belum tersedia.</div>';
             return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div><div class="d-flex flex-wrap gap-2">' +
                 stagePhotos.map((photo, index) => '<button type="button" class="inspection-photo-item inspection-approval-photo-item" data-approval-photo-type="' + type + '" data-approval-photo-index="' + index + '" aria-label="Preview foto ' + type + ' ' + (index + 1) + '"><img src="' +
@@ -3709,9 +3832,12 @@ async function loadInspectionApprovalDetail(inspectionId) {
             Number(x.Version || x.TemplateVersion) === Number(h.TemplateVersion)
         ) || null;
         const template = result.template || result.TemplateSnapshot || cachedTemplate || null;
-        const checklistHtml = template && Array.isArray(template.sections) && template.sections.length
-            ? renderInspectionSections(template, items, true, "inspectionApprovalSection")
-            : '<div class="alert alert-danger small">Struktur checklist untuk template versi ini tidak ditemukan di server. Checklist tidak ditampilkan dalam format cadangan agar hasil approval tidak salah format. Muat ulang detail atau hubungi administrator.</div>';
+        const templateAvailable = template && Array.isArray(template.sections) && template.sections.length;
+        const checklistHtml = !templateAvailable
+            ? '<div class="alert alert-danger small">Struktur checklist untuk template versi ini tidak ditemukan di server. Checklist tidak ditampilkan dalam format cadangan agar hasil approval tidak salah format. Muat ulang detail atau hubungi administrator.</div>'
+            : isBatchApproval
+                ? renderInspectionApprovalBatchPoints(template, batchPoints, photos)
+                : renderInspectionSections(template, items, true, "inspectionApprovalSection");
         const followUpValue = String(h.FollowUp || "No Follow Up");
         const followUpWONo = String(h.FollowUpWONo || "").trim();
         const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
@@ -3738,8 +3864,10 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="accordion-body p-3"><textarea class="form-control bg-body-tertiary" rows="4" disabled>' + escInspection(h.ReasonVoid) + '</textarea></div>' +
               '</div>'
             : "";
-        checklistHost.innerHTML = beforePhotoHtml + checklistHtml + afterPhotoHtml + followUpHtml + summaryHtml + reasonVoidHtml;
-        document.getElementById("btnApproveInspection").disabled = isApproved;
+        checklistHost.innerHTML = (isBatchApproval ? "" : beforePhotoHtml) +
+            (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
+        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints);
+        document.getElementById("btnApproveInspection").disabled = isApproved || (isBatchApproval && !batchPoints.length);
         document.getElementById("btnVoidInspection").disabled = isApproved;
     } catch (err) {
         selectedInspectionApproval = null;
