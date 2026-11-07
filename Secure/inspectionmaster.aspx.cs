@@ -883,12 +883,17 @@ ORDER BY M.MapVersion DESC",
             {
                 DataTable dt = br.EQueryP(@"
 SELECT * FROM dbo.PIP_M_InspectionPoint
-WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
+WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
+  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE IT.InspectionTypeCode=dbo.PIP_M_InspectionPoint.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@ID", pointID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value))
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 if (dt.Rows.Count == 0) return;
                 DataRow row = dt.Rows[0];
@@ -937,6 +942,31 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
                 SetTab("#tab-map");
                 return;
+            }
+            using (var access = new WAL.BR.CF())
+            {
+                DataTable allowed = access.EQueryP(@"
+SELECT COUNT(1) AS TotalRows
+FROM dbo.PIP_M_InspectionType IT
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
+WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                    new SqlParameter[] {
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
+                {
+                    ShowMessage("Inspection Type atau Detail tidak termasuk Profit Center Anda.", true);
+                    SetTab("#tab-point");
+                    return;
+                }
             }
             object mapValue = Convert.ToInt64(hidMapID.Value);
             long pointID;
