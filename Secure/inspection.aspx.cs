@@ -285,6 +285,12 @@ WHERE T.IDTemplate=@IDTemplate
          AND V.Status IN ('Active','Archieved')
   )
   AND T.InspectionTypeCode=@InspectionTypeCode
+  AND EXISTS (
+       SELECT 1 FROM dbo.PIP_M_InspectionType IT
+       WHERE IT.InspectionTypeCode=@InspectionTypeCode
+         AND IT.SectionID=@SectionID
+         AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')=@InspectionMode
+  )
   AND (
        ISNULL(T.InspectionTypeDetailCode,'')=''
        OR EXISTS (
@@ -302,6 +308,7 @@ WHERE T.IDTemplate=@IDTemplate
                                 new SqlParameter("@LocationID", locationId),
                                 new SqlParameter("@EmployeeID", userId),
                                 new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                                new SqlParameter("@InspectionMode", isBatchInspection ? "BATCH" : "STANDARD"),
                                 new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
                             });
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
