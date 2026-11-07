@@ -1,5 +1,6 @@
 ﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionmaster.aspx.cs" Inherits="INSPEC.Secure.inspectionmaster" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
+<%@ Register Src="~/UserControls/UC_FilterSearchList_2.ascx" TagPrefix="uc1" TagName="UC_FilterSearchList_2" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link href="../CSSCus/inspectionmaster.css" rel="stylesheet" />
     <script src="../JSCus/pdf.min.js"></script>
