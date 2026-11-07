@@ -274,10 +274,15 @@
                 message.textContent = "Memuat denah PDF...";
                 message.classList.remove("d-none");
             }
-            currentPdfDocument = await window.pdfjsLib.getDocument({
-                url: map.MapUrl,
-                withCredentials: true
-            }).promise;
+            if (map.PdfBlob && typeof map.PdfBlob.arrayBuffer === "function") {
+                var pdfBytes = new Uint8Array(await map.PdfBlob.arrayBuffer());
+                currentPdfDocument = await window.pdfjsLib.getDocument({ data: pdfBytes }).promise;
+            } else {
+                currentPdfDocument = await window.pdfjsLib.getDocument({
+                    url: map.MapUrl,
+                    withCredentials: true
+                }).promise;
+            }
             var page = await currentPdfDocument.getPage(1);
             var baseViewport = page.getViewport({ scale: 1 });
             var availableWidth = Math.max(300, Math.min(1200, document.getElementById("inspectionMapCanvas").clientWidth - 28));
