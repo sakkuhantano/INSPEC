@@ -30,8 +30,9 @@ namespace INSPEC.Secure
                 BindAll();
                 PrepareMap();
                 PreparePoint();
-                txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, txtMapCode.ClientID);
-                txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, txtMapCode.ClientID);
+                string mapSearchArgs = Master.Mn_CompanyID + ";" + Master.Mn_LocationID + ";" + Master.Mn_ProfitCenterNo + ";" + Master.Mn_EmployeeID;
+                txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
+                txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             }
         }
 
@@ -319,13 +320,19 @@ ORDER BY RowNum",
             {
                 DataTable dt = br.EQueryP(@"
 SELECT COUNT(1) AS TotalRecords
-FROM dbo.PIP_M_InspectionPoint
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  AND (@Keyword='' OR PointCode LIKE '%' + @Keyword + '%')",
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@Keyword", txtPointSearch.Text.Trim())
+                        new SqlParameter("@Keyword", txtPointSearch.Text.Trim()),
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 totalRecords = Convert.ToInt32(dt.Rows[0]["TotalRecords"]);
             }
