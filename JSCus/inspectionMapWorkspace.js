@@ -64,8 +64,10 @@
         host.innerHTML = points.map(function (point) {
             var status = getPointStatus(point);
             var code = String(point.PointCode || "");
+            var x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
+            var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
             return '<button type="button" class="inspection-map-point ' + pointClass(status) + '" ' +
-                'style="left:' + Number(point.MapX) + '%;top:' + Number(point.MapY) + '%" ' +
+                'style="left:' + x + '%;top:' + y + '%" ' +
                 'data-point-id="' + esc(point.InspectionPointID) + '" aria-label="' +
                 esc(code + " " + (point.PointName || "")) + '" title="' +
                 esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status)) + '">' +
