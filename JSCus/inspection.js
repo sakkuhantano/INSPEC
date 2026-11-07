@@ -3761,11 +3761,17 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     '</div>';
 
     const listHost = document.getElementById("inspectionApprovalPointList");
+    let approvalPage = 1;
+    const approvalPageSize = 20;
     const renderList = function (keyword) {
         const q = String(keyword || "").trim().toLowerCase();
-        const rows = points.filter(point => !q ||
+        const filtered = points.filter(point => !q ||
             String(point.PointCode || "").toLowerCase().indexOf(q) >= 0 ||
             String(point.PointName || "").toLowerCase().indexOf(q) >= 0);
+        const pageCount = Math.max(1, Math.ceil(filtered.length / approvalPageSize));
+        approvalPage = Math.min(Math.max(1, approvalPage), pageCount);
+        const startIndex = (approvalPage - 1) * approvalPageSize;
+        const rows = filtered.slice(startIndex, startIndex + approvalPageSize);
         listHost.innerHTML = rows.map(point =>
             '<button type="button" class="btn btn-sm btn-outline-secondary text-start" data-approval-point-target="' +
             escInspection(point.InspectionPointTransactionID) + '">' +
@@ -3773,14 +3779,27 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             ' <span class="badge ms-1 ' + (String(point.Status).toUpperCase() === "ABNORMAL" ? "text-bg-danger" : "text-bg-success") + '">' +
             escInspection(point.Status) + '</span></button>'
         ).join("") || '<div class="text-muted small py-2">Tidak ada point yang cocok.</div>';
+        listHost.innerHTML += '<div class="d-flex align-items-center justify-content-between small text-muted mt-2">' +
+            '<span>' + (filtered.length ? (startIndex + 1) + '-' + Math.min(startIndex + approvalPageSize, filtered.length) : 0) +
+            ' dari ' + filtered.length + ' point</span><div class="btn-group btn-group-sm">' +
+            '<button type="button" id="inspectionApprovalPointPrev" class="btn btn-outline-secondary" ' + (approvalPage <= 1 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>' +
+            '<span class="btn btn-outline-secondary disabled">' + approvalPage + ' / ' + pageCount + '</span>' +
+            '<button type="button" id="inspectionApprovalPointNext" class="btn btn-outline-secondary" ' + (approvalPage >= pageCount ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>' +
+            '</div></div>';
         listHost.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
-            const target = document.getElementById("inspectionApprovalPoint_" + this.dataset.approvalPointTarget);
-            if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+            if (typeof window.renderInspectionApprovalSelectedPoint === "function")
+                window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
         }));
+        const prev = document.getElementById("inspectionApprovalPointPrev");
+        const next = document.getElementById("inspectionApprovalPointNext");
+        if (prev) prev.addEventListener("click", function () { approvalPage--; renderList(q); });
+        if (next) next.addEventListener("click", function () { approvalPage++; renderList(q); });
     };
     const search = document.getElementById("inspectionApprovalPointSearch");
-    if (search) search.addEventListener("input", function () { renderList(this.value); });
+    if (search) search.addEventListener("input", function () { approvalPage = 1; renderList(this.value); });
     renderList("");
+    if (points.length && typeof window.renderInspectionApprovalSelectedPoint === "function")
+        window.renderInspectionApprovalSelectedPoint(points[0].InspectionPointTransactionID);
 
     if (!maps.length || !window.pdfjsLib) return;
     const select = document.getElementById("inspectionApprovalMapSelect");
@@ -3816,8 +3835,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
                 escInspection(point.PointCode) + '</span></button>'
             ).join("");
             overlay.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
-                const target = document.getElementById("inspectionApprovalPoint_" + this.dataset.approvalPointTarget);
-                if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+                if (typeof window.renderInspectionApprovalSelectedPoint === "function")
+                    window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
             }));
         } catch (error) {
             console.warn("Approval BATCH map could not be rendered:", error);
