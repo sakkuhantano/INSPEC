@@ -1561,7 +1561,199 @@ function focusInvalidInspectionItem(error) {
         }
     } else item.scrollIntoView({ behavior: "smooth", block: "center" });
 }
+function getActiveInspectionPoint() {
+    if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
+        return null;
+    return (currentInspectionRecord.Points || []).find(point =>
+        Number(point.InspectionPointID) === Number(currentInspectionRecord.ActiveInspectionPointID)
+    ) || null;
+}
+
+function getActiveInspectionPointPhotoID() {
+    const point = getActiveInspectionPoint();
+    return point ? String(point.ClientPointID || "") : "";
+}
+
+async function getCurrentInspectionPhotos() {
+    if (!currentInspectionRecord) return [];
+    return getInspectionPhotos(currentInspectionRecord.LocalInspectionID,
+        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH"
+            ? getActiveInspectionPointPhotoID() : null);
+}
+
+async function openBatchInspectionPointChecklist(masterPoint) {
+    if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
+        return;
+    if (!masterPoint || !masterPoint.InspectionPointID) return;
+    if (currentInspectionReadOnly || currentInspectionRecord.Status === "DONE") {
+        showInspectionNotice("Batch yang sudah disubmit bersifat read-only.", "warning");
+        return;
+    }
+
+    let point = (currentInspectionRecord.Points || []).find(item =>
+        Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
+    if (!point) {
+        point = {
+            ClientPointID: newInspectionId(),
+            InspectionPointID: Number(masterPoint.InspectionPointID),
+            PointCode: String(masterPoint.PointCode || ""),
+            PointName: String(masterPoint.PointName || ""),
+            InspectionDateTime: localDateTimeString(new Date()),
+            Status: "PENDING",
+            Items: [],
+            NextPhotoSeqNo: 1
+        };
+        currentInspectionRecord.Points = currentInspectionRecord.Points || [];
+        currentInspectionRecord.Points.push(point);
+    }
+
+    currentInspectionRecord.ActiveInspectionPointID = Number(masterPoint.InspectionPointID);
+    currentInspectionRecord.Items = point.Items || [];
+    const host = document.getElementById("inspectionChecklistHost");
+    host.innerHTML = renderInspectionSections(
+        currentInspectionRecord.TemplateSnapshot,
+        point.Items || [],
+        false,
+        "inspectionSection"
+    );
+    const title = document.getElementById("inspectionFormTitle");
+    if (title) title.textContent = point.PointCode + " · " + point.PointName;
+    const followUp = document.getElementById("inspectionFollowUpPanel");
+    const summary = document.getElementById("inspectionSummaryPanel");
+    if (followUp) followUp.classList.add("d-none");
+    if (summary) summary.classList.add("d-none");
+    const beforePanel = document.querySelector("#btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
+    if (beforePanel) beforePanel.querySelector(".fw-bold").textContent = "FIELD DOCUMENTATION BEFORE · " + point.PointCode;
+    const afterPanel = document.getElementById("inspectionAfterPhotoPanel");
+    if (afterPanel) afterPanel.querySelector(".fw-bold").textContent = "FIELD DOCUMENTATION AFTER · " + point.PointCode;
+    const saveButton = document.getElementById("btnSaveInspectionDraft");
+    const completeButton = document.getElementById("btnCompleteInspection");
+    if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Point';
+    if (completeButton) completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Complete Point';
+    document.getElementById("inspectionFormPanel").classList.remove("d-none");
+    showInspectionEditorTab("checklist");
+    await renderInspectionPhotos();
+    await updateInspectionChecklistGate();
+    await persistInspectionRecord(currentInspectionRecord);
+}
+
+async function saveBatchInspectionPoint(status) {
+    const record = currentInspectionRecord;
+    const point = getActiveInspectionPoint();
+    if (!record || !point) {
+        showInspectionNotice("Pilih Inspection Point terlebih dahulu.", "warning");
+        return;
+    }
+
+    const items = collectInspectionItems();
+    const photos = await getCurrentInspectionPhotos();
+    if (status === "DONE") {
+        const error = validateInspectionItems(items);
+        if (error) {
+            point.Status = "INCOMPLETE";
+            showToast(error.message + ". Periksa kembali checklist point ini.", "warning");
+            focusInvalidInspectionItem(error);
+            return;
+        }
+        const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
+            (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+        const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+        const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
+        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore) {
+            showToast("Foto BEFORE wajib diisi untuk " + point.PointCode + ".", "warning");
+            return;
+        }
+        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter) {
+            showToast("Foto AFTER wajib diisi untuk " + point.PointCode + ".", "warning");
+            return;
+        }
+        point.Status = items.some(item => item.IsAnomali) ? "ABNORMAL" : "DONE";
+    } else {
+        point.Status = items.some(item => item.Value || Object.keys(item.Values || {}).some(key => item.Values[key]))
+            ? "INCOMPLETE" : "PENDING";
+    }
+
+    point.Items = items;
+    point.UpdatedAt = new Date().toISOString();
+    point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
+    record.Items = [];
+    record.ActiveInspectionPointID = 0;
+    record.SyncStatus = "PENDING";
+    record.UpdatedAt = new Date().toISOString();
+    if (inspectionAutoSaveTimer) clearTimeout(inspectionAutoSaveTimer);
+    await persistInspectionRecord(record);
+    const followUp = document.getElementById("inspectionFollowUpPanel");
+    const summary = document.getElementById("inspectionSummaryPanel");
+    if (followUp) followUp.classList.remove("d-none");
+    if (summary) summary.classList.remove("d-none");
+    const saveButton = document.getElementById("btnSaveInspectionDraft");
+    const completeButton = document.getElementById("btnCompleteInspection");
+    if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Draft';
+    if (completeButton) completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Submit';
+    document.getElementById("inspectionChecklistPane").classList.add("d-none");
+    if (typeof showInspectionMapWorkspace === "function")
+        showInspectionMapWorkspace(record, true);
+    if (typeof refreshInspectionMapPointStatuses === "function")
+        refreshInspectionMapPointStatuses();
+    showInspectionNotice(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
+}
+
+window.submitInspectionBatch = async function () {
+    const record = currentInspectionRecord;
+    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH") return;
+    if (record.Status === "DONE") {
+        showInspectionNotice("Batch ini sudah disubmit dan tidak dapat diubah.", "warning");
+        return;
+    }
+    const points = record.Points || [];
+    if (!points.length) {
+        showInspectionNotice("Belum ada Inspection Point yang diinspeksi.", "warning");
+        return;
+    }
+    const incomplete = points.find(point => !["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()));
+    if (incomplete) {
+        const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+            Number(item.InspectionPointID) === Number(incomplete.InspectionPointID));
+        if (masterPoint) await openBatchInspectionPointChecklist(masterPoint);
+        showInspectionNotice("Selesaikan semua point yang sudah dipilih sebelum Submit Batch. Point " +
+            (incomplete.PointCode || incomplete.InspectionPointID) + " belum selesai.", "warning");
+        return;
+    }
+
+    const confirmed = await showConfirmation({
+        title: "Submit Inspection Batch",
+        message: "Submit " + points.length + " Inspection Point dalam satu batch?",
+        yesText: "Submit Batch"
+    });
+    if (!confirmed) return;
+
+    record.Items = [];
+    record.ActiveInspectionPointID = 0;
+    record.Status = "DONE";
+    record.EndDateTime = localDateTimeString(new Date());
+    record.SyncStatus = "PENDING";
+    record.UpdatedAt = new Date().toISOString();
+    await persistInspectionRecord(record);
+    showInspectionNotice("Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
+    await refreshSavedInspectionList();
+    closeInspectionForm();
+};
+
 async function saveInspection(status) {
+    if (currentInspectionRecord && String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH") {
+        if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0) {
+            await saveBatchInspectionPoint(status);
+            return;
+        }
+        if (status === "DONE") {
+            await window.submitInspectionBatch();
+            return;
+        }
+        await persistInspectionRecord(currentInspectionRecord);
+        showInspectionNotice("Draft batch tersimpan offline.", "success");
+        return;
+    }
+
     if (!currentInspectionRecord) return;
     const login = getLoginData();
     if (!login || currentInspectionRecord.OwnerEmployeeID !== login.employeeid) {
