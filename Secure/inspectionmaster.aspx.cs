@@ -246,32 +246,55 @@ ORDER BY DisplayOrder, PointCode",
             SetTab("#tab-map");
         }
 
-        protected void gvMaps_RowCommand(object sender, GridViewCommandEventArgs e)
+        protected void btnEditMapRow_Command(object sender, CommandEventArgs e)
+        {
+            ProcessMapRowCommand("EditMap", e.CommandArgument);
+        }
+
+        protected void btnOpenMapRow_Command(object sender, CommandEventArgs e)
+        {
+            ProcessMapRowCommand("PreviewMap", e.CommandArgument);
+        }
+
+        private void ProcessMapRowCommand(string commandName, object commandArgument)
         {
             long mapID;
-            if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out mapID)) return;
-
-            DataTable dt = GetMap(mapID);
-            if (dt.Rows.Count == 0) return;
-            DataRow row = dt.Rows[0];
-
-            if (e.CommandName == "EditMap")
+            if (!Int64.TryParse(Convert.ToString(commandArgument), out mapID) || mapID <= 0)
             {
-                hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
-                txtMapCode.Text = Convert.ToString(row["MapCode"]);
-                txtMapName.Text = Convert.ToString(row["MapName"]);
-                txtMapDescription.Text = Convert.ToString(row["Description"]);
-                lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
-                    " · Upload PDF baru untuk membuat versi berikutnya.";
-                pnlMapPreview.Visible = true;
+                ShowMessage("Map ID tidak valid. Silakan refresh daftar map.", true);
+                SetTab("#tab-map");
+                return;
+            }
+
+            try
+            {
+                DataTable dt = GetMap(mapID);
+                if (dt == null || dt.Rows.Count == 0)
+                {
+                    ShowMessage("Data map tidak ditemukan untuk Map ID " +
+                        mapID.ToString(CultureInfo.InvariantCulture) +
+                        ". Periksa CompanyID/LocationID atau refresh daftar map.", true);
+                    SetTab("#tab-map");
+                    return;
+                }
+
+                DataRow row = dt.Rows[0];
+                if (commandName == "EditMap")
+                {
+                    hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
+                    txtMapCode.Text = Convert.ToString(row["MapCode"]);
+                    txtMapName.Text = Convert.ToString(row["MapName"]);
+                    txtMapDescription.Text = Convert.ToString(row["Description"]);
+                    lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
+                        " · Upload PDF baru untuk membuat versi berikutnya.";
+                }
+
                 ShowMapPreview(row);
                 SetTab("#tab-map");
             }
-            else if (e.CommandName == "PreviewMap")
+            catch (Exception ex)
             {
-                pnlMapPreview.Visible = true;
-                lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]);
-                ShowMapPreview(row);
+                ShowMessage("Gagal membuka map: " + ex.Message, true);
                 SetTab("#tab-map");
             }
         }
