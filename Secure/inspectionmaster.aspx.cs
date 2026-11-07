@@ -322,6 +322,7 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
             }
 
             string savedPath = "";
+            bool databaseSaved = false;
             try
             {
                 if (fuMapPdf.HasFile)
@@ -421,6 +422,8 @@ VALUES
                     }
                 }
 
+                databaseSaved = true;
+
                 BindMaps();
                 BindPointLookups();
                 BindEditorMaps();
@@ -431,7 +434,7 @@ VALUES
             }
             catch (Exception ex)
             {
-                if (savedPath != "") TryDeleteFile(savedPath);
+                if (!databaseSaved && savedPath != "") TryDeleteFile(savedPath);
                 ShowMessage("Gagal menyimpan map: " + ex.Message, true);
             }
             SetTab("#tab-map");
