@@ -1585,10 +1585,7 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
         return;
     if (!masterPoint || !masterPoint.InspectionPointID) return;
-    if (currentInspectionReadOnly || currentInspectionRecord.Status === "DONE") {
-        showInspectionNotice("Batch yang sudah disubmit bersifat read-only.", "warning");
-        return;
-    }
+    const pointReadOnly = currentInspectionReadOnly || currentInspectionRecord.Status === "DONE";
 
     let point = (currentInspectionRecord.Points || []).find(item =>
         Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
@@ -1613,7 +1610,7 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     host.innerHTML = renderInspectionSections(
         currentInspectionRecord.TemplateSnapshot,
         point.Items || [],
-        false,
+        pointReadOnly,
         "inspectionSection"
     );
     const title = document.getElementById("inspectionFormTitle");
@@ -1628,8 +1625,14 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     if (afterPanel) afterPanel.querySelector(".fw-bold").textContent = "FIELD DOCUMENTATION AFTER · " + point.PointCode;
     const saveButton = document.getElementById("btnSaveInspectionDraft");
     const completeButton = document.getElementById("btnCompleteInspection");
-    if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Point';
-    if (completeButton) completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Complete Point';
+    if (saveButton) {
+        saveButton.innerHTML = '<i class="bi bi-save"></i> Save Point';
+        saveButton.classList.toggle("d-none", pointReadOnly);
+    }
+    if (completeButton) {
+        completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Complete Point';
+        completeButton.classList.toggle("d-none", pointReadOnly);
+    }
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     showInspectionEditorTab("checklist");
     await renderInspectionPhotos();
@@ -2243,6 +2246,10 @@ async function openSavedInspection(localId) {
 
     currentInspectionRecord = record;
     await renderInspectionForm(record, record.Status === "DONE" && !isVoidedServerInspectionRecord(record));
+    if (String(record.InspectionMode || "").toUpperCase() === "BATCH" &&
+        typeof showInspectionMapWorkspace === "function") {
+        showInspectionMapWorkspace(record, true);
+    }
 }
 
 function restoreInspectionMasterDropdowns() {
