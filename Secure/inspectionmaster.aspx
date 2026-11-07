@@ -95,7 +95,7 @@
                             <div class="col border rounded shadow-sm">
                                 <div class="modal-header py-2">
                                     <h5 class="modal-title fs-6" id="inspectionPointModalTitle">Inspection Point</h5>
-                                    <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn-close" OnClick="btnNewPoint_Click" CausesValidation="false" ToolTip="Close" />
+                                    <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn-close" OnClick="btnClosePoint_Click" CausesValidation="false" ToolTip="Close" />
                                 </div>
                                 <div class="modal-body">
                                 <div class="row my-1">
