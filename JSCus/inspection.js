@@ -3864,7 +3864,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="accordion-body p-3"><textarea class="form-control bg-body-tertiary" rows="4" disabled>' + escInspection(h.ReasonVoid) + '</textarea></div>' +
               '</div>'
             : "";
-        checklistHost.innerHTML = (isBatchApproval ? "" : beforePhotoHtml) +
+        checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
             (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
         if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints);
         document.getElementById("btnApproveInspection").disabled = isApproved || (isBatchApproval && !batchPoints.length);
