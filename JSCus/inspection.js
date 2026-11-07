@@ -3841,15 +3841,17 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             await page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise;
             const mapPoints = points.filter(point => Number(point.MapID) === Number(map.MapID) &&
                 point.MapX != null && point.MapY != null);
-            overlay.innerHTML = mapPoints.map(point =>
-                '<button type="button" class="inspection-map-point ' +
-                String(point.Status || "PENDING").toLowerCase() + '" style="left:' + Number(point.MapX) +
-                '%;top:' + Number(point.MapY) + '%" data-approval-point-target="' +
-                escInspection(point.InspectionPointTransactionID) + '" title="' +
-                escInspection(point.PointCode + " - " + point.PointName) + '">' +
-                '<span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' +
-                escInspection(point.PointCode) + '</span></button>'
-            ).join("");
+            overlay.innerHTML = mapPoints.map(point => {
+                const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
+                const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+                return '<button type="button" class="inspection-map-point ' +
+                    String(point.Status || "PENDING").toLowerCase() + '" style="left:' + x +
+                    '%;top:' + y + '%" data-approval-point-target="' +
+                    escInspection(point.InspectionPointTransactionID) + '" title="' +
+                    escInspection(point.PointCode + " - " + point.PointName) + '">' +
+                    '<span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' +
+                    escInspection(point.PointCode) + '</span></button>';
+            }).join("");
             overlay.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
                 if (typeof window.renderInspectionApprovalSelectedPoint === "function")
                     window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
