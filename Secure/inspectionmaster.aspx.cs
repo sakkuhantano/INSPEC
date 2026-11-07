@@ -384,11 +384,17 @@ SELECT InspectionPointID, PointCode, PointName
 FROM dbo.PIP_M_InspectionPoint
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID
   AND IsActive=1 AND MapID=@MapID
+  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE IT.InspectionTypeCode=dbo.PIP_M_InspectionPoint.InspectionTypeCode
+        AND S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY DisplayOrder, PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue))
+                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
                 if (points != null)
                 {
