@@ -404,6 +404,12 @@
 
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
         if (checklistTab) checklistTab.addEventListener("click", function () {
+            if (currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
+                !Number(currentMapRecord.ActiveInspectionPointID || 0)) {
+                if (typeof showInspectionNotice === "function")
+                    showInspectionNotice("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
+                return;
+            }
             var workspace = document.getElementById("inspectionMapWorkspace");
             if (workspace) workspace.classList.add("d-none");
         });
