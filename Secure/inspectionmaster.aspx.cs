@@ -1275,186 +1275,103 @@ VALUES
 
         private void BindMapElements()
         {
-            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue)) return;
-            DataTable source;
+            if (String.IsNullOrWhiteSpace(hidMapID.Value)) return;
+            DataTable points;
             using (var br = new WAL.BR.CF())
-                source = br.EQueryP(@"
-SELECT E.MapElementID,E.InspectionPointID,E.ElementID,E.ShapeAttributes,
-       P.PointCode,P.PointName,P.DisplayOrder
-FROM dbo.PIP_M_InspectionMapElement E
-INNER JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=E.InspectionPointID
-WHERE E.MapID=@MapID AND E.IsActive=1 AND E.IsDeleted=0
-  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
-      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))
-ORDER BY P.DisplayOrder,P.PointCode",
-                    new SqlParameter[] {
-                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue)),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
-                    });
-
-            DataTable display = new DataTable();
-            display.Columns.Add("MapElementID", typeof(long));
-            display.Columns.Add("InspectionPointID", typeof(long));
-            display.Columns.Add("PointCode", typeof(string));
-            display.Columns.Add("PointName", typeof(string));
-            display.Columns.Add("DisplayOrder", typeof(int));
-            display.Columns.Add("XPercent", typeof(decimal));
-            display.Columns.Add("YPercent", typeof(decimal));
-
-            if (source != null)
-            {
-                foreach (DataRow row in source.Rows)
-                {
-                    decimal x, y;
-                    ParseCoordinates(Convert.ToString(row["ShapeAttributes"]), out x, out y);
-                    DataRow target = display.NewRow();
-                    target["MapElementID"] = row["MapElementID"];
-                    target["InspectionPointID"] = row["InspectionPointID"];
-                    target["PointCode"] = row["PointCode"];
-                    target["PointName"] = row["PointName"];
-                    target["DisplayOrder"] = row["DisplayOrder"];
-                    target["XPercent"] = x;
-                    target["YPercent"] = y;
-                    display.Rows.Add(target);
-                }
-            }
-            rptMapElements.DataSource = display;
-            rptMapElements.DataBind();
-            gvMapElements.DataSource = display;
-            gvMapElements.DataBind();
-        }
-
-        protected void btnSaveMarker_Click(object sender, EventArgs e)
-        {
-            long mapID, pointID;
-            decimal x, y;
-            if (!Int64.TryParse(hidMapID.Value, out mapID) ||
-                !Int64.TryParse(ddlEditorPoint.SelectedValue, out pointID))
-            {
-                ShowMessage("Pilih Map dan Inspection Point.", true);
-                SetTab("#tab-editor");
-                return;
-            }
-            if (!Decimal.TryParse(txtMarkerX.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out x) ||
-                !Decimal.TryParse(txtMarkerY.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out y) ||
-                x < 0 || x > 100 || y < 0 || y > 100)
-            {
-                ShowMessage("Koordinat X dan Y harus berupa angka antara 0 sampai 100.", true);
-                SetTab("#tab-editor");
-                return;
-            }
-
-            using (var access = new WAL.BR.CF())
-            {
-                DataTable allowed = access.EQueryP(@"
-SELECT COUNT(1) AS TotalRows
+                points = br.EQueryP(@"
+SELECT P.InspectionPointID,P.PointCode,P.PointName,P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-WHERE P.InspectionPointID=@PointID AND P.MapID=@MapID
-  AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID
-  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND P.IsActive=1 AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
+ORDER BY P.DisplayOrder,P.PointCode",
                     new SqlParameter[] {
-                        new SqlParameter("@PointID", pointID),
-                        new SqlParameter("@MapID", mapID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapID", Convert.ToInt64(hidMapID.Value)),
                         new SqlParameter("@IsAdmin", IsAdministrator()),
                         new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
-                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
-                {
-                    ShowMessage("Inspection Point tidak valid untuk Map atau Profit Center ini.", true);
-                    SetTab("#tab-editor");
-                    return;
-                }
+            rptMapElements.DataSource = points;
+            rptMapElements.DataBind();
+        }
+
+        protected void btnClearCoordinate_Click(object sender, EventArgs e)
+        {
+            txtMarkerX.Text = "";
+            txtMarkerY.Text = "";
+            ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
+            pnlPointEditor.Visible = true;
+            pnlEditor.Visible = true;
+            BindMapElements();
+            SetTab("#tab-point");
+        }
+
+        protected void btnSwapPosition_Click(object sender, EventArgs e)
+        {
+            long pointID, otherPointID;
+            if (!Int64.TryParse(hidPointID.Value, out pointID) || pointID <= 0 ||
+                !Int64.TryParse(hidSwapPointID.Value, out otherPointID) || otherPointID <= 0 ||
+                pointID == otherPointID)
+            {
+                ShowMessage("Pilih marker Inspection Point lain pada denah untuk melakukan Swap Position.", true);
+                SetTab("#tab-point");
+                return;
             }
 
-            string attributes = "x=" + x.ToString("0.####", CultureInfo.InvariantCulture) +
-                ";y=" + y.ToString("0.####", CultureInfo.InvariantCulture);
-            string elementID = "POINT_" + pointID.ToString(CultureInfo.InvariantCulture);
             try
             {
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(@"
-IF EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMapElement WHERE MapID=@MapID AND InspectionPointID=@PointID)
+BEGIN TRANSACTION;
+DECLARE @CurrentX DECIMAL(9,4), @CurrentY DECIMAL(9,4),
+        @OtherX DECIMAL(9,4), @OtherY DECIMAL(9,4);
+SELECT @CurrentX=MapX,@CurrentY=MapY
+FROM dbo.PIP_M_InspectionPoint WITH (UPDLOCK,HOLDLOCK)
+WHERE InspectionPointID=@PointID AND MapID=@MapID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+SELECT @OtherX=MapX,@OtherY=MapY
+FROM dbo.PIP_M_InspectionPoint WITH (UPDLOCK,HOLDLOCK)
+WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+IF @CurrentX IS NULL OR @CurrentY IS NULL OR @OtherX IS NULL OR @OtherY IS NULL
 BEGIN
-    UPDATE dbo.PIP_M_InspectionMapElement
-    SET ElementID=@ElementID, ShapeType='CIRCLE', SvgPathData=@PathData,
-        ShapeAttributes=@Attributes, IsActive=1, IsDeleted=0,
-        DeletedBy='', DeletedDate='19000101', UpdateUser=@UserID, UpdateDate=GETDATE()
-    WHERE MapID=@MapID AND InspectionPointID=@PointID;
-END
-ELSE
-BEGIN
-    DECLARE @NewElementID BIGINT;
-    SELECT @NewElementID=ISNULL(MAX(MapElementID),0)+1 FROM dbo.PIP_M_InspectionMapElement;
-    INSERT INTO dbo.PIP_M_InspectionMapElement
-    (MapElementID,MapID,InspectionPointID,ElementID,ShapeType,SvgPathData,ShapeAttributes,
-     StrokeWidth,DisplayOrder,IsVisible,IsActive,IsDeleted,DeletedBy,DeletedDate,EntryUser,UpdateUser)
-    VALUES
-    (@NewElementID,@MapID,@PointID,@ElementIDText,'CIRCLE',@PathData,@Attributes,2,0,1,1,0,'','19000101',@UserID,@UserID);
+    ROLLBACK TRANSACTION;
+    RAISERROR('Kedua Inspection Point harus sudah memiliki koordinat pada Map yang sama.',16,1);
+    RETURN;
 END;
 UPDATE dbo.PIP_M_InspectionPoint
-SET MapID=@MapID, UpdateUser=@UserID, UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID;",
+SET MapX=@OtherX,MapY=@OtherY,UpdateUser=@UserID,UpdateDate=GETDATE()
+WHERE InspectionPointID=@PointID AND MapID=@MapID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+UPDATE dbo.PIP_M_InspectionPoint
+SET MapX=@CurrentX,MapY=@CurrentY,UpdateUser=@UserID,UpdateDate=GETDATE()
+WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+COMMIT TRANSACTION;",
                         new SqlParameter[] {
-                            new SqlParameter("@MapID", mapID), new SqlParameter("@PointID", pointID),
-                            new SqlParameter("@ElementID", elementID), new SqlParameter("@ElementIDText", elementID),
-                            new SqlParameter("@PathData", "M " + x.ToString("0.####", CultureInfo.InvariantCulture) + " " +
-                                y.ToString("0.####", CultureInfo.InvariantCulture)),
-                            new SqlParameter("@Attributes", attributes), new SqlParameter("@UserID", Master.Mn_EmployeeID),
-                            new SqlParameter("@CompanyID", Master.Mn_CompanyID), new SqlParameter("@LocationID", Master.Mn_LocationID)
+                            new SqlParameter("@PointID", pointID),
+                            new SqlParameter("@OtherPointID", otherPointID),
+                            new SqlParameter("@MapID", Convert.ToInt64(hidMapID.Value)),
+                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@UserID", Master.Mn_EmployeeID)
                         });
                 }
-                BindEditorPoints();
-                LoadEditorMapPdf();
+                hidSwapPointID.Value = "";
                 BindMapElements();
-                pnlMapEditorSection.Visible = true;
-                pnlEditor.Visible = true;
-                ShowMessage("Marker berhasil disimpan.", false);
+                ShowMessage("Koordinat kedua Inspection Point berhasil ditukar.", false);
             }
             catch (Exception ex)
             {
-                ShowMessage("Gagal menyimpan marker: " + ex.Message, true);
+                ShowMessage("Gagal menukar koordinat: " + ex.Message, true);
             }
-            SetTab("#tab-editor");
-        }
-
-        protected void gvMapElements_RowCommand(object sender, GridViewCommandEventArgs e)
-        {
-            if (e.CommandName != "EditMarker") return;
-            long elementID;
-            if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out elementID)) return;
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dt = br.EQueryP(@"
-SELECT E.MapElementID,E.InspectionPointID,E.ShapeAttributes
-FROM dbo.PIP_M_InspectionMapElement E
-WHERE E.MapElementID=@ID AND E.MapID=@MapID",
-                    new SqlParameter[] {
-                        new SqlParameter("@ID", elementID),
-                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue))
-                    });
-                if (dt.Rows.Count > 0)
-                {
-                    hidElementID.Value = elementID.ToString(CultureInfo.InvariantCulture);
-                    string pointID = Convert.ToString(dt.Rows[0]["InspectionPointID"]);
-                    if (ddlEditorPoint.Items.FindByValue(pointID) != null)
-                        ddlEditorPoint.SelectedValue = pointID;
-                    decimal x, y;
-                    ParseCoordinates(Convert.ToString(dt.Rows[0]["ShapeAttributes"]), out x, out y);
-                    txtMarkerX.Text = x.ToString("0.####", CultureInfo.InvariantCulture);
-                    txtMarkerY.Text = y.ToString("0.####", CultureInfo.InvariantCulture);
-                }
-            }
-            pnlMapEditorSection.Visible = true;
+            pnlPointEditor.Visible = true;
             pnlEditor.Visible = true;
-            BindMapElements();
-            SetTab("#tab-editor");
+            SetTab("#tab-point");
         }
 
         private void ParseCoordinates(string attributes, out decimal x, out decimal y)
