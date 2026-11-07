@@ -884,7 +884,11 @@ async function startNewInspection() {
     };
 
     await renderInspectionForm(currentInspectionRecord, false);
-    if (typeof showInspectionMapWorkspace === "function") showInspectionMapWorkspace(currentInspectionRecord, true);
+    const mapWorkspace = document.getElementById("inspectionMapWorkspace");
+    if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function")
+        showInspectionMapWorkspace(currentInspectionRecord, true);
+    else if (mapWorkspace)
+        mapWorkspace.classList.add("d-none");
     // A newly created inspection should open at FIELD DOCUMENTATION BEFORE,
     // not at a leftover scroll position from the previous screen.
     window.setTimeout(() => {
