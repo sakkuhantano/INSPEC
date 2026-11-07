@@ -1713,6 +1713,7 @@ async function saveBatchInspectionPoint(status) {
         refreshInspectionMapPointStatuses();
     showInspectionNotice(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
 }
+window.saveBatchInspectionPoint = saveBatchInspectionPoint;
 
 window.submitInspectionBatch = async function () {
     const record = currentInspectionRecord;
