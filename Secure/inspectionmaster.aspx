@@ -88,15 +88,16 @@
                         </div>
                     </asp:Panel>
 
-                    <asp:Panel ID="pnlPointEditor" runat="server" Visible="false">
+                    <asp:Panel ID="pnlPointEditor" runat="server" Visible="false" CssClass="modal fade" ClientIDMode="Static" role="dialog" aria-labelledby="inspectionPointModalTitle" tabindex="-1">
+                        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+                            <div class="modal-content">
                         <div class="row my-1">
                             <div class="col border rounded shadow-sm">
-                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
-                                    <div class="col d-flex align-items-center">Inspection Point</div>
-                                    <div class="col-auto d-flex align-items-center">
-                                        <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="CUS-lbtn-1" OnClick="btnNewPoint_Click" CausesValidation="false"><i class="fas fa-times"></i></asp:LinkButton>
-                                    </div>
+                                <div class="modal-header py-2">
+                                    <h5 class="modal-title fs-6" id="inspectionPointModalTitle">Inspection Point</h5>
+                                    <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn-close" OnClick="btnNewPoint_Click" CausesValidation="false" ToolTip="Close" />
                                 </div>
+                                <div class="modal-body">
                                 <div class="row my-1">
                                     <div class="col-sm-6 mb-1">
                                         <div class="row mt-1">
@@ -146,6 +147,7 @@
                                     <div class="col-sm-6 d-flex justify-content-end">
                                         <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Point</asp:LinkButton>
                                     </div>
+                                </div>
                                 </div>
                             </div>
                         </div>
@@ -216,7 +218,7 @@
                         </div>
                     </div>
 
-                    <div id="map-editor" class="row my-1">
+                    <asp:Panel ID="pnlMapEditorSection" runat="server" Visible="false" ClientIDMode="Static" CssClass="row my-1">
                         <div class="col border rounded shadow-sm">
                             <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
                                 <div class="col d-flex align-items-center">Map Editor</div>
@@ -270,7 +272,7 @@
                                 </div>
                                 <div class="row my-1">
                                     <div class="col">
-                                        <asp:GridView ID="gvMapElements" runat="server" AutoGenerateColumns="false" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" EmptyDataText="No marker">
+                                        <asp:GridView ID="gvMapElements" runat="server" OnRowCommand="gvMapElements_RowCommand" AutoGenerateColumns="false" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" EmptyDataText="No marker">
                                             <HeaderStyle CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
                                             <RowStyle CssClass="CUS-fz-5 dtgrddt-custom1" />
                                             <Columns>
@@ -285,7 +287,7 @@
                                 </div>
                             </asp:Panel>
                         </div>
-                    </div>
+                    </asp:Panel>
                 </div>
             </div>
         </td></tr>
