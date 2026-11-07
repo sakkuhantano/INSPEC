@@ -301,10 +301,10 @@ BEGIN
 
         DECLARE @V_ResultMap TABLE
         (
-            ClientPointID VARCHAR(36) NOT NULL,
+            InspectionPointTransactionID BIGINT NOT NULL,
             IDItem INT NOT NULL,
             InspectionResultID BIGINT NOT NULL,
-            PRIMARY KEY(ClientPointID,IDItem)
+            PRIMARY KEY(InspectionPointTransactionID,IDItem)
         );
         DECLARE @V_NextResultID BIGINT;
         SELECT @V_NextResultID=ISNULL(MAX(InspectionResultID),0)
@@ -341,7 +341,9 @@ BEGIN
         SELECT RM.InspectionResultID,V.C3,ISNULL(V.C4,''),
                @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM @p_ItemValues V
-        JOIN @V_ResultMap RM ON RM.ClientPointID=V.C1 AND RM.IDItem=CAST(V.C2 AS INT);
+        JOIN @V_PointMap PM ON PM.ClientPointID=V.C1
+        JOIN @V_ResultMap RM ON RM.InspectionPointTransactionID=PM.InspectionPointTransactionID
+                            AND RM.IDItem=CAST(V.C2 AS INT);
 
         DECLARE @V_NextPhotoID BIGINT;
         SELECT @V_NextPhotoID=ISNULL(MAX(InspectionPhotoID),0)
