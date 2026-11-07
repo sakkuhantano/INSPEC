@@ -976,6 +976,31 @@ WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
                     return;
                 }
             }
+            using (var access = new WAL.BR.CF())
+            {
+                DataTable allowed = access.EQueryP(@"
+SELECT COUNT(1) AS TotalRows
+FROM dbo.PIP_M_InspectionType IT
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
+WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                    new SqlParameter[] {
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
+                {
+                    ShowMessage("Inspection Type atau Detail tidak termasuk Profit Center Anda.", true);
+                    SetTab("#tab-point");
+                    return;
+                }
+            }
             object mapValue = Convert.ToInt64(hidMapID.Value);
             long pointID;
             bool editing = Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0;
