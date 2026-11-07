@@ -50,8 +50,8 @@
                         <div class="card-header bg-white fw-semibold">Map Information</div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label class="form-label">Map Code <a href="#" class="CUS-lbtn-1 ms-2" onclick="var e=document.getElementById('&lt;%= txtMapCode.ClientID %&gt;');if(e&&e.ondblclick)e.ondblclick();return false;">Find Map</a></label>
-                                <asp:TextBox ID="txtMapCode" runat="server" CssClass="form-control form-control-sm" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapCode_TextChanged" placeholder="Ketik Map Code atau tekan F2 untuk mencari" />
+                                <label class="form-label">Map Code <a href="#" class="CUS-lbtn-1 ms-2" onclick="var e=document.getElementById('txtMapCode');if(e&&e.ondblclick)e.ondblclick();return false;">Find Map</a></label>
+                                <asp:TextBox ID="txtMapCode" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapCode_TextChanged" placeholder="Ketik Map Code atau tekan F2 untuk mencari" />
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Map Name</label>
