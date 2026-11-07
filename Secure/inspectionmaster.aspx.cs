@@ -1239,13 +1239,16 @@ VALUES
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT P.InspectionPointID,P.PointCode,P.PointName,P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
+SELECT P.InspectionPointID,
+       CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointCode ELSE 'Occupied' END AS PointCode,
+       CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointName ELSE 'Occupied by another Profit Center' END AS PointName,
+       CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN LEFT(P.PointCode,4) ELSE '•' END AS MarkerLabel,
+       P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
-  AND P.IsActive=1 AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
-  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
+  AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
 ORDER BY P.DisplayOrder,P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
