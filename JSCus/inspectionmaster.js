@@ -95,7 +95,7 @@
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
-                if (zoom <= 1 || event.button !== 0) return;
+                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
