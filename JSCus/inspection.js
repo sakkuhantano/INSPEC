@@ -1825,6 +1825,9 @@ async function saveInspection(status) {
             await window.submitInspectionBatch();
             return;
         }
+        currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
+        Object.assign(currentInspectionRecord, collectInspectionFollowUp());
+        currentInspectionRecord.SyncStatus = "PENDING";
         await persistInspectionRecord(currentInspectionRecord);
         showInspectionNotice("Draft batch tersimpan offline.", "success");
         return;
