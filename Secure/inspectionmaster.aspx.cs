@@ -831,7 +831,7 @@ SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
-  AND (@IsAdmin=1 OR EXISTS
+  AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
       (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
        INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
        INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
@@ -842,7 +842,8 @@ ORDER BY M.MapVersion DESC",
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
                         new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo),
+                        new SqlParameter("@EmployeeID", Master.Mn_EmployeeID)
                     });
                 if (dt.Rows.Count == 0)
                 {
