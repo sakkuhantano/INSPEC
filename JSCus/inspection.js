@@ -258,6 +258,7 @@ function wireInspectionEvents() {
     document.getElementById("inspectionSubmittedTab").addEventListener("shown.bs.tab", updateSubmittedFiltersVisibility);
     updateSubmittedFiltersVisibility();
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
+    if (typeof wireInspectionMapWorkspace === "function") wireInspectionMapWorkspace();
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", async () => {
         // Server-only submitted records intentionally use synthetic parameter options because
         // their original masters may no longer exist in IndexedDB. They are read-only, so
@@ -833,6 +834,7 @@ async function startNewInspection() {
     };
 
     await renderInspectionForm(currentInspectionRecord, false);
+    if (typeof showInspectionMapWorkspace === "function") showInspectionMapWorkspace(currentInspectionRecord, true);
     // A newly created inspection should open at FIELD DOCUMENTATION BEFORE,
     // not at a leftover scroll position from the previous screen.
     window.setTimeout(() => {
