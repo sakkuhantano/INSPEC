@@ -229,6 +229,7 @@
                         <div class="row g-3">
                             <div class="col-lg-8">
                                 <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
+                                    <asp:Literal ID="litEditorPdfBackground" runat="server" />
                                     <div class="inspection-coordinate-grid"></div>
                                     <asp:Repeater ID="rptMapElements" runat="server">
                                         <ItemTemplate>
