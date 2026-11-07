@@ -362,7 +362,9 @@ VALUES
 (@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
  @MapVersion,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;",
+WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
+UPDATE dbo.PIP_M_InspectionMapElement SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE MapID=@OldMapID;",
                                 new SqlParameter[] {
                                     new SqlParameter("@OldMapID", oldID), new SqlParameter("@NewMapID", newID),
                                     new SqlParameter("@CompanyID", Master.Mn_CompanyID), new SqlParameter("@LocationID", Master.Mn_LocationID),
@@ -719,13 +721,13 @@ BEGIN
 END
 ELSE
 BEGIN
-    DECLARE @ElementID BIGINT;
-    SELECT @ElementID=ISNULL(MAX(MapElementID),0)+1 FROM dbo.PIP_M_InspectionMapElement;
+    DECLARE @NewElementID BIGINT;
+    SELECT @NewElementID=ISNULL(MAX(MapElementID),0)+1 FROM dbo.PIP_M_InspectionMapElement;
     INSERT INTO dbo.PIP_M_InspectionMapElement
     (MapElementID,MapID,InspectionPointID,ElementID,ShapeType,SvgPathData,ShapeAttributes,
      StrokeWidth,DisplayOrder,IsVisible,IsActive,IsDeleted,DeletedBy,DeletedDate,EntryUser,UpdateUser)
     VALUES
-    (@ElementID,@MapID,@PointID,@ElementIDText,'CIRCLE',@PathData,@Attributes,2,0,1,1,0,'','19000101',@UserID,@UserID);
+    (@NewElementID,@MapID,@PointID,@ElementIDText,'CIRCLE',@PathData,@Attributes,2,0,1,1,0,'','19000101',@UserID,@UserID);
 END;
 UPDATE dbo.PIP_M_InspectionPoint
 SET MapID=@MapID, UpdateUser=@UserID, UpdateDate=GETDATE()
