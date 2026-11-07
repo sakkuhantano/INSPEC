@@ -53,6 +53,7 @@ namespace INSPEC.Secure
                         throw new Exception("ClientInspectionID is required.");
 
                     string status = TokenString(record, "Status").ToUpperInvariant();
+                    bool isBatchInspection = String.Equals(TokenString(record, "InspectionMode"), "BATCH", StringComparison.OrdinalIgnoreCase);
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
@@ -73,6 +74,16 @@ namespace INSPEC.Secure
                     DataTable itemValues = new DataTable();
                     for (int i = 1; i <= 5; i++)
                         itemValues.Columns.Add("C" + i, typeof(string));
+
+                    DataTable batchPoints = new DataTable();
+                    for (int i = 1; i <= 13; i++)
+                        batchPoints.Columns.Add("C" + i, typeof(string));
+                    DataTable batchItems = new DataTable();
+                    for (int i = 1; i <= 13; i++)
+                        batchItems.Columns.Add("C" + i, typeof(string));
+                    DataTable batchItemValues = new DataTable();
+                    for (int i = 1; i <= 5; i++)
+                        batchItemValues.Columns.Add("C" + i, typeof(string));
 
                     JArray itemArray = record["Items"] as JArray ?? new JArray();
                     int displayOrder = 0;
@@ -104,12 +115,73 @@ namespace INSPEC.Secure
                         }
                     }
 
+                    if (isBatchInspection)
+                    {
+                        JArray pointArray = record["Points"] as JArray ?? new JArray();
+                        if (pointArray.Count == 0)
+                            throw new Exception("BATCH inspection must contain at least one Inspection Point.");
+
+                        var clientPointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        var masterPointIDs = new HashSet<long>();
+                        var pointPhotoSeqs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                        foreach (JObject point in pointArray.OfType<JObject>())
+                        {
+                            string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
+                            long masterPointID = TokenInt(point, "InspectionPointID");
+                            string pointStatus = TokenString(point, "Status").ToUpperInvariant();
+                            if (String.IsNullOrWhiteSpace(clientPointID) || masterPointID <= 0 ||
+                                !clientPointIDs.Add(clientPointID) || !masterPointIDs.Add(masterPointID))
+                                throw new Exception("BATCH Inspection Point identity is invalid or duplicated.");
+                            if (pointStatus != "DONE" && pointStatus != "ABNORMAL")
+                                throw new Exception("Every selected BATCH Inspection Point must be DONE or ABNORMAL.");
+
+                            DataRow pointRow = batchPoints.NewRow();
+                            pointRow["C1"] = clientPointID;
+                            pointRow["C2"] = masterPointID.ToString(CultureInfo.InvariantCulture);
+                            pointRow["C3"] = TokenString(point, "InspectionDateTime");
+                            pointRow["C4"] = pointStatus;
+                            batchPoints.Rows.Add(pointRow);
+
+                            JArray pointItems = point["Items"] as JArray ?? new JArray();
+                            foreach (JObject item in pointItems.OfType<JObject>())
+                            {
+                                DataRow itemRow = batchItems.NewRow();
+                                itemRow["C1"] = clientPointID;
+                                itemRow["C2"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                                itemRow["C3"] = Limit(TokenString(item, "ItemLabel"), 500);
+                                itemRow["C4"] = Limit(TokenString(item, "Type"), 20);
+                                itemRow["C5"] = DbString(Limit(TokenString(item, "Value"), 50));
+                                itemRow["C6"] = DbString(Limit((TokenString(item, "Remark1") == "" ? TokenString(item, "Remark") : TokenString(item, "Remark1")), 500));
+                                itemRow["C7"] = TokenBool(item, "IsAnomali") ? "1" : "0";
+                                itemRow["C8"] = (item["DisplayOrder"] == null ? batchItems.Rows.Count + 1 : TokenInt(item, "DisplayOrder")).ToString(CultureInfo.InvariantCulture);
+                                itemRow["C9"] = DbString(Limit(TokenString(item, "Remark2"), 500));
+                                batchItems.Rows.Add(itemRow);
+
+                                JObject values = item["Values"] as JObject;
+                                if (values != null)
+                                {
+                                    foreach (JProperty field in values.Properties())
+                                    {
+                                        DataRow valueRow = batchItemValues.NewRow();
+                                        valueRow["C1"] = clientPointID;
+                                        valueRow["C2"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                                        valueRow["C3"] = Limit(field.Name, 100);
+                                        valueRow["C4"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
+                                        batchItemValues.Rows.Add(valueRow);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     if (status != "DONE")
                         throw new Exception("Invalid inspection status.");
 
                         syncStage = "parse inspection photos";
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
                         var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
+                        var incomingBatchPhotos = new List<Tuple<string, string, int, string, byte[]>>();
                         var usedSeqNos = new HashSet<int>();
                         foreach (JObject photo in photoArray.OfType<JObject>())
                         {
@@ -137,6 +209,40 @@ namespace INSPEC.Secure
                             if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
                                 throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
                             incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
+                        }
+
+                        if (isBatchInspection)
+                        {
+                            JArray pointArray = record["Points"] as JArray ?? new JArray();
+                            foreach (JObject point in pointArray.OfType<JObject>())
+                            {
+                                string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
+                                JArray pointPhotos = point["Photos"] as JArray ?? new JArray();
+                                foreach (JObject photo in pointPhotos.OfType<JObject>())
+                                {
+                                    string type = TokenString(photo, "Type").ToUpperInvariant();
+                                    if (type != "BEFORE" && type != "AFTER")
+                                        throw new Exception("Invalid BATCH inspection photo type.");
+                                    int seqNo = TokenInt(photo, "SeqNo");
+                                    string sequenceKey = clientPointID + "|" + seqNo.ToString(CultureInfo.InvariantCulture);
+                                    if (seqNo <= 0 || !pointPhotoSeqs.Add(sequenceKey))
+                                        throw new Exception("BATCH photo SeqNo must be unique within each Inspection Point.");
+                                    string dataUrl = TokenString(photo, "Data");
+                                    int comma = dataUrl.IndexOf(',');
+                                    if (comma < 0) throw new Exception("BATCH inspection photo data is invalid.");
+                                    string header = dataUrl.Substring(0, comma).ToLowerInvariant();
+                                    string extension;
+                                    if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
+                                    else if (header.StartsWith("data:image/png;")) extension = "png";
+                                    else if (header.StartsWith("data:image/webp;")) extension = "webp";
+                                    else if (header.StartsWith("data:image/gif;")) extension = "gif";
+                                    else throw new Exception("Unsupported BATCH inspection photo format.");
+                                    byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
+                                    if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
+                                        throw new Exception("Each BATCH inspection photo must be between 1 byte and 1 MB.");
+                                    incomingBatchPhotos.Add(Tuple.Create(clientPointID, type, seqNo, extension, bytes));
+                                }
+                            }
                         }
 
                     string companyId = Limit(TokenString(record, "CompanyID"), 10);
