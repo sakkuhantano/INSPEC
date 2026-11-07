@@ -7,8 +7,46 @@
             window.bootstrap.Tab.getOrCreateInstance(tab).show();
         }
     }
+    function renderInspectionPdf() {
+        var canvas = document.getElementById('inspectionPdfCanvas');
+        if (!canvas || !canvas.getAttribute('data-pdf-url')) return;
+        var board = document.getElementById('inspectionCoordinateBoard');
+        var status = document.getElementById('inspectionPdfStatus');
+        if (!window.pdfjsLib) {
+            if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa file JSCus/pdf.min.js.';
+            return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
+        var loadingTask = window.pdfjsLib.getDocument({ url: canvas.getAttribute('data-pdf-url') });
+        loadingTask.promise.then(function (pdf) {
+            return pdf.getPage(1);
+        }).then(function (page) {
+            var baseViewport = page.getViewport({ scale: 1 });
+            var width = board.clientWidth;
+            if (!width) throw new Error('Area denah belum terlihat.');
+            var scale = width / baseViewport.width;
+            var viewport = page.getViewport({ scale: scale });
+            board.style.aspectRatio = baseViewport.width + ' / ' + baseViewport.height;
+            canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
+            canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            var context = canvas.getContext('2d');
+            context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+            return page.render({ canvasContext: context, viewport: viewport }).promise;
+        }).then(function () {
+            if (status) status.style.display = 'none';
+        }).catch(function (error) {
+            if (status) {
+                status.style.display = 'flex';
+                status.textContent = 'Gagal memuat PDF: ' + (error && error.message ? error.message : error);
+            }
+            if (window.console && console.error) console.error('Inspection PDF render error:', error);
+        });
+    }
     document.addEventListener('DOMContentLoaded', function () {
         restoreTab();
+        window.requestAnimationFrame(renderInspectionPdf);
         var board = document.getElementById('inspectionCoordinateBoard');
         var markerX = document.getElementById('txtMarkerX');
         var markerY = document.getElementById('txtMarkerY');
