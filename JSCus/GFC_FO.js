@@ -762,6 +762,48 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
+        // Pre-cache BATCH map metadata, master points, and PDF bytes with the scoped Inspection Type.
+        // This keeps new batch inspections usable offline after the global Sync completes.
+        const batchTypes = (masters.types || []).filter(type =>
+            String(type.InspectionMode || "STANDARD").toUpperCase() === "BATCH");
+        for (const type of batchTypes) {
+            type.BatchMapSetups = type.BatchMapSetups || {};
+            const typeDetails = details.filter(detail =>
+                String(detail.InspectionTypeCode || "") === String(type.InspectionTypeCode || ""));
+            for (const detail of typeDetails) {
+                try {
+                    const mapResponse = await fetch("inspection.aspx/GetBatchInspectionMap", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json; charset=utf-8" },
+                        body: JSON.stringify({
+                            inspectionTypeCode: type.InspectionTypeCode,
+                            inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+                            employeeId: login.employeeid || "",
+                            companyId: companyLocation[0] || "",
+                            locationId: companyLocation[1] || ""
+                        })
+                    });
+                    const mapPayload = await mapResponse.json();
+                    if (!mapResponse.ok) throw new Error((mapPayload && mapPayload.Message) || "Map lookup failed");
+                    const mapSetup = mapPayload && Object.prototype.hasOwnProperty.call(mapPayload, "d") ? mapPayload.d : mapPayload;
+                    if (!mapSetup || mapSetup.success !== true) continue;
+                    for (const map of (mapSetup.maps || [])) {
+                        if (!map.MapUrl) continue;
+                        try {
+                            const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
+                            if (pdfResponse.ok) map.PdfBlob = await pdfResponse.blob();
+                        } catch (pdfError) {
+                            console.warn("Inspection PDF could not be cached:", map.MapCode, pdfError);
+                        }
+                    }
+                    type.BatchMapSetups[String(detail.InspectionTypeDetailCode).toUpperCase()] = mapSetup;
+                } catch (mapError) {
+                    console.warn("BATCH Inspection map cache failed:", type.InspectionTypeCode,
+                        detail.InspectionTypeDetailCode, mapError);
+                }
+            }
+        }
+
         // Reconcile only the logged-in company/location and sections.
         // Offline inspection records and photos are deliberately untouched.
         const reconcileScopedInspectionTypes = (rows) => new Promise((resolve, reject) => {
