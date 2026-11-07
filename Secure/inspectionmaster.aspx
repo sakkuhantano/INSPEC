@@ -2,6 +2,7 @@
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <link href="../CSSCus/inspectionmaster.css" rel="stylesheet" />
+    <script src="../JSCus/pdf.min.js"></script>
     <script src="../JSCus/inspectionmaster.js"></script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
