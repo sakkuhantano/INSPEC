@@ -387,7 +387,12 @@
         wired = true;
 
         var mapTab = document.getElementById("btnInspectionMapTab");
-        if (mapTab) mapTab.addEventListener("click", function () {
+        if (mapTab) mapTab.addEventListener("click", async function () {
+            if (currentMapRecord && Number(currentMapRecord.ActiveInspectionPointID || 0) > 0 &&
+                typeof window.saveBatchInspectionPoint === "function") {
+                await window.saveBatchInspectionPoint("DRAFT");
+                return;
+            }
             if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord, true);
         });
 
