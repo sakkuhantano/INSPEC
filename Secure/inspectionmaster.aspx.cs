@@ -434,6 +434,9 @@ ORDER BY DisplayOrder, PointCode",
         protected void btnNewMap_Click(object sender, EventArgs e)
         {
             PrepareMap();
+            PreparePoint();
+            BindEditorMaps();
+            BindPoints();
             SetTab("#tab-map");
         }
 
@@ -683,6 +686,9 @@ VALUES
                 BindMaps();
                 BindPointLookups();
                 BindEditorMaps();
+                PointPageIndex = 0;
+                txtPointSearch.Text = "";
+                BindPoints();
                 DataTable current = GetMap(Convert.ToInt64(hidMapID.Value));
                 if (current.Rows.Count > 0) ShowMapPreview(current.Rows[0]);
                 lblMapVersion.Text = "Map tersimpan. PDF dan versi map sudah tercatat.";
@@ -855,6 +861,8 @@ ORDER BY M.MapVersion DESC",
                 ShowMapPreview(row);
             }
             PreparePoint();
+            txtPointSearch.Text = "";
+            PointPageIndex = 0;
             BindEditorMaps();
             BindPoints();
             ShowMessage("Map " + txtMapCode.Text + " berhasil dibuka.", false);
