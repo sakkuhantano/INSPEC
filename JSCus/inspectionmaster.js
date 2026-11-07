@@ -50,10 +50,14 @@
     document.addEventListener('DOMContentLoaded', function () {
         restoreTab();
         window.requestAnimationFrame(renderInspectionPdf);
+        var pointModal = document.getElementById('pnlPointEditor');
+        if (pointModal) pointModal.addEventListener('shown.bs.modal', function () { window.requestAnimationFrame(renderInspectionPdf); });
         var board = document.getElementById('inspectionCoordinateBoard');
         var content = document.getElementById('inspectionCoordinateContent');
         var markerX = document.getElementById('txtMarkerX');
         var markerY = document.getElementById('txtMarkerY');
+        var swapTarget = document.getElementById('hidSwapPointID');
+        var swapLabel = document.getElementById('lblSwapTarget');
         if (board && content && markerX && markerY) {
             var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
             var zoomLabel = document.getElementById('lblMapZoom');
@@ -103,12 +107,25 @@
             });
             board.addEventListener('pointerup', function () { dragging = false; });
             board.addEventListener('pointercancel', function () { dragging = false; });
+            content.addEventListener('click', function (event) {
+                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker') : null;
+                if (marker) {
+                    event.preventDefault(); event.stopPropagation();
+                    var activeId = document.getElementById('hidPointID');
+                    if (activeId && marker.getAttribute('data-point-id') !== activeId.value) {
+                        if (swapTarget) swapTarget.value = marker.getAttribute('data-point-id');
+                        if (swapLabel) swapLabel.textContent = 'Swap target: ' + marker.getAttribute('title');
+                    }
+                }
+            });
             board.addEventListener('click', function (event) {
                 if (moved) { moved = false; return; }
                 var rect = board.getBoundingClientRect();
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left - panX) / (rect.width * zoom)) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top - panY) / (rect.height * zoom)) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
+                if (swapTarget) swapTarget.value = '';
+                if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
                 var preview = document.getElementById('inspectionCoordinatePreview');
                 if (!preview) {
                     preview = document.createElement('span');
