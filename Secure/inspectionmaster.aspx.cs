@@ -75,8 +75,8 @@ namespace INSPEC.Secure
             Master.TB_VisibleButton(ToolbarItem_2.New, true);
             Master.TB_VisibleButton(ToolbarItem_2.Save, true);
             Master.TB_VisibleButton(ToolbarItem_2.Delete, false);
-            Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
-            Master.TB_VisibleButton(ToolbarItem_2.Next, true);
+            Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Next, false);
             Master.TB_IsConfirmMessage(ToolbarItem_2.Delete, false);
         }
 
@@ -499,6 +499,10 @@ ORDER BY DisplayOrder, PointCode",
             BindInspectionDetails();
             if (ddlPointMap.Items.Count > 0) ddlPointMap.SelectedIndex = 0;
             if (!String.IsNullOrWhiteSpace(hidMapID.Value)) BindEditorMaps();
+            txtMarkerX.Text = "";
+            txtMarkerY.Text = "";
+            hidSwapPointID.Value = "";
+            pnlEditor.Visible = false;
             pnlPointEditor.Visible = false;
         }
 
@@ -560,6 +564,8 @@ ORDER BY DisplayOrder, PointCode",
                 {
                     hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
                     txtMapCode.Text = Convert.ToString(row["MapCode"]);
+                Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+                Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                     txtMapName.Text = Convert.ToString(row["MapName"]);
                     txtMapDescription.Text = Convert.ToString(row["Description"]);
                     lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
@@ -931,6 +937,8 @@ ORDER BY M.MapVersion DESC",
                 if (dt.Rows.Count == 0)
                 {
                     hidMapID.Value = "";
+                    Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
+                    Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
                     pnlMapEditorSection.Visible = false;
                     pnlEditor.Visible = false;
@@ -1074,6 +1082,12 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 txtPointDescription.Text = Convert.ToString(row["PointDescription"]);
                 txtPointOrder.Text = Convert.ToString(row["DisplayOrder"]);
                 chkPointActive.Checked = Convert.ToBoolean(row["IsActive"]);
+                txtMarkerX.Text = row["MapX"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
+                txtMarkerY.Text = row["MapY"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
+                BindEditorMaps();
+                LoadEditorMapPdf();
+                BindMapElements();
+                pnlEditor.Visible = true;
             }
             SetTab("#tab-point");
         }
@@ -1168,7 +1182,7 @@ UPDATE dbo.PIP_M_InspectionPoint
 SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
-    ObjectReferenceCode=@ReferenceCode, MapID=@MapID, DisplayOrder=@DisplayOrder,
+    ObjectReferenceCode=@ReferenceCode, MapID=@MapID, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
     IsActive=@IsActive, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
                             PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
@@ -1180,17 +1194,18 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
 INSERT INTO dbo.PIP_M_InspectionPoint
 (InspectionPointID,CompanyID,LocationID,InspectionTypeCode,InspectionTypeDetailCode,
  PointCode,PointName,PointObjectType,PointDescription,ObjectReferenceType,ObjectReferenceID,
- ObjectReferenceCode,MapID,DisplayOrder,IsActive,EntryUser,UpdateUser)
+ ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,IsActive,EntryUser,UpdateUser)
 VALUES
 (@PointID,@CompanyID,@LocationID,@TypeCode,@DetailCode,@PointCode,@PointName,@ObjectType,
- @Description,@ObjectType,'',@ReferenceCode,@MapID,@DisplayOrder,@IsActive,@UserID,@UserID)",
+ @Description,@ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,@IsActive,@UserID,@UserID)",
                             PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
                 pnlPointEditor.Visible = false;
                 BindPoints();
-                BindEditorPoints();
+                BindMapElements();
+                pnlEditor.Visible = true;
                 ShowMessage("Inspection Point berhasil disimpan.", false);
             }
             catch (Exception ex)
@@ -1215,6 +1230,8 @@ VALUES
                 new SqlParameter("@Description", txtPointDescription.Text.Trim()),
                 new SqlParameter("@ReferenceCode", txtObjectReferenceCode.Text.Trim()),
                 new SqlParameter("@MapID", mapValue),
+                new SqlParameter("@MapX", String.IsNullOrWhiteSpace(txtMarkerX.Text) ? (object)DBNull.Value : Convert.ToDecimal(txtMarkerX.Text, CultureInfo.InvariantCulture)),
+                new SqlParameter("@MapY", String.IsNullOrWhiteSpace(txtMarkerY.Text) ? (object)DBNull.Value : Convert.ToDecimal(txtMarkerY.Text, CultureInfo.InvariantCulture)),
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsActive", chkPointActive.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
