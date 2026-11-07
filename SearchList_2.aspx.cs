@@ -537,6 +537,7 @@ AND (EXISTS (SELECT 1 FROM dbo.syswebuserusergroup U
             INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
             INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
             WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+" + (Condition.Trim() == "" ? "" : " AND (" + Condition.Trim() + ")") + @"
 ORDER BY M.MapCode",
                                     new System.Data.SqlClient.SqlParameter[] {
                                         new System.Data.SqlClient.SqlParameter("@CompanyID", Request.QueryString["0"] ?? ""),
