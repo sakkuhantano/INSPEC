@@ -113,8 +113,13 @@
                     event.preventDefault(); event.stopPropagation();
                     var activeId = document.getElementById('hidPointID');
                     if (activeId && marker.getAttribute('data-point-id') !== activeId.value) {
-                        if (swapTarget) swapTarget.value = marker.getAttribute('data-point-id');
-                        if (swapLabel) swapLabel.textContent = 'Swap target: ' + marker.getAttribute('title');
+                        if (marker.getAttribute('data-can-swap') === '1') {
+                            if (swapTarget) swapTarget.value = marker.getAttribute('data-point-id');
+                            if (swapLabel) swapLabel.textContent = 'Swap target: ' + marker.getAttribute('title');
+                        } else {
+                            if (swapTarget) swapTarget.value = '';
+                            if (swapLabel) swapLabel.textContent = 'Point lain berada di Profit Center berbeda; swap tidak tersedia.';
+                        }
                     }
                 }
             });
