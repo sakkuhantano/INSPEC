@@ -4,44 +4,74 @@
     var wired = false;
     var selectedPoint = null;
     var currentMapRecord = null;
-
-    var demoPoints = [
-        { id:"P-01", name:"Main Entrance", type:"GENERAL", x:10, y:18, status:"done", description:"Area entrance / lobby." },
-        { id:"P-02", name:"Lobby Lamp A", type:"LIGHTING", x:28, y:27, status:"pending", description:"Fixed inspection point." },
-        { id:"P-03", name:"Lobby Lamp B", type:"LIGHTING", x:37, y:16, status:"abnormal", description:"Abnormality found on previous visit." },
-        { id:"P-04", name:"Parking Bay A01", type:"CAR PARK", x:57, y:18, status:"pending", description:"Parking bay A01." },
-        { id:"P-05", name:"Parking Bay A02", type:"CAR PARK", x:73, y:29, status:"done", description:"Parking bay A02." },
-        { id:"P-06", name:"Parking Bay A03", type:"CAR PARK", x:88, y:16, status:"pending", description:"Parking bay A03." },
-        { id:"P-07", name:"Transformer TR-01", type:"TRANSFORMER", x:19, y:58, status:"done", description:"Transformer inspection point." },
-        { id:"P-08", name:"Panel EP-01", type:"ELECTRICAL", x:31, y:78, status:"pending", description:"Electrical panel inspection point." },
-        { id:"P-09", name:"Genset GS-01", type:"GENSET", x:57, y:69, status:"abnormal", description:"Generator set inspection point." },
-        { id:"P-10", name:"Pump P-01", type:"MECHANICAL", x:76, y:62, status:"pending", description:"Mechanical equipment point." },
-        { id:"P-11", name:"Fire Extinguisher FE-01", type:"FIRE", x:88, y:78, status:"done", description:"Fire safety point." },
-        { id:"P-12", name:"Service Door", type:"GENERAL", x:58, y:86, status:"pending", description:"Service area access point." }
-    ];
+    var currentMaps = [];
+    var currentPoints = [];
+    var currentMapId = "";
+    var currentPdfDocument = null;
+    var listPage = 1;
+    var listPageSize = 20;
+    var listKeyword = "";
 
     function esc(value) {
         return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
-            return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", """:"&quot;", "'":"&#39;" })[c];
+            return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" })[c];
         });
     }
 
-    function statusLabel(status) {
-        return status === "done" ? "DONE" : status === "abnormal" ? "ABNORMAL" : "PENDING";
+    function normalizedStatus(status) {
+        status = String(status || "PENDING").toUpperCase();
+        if (status === "DONE" || status === "INSPECTED") return "DONE";
+        if (status === "ABNORMAL") return "ABNORMAL";
+        if (status === "INCOMPLETE") return "INCOMPLETE";
+        return "PENDING";
     }
 
     function pointClass(status) {
-        return status === "done" || status === "abnormal" ? status : "pending";
+        return normalizedStatus(status).toLowerCase();
+    }
+
+    function statusLabel(status) {
+        var value = normalizedStatus(status);
+        return value === "DONE" ? "DONE" : value === "ABNORMAL" ? "ABNORMAL" :
+            value === "INCOMPLETE" ? "INCOMPLETE" : "PENDING";
+    }
+
+    function getPointTransaction(point) {
+        if (!currentMapRecord || !Array.isArray(currentMapRecord.Points)) return null;
+        return currentMapRecord.Points.find(function (item) {
+            return Number(item.InspectionPointID) === Number(point.InspectionPointID);
+        }) || null;
+    }
+
+    function getPointStatus(point) {
+        var transaction = getPointTransaction(point);
+        return normalizedStatus(transaction && transaction.Status);
+    }
+
+    function getVisiblePoints() {
+        var mapId = Number(currentMapId || 0);
+        return currentPoints.filter(function (point) {
+            return !mapId || Number(point.MapID || 0) === mapId;
+        });
     }
 
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
-        host.innerHTML = demoPoints.map(function (p) {
-            return '<button type="button" class="inspection-map-point ' + pointClass(p.status) + '" ' +
-                'style="left:' + p.x + '%;top:' + p.y + '%" data-point-id="' + esc(p.id) + '" aria-label="' + esc(p.id + " " + p.name) + '">' +
-                '<span class="inspection-map-point-dot">' + esc(p.id.replace("P-","")) + '</span>' +
-                '<span class="inspection-map-point-label">' + esc(p.id) + '</span></button>';
+        var points = getVisiblePoints().filter(function (point) {
+            return point.MapX !== null && point.MapX !== undefined &&
+                point.MapY !== null && point.MapY !== undefined;
+        });
+        host.innerHTML = points.map(function (point) {
+            var status = getPointStatus(point);
+            var code = String(point.PointCode || "");
+            return '<button type="button" class="inspection-map-point ' + pointClass(status) + '" ' +
+                'style="left:' + Number(point.MapX) + '%;top:' + Number(point.MapY) + '%" ' +
+                'data-point-id="' + esc(point.InspectionPointID) + '" aria-label="' +
+                esc(code + " " + (point.PointName || "")) + '" title="' +
+                esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status)) + '">' +
+                '<span class="inspection-map-point-dot"></span>' +
+                '<span class="inspection-map-point-label">' + esc(code) + '</span></button>';
         }).join("");
 
         host.querySelectorAll(".inspection-map-point").forEach(function (button) {
@@ -54,52 +84,123 @@
     function renderList() {
         var host = document.getElementById("inspectionPointList");
         if (!host) return;
-        host.innerHTML = demoPoints.map(function (p) {
-            return '<div class="inspection-point-list-row" data-point-id="' + esc(p.id) + '">' +
-                '<span class="inspection-map-point-dot ' + pointClass(p.status) + '"></span>' +
-                '<div class="point-main"><div class="point-code">' + esc(p.id) + ' · ' + esc(p.type) + '</div>' +
-                '<div class="point-name">' + esc(p.name) + '</div></div>' +
-                '<span class="badge ' + (p.status === "abnormal" ? "text-bg-danger" : p.status === "done" ? "text-bg-success" : "text-bg-secondary") + '">' + statusLabel(p.status) + '</span>' +
-                '<i class="bi bi-chevron-right text-muted"></i></div>';
-        }).join("");
-        host.querySelectorAll(".inspection-point-list-row").forEach(function (row) {
-            row.addEventListener("click", function () { openPoint(row.getAttribute("data-point-id")); });
+
+        var all = getVisiblePoints();
+        var keyword = String(listKeyword || "").trim().toLowerCase();
+        var filtered = all.filter(function (point) {
+            return !keyword ||
+                String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
+                String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0 ||
+                String(point.PointObjectType || "").toLowerCase().indexOf(keyword) >= 0;
         });
+        var pageCount = Math.max(1, Math.ceil(filtered.length / listPageSize));
+        listPage = Math.min(Math.max(1, listPage), pageCount);
+        var start = (listPage - 1) * listPageSize;
+        var rows = filtered.slice(start, start + listPageSize);
+
+        host.innerHTML =
+            '<div class="inspection-point-list-tools">' +
+                '<div class="d-flex gap-2 align-items-center mb-2">' +
+                    '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
+                    'placeholder="Cari Point Code / Name..." value="' + esc(listKeyword) + '">' +
+                    '<select id="inspectionPointPageSize" class="form-select form-select-sm" style="width:82px">' +
+                        '<option value="10"' + (listPageSize === 10 ? ' selected' : '') + '>10</option>' +
+                        '<option value="20"' + (listPageSize === 20 ? ' selected' : '') + '>20</option>' +
+                        '<option value="50"' + (listPageSize === 50 ? ' selected' : '') + '>50</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div class="d-flex align-items-center justify-content-between small text-muted">' +
+                    '<span>' + (filtered.length ? (start + 1) + '-' + Math.min(start + listPageSize, filtered.length) : 0) +
+                    ' dari ' + filtered.length + ' point</span>' +
+                    '<div class="btn-group btn-group-sm">' +
+                        '<button type="button" class="btn btn-outline-secondary" id="inspectionPointPrev" ' + (listPage <= 1 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>' +
+                        '<span class="btn btn-outline-secondary disabled">' + listPage + ' / ' + pageCount + '</span>' +
+                        '<button type="button" class="btn btn-outline-secondary" id="inspectionPointNext" ' + (listPage >= pageCount ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            (rows.length ? rows.map(function (point) {
+                var status = getPointStatus(point);
+                return '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
+                    esc(point.InspectionPointID) + '">' +
+                    '<span class="inspection-map-point-dot ' + pointClass(status) + '"></span>' +
+                    '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) +
+                    ' · ' + esc(point.PointObjectType || "GENERAL") + '</span>' +
+                    '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
+                    '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
+                    status === "ABNORMAL" ? "text-bg-danger" :
+                    status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
+                    statusLabel(status) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
+            }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
+
+        host.querySelectorAll("[data-point-id]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                openPoint(button.getAttribute("data-point-id"));
+            });
+        });
+        var search = document.getElementById("inspectionPointSearch");
+        if (search) search.addEventListener("input", function () {
+            listKeyword = this.value;
+            listPage = 1;
+            renderList();
+            var next = document.getElementById("inspectionPointSearch");
+            if (next) { next.focus(); next.setSelectionRange(listKeyword.length, listKeyword.length); }
+        });
+        var size = document.getElementById("inspectionPointPageSize");
+        if (size) size.addEventListener("change", function () {
+            listPageSize = Number(this.value) || 20;
+            listPage = 1;
+            renderList();
+        });
+        var prev = document.getElementById("inspectionPointPrev");
+        var next = document.getElementById("inspectionPointNext");
+        if (prev) prev.addEventListener("click", function () { listPage--; renderList(); });
+        if (next) next.addEventListener("click", function () { listPage++; renderList(); });
     }
 
     function updateSummary() {
-        var total = demoPoints.length;
-        var done = demoPoints.filter(function (p) { return p.status === "done"; }).length;
-        var abnormal = demoPoints.filter(function (p) { return p.status === "abnormal"; }).length;
-        var pending = total - done - abnormal;
-        var set = function (id, value) { var el = document.getElementById(id); if (el) el.textContent = String(value); };
-        set("inspectionMapTotalCount", total);
+        var points = getVisiblePoints();
+        var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
+        var abnormal = points.filter(function (p) { return getPointStatus(p) === "ABNORMAL"; }).length;
+        var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
+        var pending = points.length - done - abnormal - incomplete;
+        var set = function (id, value) {
+            var element = document.getElementById(id);
+            if (element) element.textContent = String(value);
+        };
+        set("inspectionMapTotalCount", points.length);
         set("inspectionMapDoneCount", done);
         set("inspectionMapAbnormalCount", abnormal);
-        set("inspectionMapPendingCount", pending);
+        set("inspectionMapPendingCount", pending + incomplete);
     }
 
     function openPoint(id) {
-        selectedPoint = demoPoints.find(function (p) { return p.id === id; }) || null;
+        selectedPoint = currentPoints.find(function (point) {
+            return String(point.InspectionPointID) === String(id);
+        }) || null;
         if (!selectedPoint) return;
 
-        document.querySelectorAll(".inspection-map-point").forEach(function (el) {
-            el.classList.toggle("selected", el.getAttribute("data-point-id") === id);
+        document.querySelectorAll(".inspection-map-point").forEach(function (element) {
+            element.classList.toggle("selected", element.getAttribute("data-point-id") === String(id));
         });
 
+        var statusValue = getPointStatus(selectedPoint);
         var code = document.getElementById("inspectionMapPointCode");
         var name = document.getElementById("inspectionMapPointName");
         var meta = document.getElementById("inspectionMapPointMeta");
         var status = document.getElementById("inspectionMapPointStatus");
         var desc = document.getElementById("inspectionMapPointDescription");
-        if (code) code.textContent = selectedPoint.id;
-        if (name) name.textContent = selectedPoint.name;
-        if (meta) meta.textContent = selectedPoint.type + " · Location Map";
+        if (code) code.textContent = selectedPoint.PointCode || "";
+        if (name) name.textContent = selectedPoint.PointName || "";
+        if (meta) meta.textContent = (selectedPoint.PointObjectType || "GENERAL") +
+            (selectedPoint.MapCode ? " · " + selectedPoint.MapCode : " · Tanpa denah");
         if (status) {
-            status.className = "inspection-map-point-status mt-3 " + (selectedPoint.status === "abnormal" ? "text-danger" : selectedPoint.status === "done" ? "text-success" : "text-warning");
-            status.innerHTML = '<i class="bi ' + (selectedPoint.status === "done" ? "bi-check-circle-fill" : selectedPoint.status === "abnormal" ? "bi-exclamation-triangle-fill" : "bi-clock-fill") + ' me-1"></i>' + statusLabel(selectedPoint.status);
+            status.className = "inspection-map-point-status mt-3 " +
+                (statusValue === "ABNORMAL" ? "text-danger" : statusValue === "DONE" ? "text-success" :
+                statusValue === "INCOMPLETE" ? "text-warning" : "text-secondary");
+            status.textContent = statusLabel(statusValue);
         }
-        if (desc) desc.textContent = selectedPoint.description;
+        if (desc) desc.textContent = selectedPoint.PointDescription || selectedPoint.ObjectReferenceCode || "";
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.remove("d-none");
     }
@@ -108,41 +209,153 @@
         selectedPoint = null;
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
-        document.querySelectorAll(".inspection-map-point.selected").forEach(function (el) { el.classList.remove("selected"); });
+        document.querySelectorAll(".inspection-map-point.selected").forEach(function (element) {
+            element.classList.remove("selected");
+        });
     }
 
     function switchMapList(showList) {
         var canvas = document.getElementById("inspectionMapCanvas");
         var list = document.getElementById("inspectionPointList");
-        var mapBtn = document.getElementById("btnInspectionMapView");
-        var listBtn = document.getElementById("btnInspectionPointListView");
+        var mapButton = document.getElementById("btnInspectionMapView");
+        var listButton = document.getElementById("btnInspectionPointListView");
         if (!canvas || !list) return;
-        canvas.classList.toggle("d-none", showList);
-        list.classList.toggle("d-none", !showList);
-        if (mapBtn) { mapBtn.classList.toggle("btn-primary", !showList); mapBtn.classList.toggle("btn-outline-primary", showList); }
-        if (listBtn) { listBtn.classList.toggle("btn-primary", showList); listBtn.classList.toggle("btn-outline-primary", !showList); }
+        var hasMap = currentMaps.some(function (map) {
+            return Number(map.MapID) === Number(currentMapId) && !!map.MapUrl;
+        });
+        canvas.classList.toggle("d-none", showList || !hasMap);
+        list.classList.toggle("d-none", !showList && hasMap);
+        if (mapButton) {
+            mapButton.classList.toggle("btn-primary", !showList && hasMap);
+            mapButton.classList.toggle("btn-outline-primary", showList || !hasMap);
+            mapButton.disabled = !hasMap;
+        }
+        if (listButton) {
+            listButton.classList.toggle("btn-primary", showList || !hasMap);
+            listButton.classList.toggle("btn-outline-primary", !showList && hasMap);
+        }
+    }
+
+    async function renderPdf(map) {
+        var message = document.getElementById("inspectionMapPdfMessage");
+        var canvas = document.getElementById("inspectionMapPdfCanvas");
+        var stage = document.getElementById("inspectionMapPdfStage");
+        if (!canvas || !stage) return;
+
+        if (currentPdfDocument && currentPdfDocument.destroy) {
+            try { await currentPdfDocument.destroy(); } catch (_) { }
+            currentPdfDocument = null;
+        }
+        var context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        canvas.width = 0;
+        canvas.height = 0;
+
+        if (!map || !map.MapUrl) {
+            if (message) {
+                message.textContent = "Denah PDF belum tersedia. Gunakan tampilan List untuk memilih Inspection Point.";
+                message.classList.remove("d-none");
+            }
+            stage.style.width = "100%";
+            stage.style.minHeight = "260px";
+            return;
+        }
+        if (!window.pdfjsLib) {
+            if (message) {
+                message.textContent = "PDF.js belum termuat. Periksa file pdf.min.js.";
+                message.classList.remove("d-none");
+            }
+            return;
+        }
+
+        try {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "../JSCus/pdf.worker.min.js";
+            if (message) {
+                message.textContent = "Memuat denah PDF...";
+                message.classList.remove("d-none");
+            }
+            currentPdfDocument = await window.pdfjsLib.getDocument({
+                url: map.MapUrl,
+                withCredentials: true
+            }).promise;
+            var page = await currentPdfDocument.getPage(1);
+            var baseViewport = page.getViewport({ scale: 1 });
+            var availableWidth = Math.max(300, Math.min(1200, document.getElementById("inspectionMapCanvas").clientWidth - 28));
+            var scale = availableWidth / baseViewport.width;
+            var pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+            var viewport = page.getViewport({ scale: scale * pixelRatio });
+            canvas.width = Math.floor(viewport.width);
+            canvas.height = Math.floor(viewport.height);
+            canvas.style.width = Math.floor(viewport.width / pixelRatio) + "px";
+            canvas.style.height = Math.floor(viewport.height / pixelRatio) + "px";
+            stage.style.width = canvas.style.width;
+            stage.style.minHeight = "0";
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            if (message) message.classList.add("d-none");
+            renderPoints();
+        } catch (error) {
+            console.error("Inspection PDF render failed:", error);
+            if (message) {
+                message.textContent = "Denah PDF gagal dimuat: " + (error && error.message ? error.message : "periksa akses file PDF.");
+                message.classList.remove("d-none");
+            }
+        }
+    }
+
+    function renderMapOptions() {
+        var wrap = document.getElementById("inspectionMapSelectWrap");
+        var select = document.getElementById("inspectionMapSelect");
+        if (!select || !wrap) return;
+        var maps = currentMaps.filter(function (map) { return !!map.MapUrl; });
+        wrap.classList.toggle("d-none", maps.length <= 1);
+        select.innerHTML = maps.map(function (map) {
+            return '<option value="' + esc(map.MapID) + '">' + esc(map.MapCode + " - " + map.MapName + " (v" + map.MapVersion + ")") + '</option>';
+        }).join("");
+        if (maps.length) {
+            if (!maps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
+                currentMapId = String(maps[0].MapID);
+            select.value = currentMapId;
+        } else {
+            currentMapId = "";
+            select.innerHTML = '<option value="">Tanpa denah</option>';
+        }
     }
 
     window.showInspectionMapWorkspace = function (record, activate) {
         if (record) currentMapRecord = record;
         record = record || currentMapRecord;
         var workspace = document.getElementById("inspectionMapWorkspace");
-        if (!workspace) return;
-        renderPoints();
-        renderList();
-        updateSummary();
+        if (!workspace || !record) return;
 
-        var typeName = record && record.InspectionTypeName ? record.InspectionTypeName : "Inspection";
-        var detailName = record && record.InspectionTypeDetailName ? record.InspectionTypeDetailName : "";
+        var setup = record.BatchMapSetup || {};
+        currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
+        currentPoints = Array.isArray(setup.points) ? setup.points : [];
+        if (!currentPoints.length && Array.isArray(record.PointMaster)) currentPoints = record.PointMaster;
+        if (!currentMapId && currentMaps.length) currentMapId = String(currentMaps[0].MapID);
+        renderMapOptions();
+
+        var typeName = record.InspectionTypeName || "Inspection";
+        var detailName = record.InspectionTypeDetailName || "";
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = typeName + (detailName ? " · " + detailName : "");
-        if (subtitle) subtitle.textContent = "Tap a point to inspect · " + (record && record.ScheduledTime ? record.ScheduledTime : "No schedule");
+        if (subtitle) subtitle.textContent = "Batch " + (record.InspectionNo || "baru") +
+            " · " + currentPoints.length + " Inspection Point";
+
+        renderList();
+        updateSummary();
+        renderPoints();
+        var selectedMap = currentMaps.find(function (map) {
+            return Number(map.MapID) === Number(currentMapId);
+        }) || null;
+        renderPdf(selectedMap);
 
         if (activate) {
             workspace.classList.remove("d-none");
-            document.getElementById("inspectionParamsPane").classList.add("d-none");
-            document.getElementById("inspectionChecklistPane").classList.add("d-none");
+            var paramPane = document.getElementById("inspectionParamsPane");
+            var checklistPane = document.getElementById("inspectionChecklistPane");
+            if (paramPane) paramPane.classList.add("d-none");
+            if (checklistPane) checklistPane.classList.add("d-none");
             var mapTab = document.getElementById("btnInspectionMapTab");
             var paramTab = document.getElementById("btnInspectionParamTab");
             var checklistTab = document.getElementById("btnInspectionChecklistTab");
@@ -154,63 +367,87 @@
         }
     };
 
+    window.refreshInspectionMapPointStatuses = function () {
+        renderPoints();
+        renderList();
+        updateSummary();
+    };
+
+    window.getSelectedInspectionMapPoint = function () {
+        return selectedPoint;
+    };
+
     window.wireInspectionMapWorkspace = function () {
         if (wired) return;
         wired = true;
+
         var mapTab = document.getElementById("btnInspectionMapTab");
-        if (mapTab) {
-            mapTab.addEventListener("click", function () {
-                if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord || null, true);
-            });
-        }
+        if (mapTab) mapTab.addEventListener("click", function () {
+            if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord, true);
+        });
+
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
-        if (checklistTab) {
-            checklistTab.addEventListener("click", function () {
-                var workspace = document.getElementById("inspectionMapWorkspace");
-                if (workspace) workspace.classList.add("d-none");
-            });
-        }
+        if (checklistTab) checklistTab.addEventListener("click", function () {
+            var workspace = document.getElementById("inspectionMapWorkspace");
+            if (workspace) workspace.classList.add("d-none");
+        });
+
         var paramTab = document.getElementById("btnInspectionParamTab");
-        if (paramTab) {
-            paramTab.addEventListener("click", function () {
-                var workspace = document.getElementById("inspectionMapWorkspace");
-                if (workspace) workspace.classList.add("d-none");
-            });
-        }
+        if (paramTab) paramTab.addEventListener("click", function () {
+            var workspace = document.getElementById("inspectionMapWorkspace");
+            if (workspace) workspace.classList.add("d-none");
+        });
+
         var close = document.getElementById("btnCloseInspectionMapPoint");
         if (close) close.addEventListener("click", closePoint);
         var mapView = document.getElementById("btnInspectionMapView");
         var listView = document.getElementById("btnInspectionPointListView");
         if (mapView) mapView.addEventListener("click", function () { switchMapList(false); });
         if (listView) listView.addEventListener("click", function () { switchMapList(true); closePoint(); });
+
         var reset = document.getElementById("btnInspectionMapReset");
-        if (reset) reset.addEventListener("click", function () { switchMapList(false); closePoint(); });
+        if (reset) reset.addEventListener("click", function () {
+            switchMapList(false);
+            closePoint();
+            var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(currentMapId); });
+            renderPdf(map || null);
+        });
+
+        var mapSelect = document.getElementById("inspectionMapSelect");
+        if (mapSelect) mapSelect.addEventListener("change", function () {
+            currentMapId = this.value;
+            listPage = 1;
+            renderList();
+            updateSummary();
+            var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(currentMapId); });
+            renderPdf(map || null);
+        });
 
         var openChecklist = document.getElementById("btnOpenInspectionPointChecklist");
         if (openChecklist) openChecklist.addEventListener("click", function () {
+            if (!selectedPoint) return;
+            var point = selectedPoint;
             closePoint();
-            var workspace = document.getElementById("inspectionMapWorkspace");
-            if (workspace) workspace.classList.add("d-none");
-            var checklistTab = document.getElementById("btnInspectionChecklistTab");
-            if (checklistTab) checklistTab.click();
-            var host = document.getElementById("inspectionChecklistHost");
-            if (host) window.setTimeout(function () { host.scrollIntoView({ behavior:"smooth", block:"start" }); }, 80);
+            if (typeof window.openBatchInspectionPointChecklist === "function") {
+                window.openBatchInspectionPointChecklist(point);
+            } else {
+                if (typeof showInspectionNotice === "function")
+                    showInspectionNotice("Modul checklist per titik belum siap dibuka.", "warning");
+            }
         });
 
-        var markDone = document.getElementById("btnMarkInspectionPointDone");
-        if (markDone) markDone.addEventListener("click", function () {
-            if (!selectedPoint) return;
-            selectedPoint.status = "done";
-            var target = demoPoints.find(function (p) { return p.id === selectedPoint.id; });
-            if (target) target.status = "done";
-            renderPoints(); renderList(); updateSummary();
-            openPoint(selectedPoint.id);
+        var submit = document.getElementById("btnSubmitInspectionBatch");
+        if (submit) submit.addEventListener("click", function () {
+            if (typeof window.submitInspectionBatch === "function") window.submitInspectionBatch();
+            else if (typeof showInspectionNotice === "function")
+                showInspectionNotice("Submit batch belum tersedia.", "warning");
         });
     };
 
     document.addEventListener("DOMContentLoaded", function () {
         window.setTimeout(function () {
-            if (typeof window.wireInspectionMapWorkspace === "function") window.wireInspectionMapWorkspace();
+            if (typeof window.wireInspectionMapWorkspace === "function")
+                window.wireInspectionMapWorkspace();
         }, 0);
     });
 })();
