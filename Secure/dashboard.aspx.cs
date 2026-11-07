@@ -360,7 +360,8 @@ new SqlParameter("@CompanyID", companyId),
                     throw new HttpException(403, "Employee is not authorized for this company/location.");
 
                 DataTable types = br.EQuery(@"
-SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID
+SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
+       ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_M_InspectionType T
 WHERE T.IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
@@ -404,6 +405,7 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
                     InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
                     SectionID = GF.GetString(row["SectionID"]),
+                    InspectionMode = GF.GetString(row["InspectionMode"]),
                     CompanyID = companyId,
                     LocationID = locationId
                 }).ToList();
