@@ -19,7 +19,7 @@
         <div>
             <div class="text-muted small">INSPECTION CONFIGURATION</div>
             <h4 class="mb-1">Inspection Setup</h4>
-            <div class="text-muted small">Kelola denah, titik inspeksi, dan posisi titik pada denah.</div>
+            <div class="text-muted small">Map, inspection point, dan posisi marker.</div>
         </div>
         <span class="badge text-bg-light border"><i class="bi bi-diagram-3 me-1"></i> Master Data</span>
     </div>
@@ -51,7 +51,7 @@
                         <div class="card-body">
                             <div class="mb-3">
                                 <label class="form-label">Map Code</label>
-                                <asp:TextBox ID="txtMapCode" runat="server" CssClass="form-control" MaxLength="50" />
+                                <asp:TextBox ID="txtMapCode" runat="server" CssClass="form-control form-control-sm" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapCode_TextChanged" placeholder="Ketik Map Code atau tekan F2 untuk mencari" />
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Map Name</label>
@@ -74,7 +74,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-7">
+                <div class="col-xl-7 map-legacy-list">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-white d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">Registered Maps</span>
@@ -137,21 +137,8 @@
                                 <label class="form-label">Point Name</label>
                                 <asp:TextBox ID="txtPointName" runat="server" CssClass="form-control" MaxLength="200" />
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Object Type</label>
-                                <asp:DropDownList ID="ddlPointObjectType" runat="server" CssClass="form-select">
-                                    <asp:ListItem Value="GENERAL">General / Area</asp:ListItem>
-                                    <asp:ListItem Value="LIGHTING">Lighting</asp:ListItem>
-                                    <asp:ListItem Value="PARKING_BAY">Parking Bay</asp:ListItem>
-                                    <asp:ListItem Value="EQUIPMENT">Equipment</asp:ListItem>
-                                    <asp:ListItem Value="OTHER">Other</asp:ListItem>
-                                </asp:DropDownList>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Linked Map</label>
-                                <asp:DropDownList ID="ddlPointMap" runat="server" CssClass="form-select" />
-                                <div class="form-text">Opsional. Point tanpa map tetap dapat dipakai untuk inspeksi gaya lama.</div>
-                            </div>
+<div class="d-none"><asp:DropDownList ID="ddlPointObjectType" runat="server"><asp:ListItem Value="GENERAL" Selected="True">General</asp:ListItem></asp:DropDownList></div>
+<div class="d-none"><asp:DropDownList ID="ddlPointMap" runat="server" /></div>
                             <div class="mb-3">
                                 <label class="form-label">Object Reference Code</label>
                                 <asp:TextBox ID="txtObjectReferenceCode" runat="server" CssClass="form-control" MaxLength="100" />
@@ -241,19 +228,16 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><div class="fw-semibold">Map Point Editor</div><asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="btn btn-sm btn-outline-primary" Visible="false">Open selected PDF <i class="bi bi-box-arrow-up-right ms-1"></i></asp:HyperLink></div>
-                    <div class="small text-muted">Pilih denah dan inspection point, lalu tentukan posisi marker pada bidang koordinat denah.</div>
+                    <div class="small text-muted">Denah mengikuti Map yang sedang dibuka. Pilih inspection point untuk mengatur posisi marker.</div>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-5">
-                            <label class="form-label">Map</label>
-                            <asp:DropDownList ID="ddlEditorMap" runat="server" CssClass="form-select" AutoPostBack="true" OnSelectedIndexChanged="ddlEditorMap_SelectedIndexChanged" />
-                        </div>
-                        <div class="col-md-5">
+                    <div class="row g-2 align-items-end">
+                        <div class="d-none"><asp:DropDownList ID="ddlEditorMap" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlEditorMap_SelectedIndexChanged" /></div>
+                        <div class="col-md-8">
                             <label class="form-label">Inspection Point</label>
                             <asp:DropDownList ID="ddlEditorPoint" runat="server" CssClass="form-select" />
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4">
                             <asp:LinkButton ID="btnLoadEditor" runat="server" CssClass="btn btn-outline-primary w-100" OnClick="btnLoadEditor_Click"><i class="bi bi-arrow-clockwise me-1"></i> Load</asp:LinkButton>
                         </div>
                     </div>
