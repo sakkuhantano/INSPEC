@@ -1,0 +1,13 @@
+.inspection-master-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem}
+.inspection-master-tabs{border-bottom-color:var(--bs-border-color)}
+.inspection-master-tabs .nav-link{font-weight:600;color:var(--bs-secondary-color);padding:.8rem 1rem}
+.inspection-master-tabs .nav-link.active{color:var(--bs-primary)}
+.inspection-master-content{padding-top:1rem}
+.inspection-master-grid th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--bs-secondary-color);font-weight:700;white-space:nowrap}
+.inspection-master-grid td{font-size:.9rem}
+.inspection-master-grid .btn{margin:.1rem}
+.inspection-coordinate-board{position:relative;width:100%;min-height:420px;aspect-ratio:16/10;border:1px solid var(--bs-border-color);border-radius:.75rem;overflow:hidden;background-color:#f8fafc;background-image:linear-gradient(45deg,#e9edf2 25%,transparent 25%),linear-gradient(-45deg,#e9edf2 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e9edf2 75%),linear-gradient(-45deg,transparent 75%,#e9edf2 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+.inspection-coordinate-grid{position:absolute;inset:0;background-image:linear-gradient(to right,rgba(100,116,139,.18) 1px,transparent 1px),linear-gradient(to bottom,rgba(100,116,139,.18) 1px,transparent 1px);background-size:10% 10%}
+.inspection-coordinate-marker{position:absolute;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#0d6efd;color:#fff;border:2px solid #fff;box-shadow:0 1px 5px #334155;font-size:.72rem;font-weight:700}
+.inspection-coordinate-hint{position:absolute;left:.75rem;bottom:.65rem;padding:.25rem .5rem;background:rgba(255,255,255,.9);border-radius:.35rem;color:#475569;font-size:.72rem}
+@media(max-width:767.98px){.inspection-master-heading{align-items:flex-start}.inspection-master-tabs{flex-wrap:nowrap;overflow-x:auto}.inspection-master-tabs .nav-link{white-space:nowrap;padding:.7rem .75rem;font-size:.88rem}.inspection-coordinate-board{min-height:300px}}
