@@ -126,7 +126,7 @@ namespace INSPEC.Secure
                         foreach (JObject point in pointArray.OfType<JObject>())
                         {
                             string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
-                            long masterPointID = TokenInt(point, "InspectionPointID");
+                            long masterPointID = TokenLong(point, "InspectionPointID");
                             string pointStatus = TokenString(point, "Status").ToUpperInvariant();
                             if (String.IsNullOrWhiteSpace(clientPointID) || masterPointID <= 0 ||
                                 !clientPointIDs.Add(clientPointID) || !masterPointIDs.Add(masterPointID))
@@ -2237,6 +2237,12 @@ WHERE I.InspectionID=@InspectionID
         {
             int value;
             return Int32.TryParse(TokenString(obj, name), out value) ? value : 0;
+        }
+
+        private static long TokenLong(JObject obj, string name)
+        {
+            long value;
+            return Int64.TryParse(TokenString(obj, name), NumberStyles.Integer, CultureInfo.InvariantCulture, out value) ? value : 0L;
         }
 
         private static bool TokenBool(JObject obj, string name)
