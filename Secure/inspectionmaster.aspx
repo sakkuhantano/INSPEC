@@ -15,288 +15,274 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </asp:Panel>
 
-    <div class="inspection-master-heading mb-3">
-        <div>
-            <div class="text-muted small">INSPECTION CONFIGURATION</div>
-            <h4 class="mb-1">Inspection Setup</h4>
-            <div class="text-muted small">Map, inspection point, dan posisi marker.</div>
-        </div>
-        <span class="badge text-bg-light border"><i class="bi bi-diagram-3 me-1"></i> Master Data</span>
-    </div>
-
-    <ul class="nav nav-tabs inspection-master-tabs" id="inspectionMasterTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-map-link" data-bs-toggle="tab" data-bs-target="#tab-map" type="button" role="tab">
-                <i class="bi bi-file-earmark-pdf me-1"></i> Map PDF
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-point-link" data-bs-toggle="tab" data-bs-target="#tab-point" type="button" role="tab">
-                <i class="bi bi-geo-alt me-1"></i> Inspection Point
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-editor-link" data-bs-toggle="tab" data-bs-target="#tab-editor" type="button" role="tab">
-                <i class="bi bi-pin-map me-1"></i> Map Editor
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content inspection-master-content">
-        <div class="tab-pane fade show active" id="tab-map" role="tabpanel">
-            <div class="row g-3">
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white fw-semibold">Map Information</div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <asp:LinkButton ID="lBtnMapCode" runat="server" Text="Map Code" CssClass="CUS-lbtn-1" OnPreRender="lbtn_PreRender" />
-                                <asp:TextBox ID="txtMapCode" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapCode_TextChanged" placeholder="Ketik Map Code atau tekan F2 untuk mencari" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Map Name</label>
-                                <asp:TextBox ID="txtMapName" runat="server" CssClass="form-control" MaxLength="200" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Description</label>
-                                <asp:TextBox ID="txtMapDescription" runat="server" CssClass="form-control" TextMode="MultiLine" Rows="3" MaxLength="500" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">PDF Floor Plan</label>
-                                <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control" accept=".pdf,application/pdf" />
-                                <div class="form-text">PDF maksimal 50 MB. Upload PDF baru pada map yang sudah ada akan membuat versi baru.</div>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2">
-                                <asp:LinkButton ID="btnSaveMap" runat="server" CssClass="btn btn-primary" OnClick="btnSaveMap_Click"><i class="bi bi-save me-1"></i> Save Map</asp:LinkButton>
-                                <asp:LinkButton ID="btnNewMap" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnNewMap_Click"><i class="bi bi-plus-lg me-1"></i> New</asp:LinkButton>
-                            </div>
-                            <asp:Label ID="lblMapVersion" runat="server" CssClass="small text-muted d-block mt-3" />
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xl-7 map-legacy-list">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                            <span class="fw-semibold">Registered Maps</span>
-                            <asp:LinkButton ID="btnRefreshMap" runat="server" CssClass="btn btn-sm btn-outline-secondary" OnClick="btnRefreshMap_Click"><i class="bi bi-arrow-clockwise"></i> Refresh</asp:LinkButton>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <asp:GridView ID="gvMaps" runat="server" AutoGenerateColumns="false" CssClass="table table-hover align-middle mb-0 inspection-master-grid"
-                                    GridLines="None" EmptyDataText="Belum ada denah.">
-                                    <Columns>
-                                        <asp:BoundField DataField="MapCode" HeaderText="Code" />
-                                        <asp:BoundField DataField="MapName" HeaderText="Map Name" />
-                                        <asp:BoundField DataField="MapVersion" HeaderText="Version" />
-                                        <asp:TemplateField HeaderText="Status">
-                                            <ItemTemplate><span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "text-bg-success" : "text-bg-secondary" %>"><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></ItemTemplate>
-                                        </asp:TemplateField>
-                                        <asp:TemplateField HeaderText="" ItemStyle-CssClass="text-end text-nowrap">
-                                            <ItemTemplate>
-                                                <asp:LinkButton ID="btnEditMapRow" runat="server" CssClass="btn btn-sm btn-outline-primary" CommandArgument='<%# Eval("MapID") %>' CausesValidation="false" OnCommand="btnEditMapRow_Command"><i class="bi bi-pencil"></i></asp:LinkButton>
-                                                <asp:LinkButton ID="btnOpenMapRow" runat="server" CssClass="btn btn-sm btn-outline-secondary" CommandArgument='<%# Eval("MapID") %>' CausesValidation="false" OnCommand="btnOpenMapRow_Command"><i class="bi bi-eye"></i></asp:LinkButton>
-                                            </ItemTemplate>
-                                        </asp:TemplateField>
-                                    </Columns>
-                                </asp:GridView>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <asp:Panel ID="pnlMapPreview" runat="server" Visible="false" CssClass="card border-0 shadow-sm mt-3">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                    <asp:Label ID="lblMapPreviewTitle" runat="server" CssClass="fw-semibold" />
-                    <asp:HyperLink ID="lnkMapPdf" runat="server" Target="_blank" CssClass="btn btn-sm btn-outline-primary">Open PDF <i class="bi bi-box-arrow-up-right ms-1"></i></asp:HyperLink>
-                </div>
-                <div class="card-body p-2">
-                    <asp:Literal ID="litMapPreview" runat="server" />
-                </div>
-            </asp:Panel>
-        </div>
-
-        <div class="tab-pane fade" id="tab-point" role="tabpanel">
-            <div class="row g-3">
-                <div class="col-xl-4">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white fw-semibold">Inspection Point Information</div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label">Inspection Type</label>
-                                <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Inspection Detail</label>
-                                <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Point Code</label>
-                                <asp:TextBox ID="txtPointCode" runat="server" CssClass="form-control" MaxLength="50" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Point Name</label>
-                                <asp:TextBox ID="txtPointName" runat="server" CssClass="form-control" MaxLength="200" />
-                            </div>
-<div class="d-none"><asp:DropDownList ID="ddlPointObjectType" runat="server"><asp:ListItem Value="GENERAL" Selected="True">General</asp:ListItem></asp:DropDownList></div>
-<div class="d-none"><asp:DropDownList ID="ddlPointMap" runat="server" /></div>
-                            <div class="mb-3">
-                                <label class="form-label">Object Reference Code</label>
-                                <asp:TextBox ID="txtObjectReferenceCode" runat="server" CssClass="form-control" MaxLength="100" />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Description</label>
-                                <asp:TextBox ID="txtPointDescription" runat="server" CssClass="form-control" TextMode="MultiLine" Rows="2" MaxLength="500" />
-                            </div>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label">Display Order</label>
-                                    <asp:TextBox ID="txtPointOrder" runat="server" CssClass="form-control" Text="0" />
+    <table border="0" cellspacing="0" cellpadding="0" style="width:100%;">
+        <tr><td>
+            <div class="row border rounded shadow-sm" style="margin:auto;">
+                <div class="col">
+                    <div class="row my-1">
+                        <div class="col-sm-6 mb-1">
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">
+                                    <asp:LinkButton ID="lBtnMapCode" runat="server" Text="Map Code" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
                                 </div>
-                                <div class="col-6 d-flex align-items-end pb-2">
-                                    <asp:CheckBox ID="chkPointActive" runat="server" Text=" Active" Checked="true" />
+                                <div class="col-sm-8">
+                                    <asp:TextBox ID="txtMapCode" runat="server" ClientIDMode="Static" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapCode_TextChanged" CssClass="form-control form-control-sm rounded fz-custom1" />
                                 </div>
                             </div>
-                            <div class="d-flex flex-wrap gap-2 mt-3">
-                                <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-primary" OnClick="btnSavePoint_Click"><i class="bi bi-save me-1"></i> Save Point</asp:LinkButton>
-                                <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnNewPoint_Click"><i class="bi bi-plus-lg me-1"></i> New</asp:LinkButton>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Map Name</div>
+                                <div class="col-sm-8">
+                                    <asp:TextBox ID="txtMapName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" />
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Description</div>
+                                <div class="col-sm-8">
+                                    <asp:TextBox ID="txtMapDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 mb-1">
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">PDF Floor Plan</div>
+                                <div class="col-sm-8">
+                                    <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,application/pdf" />
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Version</div>
+                                <div class="col-sm-8 d-flex align-items-center">
+                                    <asp:Label ID="lblMapVersion" runat="server" CssClass="small text-muted" />
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4"></div>
+                                <div class="col-sm-8">
+                                    <asp:LinkButton ID="btnRefreshMap" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnRefreshMap_Click"><i class="fas fa-sync-alt"></i> Refresh</asp:LinkButton>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-xl-8">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-white">
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                                <span class="fw-semibold">Inspection Points</span>
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <div class="input-group input-group-sm" style="width:250px;max-width:100%;">
-                                        <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control" MaxLength="50" placeholder="Search Point Code..." />
-                                        <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-outline-primary" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="bi bi-search"></i></asp:LinkButton>
+
+                    <asp:Panel ID="pnlMapPreview" runat="server" Visible="false">
+                        <div class="row my-1">
+                            <div class="col border rounded shadow-sm">
+                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                    <div class="col d-flex align-items-center">
+                                        <asp:Label ID="lblMapPreviewTitle" runat="server" />
                                     </div>
-                                    <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm" Width="85px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
+                                    <div class="col-auto d-flex align-items-center">
+                                        <asp:HyperLink ID="lnkMapPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <asp:Literal ID="litMapPreview" runat="server" />
+                                </div>
+                            </div>
+                        </div>
+                    </asp:Panel>
+
+                    <asp:Panel ID="pnlPointEditor" runat="server" Visible="false">
+                        <div class="row my-1">
+                            <div class="col border rounded shadow-sm">
+                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                    <div class="col d-flex align-items-center">Inspection Point</div>
+                                    <div class="col-auto d-flex align-items-center">
+                                        <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="CUS-lbtn-1" OnClick="btnNewPoint_Click" CausesValidation="false"><i class="fas fa-times"></i></asp:LinkButton>
+                                    </div>
+                                </div>
+                                <div class="row my-1">
+                                    <div class="col-sm-6 mb-1">
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">
+                                                <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
+                                            </div>
+                                            <div class="col-sm-8">
+                                                <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
+                                            </div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Inspection Detail</div>
+                                            <div class="col-sm-8">
+                                                <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" />
+                                            </div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Point Code</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtPointCode" runat="server" MaxLength="50" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Point Name</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtPointName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6 mb-1">
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Object Reference</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtObjectReferenceCode" runat="server" MaxLength="100" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Description</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtPointDescription" runat="server" MaxLength="500" TextMode="MultiLine" Rows="2" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Display Order</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtPointOrder" runat="server" Text="0" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4"></div>
+                                            <div class="col-sm-8"><asp:CheckBox ID="chkPointActive" runat="server" Text=" Active" Checked="true" /></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row my-1">
+                                    <div class="col-sm-6"></div>
+                                    <div class="col-sm-6 d-flex justify-content-end">
+                                        <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Point</asp:LinkButton>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </asp:Panel>
+
+                    <div class="row my-1">
+                        <div class="col border rounded shadow-sm">
+                            <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                <div class="col-sm-5 d-flex align-items-center">Inspection Points</div>
+                                <div class="col-sm-7 d-flex justify-content-end align-items-center">
+                                    <div class="input-group input-group-sm" style="width:250px;">
+                                        <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control form-control-sm fz-custom1" MaxLength="50" placeholder="Search Point Code" />
+                                        <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="fas fa-search"></i></asp:LinkButton>
+                                    </div>
+                                    <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm ms-1" Width="75px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
                                         <asp:ListItem Value="10">10</asp:ListItem>
                                         <asp:ListItem Value="20" Selected="True">20</asp:ListItem>
                                         <asp:ListItem Value="50">50</asp:ListItem>
                                         <asp:ListItem Value="100">100</asp:ListItem>
                                     </asp:DropDownList>
+                                    <asp:LinkButton ID="btnNewPointGrid" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 ms-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnNewPointGrid_Click" CausesValidation="false"><i class="fas fa-plus-circle"></i> Add Point</asp:LinkButton>
                                 </div>
                             </div>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" CssClass="table table-hover align-middle mb-0 inspection-master-grid"
-                                    GridLines="None" EmptyDataText="Belum ada inspection point." OnRowCommand="gvPoints_RowCommand">
-                                    <Columns>
-                                        <asp:BoundField DataField="PointCode" HeaderText="Code" />
-                                        <asp:BoundField DataField="PointName" HeaderText="Point Name" />
-                                        <asp:BoundField DataField="InspectionTypeCode" HeaderText="Type" />
-                                        <asp:BoundField DataField="InspectionTypeDetailCode" HeaderText="Detail" />
-
-                                        <asp:TemplateField HeaderText="Status">
-                                            <ItemTemplate><span class="badge <%# Convert.ToBoolean(Eval("IsActive")) ? "text-bg-success" : "text-bg-secondary" %>"><%# Convert.ToBoolean(Eval("IsActive")) ? "Active" : "Inactive" %></span></ItemTemplate>
-                                        </asp:TemplateField>
-                                        <asp:TemplateField HeaderText="" ItemStyle-CssClass="text-end text-nowrap">
-                                            <ItemTemplate>
-                                                <asp:LinkButton ID="btnEditPointRow" runat="server" CssClass="btn btn-sm btn-outline-primary" CommandName="EditPoint" CommandArgument='<%# Eval("InspectionPointID") %>'><i class="bi bi-pencil"></i></asp:LinkButton>
-                                            </ItemTemplate>
-                                        </asp:TemplateField>
-                                    </Columns>
-                                </asp:GridView>
+                            <div class="row">
+                                <div class="col">
+                                    <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" BorderColor="#394376" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" OnRowCommand="gvPoints_RowCommand" EmptyDataText="No Inspection Point">
+                                        <HeaderStyle HorizontalAlign="left" CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
+                                        <RowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddt-custom1" />
+                                        <AlternatingRowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddtalt-custom1" />
+                                        <PagerStyle Mode="NumericPages" HorizontalAlign="right" />
+                                        <Columns>
+                                            <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
+                                                <ItemTemplate>
+                                                    <asp:LinkButton ID="btnEditPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Inspection Point" CommandName="EditPoint" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="far fa-edit"></i></asp:LinkButton>
+                                                </ItemTemplate>
+                                            </asp:TemplateField>
+                                            <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
+                                                <ItemTemplate>
+                                                    <asp:LinkButton ID="btnMapPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Open Map Editor" CommandName="MapEditor" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="fas fa-map-marker-alt"></i></asp:LinkButton>
+                                                </ItemTemplate>
+                                            </asp:TemplateField>
+                                            <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
+                                            <asp:BoundField DataField="PointName" HeaderText="Point Name" />
+                                            <asp:BoundField DataField="InspectionTypeCode" HeaderText="Type" />
+                                            <asp:BoundField DataField="InspectionTypeDetailCode" HeaderText="Detail" />
+                                            <asp:BoundField DataField="DisplayOrder" HeaderText="Order" />
+                                            <asp:TemplateField HeaderText="Active" HeaderStyle-Width="7%">
+                                                <ItemTemplate><%# Convert.ToBoolean(Eval("IsActive")) ? "Yes" : "No" %></ItemTemplate>
+                                            </asp:TemplateField>
+                                        </Columns>
+                                    </asp:GridView>
+                                </div>
                             </div>
-                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-2 border-top">
-                                <asp:Label ID="lblPointPageInfo" runat="server" CssClass="small text-muted" />
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <div class="btn-group btn-group-sm" role="group" aria-label="Inspection point pagination">
-                                        <asp:LinkButton ID="btnPointFirst" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointFirst_Click" CausesValidation="false" ToolTip="First page"><i class="bi bi-chevron-double-left"></i></asp:LinkButton>
-                                        <asp:LinkButton ID="btnPointPrevious" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointPrevious_Click" CausesValidation="false" ToolTip="Previous page"><i class="bi bi-chevron-left"></i></asp:LinkButton>
-                                        <asp:LinkButton ID="btnPointNext" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointNext_Click" CausesValidation="false" ToolTip="Next page"><i class="bi bi-chevron-right"></i></asp:LinkButton>
-                                        <asp:LinkButton ID="btnPointLast" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointLast_Click" CausesValidation="false" ToolTip="Last page"><i class="bi bi-chevron-double-right"></i></asp:LinkButton>
-                                    </div>
-                                    <span class="small text-muted">Page</span>
-                                    <asp:TextBox ID="txtPointGoToPage" runat="server" CssClass="form-control form-control-sm" Width="58px" Text="1" />
-                                    <asp:LinkButton ID="btnPointGoToPage" runat="server" CssClass="btn btn-sm btn-outline-primary" OnClick="btnPointGoToPage_Click" CausesValidation="false">Go</asp:LinkButton>
+                            <div class="row my-1">
+                                <div class="col-sm-5 small text-muted d-flex align-items-center">
+                                    <asp:Label ID="lblPointPageInfo" runat="server" />
+                                </div>
+                                <div class="col-sm-7 d-flex justify-content-end align-items-center">
+                                    <asp:LinkButton ID="btnPointFirst" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointFirst_Click" CausesValidation="false" ToolTip="First"><i class="fas fa-angle-double-left"></i></asp:LinkButton>
+                                    <asp:LinkButton ID="btnPointPrevious" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointPrevious_Click" CausesValidation="false" ToolTip="Previous"><i class="fas fa-angle-left"></i></asp:LinkButton>
+                                    <asp:LinkButton ID="btnPointNext" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointNext_Click" CausesValidation="false" ToolTip="Next"><i class="fas fa-angle-right"></i></asp:LinkButton>
+                                    <asp:LinkButton ID="btnPointLast" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointLast_Click" CausesValidation="false" ToolTip="Last"><i class="fas fa-angle-double-right"></i></asp:LinkButton>
+                                    <span class="small text-muted mx-1">Go to</span>
+                                    <asp:TextBox ID="txtPointGoToPage" runat="server" CssClass="form-control form-control-sm fz-custom1" Width="50px" Text="1" />
+                                    <asp:LinkButton ID="btnPointGoToPage" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointGoToPage_Click" CausesValidation="false">Go</asp:LinkButton>
                                     <asp:Label ID="lblPointPageTotal" runat="server" CssClass="small text-muted" />
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="tab-pane fade" id="tab-editor" role="tabpanel">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><div class="fw-semibold">Map Point Editor</div><asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="btn btn-sm btn-outline-primary" Visible="false">Open selected PDF <i class="bi bi-box-arrow-up-right ms-1"></i></asp:HyperLink></div>
-                    <div class="small text-muted">Denah mengikuti Map yang sedang dibuka. Pilih inspection point untuk mengatur posisi marker.</div>
-                </div>
-                <div class="card-body">
-                    <div class="row g-2 align-items-end">
-                        <div class="d-none"><asp:DropDownList ID="ddlEditorMap" runat="server" AutoPostBack="true" OnSelectedIndexChanged="ddlEditorMap_SelectedIndexChanged" /></div>
-                        <div class="col-md-8">
-                            <label class="form-label">Inspection Point</label>
-                            <asp:DropDownList ID="ddlEditorPoint" runat="server" CssClass="form-select" />
-                        </div>
-                        <div class="col-md-4">
-                            <asp:LinkButton ID="btnLoadEditor" runat="server" CssClass="btn btn-outline-primary w-100" OnClick="btnLoadEditor_Click"><i class="bi bi-arrow-clockwise me-1"></i> Load</asp:LinkButton>
+                    <div id="map-editor" class="row my-1">
+                        <div class="col border rounded shadow-sm">
+                            <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                <div class="col d-flex align-items-center">Map Editor</div>
+                                <div class="col-auto d-flex align-items-center">
+                                    <asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1" Visible="false">Open PDF</asp:HyperLink>
+                                </div>
+                            </div>
+                            <div class="row my-1">
+                                <div class="col-sm-8">
+                                    <div class="row mt-1">
+                                        <div class="col-sm-4 d-flex align-items-center">Inspection Point</div>
+                                        <div class="col-sm-8"><asp:DropDownList ID="ddlEditorPoint" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" /></div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-4 d-flex align-items-end">
+                                    <asp:LinkButton ID="btnLoadEditor" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4 w-100" OnClick="btnLoadEditor_Click"><i class="fas fa-sync-alt"></i> Load</asp:LinkButton>
+                                </div>
+                            </div>
+                            <asp:Panel ID="pnlEditor" runat="server" Visible="false">
+                                <div class="row my-1">
+                                    <div class="col-lg-8">
+                                        <div class="inspection-map-toolbar d-flex flex-wrap align-items-center gap-2 mb-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit"><i class="bi bi-arrows-angle-contract me-1"></i> Fit</button>
+                                            <span class="small text-muted" id="lblMapZoom">100%</span>
+                                        </div>
+                                        <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
+                                            <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
+                                                <asp:Literal ID="litEditorPdfBackground" runat="server" />
+                                                <div class="inspection-coordinate-grid"></div>
+                                                <asp:Repeater ID="rptMapElements" runat="server">
+                                                    <ItemTemplate>
+                                                        <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
+                                                    </ItemTemplate>
+                                                </asp:Repeater>
+                                                <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="border rounded p-2">
+                                            <div class="small fw-bold mb-1">Marker Position</div>
+                                            <div class="row">
+                                                <div class="col-6"><div class="small">X (%)</div><asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm fz-custom1" Text="50" /></div>
+                                                <div class="col-6"><div class="small">Y (%)</div><asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm fz-custom1" Text="50" /></div>
+                                            </div>
+                                            <div class="row mt-2"><div class="col"><asp:LinkButton ID="btnSaveMarker" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 w-100" OnClick="btnSaveMarker_Click"><i class="fas fa-map-marker-alt"></i> Save Marker</asp:LinkButton></div></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row my-1">
+                                    <div class="col">
+                                        <asp:GridView ID="gvMapElements" runat="server" AutoGenerateColumns="false" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" EmptyDataText="No marker">
+                                            <HeaderStyle CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
+                                            <RowStyle CssClass="CUS-fz-5 dtgrddt-custom1" />
+                                            <Columns>
+                                                <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
+                                                <asp:BoundField DataField="PointName" HeaderText="Point Name" />
+                                                <asp:BoundField DataField="XPercent" HeaderText="X %" DataFormatString="{0:0.00}" />
+                                                <asp:BoundField DataField="YPercent" HeaderText="Y %" DataFormatString="{0:0.00}" />
+                                                <asp:TemplateField HeaderText=""><ItemTemplate><asp:LinkButton ID="btnEditMarker" runat="server" CssClass="CUS-lbtn-1" CommandName="EditMarker" CommandArgument='<%# Eval("MapElementID") %>'><i class="far fa-edit"></i></asp:LinkButton></ItemTemplate></asp:TemplateField>
+                                            </Columns>
+                                        </asp:GridView>
+                                    </div>
+                                </div>
+                            </asp:Panel>
                         </div>
                     </div>
-                    <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-3">
-                        <div class="row g-3">
-                            <div class="col-lg-8">
-                                <div class="inspection-map-toolbar d-flex flex-wrap align-items-center gap-2 mb-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit"><i class="bi bi-arrows-angle-contract me-1"></i> Fit</button>
-                                    <span class="small text-muted" id="lblMapZoom">100%</span>
-                                    <span class="small text-muted ms-auto">Saat zoom, drag denah untuk menggeser.</span>
-                                </div>
-                                <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik untuk menentukan koordinat marker">
-                                    <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
-                                        <asp:Literal ID="litEditorPdfBackground" runat="server" />
-                                        <div class="inspection-coordinate-grid"></div>
-                                        <asp:Repeater ID="rptMapElements" runat="server">
-                                            <ItemTemplate>
-                                                <span class="inspection-coordinate-marker" style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;' title='<%# Eval("PointName") %>'><%# Eval("DisplayOrder") %></span>
-                                            </ItemTemplate>
-                                        </asp:Repeater>
-                                        <div class="inspection-coordinate-hint">Klik bidang untuk mengisi koordinat · 0–100%</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <div class="border rounded-3 p-3">
-                                    <div class="fw-semibold mb-2">Place / Update Marker</div>
-                                    <div class="mb-3">
-                                        <label class="form-label">X Position (%)</label>
-                                        <asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control" Text="50" />
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Y Position (%)</label>
-                                        <asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control" Text="50" />
-                                    </div>
-                                    <div class="form-text mb-3">Isi posisi relatif terhadap lebar dan tinggi denah (0 sampai 100). Marker akan tersimpan sebagai koordinat relatif sehingga tetap proporsional saat tampilan diperbesar atau diperkecil.</div>
-                                    <asp:LinkButton ID="btnSaveMarker" runat="server" CssClass="btn btn-primary w-100" OnClick="btnSaveMarker_Click"><i class="bi bi-pin-angle me-1"></i> Save Marker</asp:LinkButton>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="table-responsive mt-3">
-                            <asp:GridView ID="gvMapElements" runat="server" AutoGenerateColumns="false" CssClass="table table-sm table-hover align-middle"
-                                GridLines="None" EmptyDataText="Belum ada marker pada map ini." OnRowCommand="gvMapElements_RowCommand">
-                                <Columns>
-                                    <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
-                                    <asp:BoundField DataField="PointName" HeaderText="Point Name" />
-                                    <asp:BoundField DataField="XPercent" HeaderText="X %" DataFormatString="{0:0.00}" />
-                                    <asp:BoundField DataField="YPercent" HeaderText="Y %" DataFormatString="{0:0.00}" />
-                                    <asp:TemplateField HeaderText="">
-                                        <ItemTemplate><asp:LinkButton ID="btnEditMarker" runat="server" CssClass="btn btn-sm btn-outline-primary" CommandName="EditMarker" CommandArgument='<%# Eval("MapElementID") %>'><i class="bi bi-pencil"></i> Edit</asp:LinkButton></ItemTemplate>
-                                    </asp:TemplateField>
-                                </Columns>
-                            </asp:GridView>
-                        </div>
-                    </asp:Panel>
                 </div>
             </div>
-        </div>
-    </div>
+        </td></tr>
+    </table>
 </asp:Content>
