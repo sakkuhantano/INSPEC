@@ -1160,9 +1160,7 @@ ORDER BY PointCode",
                     if (occupied.Rows.Count > 0)
                     {
                         ShowMessage("Lokasi terlalu dekat dengan Inspection Point " +
-                            Convert.ToString(occupied.Rows[0]["PointCode"]) + " - " +
-                            Convert.ToString(occupied.Rows[0]["PointName"]) +
-                            ". Pilih posisi lain atau gunakan Swap Position.", true);
+                            "Posisi tersebut sudah ditempati point lain. Pilih lokasi lain atau gunakan Swap Position.", true);
                         SetTab("#tab-point");
                         return;
                     }
@@ -1227,8 +1225,8 @@ VALUES
                 new SqlParameter("@Description", txtPointDescription.Text.Trim()),
                 new SqlParameter("@ReferenceCode", txtObjectReferenceCode.Text.Trim()),
                 new SqlParameter("@MapID", mapValue),
-                new SqlParameter("@MapX", coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value),
-                new SqlParameter("@MapY", coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value),
+                new SqlParameter("@MapX", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value },
+                new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsActive", chkPointActive.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
