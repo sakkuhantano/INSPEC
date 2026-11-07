@@ -123,8 +123,6 @@ namespace INSPEC.Secure
 
                         var clientPointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var masterPointIDs = new HashSet<long>();
-                        var pointPhotoSeqs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
                         foreach (JObject point in pointArray.OfType<JObject>())
                         {
                             string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
@@ -182,6 +180,7 @@ namespace INSPEC.Secure
                         JArray photoArray = record["Photos"] as JArray ?? new JArray();
                         var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
                         var incomingBatchPhotos = new List<Tuple<string, string, int, string, byte[]>>();
+                        var pointPhotoSeqs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var usedSeqNos = new HashSet<int>();
                         foreach (JObject photo in photoArray.OfType<JObject>())
                         {
