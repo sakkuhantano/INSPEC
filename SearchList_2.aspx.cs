@@ -533,6 +533,7 @@ FROM dbo.PIP_M_InspectionMap M
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
 AND (EXISTS (SELECT 1 FROM dbo.syswebuserusergroup U
              WHERE U.usergroupid='administrator' AND U.userid=@EmployeeID)
+ OR M.EntryUser=@EmployeeID
  OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
             INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
             INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
