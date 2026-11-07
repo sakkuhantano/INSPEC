@@ -844,6 +844,11 @@ async function startNewInspection() {
             showInspectionNotice("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
+        if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
+            map.MapUrl && (!map.PdfBlob || typeof map.PdfBlob.arrayBuffer !== "function"))) {
+            showInspectionNotice("File PDF denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
+            return;
+        }
     }
 
     currentInspectionRecord = {
