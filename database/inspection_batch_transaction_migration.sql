@@ -84,6 +84,17 @@ BEGIN
 END;
 GO
 
+/* Continue the monthly sequence if BATCH numbers already exist in this database. */
+INSERT dbo.PIP_T_InspectionBatchSequence(MonthKey,LastSequence,UpdateDate)
+SELECT LEFT(I.InspectionNo,6),MAX(CAST(RIGHT(I.InspectionNo,4) AS INT)),GETDATE()
+FROM dbo.PIP_T_Inspection I
+WHERE LEN(I.InspectionNo)=10
+  AND I.InspectionNo LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+  AND NOT EXISTS
+      (SELECT 1 FROM dbo.PIP_T_InspectionBatchSequence S WHERE S.MonthKey=LEFT(I.InspectionNo,6))
+GROUP BY LEFT(I.InspectionNo,6);
+GO
+
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve','P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve;
 GO
@@ -272,17 +283,7 @@ BEGIN
         DECLARE @V_InspectionNo VARCHAR(10);
         SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))),'');
         IF @V_InspectionNo IS NULL
-        BEGIN
-            DECLARE @V_MonthPrefix VARCHAR(6);
-            DECLARE @V_NextNo INT;
-            SET @V_MonthPrefix=CONVERT(VARCHAR(6),@p_InspectionDate,112);
-            SELECT @V_NextNo=ISNULL(MAX(CAST(RIGHT(InspectionNo,4) AS INT)),0)+1
-            FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK)
-            WHERE InspectionNo LIKE @V_MonthPrefix+'[0-9][0-9][0-9][0-9]';
-            IF @V_NextNo>9999
-                RAISERROR('Monthly Inspection Batch number sequence is exhausted.',16,1);
-            SET @V_InspectionNo=@V_MonthPrefix+RIGHT('0000'+CAST(@V_NextNo AS VARCHAR(4)),4);
-        END;
+            RAISERROR('Reserve the monthly BATCH InspectionNo before calling the sync procedure.',16,1);
 
         /* Reuse the current canonical header sync procedure. Empty checklist/photo
            TVPs ensure no batch-level results are written; all child data is saved below. */
