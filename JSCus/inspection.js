@@ -804,31 +804,44 @@ async function startNewInspection() {
         ? "BATCH" : "STANDARD";
     let batchMapSetup = null;
     if (inspectionMode === "BATCH") {
-        if (!navigator.onLine) {
-            showInspectionNotice("Data denah dan Inspection Point untuk batch ini belum tersedia offline. Hubungkan internet dan jalankan Sync sebelum memulai batch.", "warning");
-            return;
-        }
-        try {
-            const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
-                method: "POST",
-                headers: { "Content-Type": "application/json; charset=utf-8" },
-                body: JSON.stringify({
-                    inspectionTypeCode: type.InspectionTypeCode,
-                    inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
-                    employeeId: inspectionLogin.employeeid,
-                    companyId: inspectionCompanyID,
-                    locationId: inspectionLocationID
-                })
-            });
-            const payload = await response.json();
-            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat Inspection Point.");
-            batchMapSetup = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
-            if (!batchMapSetup || batchMapSetup.success !== true || !Array.isArray(batchMapSetup.points) || !batchMapSetup.points.length) {
-                showInspectionNotice("Belum ada Inspection Point aktif untuk Inspection Type dan Detail ini.", "warning");
+        if (navigator.onLine) {
+            try {
+                const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({
+                        inspectionTypeCode: type.InspectionTypeCode,
+                        inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+                        employeeId: inspectionLogin.employeeid,
+                        companyId: inspectionCompanyID,
+                        locationId: inspectionLocationID
+                    })
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat Inspection Point.");
+                batchMapSetup = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+                if (!batchMapSetup || batchMapSetup.success !== true)
+                    throw new Error("Data map Inspection tidak valid.");
+                for (const map of (batchMapSetup.maps || [])) {
+                    if (!map.MapUrl) continue;
+                    try {
+                        const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
+                        if (pdfResponse.ok) map.PdfBlob = await pdfResponse.blob();
+                    } catch (pdfError) {
+                        console.warn("Inspection PDF could not be cached for this batch:", map.MapCode, pdfError);
+                    }
+                }
+            } catch (mapError) {
+                showInspectionNotice("Tidak dapat memuat denah dan Inspection Point: " + (mapError.message || mapError), "danger");
                 return;
             }
-        } catch (mapError) {
-            showInspectionNotice("Tidak dapat memuat denah dan Inspection Point: " + (mapError.message || mapError), "danger");
+        } else {
+            const cachedSetups = type.BatchMapSetups || {};
+            batchMapSetup = cachedSetups[String(detail.InspectionTypeDetailCode || "").toUpperCase()] || null;
+        }
+
+        if (!batchMapSetup || !Array.isArray(batchMapSetup.points) || !batchMapSetup.points.length) {
+            showInspectionNotice("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
     }
