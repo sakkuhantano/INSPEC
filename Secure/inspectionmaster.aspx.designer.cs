@@ -48,14 +48,13 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.Label lblPointPageTotal;
         protected global::System.Web.UI.WebControls.HyperLink lnkEditorPdf;
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorMap;
-        protected global::System.Web.UI.WebControls.DropDownList ddlEditorPoint;
-        protected global::System.Web.UI.WebControls.LinkButton btnLoadEditor;
-        protected global::System.Web.UI.WebControls.Panel pnlMapEditorSection;
         protected global::System.Web.UI.WebControls.Panel pnlEditor;
         protected global::System.Web.UI.WebControls.Repeater rptMapElements;
+        protected global::System.Web.UI.WebControls.HiddenField hidSwapPointID;
+        protected global::System.Web.UI.WebControls.Label lblPointMapCode;
+        protected global::System.Web.UI.WebControls.LinkButton btnClearCoordinate;
+        protected global::System.Web.UI.WebControls.LinkButton btnSwapPosition;
         protected global::System.Web.UI.WebControls.TextBox txtMarkerX;
         protected global::System.Web.UI.WebControls.TextBox txtMarkerY;
-        protected global::System.Web.UI.WebControls.LinkButton btnSaveMarker;
-        protected global::System.Web.UI.WebControls.GridView gvMapElements;
     }
 }
