@@ -330,6 +330,8 @@
         record = record || currentMapRecord;
         var workspace = document.getElementById("inspectionMapWorkspace");
         if (!workspace || !record) return;
+        if (typeof window.mountInspectionBatchSummary === "function")
+            window.mountInspectionBatchSummary(record);
 
         var setup = record.BatchMapSetup || {};
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
