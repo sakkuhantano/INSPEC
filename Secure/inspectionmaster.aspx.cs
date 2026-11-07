@@ -1182,6 +1182,32 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 return;
             }
 
+            using (var access = new WAL.BR.CF())
+            {
+                DataTable allowed = access.EQueryP(@"
+SELECT COUNT(1) AS TotalRows
+FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+WHERE P.InspectionPointID=@PointID AND P.MapID=@MapID
+  AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                    new SqlParameter[] {
+                        new SqlParameter("@PointID", pointID),
+                        new SqlParameter("@MapID", mapID),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
+                {
+                    ShowMessage("Inspection Point tidak valid untuk Map atau Profit Center ini.", true);
+                    SetTab("#tab-editor");
+                    return;
+                }
+            }
+
             string attributes = "x=" + x.ToString("0.####", CultureInfo.InvariantCulture) +
                 ";y=" + y.ToString("0.####", CultureInfo.InvariantCulture);
             string elementID = "POINT_" + pointID.ToString(CultureInfo.InvariantCulture);
