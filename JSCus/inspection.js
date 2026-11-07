@@ -1647,6 +1647,12 @@ async function openBatchInspectionPointChecklist(masterPoint) {
         completeButton.classList.toggle("d-none", pointReadOnly);
     }
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
+    const mapWorkspace = document.getElementById("inspectionMapWorkspace");
+    if (mapWorkspace) mapWorkspace.classList.add("d-none");
+    const mapTab = document.getElementById("btnInspectionMapTab");
+    const checklistTab = document.getElementById("btnInspectionChecklistTab");
+    if (mapTab) mapTab.classList.remove("active");
+    if (checklistTab) checklistTab.classList.add("active");
     showInspectionEditorTab("checklist");
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
