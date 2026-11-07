@@ -3697,33 +3697,48 @@ async function processBatchInspectionApproval(action) {
 }
 
 function renderInspectionApprovalBatchPoints(template, points, photos) {
-    if (!Array.isArray(points) || !points.length)
+    window._inspectionApprovalBatchData = {
+        template: template,
+        points: Array.isArray(points) ? points : [],
+        photos: Array.isArray(photos) ? photos : []
+    };
+    if (!points || !points.length)
         return '<div class="alert alert-warning small">Batch ini belum memiliki Inspection Point transaction.</div>';
-    return '<div class="inspection-approval-batch-points">' + points.map(function (point, index) {
-        const pointId = String(point.InspectionPointTransactionID || "");
-        const status = String(point.Status || "PENDING").toUpperCase();
-        const statusClass = status === "DONE" ? "text-bg-success" :
-            status === "ABNORMAL" ? "text-bg-danger" :
-            status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
-        const pointPhotos = (photos || []).filter(photo => String(photo.PointID || "") === pointId);
-        const photoStage = type => {
-            const rows = pointPhotos.filter(photo => String(photo.Type || "").toUpperCase() === type);
-            return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div>' +
-                (rows.length ? '<div class="d-flex flex-wrap gap-2">' + rows.map(photo =>
-                    '<div class="inspection-photo-item"><img src="' + escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></div>'
-                ).join("") + '</div>' : '<div class="inspection-muted">Foto ' + type + ' belum tersedia.</div>') + '</div>';
-        };
-        const checklist = Array.isArray(template.sections) && template.sections.length
-            ? renderInspectionSections(template, point.Items || [], true, "inspectionApprovalPoint_" + pointId.replace(/[^a-zA-Z0-9_-]/g, "_"))
-            : '<div class="alert alert-danger small">Template version tidak tersedia.</div>';
-        return '<div class="card border mb-3" id="inspectionApprovalPoint_' + escInspection(pointId) + '">' +
-            '<div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
-                '<div><div class="fw-bold">' + escInspection(point.PointCode || ("Point " + (index + 1))) + ' · ' + escInspection(point.PointName || "") + '</div>' +
-                '<small class="text-muted">' + escInspection(point.PointObjectType || "GENERAL") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
-                '<span class="badge ' + statusClass + '">' + escInspection(status) + '</span>' +
-            '</div><div class="card-body">' + photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
-    }).join("") + '</div>';
+    return '<div id="inspectionApprovalSelectedPointHost" class="alert alert-light border small">' +
+        '<i class="bi bi-hand-index-thumb me-2"></i>Pilih marker atau Inspection Point pada daftar untuk melihat checklist dan dokumentasi foto.</div>';
 }
+
+window.renderInspectionApprovalSelectedPoint = function (pointId) {
+    const data = window._inspectionApprovalBatchData;
+    const host = document.getElementById("inspectionApprovalSelectedPointHost");
+    if (!data || !host) return;
+    const point = data.points.find(item =>
+        String(item.InspectionPointTransactionID) === String(pointId));
+    if (!point) return;
+
+    const id = String(point.InspectionPointTransactionID || "");
+    const status = String(point.Status || "PENDING").toUpperCase();
+    const statusClass = status === "DONE" ? "text-bg-success" :
+        status === "ABNORMAL" ? "text-bg-danger" :
+        status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
+    const pointPhotos = data.photos.filter(photo => String(photo.PointID || "") === id);
+    const photoStage = type => {
+        const rows = pointPhotos.filter(photo => String(photo.Type || "").toUpperCase() === type);
+        return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div>' +
+            (rows.length ? '<div class="d-flex flex-wrap gap-2">' + rows.map(photo =>
+                '<div class="inspection-photo-item"><img src="' + escInspection(photo.Data || "") + '" alt="Inspection ' + type + '" loading="lazy"></div>'
+            ).join("") + '</div>' : '<div class="inspection-muted">Foto ' + type + ' belum tersedia.</div>') + '</div>';
+    };
+    const checklist = data.template && Array.isArray(data.template.sections) && data.template.sections.length
+        ? renderInspectionSections(data.template, point.Items || [], true, "inspectionApprovalPoint_" + id.replace(/[^a-zA-Z0-9_-]/g, "_"))
+        : '<div class="alert alert-danger small">Template version tidak tersedia.</div>';
+    host.innerHTML = '<div class="card border mb-3" id="inspectionApprovalPoint_' + escInspection(id) + '">' +
+        '<div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
+            '<div><div class="fw-bold">' + escInspection(point.PointCode || "Inspection Point") + ' · ' + escInspection(point.PointName || "") + '</div>' +
+            '<small class="text-muted">' + escInspection(point.PointObjectType || "GENERAL") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
+            '<span class="badge ' + statusClass + '">' + escInspection(status) + '</span>' +
+        '</div><div class="card-body">' + photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
+};
 
 async function renderInspectionApprovalBatchMap(maps, points) {
     const host = document.getElementById("inspectionApprovalBatchMap");
