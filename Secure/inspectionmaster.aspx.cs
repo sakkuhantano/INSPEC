@@ -1159,8 +1159,7 @@ ORDER BY PointCode",
                         });
                     if (occupied.Rows.Count > 0)
                     {
-                        ShowMessage("Lokasi terlalu dekat dengan Inspection Point " +
-                            "Posisi tersebut sudah ditempati point lain. Pilih lokasi lain atau gunakan Swap Position.", true);
+                        ShowMessage("Posisi tersebut sudah ditempati Inspection Point lain. Pilih lokasi lain atau gunakan Swap Position.", true);
                         SetTab("#tab-point");
                         return;
                     }
