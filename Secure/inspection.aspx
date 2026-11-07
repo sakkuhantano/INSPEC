@@ -15,7 +15,8 @@
     .inspection-map-point-label{top:19px;font-size:.48rem;padding:1px 3px;line-height:1.2}
     .inspection-map-point.inactive{opacity:.35}
     .inspection-map-point.incomplete .inspection-map-point-dot{background:#ffc107;color:#212529}
-    .inspection-map-dot.incomplete{background:#ffc107}\n    .inspection-map-legend{z-index:5;left:8px;bottom:8px;gap:.45rem;max-width:calc(100% - 16px)}\n    .inspection-map-zoom-tools{position:absolute;z-index:6;top:8px;right:8px;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bs-border-color);border-radius:.5rem;background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(0,0,0,.12)}\n    .inspection-map-zoom-tools .btn{min-width:30px;padding:.2rem .4rem}\n    .inspection-map-zoom-label{min-width:42px;text-align:center;font-size:.68rem;font-weight:700;color:#334155}\n    .inspection-map-canvas.inspection-map-zoomed{cursor:grab}\n    .inspection-map-canvas.inspection-map-zoomed:active{cursor:grabbing}
+    .inspection-map-dot.incomplete{background:#ffc107}
+    .inspection-map-legend{z-index:5;left:8px;bottom:8px;gap:.45rem;max-width:calc(100% - 16px)}\n    .inspection-map-zoom-tools{position:absolute;z-index:6;top:8px;right:8px;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bs-border-color);border-radius:.5rem;background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(0,0,0,.12)}\n    .inspection-map-zoom-tools .btn{min-width:30px;padding:.2rem .4rem}\n    .inspection-map-zoom-label{min-width:42px;text-align:center;font-size:.68rem;font-weight:700;color:#334155}\n    .inspection-map-canvas.inspection-map-zoomed{cursor:grab}\n    .inspection-map-canvas.inspection-map-zoomed:active{cursor:grabbing}
     .inspection-map-pdf-message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;color:#6c757d;font-size:.85rem;text-align:center;line-height:1.4}
     .inspection-map-pdf-message.d-none{display:none}
     .inspection-point-list{min-height:320px;max-height:65vh;overflow:auto}
@@ -706,6 +707,12 @@
             <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
         </div>
         <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
+            <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
+                <button type="button" id="btnInspectionMapZoomOut" class="btn btn-sm btn-light border" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                <span id="inspectionMapZoomLabel" class="inspection-map-zoom-label">100%</span>
+                <button type="button" id="btnInspectionMapZoomIn" class="btn btn-sm btn-light border" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                <button type="button" id="btnInspectionMapZoomReset" class="btn btn-sm btn-light border" title="Reset zoom" aria-label="Reset zoom"><i class="bi bi-arrows-fullscreen"></i></button>
+            </div>
             <div id="inspectionMapPdfStage" class="inspection-map-pdf-stage">
                 <canvas id="inspectionMapPdfCanvas" aria-label="PDF floor plan"></canvas>
                 <div id="inspectionMapPoints" class="inspection-map-points"></div>
