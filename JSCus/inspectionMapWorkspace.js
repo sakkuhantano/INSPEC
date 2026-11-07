@@ -3,6 +3,7 @@
 
     var wired = false;
     var selectedPoint = null;
+    var currentMapRecord = null;
 
     var demoPoints = [
         { id:"P-01", name:"Main Entrance", type:"GENERAL", x:10, y:18, status:"done", description:"Area entrance / lobby." },
@@ -123,6 +124,8 @@
     }
 
     window.showInspectionMapWorkspace = function (record, activate) {
+        if (record) currentMapRecord = record;
+        record = record || currentMapRecord;
         var workspace = document.getElementById("inspectionMapWorkspace");
         if (!workspace) return;
         renderPoints();
@@ -157,7 +160,7 @@
         var mapTab = document.getElementById("btnInspectionMapTab");
         if (mapTab) {
             mapTab.addEventListener("click", function () {
-                if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(window.currentInspectionRecord || null, true);
+                if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord || null, true);
             });
         }
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
