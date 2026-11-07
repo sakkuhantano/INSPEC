@@ -3,6 +3,8 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
     .inspection-card { border: 1px solid var(--bs-border-color); border-radius: .75rem; background: var(--bs-body-bg); }
+.inspection-map-workspace{position:relative;min-height:calc(100dvh - 150px);border:1px solid var(--bs-border-color);border-radius:.9rem;background:var(--bs-body-bg);overflow:hidden}.inspection-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .9rem;border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-title-wrap{min-width:0}.inspection-map-eyebrow{font-size:.65rem;font-weight:800;letter-spacing:.09em;color:var(--bs-primary)}.inspection-map-title{font-weight:800;font-size:1rem;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inspection-map-subtitle{color:var(--bs-secondary-color);font-size:.72rem;margin-top:.15rem}.inspection-map-actions{display:flex;align-items:center;gap:.35rem;flex:0 0 auto}.inspection-map-summary{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-stat{padding:.5rem .35rem;text-align:center;border-right:1px solid var(--bs-border-color);font-size:.65rem;color:var(--bs-secondary-color);text-transform:uppercase;letter-spacing:.04em}.inspection-map-stat:last-child{border-right:0}.inspection-map-stat-value{display:block;font-size:1rem;font-weight:800;color:var(--bs-body-color);line-height:1.1}.inspection-map-canvas{position:relative;min-height:520px;overflow:hidden;background:linear-gradient(135deg,#eef3f2,#f8faf9)}[data-bs-theme=dark] .inspection-map-canvas{background:linear-gradient(135deg,#151a1b,#202528)}.inspection-map-floorplan{position:absolute;inset:18px;border:2px solid rgba(4,93,93,.35);border-radius:18px;background:rgba(255,255,255,.72);box-shadow:inset 0 0 0 10px rgba(4,93,93,.035)}[data-bs-theme=dark] .inspection-map-floorplan{background:rgba(25,30,31,.82);border-color:rgba(32,201,151,.28)}.inspection-map-room{position:absolute;border:2px solid rgba(4,93,93,.25);border-radius:10px;display:flex;align-items:flex-start;justify-content:flex-start;padding:9px;font-size:.58rem;font-weight:800;color:rgba(4,93,93,.55);letter-spacing:.06em}[data-bs-theme=dark] .inspection-map-room{border-color:rgba(32,201,151,.22);color:rgba(32,201,151,.55)}.room-a{left:4%;top:5%;width:37%;height:30%}.room-b{left:47%;top:5%;width:48%;height:42%}.room-c{left:4%;top:42%;width:37%;height:51%}.room-d{left:47%;top:54%;width:48%;height:39%}.inspection-map-corridor{position:absolute;background:rgba(4,93,93,.08);border-radius:8px}.corridor-a{left:41%;top:8%;width:6%;height:84%}.corridor-b{left:8%;top:35%;width:84%;height:8%}.corridor-c{left:41%;top:47%;width:6%;height:8%}.inspection-map-points{position:absolute;inset:0}.inspection-map-point{position:absolute;transform:translate(-50%,-50%);width:34px;height:34px;border:0;padding:0;background:transparent;z-index:3;cursor:pointer}.inspection-map-point-dot{display:flex;width:28px;height:28px;margin:auto;border-radius:50%;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);font-size:.58rem;font-weight:800;color:#fff}.inspection-map-point.pending .inspection-map-point-dot{background:#6c757d}.inspection-map-point.done .inspection-map-point-dot{background:#198754}.inspection-map-point.abnormal .inspection-map-point-dot{background:#dc3545}.inspection-map-point.selected .inspection-map-point-dot{outline:4px solid rgba(13,110,253,.25);transform:scale(1.12)}.inspection-map-point-label{position:absolute;left:50%;top:30px;transform:translateX(-50%);white-space:nowrap;font-size:.58rem;font-weight:800;color:var(--bs-body-color);background:rgba(255,255,255,.9);border-radius:4px;padding:2px 4px;box-shadow:0 1px 4px rgba(0,0,0,.12)}[data-bs-theme=dark] .inspection-map-point-label{background:rgba(20,24,26,.9)}.inspection-map-north{position:absolute;right:14px;top:12px;width:38px;height:38px;border-radius:50%;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.6rem;color:var(--bs-danger);box-shadow:0 2px 8px rgba(0,0,0,.12)}.inspection-map-north i{font-size:1rem}.inspection-map-legend{position:absolute;left:14px;bottom:14px;display:flex;gap:.55rem;flex-wrap:wrap;padding:.45rem .6rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:rgba(255,255,255,.92);font-size:.62rem;box-shadow:0 2px 8px rgba(0,0,0,.08)}[data-bs-theme=dark] .inspection-map-legend{background:rgba(20,24,26,.94)}.inspection-map-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px}.inspection-map-dot.pending{background:#6c757d}.inspection-map-dot.done{background:#198754}.inspection-map-dot.abnormal{background:#dc3545}.inspection-map-hint{position:absolute;right:14px;bottom:14px;padding:.45rem .6rem;border-radius:.55rem;background:rgba(4,93,93,.94);color:#fff;font-size:.62rem;box-shadow:0 3px 12px rgba(0,0,0,.16)}.inspection-map-point-sheet{position:absolute;z-index:10;left:50%;bottom:16px;transform:translateX(-50%);width:min(460px,calc(100% - 32px));padding:1rem;border:1px solid var(--bs-border-color);border-radius:1rem;background:var(--bs-body-bg);box-shadow:0 18px 45px rgba(0,0,0,.22)}.inspection-map-sheet-handle{width:42px;height:4px;border-radius:99px;background:var(--bs-secondary-bg);margin:0 auto .7rem}.inspection-map-point-code{font-size:.68rem;color:var(--bs-primary);font-weight:900;letter-spacing:.08em}.inspection-map-point-name{font-weight:800;font-size:1rem}.inspection-map-point-status{display:inline-flex;padding:.35rem .55rem;border-radius:99px;background:var(--bs-tertiary-bg);font-size:.7rem;font-weight:700}.inspection-point-list{padding:.75rem;background:var(--bs-tertiary-bg);min-height:520px}.inspection-point-list-row{display:flex;align-items:center;gap:.7rem;padding:.75rem;margin-bottom:.55rem;border:1px solid var(--bs-border-color);border-radius:.7rem;background:var(--bs-body-bg);cursor:pointer}.inspection-point-list-row:last-child{margin-bottom:0}.inspection-point-list-row .inspection-map-point-dot{flex:0 0 28px}.inspection-point-list-row .point-main{min-width:0;flex:1}.inspection-point-list-row .point-code{font-size:.68rem;color:var(--bs-primary);font-weight:800}.inspection-point-list-row .point-name{font-weight:700;font-size:.85rem}@media(max-width:575.98px){.inspection-map-workspace{min-height:calc(100dvh - 118px);border-radius:.7rem}.inspection-map-toolbar{padding:.65rem;align-items:flex-start}.inspection-map-toolbar .inspection-map-actions{flex-wrap:wrap;justify-content:flex-end}.inspection-map-canvas{min-height:calc(100dvh - 300px)}.inspection-map-floorplan{inset:10px}.inspection-map-hint{display:none}.inspection-map-legend{left:10px;bottom:10px}.inspection-map-point-sheet{bottom:10px;width:calc(100% - 20px)}}
+
     .inspection-approval-toolbar { width: 100%; }
     .inspection-filter-control { flex: 1 1 145px; min-width: 125px; }
     .inspection-date-control { flex: 0 1 135px; min-width: 120px; }
@@ -604,7 +606,7 @@
     <div id="inspectionNotice" class="alert alert-info py-2 small mb-3">
         Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.
     </div>
-    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
+    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
@@ -657,6 +659,57 @@
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
     </div>
+    </div>
+    <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
+        <div class="inspection-map-toolbar">
+            <div class="inspection-map-title-wrap">
+                <div class="inspection-map-eyebrow"><i class="bi bi-geo-alt-fill me-1"></i>INSPECTION LOCATION MAP</div>
+                <div id="inspectionMapTitle" class="inspection-map-title">Inspection Map</div>
+                <div id="inspectionMapSubtitle" class="inspection-map-subtitle">Tap a point to inspect</div>
+            </div>
+            <div class="inspection-map-actions">
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" id="btnInspectionMapView" class="btn btn-primary"><i class="bi bi-map me-1"></i>Map</button>
+                    <button type="button" id="btnInspectionPointListView" class="btn btn-outline-primary"><i class="bi bi-list-ul me-1"></i>List</button>
+                </div>
+                <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
+            </div>
+        </div>
+        <div class="inspection-map-summary">
+            <div class="inspection-map-stat"><span class="inspection-map-stat-value" id="inspectionMapTotalCount">0</span><span>Total</span></div>
+            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-success" id="inspectionMapDoneCount">0</span><span>Done</span></div>
+            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span>Abnormal</span></div>
+            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapPendingCount">0</span><span>Remaining</span></div>
+        </div>
+        <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
+            <div class="inspection-map-floorplan">
+                <div class="inspection-map-room room-a">MAIN LOBBY</div>
+                <div class="inspection-map-room room-b">CAR PARK</div>
+                <div class="inspection-map-room room-c">ENGINEERING</div>
+                <div class="inspection-map-room room-d">SERVICE</div>
+                <div class="inspection-map-corridor corridor-a"></div>
+                <div class="inspection-map-corridor corridor-b"></div>
+                <div class="inspection-map-corridor corridor-c"></div>
+                <div id="inspectionMapPoints" class="inspection-map-points"></div>
+                <div class="inspection-map-north"><i class="bi bi-compass"></i><span>N</span></div>
+            </div>
+            <div class="inspection-map-legend"><span><i class="inspection-map-dot pending"></i> Pending</span><span><i class="inspection-map-dot done"></i> Done</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span></div>
+            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Tap a point to open its inspection</div>
+        </div>
+        <div id="inspectionPointList" class="inspection-point-list d-none"></div>
+        <div id="inspectionMapPointSheet" class="inspection-map-point-sheet d-none">
+            <div class="inspection-map-sheet-handle"></div>
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <div><div id="inspectionMapPointCode" class="inspection-map-point-code">P-01</div><div id="inspectionMapPointName" class="inspection-map-point-name">Inspection Point</div><div id="inspectionMapPointMeta" class="inspection-muted"></div></div>
+                <button type="button" id="btnCloseInspectionMapPoint" class="btn btn-sm btn-light border rounded-circle" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div id="inspectionMapPointStatus" class="inspection-map-point-status mt-3"></div>
+            <div id="inspectionMapPointDescription" class="small text-muted mt-2"></div>
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" id="btnOpenInspectionPointChecklist" class="btn btn-primary flex-fill"><i class="bi bi-clipboard-check me-1"></i>Open Checklist</button>
+                <button type="button" id="btnMarkInspectionPointDone" class="btn btn-outline-success"><i class="bi bi-check2"></i></button>
+            </div>
+        </div>
     </div>
     <div id="inspectionChecklistPane" class="d-none">
     <div id="inspectionFormPanel" class="inspection-card p-3 mb-3 d-none">
@@ -738,4 +791,5 @@
     </div>
 <script type="text/javascript" src="../JSCus/inspection.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js"></script>
 </asp:Content>
