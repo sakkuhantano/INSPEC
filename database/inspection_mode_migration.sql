@@ -16,8 +16,12 @@ END
 ELSE
 BEGIN
     UPDATE dbo.PIP_M_InspectionType
-    SET InspectionMode='STANDARD'
-    WHERE InspectionMode IS NULL OR LTRIM(RTRIM(InspectionMode))='';
+    SET InspectionMode=CASE
+        WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='BATCH' THEN 'BATCH'
+        ELSE 'STANDARD'
+    END
+    WHERE InspectionMode IS NULL
+       OR UPPER(LTRIM(RTRIM(InspectionMode))) NOT IN ('STANDARD','BATCH');
 
     IF EXISTS
     (
@@ -31,7 +35,7 @@ BEGIN
     (
         SELECT 1 FROM sys.default_constraints
         WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
-          AND name='DF_PIP_M_InspectionType_InspectionMode'
+          AND parent_column_id=COLUMNPROPERTY(OBJECT_ID('dbo.PIP_M_InspectionType'),'InspectionMode','ColumnId')
     )
         ALTER TABLE dbo.PIP_M_InspectionType
             ADD CONSTRAINT DF_PIP_M_InspectionType_InspectionMode DEFAULT ('STANDARD') FOR InspectionMode;
