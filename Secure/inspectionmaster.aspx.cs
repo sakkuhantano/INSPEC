@@ -827,7 +827,7 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                                 y.ToString("0.####", CultureInfo.InvariantCulture)),
                             new SqlParameter("@Attributes", attributes), new SqlParameter("@UserID", Master.Mn_EmployeeID),
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID), new SqlParameter("@LocationID", Master.Mn_LocationID)
-                        }, true);
+                        });
                 }
                 BindEditorPoints();
                 BindMapElements();
