@@ -436,6 +436,9 @@ ORDER BY DisplayOrder, PointCode",
             PrepareMap();
             PreparePoint();
             BindEditorMaps();
+            pnlEditor.Visible = false;
+            litEditorPdfBackground.Text = "";
+            lnkEditorPdf.Visible = false;
             BindPoints();
             SetTab("#tab-map");
         }
@@ -877,6 +880,9 @@ ORDER BY M.MapVersion DESC",
             txtPointSearch.Text = "";
             PointPageIndex = 0;
             BindEditorMaps();
+            pnlEditor.Visible = false;
+            litEditorPdfBackground.Text = "";
+            lnkEditorPdf.Visible = false;
             BindPoints();
             ShowMessage("Map " + txtMapCode.Text + " berhasil dibuka.", false);
             SetTab("#tab-point");
