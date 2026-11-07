@@ -524,6 +524,28 @@ namespace INSPEC
                                                             MaxRecord,
                                                             Condition);
                             break;
+                        case "155":
+                            using (WAL.BR.CF br = new WAL.BR.CF())
+                            {
+                                _retval = br.EQueryP(@"
+SELECT TOP " + MaxRecord + @" M.MapCode, M.MapName, M.MapVersion
+FROM dbo.PIP_M_InspectionMap M
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
+AND (EXISTS (SELECT 1 FROM dbo.syswebuserusergroup U
+             WHERE U.usergroupid='administrator' AND U.userid=@EmployeeID)
+ OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
+            INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+            INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+            WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+ORDER BY M.MapCode",
+                                    new System.Data.SqlClient.SqlParameter[] {
+                                        new System.Data.SqlClient.SqlParameter("@CompanyID", Request.QueryString["0"] ?? ""),
+                                        new System.Data.SqlClient.SqlParameter("@LocationID", Request.QueryString["1"] ?? ""),
+                                        new System.Data.SqlClient.SqlParameter("@ProfitCenterNo", Request.QueryString["2"] ?? ""),
+                                        new System.Data.SqlClient.SqlParameter("@EmployeeID", Request.QueryString["3"] ?? "")
+                                    }).DefaultView;
+                            }
+                            break;
 
                     }
                 //    break;
