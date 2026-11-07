@@ -932,6 +932,7 @@ ORDER BY M.MapVersion DESC",
                 {
                     hidMapID.Value = "";
                     BindEditorMaps();
+                    pnlMapEditorSection.Visible = false;
                     pnlEditor.Visible = false;
                     litEditorPdfBackground.Text = "";
                     lnkEditorPdf.Visible = false;
@@ -952,6 +953,7 @@ ORDER BY M.MapVersion DESC",
             txtPointSearch.Text = "";
             PointPageIndex = 0;
             BindEditorMaps();
+            pnlMapEditorSection.Visible = false;
             pnlEditor.Visible = false;
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
@@ -963,8 +965,16 @@ ORDER BY M.MapVersion DESC",
         private void ShowPointEditor()
         {
             pnlPointEditor.Visible = true;
-            ScriptManager.RegisterStartupScript(this, GetType(), "showInspectionPointModal",
-                "var m=document.getElementById('pnlPointEditor');if(m){var x=bootstrap.Modal.getOrCreateInstance(m);x.show();}", true);
+        }
+
+        protected override void OnPreRender(EventArgs e)
+        {
+            base.OnPreRender(e);
+            if (pnlPointEditor.Visible)
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "showInspectionPointModal",
+                    "var m=document.getElementById('pnlPointEditor');if(m){var x=bootstrap.Modal.getOrCreateInstance(m);x.show();}", true);
+            }
         }
 
         protected void ddlInspectionType_SelectedIndexChanged(object sender, EventArgs e)
@@ -1007,7 +1017,7 @@ ORDER BY M.MapVersion DESC",
                     BindMapElements();
                     pnlEditor.Visible = true;
                     ScriptManager.RegisterStartupScript(this, GetType(), "scrollMapEditor",
-                        "window.setTimeout(function(){var e=document.getElementById('map-editor');if(e)e.scrollIntoView({behavior:'smooth',block:'start'});},100);", true);
+                        "window.setTimeout(function(){var e=document.getElementById('pnlMapEditorSection');if(e)e.scrollIntoView({behavior:'smooth',block:'start'});},100);", true);
                 }
                 catch (Exception ex)
                 {
@@ -1208,6 +1218,7 @@ VALUES
 
         protected void ddlEditorMap_SelectedIndexChanged(object sender, EventArgs e)
         {
+            pnlMapEditorSection.Visible = true;
             BindEditorPoints();
             pnlEditor.Visible = false;
             litEditorPdfBackground.Text = "";
