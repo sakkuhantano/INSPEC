@@ -92,8 +92,8 @@
                                         </asp:TemplateField>
                                         <asp:TemplateField HeaderText="" ItemStyle-CssClass="text-end text-nowrap">
                                             <ItemTemplate>
-                                                <asp:LinkButton ID="btnEditMapRow" runat="server" CssClass="btn btn-sm btn-outline-primary" CommandName="EditMap" CommandArgument='<%# Eval("MapID") %>'><i class="bi bi-pencil"></i></asp:LinkButton>
-                                                <asp:LinkButton ID="btnOpenMapRow" runat="server" CssClass="btn btn-sm btn-outline-secondary" CommandName="PreviewMap" CommandArgument='<%# Eval("MapID") %>'><i class="bi bi-eye"></i></asp:LinkButton>
+                                                <asp:LinkButton ID="btnEditMapRow" runat="server" CssClass="btn btn-sm btn-outline-primary" CommandArgument='<%# Eval("MapID") %>' CausesValidation="false" OnCommand="btnEditMapRow_Command"><i class="bi bi-pencil"></i></asp:LinkButton>
+                                                <asp:LinkButton ID="btnOpenMapRow" runat="server" CssClass="btn btn-sm btn-outline-secondary" CommandArgument='<%# Eval("MapID") %>' CausesValidation="false" OnCommand="btnOpenMapRow_Command"><i class="bi bi-eye"></i></asp:LinkButton>
                                             </ItemTemplate>
                                         </asp:TemplateField>
                                     </Columns>
