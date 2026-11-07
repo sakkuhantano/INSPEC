@@ -30,10 +30,10 @@ namespace INSPEC.Secure
                 BindAll();
                 PrepareMap();
                 PreparePoint();
-                string mapSearchArgs = Master.Mn_CompanyID + ";" + Master.Mn_LocationID + ";" + Master.Mn_ProfitCenterNo + ";" + Master.Mn_EmployeeID;
-                txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
-                txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             }
+            string mapSearchArgs = Master.Mn_CompanyID + ";" + Master.Mn_LocationID + ";" + Master.Mn_ProfitCenterNo + ";" + Master.Mn_EmployeeID;
+            txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
+            txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
         }
 
         private void BindAll()
