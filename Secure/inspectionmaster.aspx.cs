@@ -170,7 +170,9 @@ THEN 1 ELSE 0 END AS IsAdmin",
 SELECT IT.InspectionTypeCode, IT.InspectionTypeName
 FROM dbo.PIP_M_InspectionType IT
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-WHERE IT.IsActive=1 AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
+WHERE IT.IsActive=1
+  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
 ORDER BY IT.InspectionTypeCode",
                     new SqlParameter[] {
                         new SqlParameter("@IsAdmin", IsAdministrator()),
@@ -232,6 +234,7 @@ WHERE InspectionTypeCode=@TypeCode
   AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
               INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
               WHERE IT.InspectionTypeCode=@TypeCode
+                AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
                 AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY InspectionTypeDetailCode",
                     new SqlParameter[] {
@@ -1078,6 +1081,7 @@ INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
 WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
   AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
                     new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
@@ -1103,6 +1107,7 @@ INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
 WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
   AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
                     new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
@@ -1194,7 +1199,7 @@ INSERT INTO dbo.PIP_M_InspectionPoint
 VALUES
 (@PointID,@CompanyID,@LocationID,@TypeCode,@DetailCode,@PointCode,@PointName,@ObjectType,
  @Description,@ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,@IsActive,@UserID,@UserID)",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
+                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
