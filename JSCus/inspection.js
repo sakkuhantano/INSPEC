@@ -1736,17 +1736,19 @@ window.submitInspectionBatch = async function () {
         return;
     }
     const points = record.Points || [];
-    if (!points.length) {
-        showInspectionNotice("Belum ada Inspection Point yang diinspeksi.", "warning");
+    const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
+    if (!masterPoints.length) {
+        showInspectionNotice("Master Inspection Point batch ini tidak tersedia.", "danger");
         return;
     }
-    const incomplete = points.find(point => !["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()));
-    if (incomplete) {
-        const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
-            Number(item.InspectionPointID) === Number(incomplete.InspectionPointID));
-        if (masterPoint) await openBatchInspectionPointChecklist(masterPoint);
-        showInspectionNotice("Selesaikan semua point yang sudah dipilih sebelum Submit Batch. Point " +
-            (incomplete.PointCode || incomplete.InspectionPointID) + " belum selesai.", "warning");
+    const incompleteMaster = masterPoints.find(masterPoint => {
+        const point = points.find(item => Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
+        return !point || !["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
+    });
+    if (incompleteMaster) {
+        await openBatchInspectionPointChecklist(incompleteMaster);
+        showInspectionNotice("Semua Inspection Point pada batch harus selesai sebelum Submit. Point " +
+            (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
         return;
     }
 
