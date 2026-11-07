@@ -71,6 +71,75 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_InspectionPhoto(InspectionID, InspectionPointTransactionID, SeqNo);
 GO
 
+IF OBJECT_ID('dbo.PIP_T_InspectionBatchSequence','U') IS NULL
+BEGIN
+    CREATE TABLE dbo.PIP_T_InspectionBatchSequence
+    (
+        MonthKey CHAR(6) NOT NULL,
+        LastSequence INT NOT NULL,
+        UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionBatchSequence_UpdateDate DEFAULT(GETDATE()),
+        CONSTRAINT PK_PIP_T_InspectionBatchSequence PRIMARY KEY CLUSTERED(MonthKey),
+        CONSTRAINT CK_PIP_T_InspectionBatchSequence_LastSequence CHECK(LastSequence BETWEEN 0 AND 9999)
+    );
+END;
+GO
+
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve','P') IS NOT NULL
+    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve;
+GO
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve','P') IS NULL
+    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve AS RETURN 0;');
+GO
+ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve
+    @p_InspectionDate DATETIME
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    DECLARE @V_MonthKey CHAR(6);
+    DECLARE @V_Next INT;
+    DECLARE @V_TranCount INT;
+    SET @V_MonthKey=CONVERT(CHAR(6),@p_InspectionDate,112);
+    SET @V_TranCount=@@TRANCOUNT;
+    BEGIN TRY
+        IF @V_TranCount=0 BEGIN TRANSACTION;
+        ELSE SAVE TRANSACTION InspectionBatchNumberSave;
+
+        SELECT @V_Next=LastSequence+1
+        FROM dbo.PIP_T_InspectionBatchSequence WITH (UPDLOCK,HOLDLOCK)
+        WHERE MonthKey=@V_MonthKey;
+
+        IF @V_Next IS NULL
+        BEGIN
+            SET @V_Next=1;
+            INSERT dbo.PIP_T_InspectionBatchSequence(MonthKey,LastSequence,UpdateDate)
+            VALUES(@V_MonthKey,@V_Next,GETDATE());
+        END
+        ELSE
+            UPDATE dbo.PIP_T_InspectionBatchSequence
+            SET LastSequence=@V_Next,UpdateDate=GETDATE()
+            WHERE MonthKey=@V_MonthKey;
+
+        IF @V_Next>9999
+            RAISERROR('Monthly Inspection Batch number sequence is exhausted.',16,1);
+
+        IF @V_TranCount=0 COMMIT TRANSACTION;
+        SELECT @V_MonthKey+RIGHT('0000'+CAST(@V_Next AS VARCHAR(4)),4) AS InspectionNo;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE()=1
+        BEGIN
+            IF @V_TranCount=0 ROLLBACK TRANSACTION;
+            ELSE ROLLBACK TRANSACTION InspectionBatchNumberSave;
+        END
+        ELSE IF XACT_STATE()=-1 AND @V_TranCount=0 ROLLBACK TRANSACTION;
+        DECLARE @V_Message NVARCHAR(4000),@V_Severity INT,@V_State INT;
+        SELECT @V_Message=ERROR_MESSAGE(),@V_Severity=ERROR_SEVERITY(),@V_State=ERROR_STATE();
+        RAISERROR(@V_Message,@V_Severity,@V_State);
+    END CATCH;
+END;
+GO
+
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Batch_Sync', 'P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Batch_Sync;
 GO
@@ -99,6 +168,7 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Batch_Sync
     @p_FollowUpSection VARCHAR(10),
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
+    @p_InspectionNo VARCHAR(10),
     @p_Points dbo.Type_N_Tbl_C13 READONLY,
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
@@ -181,18 +251,19 @@ BEGIN
         ELSE SAVE TRANSACTION InspectionBatchSyncSave;
 
         DECLARE @V_InspectionNo VARCHAR(10);
-        DECLARE @V_MonthPrefix VARCHAR(6);
-        DECLARE @V_NextNo INT;
-        SET @V_MonthPrefix=CONVERT(VARCHAR(6),@p_InspectionDate,112);
-
-        SELECT @V_NextNo=ISNULL(MAX(CAST(RIGHT(InspectionNo,4) AS INT)),0)+1
-        FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK)
-        WHERE InspectionNo LIKE @V_MonthPrefix+'[0-9][0-9][0-9][0-9]';
-
-        IF @V_NextNo>9999
-            RAISERROR('Monthly Inspection Batch number sequence is exhausted.',16,1);
-
-        SET @V_InspectionNo=@V_MonthPrefix+RIGHT('0000'+CAST(@V_NextNo AS VARCHAR(4)),4);
+        SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))),'');
+        IF @V_InspectionNo IS NULL
+        BEGIN
+            DECLARE @V_MonthPrefix VARCHAR(6);
+            DECLARE @V_NextNo INT;
+            SET @V_MonthPrefix=CONVERT(VARCHAR(6),@p_InspectionDate,112);
+            SELECT @V_NextNo=ISNULL(MAX(CAST(RIGHT(InspectionNo,4) AS INT)),0)+1
+            FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK)
+            WHERE InspectionNo LIKE @V_MonthPrefix+'[0-9][0-9][0-9][0-9]';
+            IF @V_NextNo>9999
+                RAISERROR('Monthly Inspection Batch number sequence is exhausted.',16,1);
+            SET @V_InspectionNo=@V_MonthPrefix+RIGHT('0000'+CAST(@V_NextNo AS VARCHAR(4)),4);
+        END;
 
         /* Reuse the current canonical header sync procedure. Empty checklist/photo
            TVPs ensure no batch-level results are written; all child data is saved below. */
