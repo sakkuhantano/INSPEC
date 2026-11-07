@@ -1829,10 +1829,17 @@ async function saveInspection(status) {
             if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
         }
-    } else if (!photos.some(p => p.Type === "BEFORE")) {
-        showToast("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning");
-        showInspectionEditorTab("checklist");
-        return;
+    } else {
+        const draftRequirement = normalizeInspectionPhotoRequirement(
+            currentInspectionRecord.PhotoRequirement ||
+            (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement)
+        );
+        if ((draftRequirement === "BEFORE" || draftRequirement === "BOTH") &&
+            !photos.some(p => String(p.Type || "").toUpperCase() === "BEFORE")) {
+            showToast("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning");
+            showInspectionEditorTab("checklist");
+            return;
+        }
     }
 
     // Ask for explicit confirmation only after all Submit validations pass.
@@ -2923,24 +2930,32 @@ async function updateInspectionChecklistGate() {
     updateInspectionParameterTabGate();
     if (!currentInspectionRecord) return;
     const photos = await getCurrentInspectionPhotos();
-    const before = photos.some(photo => photo.Type === "BEFORE");
+    const requirement = normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement ||
+        (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement));
+    const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
+    const afterRequired = requirement === "AFTER" || requirement === "BOTH";
+    const before = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+    const checklistLocked = beforeRequired && !before;
     document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
-        .forEach(el => { el.disabled = currentInspectionReadOnly || !before; });
-    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || !before;
-    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || !before;
-    document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || !before;
+        .forEach(el => { el.disabled = currentInspectionReadOnly || checklistLocked; });
+    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || checklistLocked;
+    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || checklistLocked;
+    document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || checklistLocked;
     document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(el => {
-        el.disabled = currentInspectionReadOnly || !before;
+        el.disabled = currentInspectionReadOnly || checklistLocked;
     });
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => {
-        el.disabled = currentInspectionReadOnly || !before;
+        el.disabled = currentInspectionReadOnly || checklistLocked;
     });
     const afterInput = document.getElementById("inspectionPhotoAfterInput");
-    afterInput.disabled = currentInspectionReadOnly || !before;
+    afterInput.disabled = currentInspectionReadOnly || !afterRequired;
     document.getElementById("btnAddInspectionAfterPhoto").disabled = afterInput.disabled;
-    document.getElementById("inspectionChecklistGateMessage").textContent = !before
-        ? "Ambil minimal satu foto BEFORE untuk membuka checklist dan foto AFTER."
-        : "Foto BEFORE dan AFTER wajib tersedia sebelum Done. Lengkapi item wajib sebelum Done.";
+    document.getElementById("inspectionChecklistGateMessage").textContent = checklistLocked
+        ? "Ambil minimal satu foto BEFORE untuk membuka checklist."
+        : afterRequired
+            ? "Foto yang diwajibkan Template Version harus tersedia sebelum point dapat diselesaikan."
+            : "Lengkapi item checklist sesuai konfigurasi Template Version.";
+
 }
 
 function showInspectionInputScreen(showNotice) {
