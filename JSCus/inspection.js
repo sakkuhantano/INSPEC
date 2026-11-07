@@ -1782,6 +1782,15 @@ window.submitInspectionBatch = async function () {
         return;
     }
 
+    const batchFollowUp = collectInspectionFollowUp();
+    if (batchFollowUp.FollowUp === "Recommend Follow Up" &&
+        (!batchFollowUp.FollowUpSection || !batchFollowUp.FollowUpRemark)) {
+        showInspectionNotice("Pilih Responsible Section dan isi deskripsi Follow Up sebelum Submit Batch.", "warning");
+        const followUpPanel = document.getElementById("inspectionFollowUpPanel");
+        if (followUpPanel) followUpPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+    }
+
     const confirmed = await showConfirmation({
         title: "Submit Inspection Batch",
         message: "Submit " + points.length + " Inspection Point dalam satu batch?",
@@ -1790,6 +1799,8 @@ window.submitInspectionBatch = async function () {
     if (!confirmed) return;
 
     record.Items = [];
+    record.Summary = document.getElementById("txtInspectionSummary").value.trim();
+    Object.assign(record, batchFollowUp);
     record.ActiveInspectionPointID = 0;
     record.Status = "DONE";
     record.EndDateTime = localDateTimeString(new Date());
