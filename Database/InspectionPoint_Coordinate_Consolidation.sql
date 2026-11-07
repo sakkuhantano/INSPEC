@@ -63,6 +63,16 @@ BEGIN
 END;
 GO
 
+/* Support map marker loading and nearby-coordinate checks. */
+IF NOT EXISTS (SELECT 1 FROM sys.indexes
+               WHERE name='IX_PIP_M_InspectionPoint_MapCoordinate'
+                 AND object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint'))
+BEGIN
+    CREATE NONCLUSTERED INDEX IX_PIP_M_InspectionPoint_MapCoordinate
+    ON dbo.PIP_M_InspectionPoint (CompanyID,LocationID,MapID,MapX,MapY);
+END;
+GO
+
 /* Review migrated values before optionally dropping the legacy table. */
 SELECT InspectionPointID, MapID, PointCode, PointName, MapX, MapY
 FROM dbo.PIP_M_InspectionPoint
