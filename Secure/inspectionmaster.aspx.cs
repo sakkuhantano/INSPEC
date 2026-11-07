@@ -444,6 +444,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
         {
             hidMapID.Value = "";
             txtMapCode.Text = "";
+            Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Next, false);
             txtMapName.Text = "";
             txtMapDescription.Text = "";
             lblMapVersion.Text = "New map · version will start at 1";
@@ -1178,7 +1180,7 @@ SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     ObjectReferenceCode=@ReferenceCode, MapID=@MapID, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
     IsActive=@IsActive, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order));
+                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
                     }
                     else
                     {
@@ -1209,7 +1211,7 @@ VALUES
         }
 
         private SqlParameter[] PointParameters(long pointID, object mapValue, string typeCode,
-            string detailCode, string code, string name, int order)
+            string detailCode, string code, string name, int order, decimal? coordinateX, decimal? coordinateY)
         {
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
