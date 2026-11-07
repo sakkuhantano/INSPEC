@@ -991,6 +991,11 @@ ORDER BY M.MapVersion DESC",
             SetTab("#tab-point");
         }
 
+        protected void btnClosePoint_Click(object sender, EventArgs e)
+        {
+            pnlPointEditor.Visible = false;
+        }
+
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
             PreparePoint();
