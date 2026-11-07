@@ -715,6 +715,7 @@
             <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist</div>
         </div>
         <div id="inspectionPointList" class="inspection-point-list d-none"></div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
         <div class="d-flex justify-content-end gap-2 p-2 border-top">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
