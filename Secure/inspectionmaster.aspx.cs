@@ -11,7 +11,7 @@ using WAL;
 
 namespace INSPEC.Secure
 {
-    public partial class inspectionmaster : WAL.PB
+    public partial class inspectionmaster : WAL.PB, WAL.I_ToolBar_2
     {
         // Reuse the Inspection Type master permission while the dedicated
         // Inspection Setup menu entry is registered in the menu master.
@@ -27,13 +27,89 @@ namespace INSPEC.Secure
                     throw new Exception(WAL.GF.MSG_ACCESS_DENIED);
 
                 Master.Mn_lit_Title = WAL.PB.AppID + " -> Inspection Setup";
+                InitToolbar();
                 BindAll();
                 PrepareMap();
                 PreparePoint();
             }
             string mapSearchArgs = Master.Mn_CompanyID + ";" + Master.Mn_LocationID + ";" + Master.Mn_ProfitCenterNo + ";" + Master.Mn_EmployeeID;
+            lBtnMapCode.Attributes["onClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             txtMapCode.Attributes["onKeyDown"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
             txtMapCode.Attributes["onDblClick"] = GF.JSOpenSearchList_2("155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
+        }
+
+        public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
+        {
+            switch (e.ToolbarItem)
+            {
+                case ToolbarItem_2.New:
+                    btnNewMap_Click(sender, EventArgs.Empty);
+                    break;
+                case ToolbarItem_2.Save:
+                    btnSaveMap_Click(sender, EventArgs.Empty);
+                    break;
+                case ToolbarItem_2.Previous:
+                    NavigateMap(-1);
+                    break;
+                case ToolbarItem_2.Next:
+                    NavigateMap(1);
+                    break;
+            }
+        }
+
+        private void InitToolbar()
+        {
+            Master.TB_VisibleToolbar(true);
+            Master.TB_VisibleButton(ToolbarItem_2.New, true);
+            Master.TB_VisibleButton(ToolbarItem_2.Save, true);
+            Master.TB_VisibleButton(ToolbarItem_2.Delete, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+            Master.TB_VisibleButton(ToolbarItem_2.Next, true);
+            Master.TB_IsConfirmMessage(ToolbarItem_2.Delete, false);
+        }
+
+        private void NavigateMap(int direction)
+        {
+            string currentCode = txtMapCode.Text.Trim();
+            using (var br = new WAL.BR.CF())
+            {
+                string order = direction < 0 ? "DESC" : "ASC";
+                DataTable dt = br.EQueryP(@"
+SELECT TOP 1 M.MapCode
+FROM dbo.PIP_M_InspectionMap M
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND M.IsCurrentVersion=1
+  AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_InspectionPoint P
+      INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+  AND ((@Direction=-1 AND M.MapCode < @CurrentCode)
+       OR (@Direction=1 AND M.MapCode > @CurrentCode))
+ORDER BY M.MapCode " + order,
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@EmployeeID", Master.Mn_EmployeeID),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo),
+                        new SqlParameter("@Direction", direction),
+                        new SqlParameter("@CurrentCode", currentCode)
+                    });
+                if (dt.Rows.Count == 0)
+                {
+                    ShowMessage(direction < 0 ? "Sudah di Map pertama." : "Sudah di Map terakhir.", false);
+                    return;
+                }
+                txtMapCode.Text = Convert.ToString(dt.Rows[0]["MapCode"]);
+            }
+            txtMapCode_TextChanged(null, EventArgs.Empty);
+        }
+
+        protected void lbtn_PreRender(object sender, EventArgs e)
+        {
+            GF.AddAttdisabled_2(sender);
         }
 
         private void BindAll()
