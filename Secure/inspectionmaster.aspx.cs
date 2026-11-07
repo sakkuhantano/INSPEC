@@ -620,6 +620,7 @@ VALUES
         {
             BindEditorPoints();
             pnlEditor.Visible = false;
+            lnkEditorPdf.Visible = false;
             SetTab("#tab-editor");
         }
 
@@ -632,6 +633,13 @@ VALUES
                 return;
             }
             BindEditorPoints();
+            DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
+            if (selectedMap.Rows.Count > 0)
+            {
+                string pdfPath = ResolveUrl("~/" + Convert.ToString(selectedMap.Rows[0]["ImagePath"]).TrimStart('/'));
+                lnkEditorPdf.NavigateUrl = pdfPath;
+                lnkEditorPdf.Visible = true;
+            }
             BindMapElements();
             pnlEditor.Visible = true;
             SetTab("#tab-editor");
