@@ -74,7 +74,7 @@ ORDER BY MapCode",
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable types = br.EQueryP(@"
+                DataTable types = br.EQuery(@"
 SELECT InspectionTypeCode, InspectionTypeName
 FROM dbo.PIP_M_InspectionType
 WHERE IsActive=1
@@ -190,7 +190,7 @@ ORDER BY P.InspectionTypeCode, P.InspectionTypeDetailCode, P.DisplayOrder, P.Poi
 SELECT InspectionPointID, PointCode, PointName
 FROM dbo.PIP_M_InspectionPoint
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  AND IsActive=1 AND MapID=@MapID
+  AND IsActive=1 AND (MapID IS NULL OR MapID=@MapID)
 ORDER BY DisplayOrder, PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -330,7 +330,7 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                         {
                             br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionMap
-SET MapName=@MapName, Description=@Description, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+SET MapCode=@MapCode, MapName=@MapName, Description=@Description, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                                 MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
                         }
