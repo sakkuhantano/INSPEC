@@ -174,7 +174,6 @@
                                         <HeaderStyle HorizontalAlign="left" CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
                                         <RowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddt-custom1" />
                                         <AlternatingRowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddtalt-custom1" />
-                                        <PagerStyle Mode="NumericPages" HorizontalAlign="right" />
                                         <Columns>
                                             <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
                                                 <ItemTemplate>
