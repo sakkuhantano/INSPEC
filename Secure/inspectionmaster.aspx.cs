@@ -856,6 +856,10 @@ ORDER BY M.MapVersion DESC",
                 if (dt.Rows.Count == 0)
                 {
                     hidMapID.Value = "";
+                    BindEditorMaps();
+                    pnlEditor.Visible = false;
+                    litEditorPdfBackground.Text = "";
+                    lnkEditorPdf.Visible = false;
                     ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
                     BindPoints();
                     SetTab("#tab-map");
