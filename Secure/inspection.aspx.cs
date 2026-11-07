@@ -1480,11 +1480,13 @@ ORDER BY P.SeqNo",
             {
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
-       I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
+       I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+       I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        I.IsApprove, I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.InspectionID=@InspectionID
   AND EXISTS (
       SELECT 1
@@ -1531,7 +1533,7 @@ SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAno
 FROM dbo.PIP_T_InspectionResult R
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
-WHERE I.InspectionID=@InspectionID
+WHERE I.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NULL
 ORDER BY R.DisplayOrder, V.FieldName",
                     new SqlParameter[] {
 new SqlParameter("@InspectionID", inspectionId) });
@@ -1561,6 +1563,94 @@ new SqlParameter("@InspectionID", inspectionId) });
                             row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
                 }
                 var itemRows = groupedItems.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
+
+                var batchPointRows = new List<Dictionary<string, object>>();
+                var batchMapRows = new List<Dictionary<string, object>>();
+                if (String.Equals(Convert.ToString(header.Rows[0]["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase))
+                {
+                    DataTable pointMasterRows = br.EQueryP(@"
+SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
+       TP.InspectionDateTime, TP.Status, P.PointCode, P.PointName, P.PointObjectType,
+       P.PointDescription, P.MapID, P.MapX, P.MapY,
+       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY P.DisplayOrder,P.PointCode",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                    DataTable pointResultRows = br.EQueryP(@"
+SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.FieldName,V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                    var pointItems = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
+                    foreach (DataRow row in pointResultRows.Rows)
+                    {
+                        long pointTransactionID = Convert.ToInt64(row["InspectionPointTransactionID"]);
+                        int itemID = Convert.ToInt32(row["IDItem"]);
+                        if (!pointItems.ContainsKey(pointTransactionID))
+                            pointItems[pointTransactionID] = new Dictionary<int, Dictionary<string, object>>();
+                        Dictionary<string, object> item;
+                        if (!pointItems[pointTransactionID].TryGetValue(itemID, out item))
+                        {
+                            item = new Dictionary<string, object> {
+                                { "IDItem", itemID },
+                                { "ItemLabel", GF.GetString(row["ItemLabel"]) },
+                                { "Type", GF.GetString(row["ItemType"]) },
+                                { "Value", GF.GetString(row["Value"]) },
+                                { "Remark1", GF.GetString(row["Remark1"]) },
+                                { "Remark2", GF.GetString(row["Remark2"]) },
+                                { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
+                                { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
+                                { "Values", new Dictionary<string, object>() }
+                            };
+                            pointItems[pointTransactionID].Add(itemID, item);
+                        }
+                        if (row["FieldName"] != DBNull.Value)
+                            ((Dictionary<string, object>)item["Values"])[GF.GetString(row["FieldName"])] = GF.GetString(row["FieldValue"]);
+                    }
+
+                    var mapIDs = new HashSet<long>();
+                    foreach (DataRow pointRow in pointMasterRows.Rows)
+                    {
+                        long pointTransactionID = Convert.ToInt64(pointRow["InspectionPointTransactionID"]);
+                        long mapID = pointRow["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapID"]);
+                        var pointData = new Dictionary<string, object> {
+                            { "InspectionPointTransactionID", pointTransactionID },
+                            { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
+                            { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
+                            { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
+                            { "Status", GF.GetString(pointRow["Status"]) },
+                            { "PointCode", GF.GetString(pointRow["PointCode"]) },
+                            { "PointName", GF.GetString(pointRow["PointName"]) },
+                            { "PointObjectType", GF.GetString(pointRow["PointObjectType"]) },
+                            { "PointDescription", GF.GetString(pointRow["PointDescription"]) },
+                            { "MapID", mapID },
+                            { "MapX", pointRow["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapX"]) },
+                            { "MapY", pointRow["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapY"]) },
+                            { "MapCode", GF.GetString(pointRow["MapCode"]) },
+                            { "Items", pointItems.ContainsKey(pointTransactionID) ? (object)pointItems[pointTransactionID].Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList() : new List<Dictionary<string, object>>() }
+                        };
+                        batchPointRows.Add(pointData);
+                        if (mapID > 0 && mapIDs.Add(mapID))
+                        {
+                            batchMapRows.Add(new Dictionary<string, object> {
+                                { "MapID", mapID },
+                                { "MapCode", GF.GetString(pointRow["MapCode"]) },
+                                { "MapName", GF.GetString(pointRow["MapName"]) },
+                                { "MapUrl", GF.GetString(pointRow["MapUrl"]) },
+                                { "MapVersion", pointRow["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapVersion"]) }
+                            });
+                        }
+                    }
+                }
+
                 var h = new Dictionary<string, object>();
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
@@ -1682,7 +1772,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                     };
                 }
                 DataTable photoTable = br.EQueryP(@"
-SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, P.InspectionPointTransactionID
 FROM dbo.PIP_T_InspectionPhoto P
 WHERE P.InspectionID=@InspectionID
 ORDER BY P.SeqNo",
@@ -1699,10 +1789,12 @@ ORDER BY P.SeqNo",
                         { "Type", photo["PhotoType"] == DBNull.Value ? "" : photo["PhotoType"].ToString() },
                         { "FileName", fileName + "." + fileType },
                         { "SeqNo", photo["SeqNo"] == DBNull.Value ? 0 : Convert.ToInt32(photo["SeqNo"]) },
+                        { "PointID", photo["InspectionPointTransactionID"] == DBNull.Value ? "" : Convert.ToString(photo["InspectionPointTransactionID"]) },
                         { "Data", dataUrl }
                     });
                 }
-                return new { success = true, header = h, items = itemRows, photos = photos, template = approvalTemplateSnapshot };
+                return new { success = true, header = h, items = itemRows, photos = photos, template = approvalTemplateSnapshot,
+                    points = batchPointRows, maps = batchMapRows };
             }
         }
 
