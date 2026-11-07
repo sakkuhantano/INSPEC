@@ -16,6 +16,10 @@
     .inspection-map-point.inactive{opacity:.35}
     .inspection-map-point.incomplete .inspection-map-point-dot{background:#ffc107;color:#212529}
     .inspection-map-dot.incomplete{background:#ffc107}
+    .inspection-map-point-dot.pending{background:#6c757d}
+    .inspection-map-point-dot.done{background:#198754}
+    .inspection-map-point-dot.abnormal{background:#dc3545}
+    .inspection-map-point-dot.incomplete{background:#ffc107;color:#212529}
     .inspection-map-legend{z-index:5;left:8px;bottom:8px;gap:.45rem;max-width:calc(100% - 16px)}
     .inspection-map-zoom-tools{position:absolute;z-index:6;top:8px;right:8px;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bs-border-color);border-radius:.5rem;background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(0,0,0,.12)}
     .inspection-map-zoom-tools .btn{min-width:30px;padding:.2rem .4rem}
