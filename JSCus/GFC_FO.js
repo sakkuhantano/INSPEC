@@ -1247,7 +1247,15 @@ async function uploadPendingInspections() {
             const requirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
             const requiredTypes = requirement === "BOTH" ? ["BEFORE", "AFTER"] :
                 requirement === "BEFORE" ? ["BEFORE"] : requirement === "AFTER" ? ["AFTER"] : [];
-            if (requiredTypes.every(type => photos.some(photo => String(photo.Type || "").toUpperCase() === type))) ready.push(record);
+            if (String(record.InspectionMode || "STANDARD").toUpperCase() === "BATCH") {
+                const pointRows = record.Points || [];
+                const eachPointReady = pointRows.length > 0 && pointRows.every(point => {
+                    const pointPhotos = photos.filter(photo => String(photo.PointID || "") === String(point.ClientPointID || ""));
+                    return ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()) &&
+                        requiredTypes.every(type => pointPhotos.some(photo => String(photo.Type || "").toUpperCase() === type));
+                });
+                if (eachPointReady) ready.push(record); else waiting++;
+            } else if (requiredTypes.every(type => photos.some(photo => String(photo.Type || "").toUpperCase() === type))) ready.push(record);
             else waiting++;
         }
         ownedRecords=ready;
@@ -1266,53 +1274,94 @@ async function uploadPendingInspections() {
     }
 
     const payload = await Promise.all(ownedRecords.map(async record => {
-        let photos=[];
-        if(db.objectStoreNames.contains("inspection_photos")) photos=await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly");const req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(record.LocalInspectionID));req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
-        const requirementValue = String(record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement) || "BOTH").toUpperCase();
+        let photos = [];
+        if (db.objectStoreNames.contains("inspection_photos"))
+            photos = await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_photos", "readonly");
+                const req = tx.objectStore("inspection_photos").index("LocalInspectionID")
+                    .getAll(IDBKeyRange.only(record.LocalInspectionID));
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+
+        const requirementValue = String(record.PhotoRequirement ||
+            (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement) || "BOTH").toUpperCase();
         const requirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
         const allowedPhotoTypes = requirement === "BOTH" ? ["BEFORE", "AFTER"] :
             requirement === "BEFORE" ? ["BEFORE"] : requirement === "AFTER" ? ["AFTER"] : [];
-        const orderedPhotos = photos.filter(photo => allowedPhotoTypes.includes(String(photo.Type || "").toUpperCase())).sort((a,b) =>
-            Number(a.SeqNo || a.OrderNo || 0) - Number(b.SeqNo || b.OrderNo || 0) ||
-            (String(a.Type || "").toUpperCase() === "BEFORE" ? 0 : 1) -
-            (String(b.Type || "").toUpperCase() === "BEFORE" ? 0 : 1)
-        );
-        let maxPhotoSeqNo = orderedPhotos.reduce((max,p) => Math.max(max,Number(p.SeqNo || p.OrderNo || 0)),0);
-        const usedPhotoSeqNos = new Set();
-        const serializedPhotos=await Promise.all(orderedPhotos.map(async p=>{
-            let seqNo=Number(p.SeqNo||p.OrderNo||0);
-            if(seqNo<=0||usedPhotoSeqNos.has(seqNo)){
-                do { maxPhotoSeqNo++; } while(usedPhotoSeqNos.has(maxPhotoSeqNo));
-                seqNo=maxPhotoSeqNo;
-            }
-            usedPhotoSeqNos.add(seqNo);
-            return {Type:p.Type,FileName:p.FileName||"",SeqNo:seqNo,Data:await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||""));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(p.Blob);})};
-        }));
-        return {
-        ClientInspectionID: record.LocalInspectionID,
-        OwnerEmployeeID: record.OwnerEmployeeID,
-        CompanyID: record.CompanyID,
-        LocationID: record.LocationID,
-        SectionID: record.SectionID,
-        InspectionTypeCode: record.InspectionTypeCode,
-        InspectionTypeDetailCode: record.InspectionTypeDetailCode,
-        ScheduledTime: record.ScheduledTime || "",
-        IDTemplate: record.IDTemplate,
-        IDVersion: record.IDVersion,
-        TemplateNo: record.TemplateNo,
-        TemplateVersion: record.TemplateVersion || "",
-        InspectionDate: record.InspectionDate || "",
-        StartDateTime: inspectionWallClockDateTime(record.StartDateTime),
-        EndDateTime: inspectionWallClockDateTime(record.EndDateTime),
-        Status: record.Status,
-        Summary: record.Summary || "",
-        FollowUp: record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up",
-        FollowUpSection: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpSection || "") : "",
-        FollowUpRemark: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpRemark || "") : "",
-        Items: record.Items || [], Photos: serializedPhotos
-        };
-    }));
 
+        const serializePhotoRows = async rows => {
+            const ordered = rows.filter(photo => allowedPhotoTypes.includes(String(photo.Type || "").toUpperCase()))
+                .sort((a, b) => Number(a.SeqNo || a.OrderNo || 0) - Number(b.SeqNo || b.OrderNo || 0));
+            let maxSeq = ordered.reduce((max, photo) => Math.max(max, Number(photo.SeqNo || photo.OrderNo || 0)), 0);
+            const used = new Set();
+            return Promise.all(ordered.map(async photo => {
+                let seqNo = Number(photo.SeqNo || photo.OrderNo || 0);
+                if (seqNo <= 0 || used.has(seqNo)) {
+                    do { maxSeq++; } while (used.has(maxSeq));
+                    seqNo = maxSeq;
+                }
+                used.add(seqNo);
+                return {
+                    Type: photo.Type,
+                    FileName: photo.FileName || "",
+                    SeqNo: seqNo,
+                    Data: await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || ""));
+                        reader.onerror = () => reject(reader.error);
+                        reader.readAsDataURL(photo.Blob);
+                    })
+                };
+            }));
+        };
+
+        const common = {
+            ClientInspectionID: record.LocalInspectionID,
+            OwnerEmployeeID: record.OwnerEmployeeID,
+            CompanyID: record.CompanyID,
+            LocationID: record.LocationID,
+            SectionID: record.SectionID,
+            InspectionTypeCode: record.InspectionTypeCode,
+            InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+            ScheduledTime: record.ScheduledTime || "",
+            IDTemplate: record.IDTemplate,
+            IDVersion: record.IDVersion,
+            TemplateNo: record.TemplateNo,
+            TemplateVersion: record.TemplateVersion || "",
+            InspectionDate: record.InspectionDate || "",
+            StartDateTime: inspectionWallClockDateTime(record.StartDateTime),
+            EndDateTime: inspectionWallClockDateTime(record.EndDateTime),
+            Status: record.Status,
+            Summary: record.Summary || "",
+            FollowUp: record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up",
+            FollowUpSection: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpSection || "") : "",
+            FollowUpRemark: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpRemark || "") : "",
+            InspectionMode: String(record.InspectionMode || "STANDARD").toUpperCase(),
+            PhotoRequirement: requirement
+        };
+
+        if (common.InspectionMode === "BATCH") {
+            const pointPayloads = [];
+            for (const point of (record.Points || [])) {
+                const pointPhotos = photos.filter(photo => String(photo.PointID || "") === String(point.ClientPointID || ""));
+                pointPayloads.push({
+                    ClientPointID: point.ClientPointID,
+                    InspectionPointID: point.InspectionPointID,
+                    PointCode: point.PointCode || "",
+                    PointName: point.PointName || "",
+                    InspectionDateTime: inspectionWallClockDateTime(point.InspectionDateTime),
+                    Status: point.Status,
+                    Items: point.Items || [],
+                    Photos: await serializePhotoRows(pointPhotos)
+                });
+            }
+            return Object.assign(common, { Points: pointPayloads, Items: [], Photos: [] });
+        }
+
+        const serializedPhotos = await serializePhotoRows(photos);
+        return Object.assign(common, { Items: record.Items || [], Photos: serializedPhotos });
+    }));
     // Keep each ASP.NET WebMethod request below the usual IIS 4 MB request limit.
     // Photo blobs are base64 encoded, so chunk by serialized payload size, not record count.
     const payloadBatches = [];
