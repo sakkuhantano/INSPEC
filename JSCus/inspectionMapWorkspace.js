@@ -340,6 +340,9 @@
         if (!currentMapId && currentMaps.length) currentMapId = String(currentMaps[0].MapID);
         renderMapOptions();
 
+        var submitBatchButton = document.getElementById("btnSubmitInspectionBatch");
+        if (submitBatchButton) submitBatchButton.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
+
         var typeName = record.InspectionTypeName || "Inspection";
         var detailName = record.InspectionTypeDetailName || "";
         var title = document.getElementById("inspectionMapTitle");
