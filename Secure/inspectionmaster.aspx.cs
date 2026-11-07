@@ -293,7 +293,15 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
         private void ShowMapPreview(DataRow row)
         {
             string path = Convert.ToString(row["ImagePath"]);
-            string url = ResolveUrl("~/" + path.TrimStart('/'));
+            string url = path;
+            Uri absoluteUrl;
+            if (!Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl))
+            {
+                if (path.StartsWith("~/", StringComparison.Ordinal))
+                    url = ResolveUrl(path);
+                else if (!path.StartsWith("/", StringComparison.Ordinal))
+                    url = ResolveUrl("~/" + path.TrimStart('/'));
+            }
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " +
                 Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
@@ -443,8 +451,13 @@ VALUES
 
         private string SavePdfFile(FileUpload upload)
         {
-            if (upload.PostedFile.ContentLength <= 0 || upload.PostedFile.ContentLength > _MaxPdfBytes)
+            if (upload == null || !upload.HasFile)
+                throw new Exception("Silakan pilih file PDF denah.");
+
+            if (upload.PostedFile.ContentLength <= 0 ||
+                upload.PostedFile.ContentLength > _MaxPdfBytes)
                 throw new Exception("Ukuran PDF harus lebih dari 0 dan maksimal 50 MB.");
+
             string extension = Path.GetExtension(upload.FileName);
             if (!String.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("File denah harus berformat PDF.");
@@ -455,30 +468,80 @@ VALUES
                 System.Text.Encoding.ASCII.GetString(signature) != "%PDF-")
                 throw new Exception("File yang dipilih bukan PDF yang valid.");
 
-            string folder = "~/Upload/InspectionMaps/" +
-                SafePathPart(Master.Mn_CompanyID) + "/" + SafePathPart(Master.Mn_LocationID);
-            string physicalFolder = Server.MapPath(folder);
-            if (!Directory.Exists(physicalFolder)) Directory.CreateDirectory(physicalFolder);
+            string webFolder = PB.Path_WebFolder1;
+            if (String.IsNullOrWhiteSpace(webFolder))
+                throw new Exception("PB.Path_WebFolder1 is empty; Inspection map storage root is not configured.");
+
+            string root = GetInspectionMapRoot();
+            string companyLocation =
+                SafePathPart(Master.Mn_CompanyID) + "_" + SafePathPart(Master.Mn_LocationID);
+
+            string relativeFolder = Path.Combine(root, "PIP_M_InspectionMap", companyLocation);
+            string physicalFolder = Path.Combine(webFolder, relativeFolder);
+
+            if (!Directory.Exists(physicalFolder))
+                Directory.CreateDirectory(physicalFolder);
 
             string fileName = Guid.NewGuid().ToString("N") + ".pdf";
             string fullPath = Path.Combine(physicalFolder, fileName);
+
             upload.PostedFile.InputStream.Position = 0;
             upload.SaveAs(fullPath);
-            return (folder.TrimStart('~', '/') + "/" + fileName).Replace("\\", "/");
+
+            string relativeUrl = relativeFolder.Replace("\\", "/");
+            string urlRoot = (PB.Url_WebFolder1 ?? "").TrimEnd('/');
+            return urlRoot + "/" + relativeUrl + "/" + fileName;
+        }
+
+        private string GetInspectionMapRoot()
+        {
+            string appPath = System.Web.HttpContext.Current.Request.ApplicationPath ?? "";
+            string appId = PB.AppID ?? "";
+
+            string root = appPath.Replace("/", "");
+            if (!String.IsNullOrEmpty(appId))
+                root = root.Replace(appId, "PIP");
+
+            return root;
         }
 
         private string SafePathPart(string value)
         {
-            string result = new string((value ?? "").Where(c => Char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+            string result = new string((value ?? "").Where(
+                c => Char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+
             return result == "" ? "_" : result;
         }
 
-        private void TryDeleteFile(string relativePath)
+        private void TryDeleteFile(string storedPath)
         {
             try
             {
-                string full = Server.MapPath("~/" + relativePath.TrimStart('/'));
-                if (File.Exists(full)) File.Delete(full);
+                if (String.IsNullOrWhiteSpace(storedPath)) return;
+
+                // ImagePath stores the URL returned by SavePdfFile.
+                // Only delete GUID-named PDFs from this map's configured folder.
+                string normalized = storedPath.Replace("\\", "/");
+                int slash = normalized.LastIndexOf('/');
+                string fileName = slash >= 0 ? normalized.Substring(slash + 1) : normalized;
+
+                Guid fileID;
+                if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ||
+                    !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fileName), "N", out fileID))
+                    return;
+
+                string webFolder = PB.Path_WebFolder1;
+                if (String.IsNullOrWhiteSpace(webFolder)) return;
+
+                string root = GetInspectionMapRoot();
+                string companyLocation =
+                    SafePathPart(Master.Mn_CompanyID) + "_" + SafePathPart(Master.Mn_LocationID);
+
+                string physicalFolder = Path.Combine(
+                    webFolder, root, "PIP_M_InspectionMap", companyLocation);
+
+                string fullPath = Path.Combine(physicalFolder, fileName);
+                if (File.Exists(fullPath)) File.Delete(fullPath);
             }
             catch { }
         }
