@@ -20,8 +20,7 @@ BEGIN
         WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='BATCH' THEN 'BATCH'
         ELSE 'STANDARD'
     END
-    WHERE InspectionMode IS NULL
-       OR UPPER(LTRIM(RTRIM(InspectionMode))) NOT IN ('STANDARD','BATCH');
+    ;
 
     IF EXISTS
     (
