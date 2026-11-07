@@ -995,11 +995,13 @@ window.mountInspectionBatchSummary = function (record) {
     const checklistPane = document.getElementById("inspectionChecklistPane");
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
+    const reasonVoid = document.getElementById("inspectionReasonVoidPanel");
     if (!host || !checklistPane || !followUp || !summary) return;
     const isBatch = record && String(record.InspectionMode || "").toUpperCase() === "BATCH";
     if (isBatch) {
         host.appendChild(followUp);
         host.appendChild(summary);
+        if (reasonVoid) host.appendChild(reasonVoid);
         host.classList.remove("d-none");
         followUp.classList.remove("d-none");
         summary.classList.remove("d-none");
@@ -1012,6 +1014,7 @@ window.mountInspectionBatchSummary = function (record) {
     } else {
         checklistPane.appendChild(followUp);
         checklistPane.appendChild(summary);
+        if (reasonVoid) checklistPane.appendChild(reasonVoid);
         host.classList.add("d-none");
         followUp.classList.remove("d-none");
         summary.classList.remove("d-none");
