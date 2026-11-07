@@ -681,22 +681,23 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span>Abnormal</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapPendingCount">0</span><span>Remaining</span></div>
         </div>
+        <div id="inspectionMapSelectWrap" class="px-3 pt-2 d-none">
+            <label for="inspectionMapSelect" class="form-label small fw-semibold mb-1">Floor Plan</label>
+            <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
+        </div>
         <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
-            <div class="inspection-map-floorplan">
-                <div class="inspection-map-room room-a">MAIN LOBBY</div>
-                <div class="inspection-map-room room-b">CAR PARK</div>
-                <div class="inspection-map-room room-c">ENGINEERING</div>
-                <div class="inspection-map-room room-d">SERVICE</div>
-                <div class="inspection-map-corridor corridor-a"></div>
-                <div class="inspection-map-corridor corridor-b"></div>
-                <div class="inspection-map-corridor corridor-c"></div>
+            <div id="inspectionMapPdfStage" class="inspection-map-pdf-stage">
+                <canvas id="inspectionMapPdfCanvas" aria-label="PDF floor plan"></canvas>
                 <div id="inspectionMapPoints" class="inspection-map-points"></div>
-                <div class="inspection-map-north"><i class="bi bi-compass"></i><span>N</span></div>
+                <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
             </div>
-            <div class="inspection-map-legend"><span><i class="inspection-map-dot pending"></i> Pending</span><span><i class="inspection-map-dot done"></i> Done</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span></div>
-            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Tap a point to open its inspection</div>
+            <div class="inspection-map-legend"><span><i class="inspection-map-dot pending"></i> Pending</span><span><i class="inspection-map-dot done"></i> Done</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Incomplete</span></div>
+            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist</div>
         </div>
         <div id="inspectionPointList" class="inspection-point-list d-none"></div>
+        <div class="d-flex justify-content-end gap-2 p-2 border-top">
+            <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
+        </div>
         <div id="inspectionMapPointSheet" class="inspection-map-point-sheet d-none">
             <div class="inspection-map-sheet-handle"></div>
             <div class="d-flex align-items-start justify-content-between gap-2">
@@ -791,5 +792,6 @@
     </div>
 <script type="text/javascript" src="../JSCus/inspection.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
+<script type="text/javascript" src="../JSCus/pdf.min.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js"></script>
 </asp:Content>
