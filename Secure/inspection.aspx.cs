@@ -350,15 +350,29 @@ WHERE InspectionID=@InspectionID",
                         if (String.IsNullOrWhiteSpace(inspectionNo))
                         {
                             syncStage = "reserve inspection number";
-                            DataTable generatedNo = br.EQueryP(@"
+                            DataTable generatedNo;
+                            if (isBatchInspection)
+                            {
+                                generatedNo = br.EQueryP("spUTL_PIP_T_Inspection_BatchNumber_Reserve",
+                                    new SqlParameter[] { new SqlParameter("@p_InspectionDate", inspectionDate) });
+                                if (generatedNo == null || generatedNo.Rows.Count == 0 ||
+                                    generatedNo.Rows[0]["InspectionNo"] == DBNull.Value ||
+                                    String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["InspectionNo"])))
+                                    throw new Exception("Failed to reserve monthly Inspection Batch number.");
+                                inspectionNo = Convert.ToString(generatedNo.Rows[0]["InspectionNo"]);
+                            }
+                            else
+                            {
+                                generatedNo = br.EQueryP(@"
 DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
 INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
 SELECT ID FROM @AutoNumResult;",
-                                new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
-                            if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
-                                String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
-                                throw new Exception("Failed to reserve InspectionNo before saving transaction data.");
-                            inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
+                                    new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
+                                if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
+                                    String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
+                                    throw new Exception("Failed to reserve InspectionNo before saving transaction data.");
+                                inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
+                            }
                         }
 
                         string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
@@ -384,16 +398,26 @@ SELECT ID FROM @AutoNumResult;",
                                 string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
                                 createdPhotoPaths.Add(fullPath);
                                 File.WriteAllBytes(fullPath, photo.Item4);
-                                photoTable.Rows.Add(
-                                    photo.Item1,
-                                    fileName,
-                                    photo.Item3,
-                                    photo.Item2.ToString(CultureInfo.InvariantCulture),
-                                    ""); // C5 is intentionally initialized but unused.
+                                photoTable.Rows.Add(photo.Item1, fileName, photo.Item3,
+                                    photo.Item2.ToString(CultureInfo.InvariantCulture), "");
                             }
 
-                            syncStage = "save header, checklist, and photo metadata atomically";
-                            DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync", new SqlParameter[]
+                            foreach (var photo in incomingBatchPhotos)
+                            {
+                                string safePoint = new string((photo.Item1 ?? "").Where(Char.IsLetterOrDigit).ToArray());
+                                string fileName = "INS" + clientId.Replace("-", "").Substring(0, Math.Min(12, clientId.Replace("-", "").Length)) +
+                                    "_" + safePoint.Substring(0, Math.Min(8, safePoint.Length)) +
+                                    "_" + photo.Item3.ToString(CultureInfo.InvariantCulture) +
+                                    "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
+                                string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item4);
+                                createdPhotoPaths.Add(fullPath);
+                                File.WriteAllBytes(fullPath, photo.Item5);
+                                photoTable.Rows.Add(photo.Item1, photo.Item2, fileName, photo.Item4,
+                                    photo.Item3.ToString(CultureInfo.InvariantCulture));
+                            }
+
+                            syncStage = "save header, point checklist, and photo metadata atomically";
+                            SqlParameter[] commonParameters = new SqlParameter[]
                             {
                                 new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
                                 new SqlParameter("@p_CompanyID", companyId),
@@ -414,12 +438,30 @@ SELECT ID FROM @AutoNumResult;",
                                 new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
                                 new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
                                 new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
-                                new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
-                                new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
-                                new SqlParameter("@p_Photos", photoTable),
-                                new SqlParameter("@p_Items", items),
-                                new SqlParameter("@p_ItemValues", itemValues)
-                            }, true, true);
+                                new SqlParameter("@p_UpdateUser", Limit(userId, 50))
+                            };
+                            DataTable saved;
+                            if (isBatchInspection)
+                            {
+                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Batch_Sync",
+                                    commonParameters.Concat(new SqlParameter[] {
+                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
+                                        new SqlParameter("@p_Points", batchPoints),
+                                        new SqlParameter("@p_Photos", photoTable),
+                                        new SqlParameter("@p_Items", batchItems),
+                                        new SqlParameter("@p_ItemValues", batchItemValues)
+                                    }).ToArray(), true, true);
+                            }
+                            else
+                            {
+                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync",
+                                    commonParameters.Concat(new SqlParameter[] {
+                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
+                                        new SqlParameter("@p_Photos", photoTable),
+                                        new SqlParameter("@p_Items", items),
+                                        new SqlParameter("@p_ItemValues", itemValues)
+                                    }).ToArray(), true, true);
+                            }
                             sqlCallReturned = true;
 
                             if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
