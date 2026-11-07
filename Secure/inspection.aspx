@@ -18,7 +18,8 @@
     .inspection-map-dot.incomplete{background:#ffc107}
     .inspection-map-legend{z-index:5;left:8px;bottom:8px;gap:.45rem;max-width:calc(100% - 16px)}
     .inspection-map-zoom-tools{position:absolute;z-index:6;top:8px;right:8px;display:flex;align-items:center;gap:3px;padding:4px;border:1px solid var(--bs-border-color);border-radius:.5rem;background:rgba(255,255,255,.94);box-shadow:0 2px 8px rgba(0,0,0,.12)}
-    .inspection-map-zoom-tools .btn{min-width:30px;padding:.2rem .4rem}\n    .inspection-map-zoom-label{min-width:42px;text-align:center;font-size:.68rem;font-weight:700;color:#334155}\n    .inspection-map-canvas.inspection-map-zoomed{cursor:grab}\n    .inspection-map-canvas.inspection-map-zoomed:active{cursor:grabbing}
+    .inspection-map-zoom-tools .btn{min-width:30px;padding:.2rem .4rem}
+    .inspection-map-zoom-label{min-width:42px;text-align:center;font-size:.68rem;font-weight:700;color:#334155}\n    .inspection-map-canvas.inspection-map-zoomed{cursor:grab}\n    .inspection-map-canvas.inspection-map-zoomed:active{cursor:grabbing}
     .inspection-map-pdf-message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;color:#6c757d;font-size:.85rem;text-align:center;line-height:1.4}
     .inspection-map-pdf-message.d-none{display:none}
     .inspection-point-list{min-height:320px;max-height:65vh;overflow:auto}
