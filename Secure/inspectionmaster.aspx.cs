@@ -916,6 +916,8 @@ ORDER BY M.MapVersion DESC",
                 DataRow row = dt.Rows[0];
                 hidMapID.Value = Convert.ToString(row["MapID"]);
                 txtMapCode.Text = Convert.ToString(row["MapCode"]);
+                Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+                Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                 txtMapName.Text = Convert.ToString(row["MapName"]);
                 txtMapDescription.Text = Convert.ToString(row["Description"]);
                 lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
@@ -1143,7 +1145,7 @@ WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
 SELECT TOP 1 PointCode,PointName
 FROM dbo.PIP_M_InspectionPoint
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
-  AND InspectionPointID<>@PointID AND IsActive=1
+  AND InspectionPointID<>@PointID
   AND MapX IS NOT NULL AND MapY IS NOT NULL
   AND ((MapX-@MapX)*(MapX-@MapX)+(MapY-@MapY)*(MapY-@MapY))<0.25
 ORDER BY PointCode",
@@ -1376,21 +1378,5 @@ WHERE InspectionPointID=@PointID AND MapID=@MapID",
             SetTab("#tab-point");
         }
 
-        private void ParseCoordinates(string attributes, out decimal x, out decimal y)
-        {
-            x = 50;
-            y = 50;
-            string[] parts = (attributes ?? "").Split(';');
-            foreach (string part in parts)
-            {
-                string[] pair = part.Split('=');
-                if (pair.Length != 2) continue;
-                decimal value;
-                if (!Decimal.TryParse(pair[1], NumberStyles.Number, CultureInfo.InvariantCulture, out value))
-                    continue;
-                if (pair[0].Trim().Equals("x", StringComparison.OrdinalIgnoreCase)) x = Math.Max(0, Math.Min(100, value));
-                if (pair[0].Trim().Equals("y", StringComparison.OrdinalIgnoreCase)) y = Math.Max(0, Math.Min(100, value));
-            }
-        }
     }
 }
