@@ -82,7 +82,7 @@
                         <div class="card-body p-0">
                             <div class="table-responsive">
                                 <asp:GridView ID="gvMaps" runat="server" AutoGenerateColumns="false" CssClass="table table-hover align-middle mb-0 inspection-master-grid"
-                                    GridLines="None" EmptyDataText="Belum ada denah." OnRowCommand="gvMaps_RowCommand">
+                                    GridLines="None" EmptyDataText="Belum ada denah.">
                                     <Columns>
                                         <asp:BoundField DataField="MapCode" HeaderText="Code" />
                                         <asp:BoundField DataField="MapName" HeaderText="Map Name" />
