@@ -1423,9 +1423,11 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.
             using (var br = new WAL.BR.CF())
             {
                 DataTable rows = br.EQueryP(@"
-SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.InspectionDate
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, TP.ClientPointID,
+       I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.InspectionDate
 FROM dbo.PIP_T_InspectionPhoto P
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
+LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=P.InspectionPointTransactionID
 WHERE I.ClientInspectionID=@ClientInspectionID
   AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.Status='DRAFT' AND I.IsApprove=0
@@ -1462,6 +1464,7 @@ ORDER BY P.SeqNo",
                         { "Type", row["PhotoType"] == DBNull.Value ? "" : row["PhotoType"].ToString() },
                         { "FileName", fileName + "." + fileType },
                         { "SeqNo", row["SeqNo"] == DBNull.Value ? 0 : Convert.ToInt32(row["SeqNo"]) },
+                        { "PointID", GF.GetString(row["ClientPointID"]) },
                         { "Data", dataUrl }
                     });
                 }
@@ -1813,8 +1816,10 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
        I.TemplateNo, I.TemplateName, I.TemplateVersion, I.InspectionDate,
        I.StartDateTime, I.EndDateTime, I.Status, I.Summary, I.OwnerEmployeeID,
-       I.ReasonVoid, I.UpdateDate
+       I.ReasonVoid, I.UpdateDate,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
