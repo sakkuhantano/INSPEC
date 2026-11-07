@@ -45,7 +45,7 @@
     <div class="tab-content inspection-master-content">
         <div class="tab-pane fade show active" id="tab-map" role="tabpanel">
             <div class="row g-3">
-                <div class="col-xl-5">
+                <div class="col-12">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-white fw-semibold">Map Information</div>
                         <div class="card-body">
