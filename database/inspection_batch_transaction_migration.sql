@@ -287,6 +287,17 @@ BEGIN
         IF @V_InspectionNo IS NULL
             RAISERROR('Reserve the monthly BATCH InspectionNo before calling the sync procedure.',16,1);
 
+        IF @V_InspectionNo NOT LIKE CONVERT(VARCHAR(6),@p_InspectionDate,112)+'[0-9][0-9][0-9][0-9]'
+            RAISERROR('InspectionNo must use the yyyymmxxxx batch format for the inspection date.',16,1);
+
+        IF EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_Inspection
+            WHERE InspectionNo=@V_InspectionNo
+              AND ClientInspectionID<>@p_ClientInspectionID
+        )
+            RAISERROR('The reserved InspectionNo is already assigned to another inspection.',16,1);
+
         /* Reuse the current canonical header sync procedure. Empty checklist/photo
            TVPs ensure no batch-level results are written; all child data is saved below. */
         DECLARE @V_EmptyPhotos dbo.Type_N_Tbl_C5;
