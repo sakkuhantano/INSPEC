@@ -619,6 +619,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                 "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah PDF...</div>";
             lnkEditorPdf.NavigateUrl = url;
             lnkEditorPdf.Visible = true;
+            lblPointMapCode.Text = "· " + Convert.ToString(selectedMap.Rows[0]["MapCode"]);
         }
 
         protected void btnSaveMap_Click(object sender, EventArgs e)
@@ -684,8 +685,7 @@ VALUES
  @MapVersion,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
-UPDATE dbo.PIP_M_InspectionMapElement SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-WHERE MapID=@OldMapID;",
+",
                                 new SqlParameter[] {
                                     new SqlParameter("@OldMapID", oldID), new SqlParameter("@NewMapID", newID),
                                     new SqlParameter("@CompanyID", Master.Mn_CompanyID), new SqlParameter("@LocationID", Master.Mn_LocationID),
@@ -1113,9 +1113,57 @@ WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
                     return;
                 }
             }
+            decimal? coordinateX = null;
+            decimal? coordinateY = null;
+            if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
+            {
+                decimal parsedX, parsedY;
+                if (!Decimal.TryParse(txtMarkerX.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedX) ||
+                    !Decimal.TryParse(txtMarkerY.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedY) ||
+                    parsedX < 0 || parsedX > 100 || parsedY < 0 || parsedY > 100)
+                {
+                    ShowMessage("Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", true);
+                    SetTab("#tab-point");
+                    return;
+                }
+                coordinateX = parsedX;
+                coordinateY = parsedY;
+            }
+
             object mapValue = Convert.ToInt64(hidMapID.Value);
             long pointID;
             bool editing = Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0;
+            if (coordinateX.HasValue)
+            {
+                using (var check = new WAL.BR.CF())
+                {
+                    DataTable occupied = check.EQueryP(@"
+SELECT TOP 1 PointCode,PointName
+FROM dbo.PIP_M_InspectionPoint
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
+  AND InspectionPointID<>@PointID AND IsActive=1
+  AND MapX IS NOT NULL AND MapY IS NOT NULL
+  AND ((MapX-@MapX)*(MapX-@MapX)+(MapY-@MapY)*(MapY-@MapY))<0.25
+ORDER BY PointCode",
+                        new SqlParameter[] {
+                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@MapID", mapValue),
+                            new SqlParameter("@PointID", editing ? pointID : 0),
+                            new SqlParameter("@MapX", coordinateX.Value),
+                            new SqlParameter("@MapY", coordinateY.Value)
+                        });
+                    if (occupied.Rows.Count > 0)
+                    {
+                        ShowMessage("Lokasi terlalu dekat dengan Inspection Point " +
+                            Convert.ToString(occupied.Rows[0]["PointCode"]) + " - " +
+                            Convert.ToString(occupied.Rows[0]["PointName"]) +
+                            ". Pilih posisi lain atau gunakan Swap Position.", true);
+                        SetTab("#tab-point");
+                        return;
+                    }
+                }
+            }
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -1175,8 +1223,8 @@ VALUES
                 new SqlParameter("@Description", txtPointDescription.Text.Trim()),
                 new SqlParameter("@ReferenceCode", txtObjectReferenceCode.Text.Trim()),
                 new SqlParameter("@MapID", mapValue),
-                new SqlParameter("@MapX", String.IsNullOrWhiteSpace(txtMarkerX.Text) ? (object)DBNull.Value : Convert.ToDecimal(txtMarkerX.Text, CultureInfo.InvariantCulture)),
-                new SqlParameter("@MapY", String.IsNullOrWhiteSpace(txtMarkerY.Text) ? (object)DBNull.Value : Convert.ToDecimal(txtMarkerY.Text, CultureInfo.InvariantCulture)),
+                new SqlParameter("@MapX", coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value),
+                new SqlParameter("@MapY", coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value),
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsActive", chkPointActive.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
