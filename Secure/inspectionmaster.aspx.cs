@@ -381,12 +381,12 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             {
                 DataTable points = br.EQueryP(@"
 SELECT InspectionPointID, PointCode, PointName
-FROM dbo.PIP_M_InspectionPoint
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID
-  AND IsActive=1 AND MapID=@MapID
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND P.IsActive=1 AND P.MapID=@MapID
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=dbo.PIP_M_InspectionPoint.InspectionTypeCode
+      WHERE IT.InspectionTypeCode=P.InspectionTypeCode
         AND S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY DisplayOrder, PointCode",
                     new SqlParameter[] {
@@ -1048,8 +1048,15 @@ SELECT E.MapElementID,E.InspectionPointID,E.ElementID,E.ShapeAttributes,
 FROM dbo.PIP_M_InspectionMapElement E
 INNER JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=E.InspectionPointID
 WHERE E.MapID=@MapID AND E.IsActive=1 AND E.IsDeleted=0
+  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY P.DisplayOrder,P.PointCode",
-                    new SqlParameter[] { new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue)) });
+                    new SqlParameter[] {
+                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue)),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
 
             DataTable display = new DataTable();
             display.Columns.Add("MapElementID", typeof(long));
