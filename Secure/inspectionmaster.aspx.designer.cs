@@ -15,7 +15,10 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.FileUpload fuMapPdf;
         protected global::System.Web.UI.WebControls.LinkButton btnSaveMap;
         protected global::System.Web.UI.WebControls.LinkButton btnNewMap;
+        protected global::System.Web.UI.WebControls.LinkButton btnRefreshMap;
         protected global::System.Web.UI.WebControls.Label lblMapVersion;
+        protected global::System.Web.UI.WebControls.Literal litEditorPdfBackground;
+        protected global::System.Web.UI.WebControls.LinkButton lBtnInspectionType;
                 protected global::System.Web.UI.WebControls.Panel pnlMapPreview;
         protected global::System.Web.UI.WebControls.Label lblMapPreviewTitle;
         protected global::System.Web.UI.WebControls.HyperLink lnkMapPdf;
