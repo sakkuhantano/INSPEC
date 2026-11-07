@@ -438,42 +438,6 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                     ddlEditorMap.SelectedValue = hidMapID.Value;
                 }
             }
-            BindEditorPoints();
-        }
-
-        private void BindEditorPoints()
-        {
-            ddlEditorPoint.Items.Clear();
-            ddlEditorPoint.Items.Add(new ListItem("-- Select Inspection Point --", ""));
-            if (String.IsNullOrWhiteSpace(hidMapID.Value)) return;
-
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable points = br.EQueryP(@"
-SELECT InspectionPointID, PointCode, PointName
-FROM dbo.PIP_M_InspectionPoint P
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
-  AND P.IsActive=1 AND P.MapID=@MapID
-  AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
-      INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=P.InspectionTypeCode
-        AND S.ProfitCenterNo=@ProfitCenterNo))
-ORDER BY DisplayOrder, PointCode",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@MapID", Convert.ToInt64(ddlEditorMap.SelectedValue)),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
-                    });
-                if (points != null)
-                {
-                    foreach (DataRow row in points.Rows)
-                        ddlEditorPoint.Items.Add(new ListItem(
-                            Convert.ToString(row["PointCode"]) + " - " + Convert.ToString(row["PointName"]),
-                            Convert.ToString(row["InspectionPointID"])));
-                }
-            }
         }
 
         private void PrepareMap()
@@ -512,7 +476,6 @@ ORDER BY DisplayOrder, PointCode",
             PreparePoint();
             BindEditorMaps();
             pnlEditor.Visible = false;
-            pnlMapEditorSection.Visible = false;
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
@@ -940,8 +903,7 @@ ORDER BY M.MapVersion DESC",
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
-                    pnlMapEditorSection.Visible = false;
-                    pnlEditor.Visible = false;
+                            pnlEditor.Visible = false;
                     litEditorPdfBackground.Text = "";
                     lnkEditorPdf.Visible = false;
                     ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
@@ -961,7 +923,6 @@ ORDER BY M.MapVersion DESC",
             txtPointSearch.Text = "";
             PointPageIndex = 0;
             BindEditorMaps();
-            pnlMapEditorSection.Visible = false;
             pnlEditor.Visible = false;
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
@@ -1007,6 +968,17 @@ ORDER BY M.MapVersion DESC",
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
             PreparePoint();
+            BindEditorMaps();
+            try
+            {
+                LoadEditorMapPdf();
+                BindMapElements();
+                pnlEditor.Visible = true;
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("Gagal memuat denah untuk Inspection Point: " + ex.Message, true);
+            }
             ShowPointEditor();
             SetTab("#tab-point");
         }
@@ -1016,34 +988,7 @@ ORDER BY M.MapVersion DESC",
             long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
 
-            if (e.CommandName == "MapEditor")
-            {
-                hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
-                pnlMapEditorSection.Visible = true;
-                BindEditorMaps();
-                if (ddlEditorPoint.Items.FindByValue(pointID.ToString(CultureInfo.InvariantCulture)) != null)
-                    ddlEditorPoint.SelectedValue = pointID.ToString(CultureInfo.InvariantCulture);
-
-                try
-                {
-                    LoadEditorMapPdf();
-                    BindMapElements();
-                    pnlEditor.Visible = true;
-                    ScriptManager.RegisterStartupScript(this, GetType(), "scrollMapEditor",
-                        "window.setTimeout(function(){var e=document.getElementById('pnlMapEditorSection');if(e)e.scrollIntoView({behavior:'smooth',block:'start'});},100);", true);
-                }
-                catch (Exception ex)
-                {
-                    pnlMapEditorSection.Visible = true;
-                    pnlEditor.Visible = false;
-                    litEditorPdfBackground.Text = "";
-                    lnkEditorPdf.Visible = false;
-                    ShowMessage("Gagal memuat Map Editor: " + ex.Message, true);
-                }
-                return;
-            }
-
-            if (e.CommandName != "EditPoint") return;
+            if (e.CommandName != "EditPoint" && e.CommandName != "MapEditor") return;
             //long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
 
@@ -1236,41 +1181,6 @@ VALUES
                 new SqlParameter("@IsActive", chkPointActive.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
             };
-        }
-
-        protected void ddlEditorMap_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            pnlMapEditorSection.Visible = true;
-            BindEditorPoints();
-            pnlEditor.Visible = false;
-            litEditorPdfBackground.Text = "";
-            lnkEditorPdf.Visible = false;
-            SetTab("#tab-editor");
-        }
-
-        protected void btnLoadEditor_Click(object sender, EventArgs e)
-        {
-            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
-            {
-                ShowMessage("Pilih map terlebih dahulu.", true);
-                SetTab("#tab-editor");
-                return;
-            }
-            try
-            {
-                pnlMapEditorSection.Visible = true;
-                LoadEditorMapPdf();
-                BindMapElements();
-                pnlEditor.Visible = true;
-            }
-            catch (Exception ex)
-            {
-                litEditorPdfBackground.Text = "";
-                lnkEditorPdf.Visible = false;
-                pnlEditor.Visible = false;
-                ShowMessage("Gagal memuat denah pada Map Editor: " + ex.Message, true);
-            }
-            SetTab("#tab-editor");
         }
 
         private void BindMapElements()
