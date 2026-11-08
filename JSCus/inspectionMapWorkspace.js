@@ -59,6 +59,20 @@
         return currentPoints.slice();
     }
 
+    function findNextPendingPoint() {
+        var pending = currentPoints.filter(function (point) {
+            var status = getPointStatus(point);
+            return status === "PENDING" || status === "INCOMPLETE";
+        });
+        if (!pending.length) return null;
+        pending.sort(function (a, b) {
+            var ao = Number(a.DisplayOrder || 0), bo = Number(b.DisplayOrder || 0);
+            if (ao !== bo) return ao - bo;
+            return String(a.PointCode || "").localeCompare(String(b.PointCode || ""));
+        });
+        return pending[0];
+    }
+
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
@@ -99,7 +113,7 @@
             return !keyword ||
                 String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
                 String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0 ||
-                String(point.PointObjectType || "").toLowerCase().indexOf(keyword) >= 0;
+                false;
         });
         var pageCount = Math.max(1, Math.ceil(filtered.length / listPageSize));
         listPage = Math.min(Math.max(1, listPage), pageCount);
@@ -132,8 +146,7 @@
                 return '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '"></span>' +
-                    '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) +
-                    ' · ' + esc(point.PointObjectType || "GENERAL") + '</span>' +
+                    '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
                     '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
                     '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
                     status === "ABNORMAL" ? "text-bg-danger" :
@@ -164,6 +177,17 @@
         var next = document.getElementById("inspectionPointNext");
         if (prev) prev.addEventListener("click", function () { listPage--; renderList(); });
         if (next) next.addEventListener("click", function () { listPage++; renderList(); });
+
+        var nextPending = document.getElementById("btnInspectionNextPending");
+        if (nextPending) nextPending.addEventListener("click", function () {
+            var point = findNextPendingPoint();
+            if (!point) {
+                if (typeof showInspectionNotice === "function")
+                    showInspectionNotice("Semua unit inspeksi sudah memiliki hasil.", "success");
+                return;
+            }
+            openPoint(point.InspectionPointID);
+        });
     }
 
     function updateSummary() {
@@ -442,6 +466,9 @@
         if (!currentMapId && currentMaps.length) currentMapId = String(currentMaps[0].MapID);
         renderMapOptions();
 
+        var nextPendingButton = document.getElementById("btnInspectionNextPending");
+        if (nextPendingButton) nextPendingButton.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
+
         var submitBatchButton = document.getElementById("btnSubmitInspectionBatch");
         if (submitBatchButton) submitBatchButton.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
 
@@ -451,7 +478,7 @@
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = typeName + (detailName ? " · " + detailName : "");
         if (subtitle) subtitle.textContent = "Batch " + (record.InspectionNo || "baru") +
-            " · " + currentPoints.length + " Inspection Point";
+            " · " + currentPoints.length + " Unit Inspeksi";
 
         renderList();
         updateSummary();
