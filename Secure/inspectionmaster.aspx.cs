@@ -451,6 +451,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             Master.TB_VisibleButton(ToolbarItem_2.Next, false);
             txtMapName.Text = "";
             txtMapDescription.Text = "";
+            chkRequireAllPoints.Checked = true;
             lblMapVersion.Text = "New map · version will start at 1";
             pnlMapPreview.Visible = false;
         }
@@ -537,6 +538,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                 Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                     txtMapName.Text = Convert.ToString(row["MapName"]);
                     txtMapDescription.Text = Convert.ToString(row["Description"]);
+                    chkRequireAllPoints.Checked = row["RequireAllPoints"] == DBNull.Value || Convert.ToBoolean(row["RequireAllPoints"]);
                     lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
                         " · Upload PDF/JPG baru untuk membuat versi berikutnya.";
                 }
@@ -555,7 +557,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
         {
             using (var br = new WAL.BR.CF())
                 return br.EQueryP(@"
-SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.Description
+SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.Description,
+       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
@@ -651,7 +654,8 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                         {
                             br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionMap
-SET MapCode=@MapCode, MapName=@MapName, Description=@Description, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+SET MapCode=@MapCode, MapName=@MapName, Description=@Description,
+    RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                                 MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
                         }
@@ -678,10 +682,10 @@ SET IsCurrentVersion=0, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapVersion,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
 (@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
- @MapVersion,1,1,@Description,@UpdateUser,@UpdateUser);
+ @MapVersion,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 ",
@@ -717,10 +721,10 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapCode=@MapCode",
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapVersion,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
 (@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
- @MapVersion,1,1,@Description,@UpdateUser,@UpdateUser)",
+ @MapVersion,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser)",
                             new SqlParameter[] {
                                 new SqlParameter("@MapID", newID), new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                                 new SqlParameter("@LocationID", Master.Mn_LocationID), new SqlParameter("@MapCode", code),
@@ -759,6 +763,7 @@ VALUES
                 new SqlParameter("@MapID", mapID), new SqlParameter("@MapCode", code),
                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", imagePath),
                 new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                 new SqlParameter("@UpdateUser", Master.Mn_EmployeeID),
                 new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                 new SqlParameter("@LocationID", Master.Mn_LocationID)
