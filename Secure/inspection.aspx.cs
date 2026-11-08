@@ -139,6 +139,8 @@ namespace INSPEC.Secure
                             pointRow["C2"] = masterPointID.ToString(CultureInfo.InvariantCulture);
                             pointRow["C3"] = TokenString(point, "InspectionDateTime");
                             pointRow["C4"] = pointStatus;
+                            pointRow["C5"] = DbString(Limit(TokenString(point, "AbnormalRemark").Trim(), 500));
+                            pointRow["C6"] = TokenString(point, "PointCondition").ToUpperInvariant();
                             batchPoints.Rows.Add(pointRow);
 
                             JArray pointItems = point["Items"] as JArray ?? new JArray();
@@ -1065,7 +1067,8 @@ SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
        P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY, P.DisplayOrder,
        M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion,
-       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
+       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+       ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
 FROM dbo.PIP_M_InspectionPoint P
 LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
@@ -1113,7 +1116,8 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                         { "MapY", row["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapY"]) },
                         { "DisplayOrder", Convert.ToInt32(row["DisplayOrder"]) },
                         { "MapCode", GF.GetString(row["MapCode"]) },
-                        { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
+                        { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) },
+                        { "IsNormalAbnormalRequired", Convert.ToBoolean(row["IsNormalAbnormalRequired"]) }
                     });
                 }
 
@@ -1627,7 +1631,8 @@ new SqlParameter("@InspectionID", inspectionId) });
                 {
                     DataTable pointMasterRows = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
-       TP.InspectionDateTime, TP.Status, P.PointCode, P.PointName, P.PointObjectType,
+       TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
+       P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.MapID, P.MapX, P.MapY,
        M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
 FROM dbo.PIP_T_InspectionPoint TP
@@ -1684,6 +1689,8 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
                             { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
                             { "Status", GF.GetString(pointRow["Status"]) },
+                            { "AbnormalRemark", GF.GetString(pointRow["AbnormalRemark"]) },
+                            { "IsNormalAbnormalRequired", pointRow["IsNormalAbnormalRequired"] != DBNull.Value && Convert.ToBoolean(pointRow["IsNormalAbnormalRequired"]) },
                             { "PointCode", GF.GetString(pointRow["PointCode"]) },
                             { "PointName", GF.GetString(pointRow["PointName"]) },
                             { "PointObjectType", GF.GetString(pointRow["PointObjectType"]) },
@@ -1730,7 +1737,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
    I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
    ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
    I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired, ISNULL(I.IsSummaryRequired,1) IsSummaryRequired,
    I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
    I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -1790,6 +1797,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                                     max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                     unit = itemRow["Unit"].ToString(),
                                     isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                    isSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
                                     versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                     versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                     versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -1941,7 +1949,8 @@ new SqlParameter("@InspectionID", id) });
                     {
                         DataTable returnedPoints = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
-       TP.InspectionDateTime,TP.Status,P.PointCode,P.PointName,P.PointObjectType,
+       TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
+       P.PointCode,P.PointName,P.PointObjectType,
        P.PointDescription,P.MapID,P.MapX,P.MapY
 FROM dbo.PIP_T_InspectionPoint TP
 JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
@@ -1992,6 +2001,8 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
                                 { "PointCode", GF.GetString(pointRow["PointCode"]) },
                                 { "PointName", GF.GetString(pointRow["PointName"]) },
+                                { "AbnormalRemark", GF.GetString(pointRow["AbnormalRemark"]) },
+                                { "IsNormalAbnormalRequired", pointRow["IsNormalAbnormalRequired"] != DBNull.Value && Convert.ToBoolean(pointRow["IsNormalAbnormalRequired"]) },
                                 { "PointObjectType", GF.GetString(pointRow["PointObjectType"]) },
                                 { "PointDescription", GF.GetString(pointRow["PointDescription"]) },
                                 { "MapID", pointRow["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapID"]) },
@@ -2023,7 +2034,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
        ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
        I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired, ISNULL(I.IsSummaryRequired,1) IsSummaryRequired,
        I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -2083,6 +2094,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                                         max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                         unit = itemRow["Unit"].ToString(),
                                         isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                    isSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
                                         versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                         versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                         versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
