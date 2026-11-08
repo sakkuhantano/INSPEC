@@ -55,6 +55,12 @@
         return normalizedStatus(transaction && transaction.Status);
     }
 
+    function pointRequiresInspection(point) {
+        if (!point || point.RequireAllPoints === undefined || point.RequireAllPoints === null) return true;
+        return !(point.RequireAllPoints === false || point.RequireAllPoints === 0 ||
+            String(point.RequireAllPoints).toLowerCase() === "false" || String(point.RequireAllPoints) === "0");
+    }
+
     function getVisiblePoints() {
         return currentPoints.slice();
     }
@@ -62,7 +68,7 @@
     function findNextPendingPoint() {
         var pending = currentPoints.filter(function (point) {
             var status = getPointStatus(point);
-            return status === "PENDING" || status === "INCOMPLETE";
+            return status === "INCOMPLETE" || (status === "PENDING" && pointRequiresInspection(point));
         });
         if (!pending.length) return null;
         pending.sort(function (a, b) {
@@ -198,7 +204,9 @@
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
         var abnormal = points.filter(function (p) { return getPointStatus(p) === "ABNORMAL"; }).length;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
-        var pending = points.length - done - abnormal - incomplete;
+        var pending = points.filter(function (p) {
+            return getPointStatus(p) === "PENDING" && pointRequiresInspection(p);
+        }).length;
         var set = function (id, value) {
             var element = document.getElementById(id);
             if (element) element.textContent = String(value);
