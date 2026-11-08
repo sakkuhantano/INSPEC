@@ -24,7 +24,14 @@ IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_Item','U') IS NOT NULL
    AND COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item','IsSummaryRequired') IS NOT NULL
 BEGIN
     UPDATE V
-       SET V.IsSummaryRequired = CASE WHEN EXISTS
+       SET V.IsSummaryRequired = CASE
+       WHEN NOT EXISTS
+       (
+           SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S
+           JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+           WHERE S.IDVersion=V.IDVersion
+       ) THEN 1
+       WHEN EXISTS
        (
            SELECT 1
            FROM dbo.PIP_M_CheckListWOPM_Section S
