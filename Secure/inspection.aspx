@@ -426,6 +426,36 @@
         }
     }
 
+
+    /* Samsung S25 / compact mobile inspection layout */
+    .inspection-map-image { display:block; max-width:none; height:auto; user-select:none; -webkit-user-drag:none; }
+    .inspection-image-preview { display:block; width:100%; max-height:70vh; object-fit:contain; background:#f8f9fa; }
+    .inspection-coordinate-pdf[data-map-url] { display:block; }
+    @media (max-width:575.98px) {
+        .inspection-map-workspace { min-height:calc(100dvh - 108px); }
+        .inspection-map-toolbar { align-items:center; gap:.4rem; padding:.55rem; }
+        .inspection-map-title { font-size:.92rem; }
+        .inspection-map-subtitle { font-size:.68rem; }
+        .inspection-map-actions .btn { min-width:40px; min-height:40px; }
+        .inspection-map-canvas { min-height:44dvh; max-height:58dvh; padding:4px; }
+        .inspection-map-zoom-tools { top:6px; right:6px; gap:2px; padding:3px; }
+        .inspection-map-zoom-tools .btn { min-width:40px; min-height:40px; padding:.25rem; }
+        .inspection-map-zoom-label { min-width:40px; font-size:.7rem; }
+        .inspection-map-point { width:44px; height:44px; }
+        .inspection-map-point-dot { width:19px; height:19px; font-size:.5rem; }
+        .inspection-map-point-label { top:30px; font-size:.56rem; }
+        .inspection-map-legend { left:6px; right:6px; bottom:6px; max-width:none; gap:.35rem .55rem; padding:.4rem .5rem; font-size:.68rem; }
+        .inspection-map-hint { display:none; }
+        .inspection-point-list { min-height:36dvh; max-height:52dvh; padding:.5rem; }
+        .inspection-point-list-row { min-height:56px; padding:.65rem; }
+        .inspection-map-point-sheet { left:8px; right:8px; bottom:max(.5rem,env(safe-area-inset-bottom)); width:auto; transform:none; padding:.85rem; }
+        .inspection-map-point-sheet .btn { min-height:44px; }
+        #inspectionChecklistHost input, #inspectionChecklistHost select { min-height:44px; }
+        #inspectionChecklistHost textarea { min-height:76px; }
+        .inspection-item { padding:.75rem; margin-bottom:.6rem; }
+        .inspection-option-choice { min-height:42px; }
+        .inspection-photo-item { width:88px; height:88px; }
+    }
 </style>
 </asp:Content>
 
