@@ -4182,12 +4182,6 @@ function showItemProperties(itemData)
                 </div>
 
                 <div class="form-check form-switch mb-2">
-                    <input id="propSummaryRequired" class="form-check-input" type="checkbox"
-                        ${itemData.IsSummaryRequired !== false ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
-                    <label class="form-check-label text-xs">Summary Required</label>
-                </div>
-
-                <div class="form-check form-switch mb-2">
                     <input
                         id="propMandatoryValue"
                         class="form-check-input"
@@ -4873,14 +4867,6 @@ function showItemProperties(itemData)
                 markCurrentVersionDirty();
             }
         );
-    }
-
-    const chkSummaryRequired = document.getElementById("propSummaryRequired");
-    if (chkSummaryRequired) {
-        chkSummaryRequired.addEventListener("change", function () {
-            itemData.IsSummaryRequired = this.checked;
-            markCurrentVersionDirty();
-        });
     }
 
     [["chkUseDefaultRemark1", "IsUseDefaultRemark1", "groupRemark1Local"],
