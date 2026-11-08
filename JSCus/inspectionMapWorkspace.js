@@ -79,7 +79,7 @@
 
     function findNextPendingPoint() {
         var pending = currentPoints.filter(function (point) {
-            var status = getPointVisualStatus(point);
+            var status = getPointStatus(point);
             return status === "INCOMPLETE" || (status === "PENDING" && pointRequiresInspection(point));
         });
         if (!pending.length) return null;
@@ -101,7 +101,7 @@
                 point.MapY !== null && point.MapY !== undefined;
         });
         host.innerHTML = points.map(function (point) {
-            var status = getPointStatus(point);
+            var status = getPointVisualStatus(point);
             var code = String(point.PointCode || "");
             var x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
             var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
@@ -160,7 +160,7 @@
                 '</div>' +
             '</div>' +
             (rows.length ? rows.map(function (point) {
-                var status = getPointStatus(point);
+                var status = getPointVisualStatus(point);
                 return '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
