@@ -1785,7 +1785,7 @@ window.submitInspectionBatch = async function () {
     });
     if (incompleteMaster) {
         await openBatchInspectionPointChecklist(incompleteMaster);
-        showInspectionNotice("Semua Inspection Point pada batch harus selesai sebelum Submit. Point " +
+        showInspectionNotice("Masih ada unit inspeksi yang belum memiliki hasil. Unit " +
             (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
         return;
     }
@@ -1801,7 +1801,7 @@ window.submitInspectionBatch = async function () {
 
     const confirmed = await showConfirmation({
         title: "Submit Inspection Batch",
-        message: "Submit " + points.length + " Inspection Point dalam satu batch?",
+        message: "Submit " + points.length + " unit inspeksi dalam satu batch? Pastikan seluruh area/objek yang memang terdaftar sudah memiliki hasil.",
         yesText: "Submit Batch"
     });
     if (!confirmed) return;
