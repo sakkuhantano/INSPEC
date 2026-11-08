@@ -35,6 +35,141 @@ let isReadonlyMode = false;
 // Prevent slower, earlier version loads from overwriting a more recent selection.
 let versionStructureLoadRequestId = 0;
 
+// Undo/Redo is an in-memory history for edits that have not been committed by Save All.
+let templateUndoStack = [];
+let templateRedoStack = [];
+let templateHistorySnapshot = null;
+let templateHistoryRestoring = false;
+
+function captureTemplateHistoryState() {
+    return {
+        cache: JSON.parse(JSON.stringify(templateCache)),
+        selection: {
+            sectionId: currentTemplate && currentTemplate.SectionID != null ? String(currentTemplate.SectionID) : "",
+            templateRuntimeId: currentTemplate && currentTemplate.RuntimeTemplateID != null ? String(currentTemplate.RuntimeTemplateID) : "",
+            versionRuntimeId: currentVersion && currentVersion.RuntimeVersionID != null ? String(currentVersion.RuntimeVersionID) : "",
+            sectionRuntimeId: currentSection && currentSection.RuntimeSectionID != null ? String(currentSection.RuntimeSectionID) : "",
+            itemRuntimeId: currentItem && currentItem.RuntimeItemID != null ? String(currentItem.RuntimeItemID) : ""
+        }
+    };
+}
+
+function updateTemplateHistoryButtons() {
+    const undo = document.getElementById("btnTemplateUndo");
+    const redo = document.getElementById("btnTemplateRedo");
+    if (undo) undo.disabled = isReadonlyMode || templateUndoStack.length === 0;
+    if (redo) redo.disabled = isReadonlyMode || templateRedoStack.length === 0;
+}
+
+function clearTemplateHistory() {
+    templateUndoStack = [];
+    templateRedoStack = [];
+    templateHistorySnapshot = captureTemplateHistoryState();
+    updateTemplateHistoryButtons();
+}
+
+function recordTemplateHistoryChange() {
+    if (templateHistoryRestoring) return;
+    const next = captureTemplateHistoryState();
+    if (!templateHistorySnapshot) {
+        templateHistorySnapshot = next;
+        updateTemplateHistoryButtons();
+        return;
+    }
+    if (JSON.stringify(next.cache) === JSON.stringify(templateHistorySnapshot.cache)) return;
+    templateUndoStack.push(templateHistorySnapshot);
+    if (templateUndoStack.length > 40) templateUndoStack.shift();
+    templateRedoStack = [];
+    templateHistorySnapshot = next;
+    updateTemplateHistoryButtons();
+}
+
+function restoreTemplateHistoryState(state) {
+    if (!state) return;
+    templateHistoryRestoring = true;
+    try {
+        const restoredCache = JSON.parse(JSON.stringify(state.cache));
+        Object.keys(templateCache).forEach(key => delete templateCache[key]);
+        Object.assign(templateCache, restoredCache);
+
+        const selection = state.selection || {};
+        const sectionCache = templateCache.sections && templateCache.sections[selection.sectionId];
+        const templateNode = sectionCache && sectionCache.Templates
+            ? sectionCache.Templates[selection.templateRuntimeId] : null;
+        currentTemplate = templateNode ? templateNode.Template : null;
+        currentVersions = templateNode && templateNode.Versions
+            ? Object.values(templateNode.Versions) : [];
+        const versionNode = templateNode && templateNode.Versions
+            ? templateNode.Versions[selection.versionRuntimeId] : null;
+        currentVersion = versionNode ? versionNode.VersionInfo : null;
+        currentVersionData = versionNode ? versionNode.Structure : null;
+        currentSection = null;
+        currentItem = null;
+        currentSelectedSection = null;
+        currentSelectedItem = null;
+        currentSelectedSubSection = null;
+
+        if (currentTemplate) {
+            const versionContainer = document.querySelector(
+                '.template-version-container[data-template-id="' + currentTemplate.RuntimeTemplateID + '"]'
+            );
+            if (versionContainer) renderTemplateVersions(currentVersions, versionContainer);
+        }
+
+        if (currentVersionData) {
+            renderVersionStructure(currentVersionData);
+            if (selection.itemRuntimeId) {
+                const itemRow = document.querySelector('.item-row[data-id="' + selection.itemRuntimeId + '"]');
+                if (itemRow) selectItem(itemRow);
+            } else if (selection.sectionRuntimeId) {
+                const sectionBox = document.querySelector('.section-box[data-id="' + selection.sectionRuntimeId + '"]');
+                if (sectionBox) selectSection(sectionBox);
+            }
+        } else {
+            clearBuilderPanel();
+            clearPropertiesPanel();
+        }
+
+        evaluateDirtyState();
+    } finally {
+        templateHistoryRestoring = false;
+        templateHistorySnapshot = captureTemplateHistoryState();
+        updateTemplateHistoryButtons();
+    }
+}
+
+function undoTemplateChange() {
+    if (isReadonlyMode || !templateUndoStack.length) return;
+    templateRedoStack.push(captureTemplateHistoryState());
+    const previous = templateUndoStack.pop();
+    restoreTemplateHistoryState(previous);
+}
+
+function redoTemplateChange() {
+    if (isReadonlyMode || !templateRedoStack.length) return;
+    templateUndoStack.push(captureTemplateHistoryState());
+    const next = templateRedoStack.pop();
+    restoreTemplateHistoryState(next);
+}
+
+document.addEventListener("keydown", function (event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+    const target = event.target;
+    if (target && (target.matches("input, textarea, select") || target.isContentEditable)) return;
+    if (String(event.key || "").toLowerCase() === "z" && !event.shiftKey) {
+        if (templateUndoStack.length && !isReadonlyMode) {
+            event.preventDefault();
+            undoTemplateChange();
+        }
+    } else if (String(event.key || "").toLowerCase() === "y" ||
+        (String(event.key || "").toLowerCase() === "z" && event.shiftKey)) {
+        if (templateRedoStack.length && !isReadonlyMode) {
+            event.preventDefault();
+            redoTemplateChange();
+        }
+    }
+});
+
 let groupData = [];
 
 let itemOptionTagManager = null;
@@ -502,6 +637,7 @@ function createNewItem()
         Remark1Text:"",
         Remark2Text:"",
         IsValueRequired:false,
+        IsSummaryRequired:true,
         ShowUnitInRange:false,
         UseDefaultOption:false,
         OptionList:"",
@@ -1952,6 +2088,7 @@ async function addNewTemplate(sectionId, btn)
     };
     sec.Dirty = true;
     templateCache.Dirty = true;
+    recordTemplateHistoryChange();
     //----------------------------------
     // SET CURRENT STATE BEFORE RENDER
     //----------------------------------
@@ -2055,6 +2192,7 @@ function addNewVersion()
         VersionInfo: versionInfo,
         Structure: versionData
     };
+    recordTemplateHistoryChange();
 
     currentVersion = versionInfo;
     currentVersionData = versionData;
@@ -2094,6 +2232,7 @@ function markCurrentVersionDirty()
 
     currentTemplate.Dirty=true;
     templateCache.Dirty=true;
+    recordTemplateHistoryChange();
     refreshDirtyUI();
 }
 
@@ -4017,6 +4156,12 @@ function showItemProperties(itemData)
                 </div>
 
                 <div class="form-check form-switch mb-2">
+                    <input id="propSummaryRequired" class="form-check-input" type="checkbox"
+                        ${itemData.IsSummaryRequired !== false ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label text-xs">Summary Required</label>
+                </div>
+
+                <div class="form-check form-switch mb-2">
                     <input
                         id="propMandatoryValue"
                         class="form-check-input"
@@ -4704,6 +4849,14 @@ function showItemProperties(itemData)
         );
     }
 
+    const chkSummaryRequired = document.getElementById("propSummaryRequired");
+    if (chkSummaryRequired) {
+        chkSummaryRequired.addEventListener("change", function () {
+            itemData.IsSummaryRequired = this.checked;
+            markCurrentVersionDirty();
+        });
+    }
+
     [["chkUseDefaultRemark1", "IsUseDefaultRemark1", "groupRemark1Local"],
      ["chkUseDefaultRemark2", "IsUseDefaultRemark2", "groupRemark2Local"]].forEach(function(cfg) {
         const toggle = document.getElementById(cfg[0]);
@@ -4922,6 +5075,9 @@ function renderVersionStructure(data, isNewTemplate=false)
 
     }
     initSectionCollapseIcon();
+    if (!templateHistoryRestoring && !templateHistorySnapshot)
+        templateHistorySnapshot = captureTemplateHistoryState();
+    updateTemplateHistoryButtons();
 }
 function applyVersionReadonlyState(status)
 {
@@ -8118,6 +8274,7 @@ async function deleteDraftVersion(idVersion)
         }
         currentTemplate.Dirty=true;
         templateCache.Dirty=true;
+        recordTemplateHistoryChange();
         evaluateDirtyState();
         showToast(
             "Draft deleted."
@@ -10780,6 +10937,7 @@ function clearAllDirty()
     templateCache.Dirty = false;
 
     refreshDirtyUI();
+    clearTemplateHistory();
 }
 function initMobileDefaultTab()
 {
