@@ -187,6 +187,9 @@
                 return;
             }
             openPoint(point.InspectionPointID);
+            if (typeof window.openBatchInspectionPointChecklist === "function") {
+                window.openBatchInspectionPointChecklist(point);
+            }
         });
     }
 
