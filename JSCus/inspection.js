@@ -845,7 +845,7 @@ async function startNewInspection() {
             return;
         }
         if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
-            map.MapUrl && (!map.MapBlob || typeof map.MapBlob.arrayBuffer !== "function"))) {
+            map.MapUrl && (!(map.MapBlob || map.PdfBlob) || typeof (map.MapBlob || map.PdfBlob).arrayBuffer !== "function"))) {
             showInspectionNotice("File denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
             return;
         }
