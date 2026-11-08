@@ -206,6 +206,7 @@ document.addEventListener(
     'DOMContentLoaded',
     async () =>
     {
+        clearTemplateHistory();
         if (!validatePageAccess()) {
             showToast(
                 "Invalid page mode.",
