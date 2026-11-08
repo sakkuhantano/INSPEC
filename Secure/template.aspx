@@ -28,6 +28,8 @@
 <div class="d-flex align-items-center gap-3">
 <%--<button class="btn btn-outline-secondary btn-compact"><i class="bi bi-eye"></i> Preview</button>
 <button class="btn btn-outline-secondary btn-compact"><i class="bi bi-files"></i> Duplicate</button>--%>
+<button type="button" id="btnTemplateUndo" class="btn btn-outline-secondary btn-compact" onclick="undoTemplateChange()" disabled title="Undo unsaved change (Ctrl+Z)"><i class="bi bi-arrow-counterclockwise"></i> Undo</button>
+<button type="button" id="btnTemplateRedo" class="btn btn-outline-secondary btn-compact" onclick="redoTemplateChange()" disabled title="Redo unsaved change (Ctrl+Y)"><i class="bi bi-arrow-clockwise"></i> Redo</button>
 <button type="button" id="btnSaveAll" class="btn btn-primary btn-compact"><i class="bi bi-floppy"></i> Save All Template</button>
 </div>
 </div>
