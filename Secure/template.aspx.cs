@@ -319,7 +319,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, ISNULL(A.IsSummaryRequired,1) IsSummaryRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -416,7 +416,6 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                                         Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                        IsSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
                                         ShowUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         UseDefaultOption = Convert.ToBoolean(itemRow["UseDefaultOption"]),
                                         //UseTolerance = (GF.GetDecimal(itemRow["MinTolerance"]) != 0 || GF.GetDecimal(itemRow["MaxTolerance"]) != 0),
