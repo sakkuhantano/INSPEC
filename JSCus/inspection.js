@@ -1783,11 +1783,15 @@ window.submitInspectionBatch = async function () {
     }
     const incompleteMaster = masterPoints.find(masterPoint => {
         const point = points.find(item => Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
-        return !point || !["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
+        const completed = point && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
+        const requireAll = masterPoint.RequireAllPoints === undefined || masterPoint.RequireAllPoints === null
+            ? true : !(masterPoint.RequireAllPoints === false || masterPoint.RequireAllPoints === 0 ||
+                String(masterPoint.RequireAllPoints).toLowerCase() === "false" || String(masterPoint.RequireAllPoints) === "0");
+        return (point && !completed) || (requireAll && !completed);
     });
     if (incompleteMaster) {
         await openBatchInspectionPointChecklist(incompleteMaster);
-        showInspectionNotice("Masih ada unit inspeksi yang belum memiliki hasil. Unit " +
+        showInspectionNotice("Masih ada titik yang wajib diselesaikan. " +
             (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
         return;
     }
@@ -1803,7 +1807,7 @@ window.submitInspectionBatch = async function () {
 
     const confirmed = await showConfirmation({
         title: "Submit Inspection Batch",
-        message: "Submit " + points.length + " unit inspeksi dalam satu batch? Pastikan seluruh area/objek yang memang terdaftar sudah memiliki hasil.",
+        message: "Submit " + points.length + " titik yang sudah diinspeksi? Pastikan semua titik yang diwajibkan oleh pengaturan master map sudah memiliki hasil lengkap.",
         yesText: "Submit Batch"
     });
     if (!confirmed) return;
