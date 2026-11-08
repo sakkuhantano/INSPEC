@@ -33,16 +33,18 @@
     }
 
     function pointClass(status) {
-        return normalizedStatus(status).toLowerCase();
+        return String(status || "").toUpperCase() === "ABNORMAL" ? "abnormal" : normalizedStatus(status).toLowerCase();
     }
 
     function statusLabel(status, point) {
+        if (String(status || "").toUpperCase() === "ABNORMAL") return "ABNORMAL";
         var value = normalizedStatus(status);
         return value === "DONE" ? "SELESAI" :
             value === "INCOMPLETE" ? "BELUM LENGKAP" : "BELUM DIPERIKSA";
     }
 
     function statusSymbol(status) {
+        if (String(status || "").toUpperCase() === "ABNORMAL") return "!";
         var value = normalizedStatus(status);
         return value === "DONE" ? "✓" : value === "INCOMPLETE" ? "…" : "·";
     }
@@ -59,6 +61,12 @@
         return normalizedStatus(transaction && transaction.Status);
     }
 
+    function getPointVisualStatus(point) {
+        var transaction = getPointTransaction(point);
+        if (transaction && String(transaction.AbnormalRemark || "").trim()) return "ABNORMAL";
+        return getPointStatus(point);
+    }
+
     function pointRequiresInspection(point) {
         if (!point || point.RequireAllPoints === undefined || point.RequireAllPoints === null) return true;
         return !(point.RequireAllPoints === false || point.RequireAllPoints === 0 ||
@@ -71,7 +79,7 @@
 
     function findNextPendingPoint() {
         var pending = currentPoints.filter(function (point) {
-            var status = getPointStatus(point);
+            var status = getPointVisualStatus(point);
             return status === "INCOMPLETE" || (status === "PENDING" && pointRequiresInspection(point));
         });
         if (!pending.length) return null;
@@ -158,7 +166,8 @@
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
                     '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
-                    '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
+                    '<span class="badge ' + (status === "ABNORMAL" ? "text-bg-danger" :
+                    status === "DONE" ? "text-bg-success" :
                     status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
                     statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
@@ -205,6 +214,7 @@
     function updateSummary() {
         var points = getVisiblePoints();
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
+        var abnormal = points.filter(function (p) { return getPointVisualStatus(p) === "ABNORMAL"; }).length;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
         var pending = points.filter(function (p) {
             return getPointStatus(p) === "PENDING";
@@ -215,6 +225,7 @@
         };
         set("inspectionMapTotalCount", points.length);
         set("inspectionMapDoneCount", done);
+        set("inspectionMapAbnormalCount", abnormal);
         set("inspectionMapPendingCount", pending);
         set("inspectionMapIncompleteCount", incomplete);
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
@@ -243,7 +254,8 @@
             (selectedPoint.MapCode ? " · " + selectedPoint.MapCode : " · Tanpa denah");
         if (status) {
             status.className = "inspection-map-point-status mt-3 " +
-                (statusValue === "DONE" ? "text-success" :
+                (statusValue === "ABNORMAL" ? "text-danger" :
+                statusValue === "DONE" ? "text-success" :
                 statusValue === "INCOMPLETE" ? "text-warning" : "text-secondary");
             status.textContent = statusLabel(statusValue, selectedPoint);
         }
