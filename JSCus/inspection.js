@@ -3818,40 +3818,61 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         window.renderInspectionApprovalSelectedPoint(points[0].InspectionPointTransactionID);
 
     if (!maps.length) return;
-    const select = document.getElementById("inspectionApprovalMapSelect");
-    const renderMap     const renderMap = async function (map) {
+    const select = document.getElementById('inspectionApprovalMapSelect');
+    const renderMap = async function (map) {
         const canvas = document.getElementById('inspectionApprovalMapCanvas');
         const overlay = document.getElementById('inspectionApprovalMapPoints');
         const stage = document.getElementById('inspectionApprovalMapStage');
         if (!canvas || !overlay || !stage || !map || !map.MapUrl) return;
         try {
-            const response = await fetch(map.MapUrl, { credentials: 'same-origin' }); if (!response.ok) throw new Error('HTTP ' + response.status);
-            const blob = await response.blob(); const mime = String(blob.type || '').toLowerCase(); const path = String(map.MapUrl).split('?')[0].toLowerCase();
-            const isJpeg = mime.indexOf('image/jpeg') === 0 || /\.(jpg|jpeg)$/.test(path); let width, height;
+            const response = await fetch(map.MapUrl, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const blob = await response.blob();
+            const mime = String(blob.type || '').toLowerCase();
+            const path = String(map.MapUrl).split('?')[0].toLowerCase();
+            const isJpeg = mime.indexOf('image/jpeg') === 0 || /\.(jpg|jpeg)$/.test(path);
+            let width, height;
             if (isJpeg) {
                 let image = stage.querySelector('img.inspection-map-image');
                 if (!image) { image = document.createElement('img'); image.className = 'inspection-map-image'; image.alt = 'Inspection floor plan'; image.draggable = false; stage.insertBefore(image, overlay); }
                 canvas.style.display = 'none'; image.style.display = 'block';
-                const objectUrl = URL.createObjectURL(blob); if (image.dataset.objectUrl) URL.revokeObjectURL(image.dataset.objectUrl); image.dataset.objectUrl = objectUrl; image.src = objectUrl;
+                const objectUrl = URL.createObjectURL(blob);
+                if (image.dataset.objectUrl) URL.revokeObjectURL(image.dataset.objectUrl);
+                image.dataset.objectUrl = objectUrl; image.src = objectUrl;
                 await new Promise((resolve, reject) => { if (image.complete && image.naturalWidth) return resolve(); image.onload = resolve; image.onerror = () => reject(new Error('Gambar JPG/JPEG tidak dapat dibuka.')); });
-                width = image.naturalWidth; height = image.naturalHeight; image.style.width = Math.min(1100, Math.max(300, host.clientWidth - 32)) + 'px'; image.style.height = 'auto'; stage.style.width = image.style.width;
+                width = image.naturalWidth; height = image.naturalHeight;
+                image.style.width = Math.min(1100, Math.max(300, host.clientWidth - 32)) + 'px'; image.style.height = 'auto'; stage.style.width = image.style.width;
             } else {
                 if (!window.pdfjsLib) throw new Error('PDF.js belum termuat.');
-                const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise; const page = await pdf.getPage(1); const base = page.getViewport({ scale: 1 });
-                const targetWidth = Math.max(300, Math.min(1100, host.clientWidth - 32)); const ratio = Math.min(window.devicePixelRatio || 1, 1.5); const viewport = page.getViewport({ scale: (targetWidth / base.width) * ratio });
-                canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height); canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px'; canvas.style.display = 'block';
-                const oldImage = stage.querySelector('img.inspection-map-image'); if (oldImage) oldImage.style.display = 'none'; stage.style.width = canvas.style.width;
-                await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise; width = base.width; height = base.height;
+                const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+                const page = await pdf.getPage(1); const base = page.getViewport({ scale: 1 });
+                const targetWidth = Math.max(300, Math.min(1100, host.clientWidth - 32));
+                const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+                const viewport = page.getViewport({ scale: (targetWidth / base.width) * ratio });
+                canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+                canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px'; canvas.style.display = 'block';
+                const oldImage = stage.querySelector('img.inspection-map-image'); if (oldImage) oldImage.style.display = 'none';
+                stage.style.width = canvas.style.width;
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                width = base.width; height = base.height;
             }
             stage.style.aspectRatio = width + ' / ' + height;
             const mapPoints = points.filter(point => Number(point.MapID) === Number(map.MapID) && point.MapX != null && point.MapY != null);
-            overlay.innerHTML = mapPoints.map(point => { const x = Math.max(0, Math.min(100, Number(point.MapX) || 0)); const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
-                return '<button type="button" class="inspection-map-point ' + String(point.Status || 'PENDING').toLowerCase() + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + ' - ' + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>'; }).join('');
-            overlay.querySelectorAll('[data-approval-point-target]').forEach(button => button.addEventListener('click', function () { if (typeof window.renderInspectionApprovalSelectedPoint === 'function') window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget); }));
-        } catch (error) { console.warn('Approval BATCH map could not be rendered:', error); stage.innerHTML = '<div class="alert alert-warning small">Denah gagal dimuat. Daftar Inspection Point tetap dapat digunakan.</div>'; }
+            overlay.innerHTML = mapPoints.map(point => {
+                const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
+                const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+                return '<button type="button" class="inspection-map-point ' + String(point.Status || 'PENDING').toLowerCase() + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + ' - ' + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
+            }).join('');
+            overlay.querySelectorAll('[data-approval-point-target]').forEach(button => button.addEventListener('click', function () {
+                if (typeof window.renderInspectionApprovalSelectedPoint === 'function') window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
+            }));
+        } catch (error) {
+            console.warn('Approval BATCH map could not be rendered:', error);
+            stage.innerHTML = '<div class="alert alert-warning small">Denah gagal dimuat. Daftar Inspection Point tetap dapat digunakan.</div>';
+        }
     };
-p = () => maps.find(map => Number(map.MapID) === Number(select ? select.value : maps[0].MapID)) || maps[0];
-    if (select) select.addEventListener("change", () => renderMap(selectedMap()));
+    const selectedMap = () => maps.find(map => Number(map.MapID) === Number(select ? select.value : maps[0].MapID)) || maps[0];
+    if (select) select.addEventListener('change', () => renderMap(selectedMap()));
     await renderMap(selectedMap());
 }
 
