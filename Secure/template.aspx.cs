@@ -318,7 +318,7 @@ SELECT IDSection, SectionName, DisplayOrder
 FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
 
 SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
+        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, ISNULL(A.IsSummaryRequired,1) IsSummaryRequired, a.ShowUnitInRange, 
         UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
         a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
 FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
@@ -414,6 +414,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                                         Remark1Text = itemRow["Remark1Text"] == DBNull.Value ? "Remark" : itemRow["Remark1Text"].ToString(),
                                         Remark2Text = itemRow["Remark2Text"] == DBNull.Value ? "Remark" : itemRow["Remark2Text"].ToString(),
                                         IsValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
+                                        IsSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
                                         ShowUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         UseDefaultOption = Convert.ToBoolean(itemRow["UseDefaultOption"]),
                                         //UseTolerance = (GF.GetDecimal(itemRow["MinTolerance"]) != 0 || GF.GetDecimal(itemRow["MaxTolerance"]) != 0),
@@ -836,6 +837,7 @@ WHERE a.SectionID = @SectionID
                 DataTable dtItem = new DataTable();
                 for (int i = 1; i <= 25; i++)
                     dtItem.Columns.Add("C" + i + "", typeof(System.String));
+                List<Tuple<int, int, bool>> itemSummaryFlags = new List<Tuple<int, int, bool>>();
                 DataTable dtGroup = new DataTable();
                 for (int i = 1; i <= 7; i++)
                     dtGroup.Columns.Add("C" + i + "", typeof(System.String));
@@ -1012,6 +1014,9 @@ WHERE a.SectionID = @SectionID
                                         foreach (Dictionary<string, object> item in itemsList)
                                         {
                                             int idItem = Convert.ToInt32(item["IDItem"]);
+                                            int runtimeItemID = item.ContainsKey("RuntimeItemID") ? Convert.ToInt32(item["RuntimeItemID"]) : idItem;
+                                            bool isSummaryRequired = !item.ContainsKey("IsSummaryRequired") || Convert.ToBoolean(item["IsSummaryRequired"]);
+                                            itemSummaryFlags.Add(Tuple.Create(idItem, runtimeItemID, isSummaryRequired));
 
                                             string optionListStr = "";
                                             if (item.ContainsKey("OptionList") && item["OptionList"] is ArrayList)
@@ -1154,17 +1159,35 @@ WHERE a.SectionID = @SectionID
                     }, true, true);
 
                     List<object> identityMap = new List<object>();
+                    Dictionary<int, int> savedItemIDs = new Dictionary<int, int>();
 
-                    // 2. Lakukan perulangan foreach pada DataTable (dt)
                     foreach (DataRow dr in dt.Rows)
                     {
-                        // Tambahkan objek anonim ke dalam list
-                        identityMap.Add(new
+                        string entity = dr["Entity"].ToString();
+                        int runtimeID = Convert.ToInt32(dr["RuntimeID"]);
+                        int savedID = Convert.ToInt32(dr["ID"]);
+                        identityMap.Add(new { Entity = entity, RuntimeID = runtimeID, ID = savedID });
+                        if (String.Equals(entity, "Item", StringComparison.OrdinalIgnoreCase))
+                            savedItemIDs[runtimeID] = savedID;
+                    }
+
+                    // IsSummaryRequired is persisted after the legacy 25-column TVP/SP save,
+                    // so the existing stored procedure and its table type remain compatible.
+                    foreach (Tuple<int, int, bool> summaryFlag in itemSummaryFlags)
+                    {
+                        int targetItemID = summaryFlag.Item1;
+                        if (targetItemID <= 0 && !savedItemIDs.TryGetValue(summaryFlag.Item2, out targetItemID))
+                            throw new Exception("Could not resolve the saved Item ID for IsSummaryRequired.");
+                        if (targetItemID > 0)
                         {
-                            Entity = dr["Entity"].ToString(),
-                            RuntimeID = Convert.ToInt32(dr["RuntimeID"]),
-                            ID = Convert.ToInt32(dr["ID"])
-                        });
+                            br.EQueryP(@"UPDATE dbo.PIP_M_CheckListWOPM_Item
+SET IsSummaryRequired=@IsSummaryRequired
+WHERE IDItem=@IDItem",
+                                new SqlParameter[] {
+                                    new SqlParameter("@IsSummaryRequired", summaryFlag.Item3),
+                                    new SqlParameter("@IDItem", targetItemID)
+                                });
+                        }
                     }
 
                     // 3. Kembalikan data dalam bentuk objek anonim utama
