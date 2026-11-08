@@ -3853,8 +3853,10 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
 
     const id = String(point.InspectionPointTransactionID || "");
     const status = String(point.Status || "PENDING").toUpperCase();
-    const statusClass = status === "DONE" ? "text-bg-success" :
-        status === "ABNORMAL" ? "text-bg-danger" :
+    const isAbnormal = String(point.AbnormalRemark || "").trim() !== "";
+    const statusLabel = isAbnormal ? "ABNORMAL" : (status === "ABNORMAL" ? "DONE" : status);
+    const statusClass = isAbnormal ? "text-bg-danger" :
+        status === "DONE" || status === "ABNORMAL" ? "text-bg-success" :
         status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
     const pointPhotos = data.photos.filter(photo => String(photo.PointID || "") === id);
     const photoStage = type => {
@@ -3871,8 +3873,10 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
         '<div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
             '<div><div class="fw-bold">' + escInspection(point.PointCode || "Inspection Point") + ' · ' + escInspection(point.PointName || "") + '</div>' +
             '<small class="text-muted">' + escInspection(point.PointObjectType || "GENERAL") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
-            '<span class="badge ' + statusClass + '">' + escInspection(status) + '</span>' +
-        '</div><div class="card-body">' + photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
+            '<span class="badge ' + statusClass + '">' + escInspection(statusLabel) + '</span>' +
+        '</div><div class="card-body">' +
+            (isAbnormal ? '<div class="alert alert-danger py-2 small"><strong>ABNORMAL REMARK</strong><div class="mt-1" style="white-space:pre-wrap">' + escInspection(point.AbnormalRemark) + '</div></div>' : '') +
+            photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
 };
 
 async function renderInspectionApprovalBatchMap(maps, points) {
@@ -3911,8 +3915,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             '<button type="button" class="btn btn-sm btn-outline-secondary text-start" data-approval-point-target="' +
             escInspection(point.InspectionPointTransactionID) + '">' +
             '<span class="fw-semibold">' + escInspection(point.PointCode) + '</span> · ' + escInspection(point.PointName) +
-            ' <span class="badge ms-1 ' + (String(point.Status).toUpperCase() === "ABNORMAL" ? "text-bg-danger" : "text-bg-success") + '">' +
-            escInspection(point.Status) + '</span></button>'
+            ' <span class="badge ms-1 ' + (String(point.AbnormalRemark || "").trim() ? "text-bg-danger" : "text-bg-success") + '">' +
+            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : "DONE") + '</span></button>'
         ).join("") || '<div class="text-muted small py-2">Tidak ada point yang cocok.</div>';
         listHost.innerHTML += '<div class="d-flex align-items-center justify-content-between small text-muted mt-2">' +
             '<span>' + (filtered.length ? (startIndex + 1) + '-' + Math.min(startIndex + approvalPageSize, filtered.length) : 0) +
@@ -3980,7 +3984,9 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             overlay.innerHTML = mapPoints.map(point => {
                 const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
                 const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
-                return '<button type="button" class="inspection-map-point ' + String(point.Status || 'PENDING').toLowerCase() + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + ' - ' + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
+                const visualStatus = String(point.AbnormalRemark || "").trim() ? "abnormal" :
+                    (String(point.Status || "PENDING").toUpperCase() === "ABNORMAL" ? "done" : String(point.Status || "PENDING").toLowerCase());
+                return '<button type="button" class="inspection-map-point ' + visualStatus + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + ' - ' + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
             }).join('');
             overlay.querySelectorAll('[data-approval-point-target]').forEach(button => button.addEventListener('click', function () {
                 if (typeof window.renderInspectionApprovalSelectedPoint === 'function') window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
@@ -4115,7 +4121,8 @@ async function loadInspectionApprovalDetail(inspectionId) {
             (followUpWONo ? '<div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0"><i class="bi bi-file-earmark-check-fill fs-5"></i><div><div class="small text-muted">Generated Follow Up WO No.</div><div class="fw-bold">' + escInspection(followUpWONo) + '</div></div></div>' : '') +
             '</div></div></div>';
         const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
-        const summaryHtml = '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>';
+        const summaryRequired = !templateAvailable || inspectionTemplateRequiresSummary(template);
+        const summaryHtml = summaryRequired ? '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>' : "";
         const reasonVoidHtml = String(h.ReasonVoid || "").trim()
             ? '<div class="accordion-item border-danger shadow-sm mt-3" id="inspectionApprovalReasonVoidPanel">' +
                 '<div class="accordion-header"><div class="accordion-button bg-danger text-white fw-bold"><i class="bi bi-x-circle-fill fs-5 me-2"></i><div class="d-flex flex-column"><span>REASON VOID</span><small class="text-white-50 fw-normal">Alasan inspeksi dikembalikan menjadi Draft.</small></div></div></div>' +
