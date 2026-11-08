@@ -1006,8 +1006,11 @@ function renderBatchPointCondition(masterPoint, point, readOnly) {
         host.classList.add("d-none");
         return;
     }
-    if (!point.PointCondition && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
-        point.PointCondition = String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : "NORMAL";
+    if (!point.PointCondition && String(point.AbnormalRemark || "").trim())
+        point.PointCondition = "ABNORMAL";
+    else if (!point.PointCondition &&
+        (Number(point.InspectionPointTransactionID || 0) > 0 || currentInspectionRecord.SyncStatus === "SYNCED"))
+        point.PointCondition = "NORMAL";
     const choice = String(point.PointCondition || "").toUpperCase();
     const remark = String(point.AbnormalRemark || "");
     const id = String(masterPoint.InspectionPointID).replace(/[^0-9a-z_-]/gi, "");
@@ -1876,7 +1879,8 @@ window.submitInspectionBatch = async function () {
         const completed = point && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
         const conditionRequired = isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false);
         const condition = point && (String(point.PointCondition || "").toUpperCase() ||
-            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : (completed ? "NORMAL" : "")));
+            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" :
+                (Number(point.InspectionPointTransactionID || 0) > 0 || record.SyncStatus === "SYNCED" ? "NORMAL" : "")));
         const conditionMissing = conditionRequired && (!condition || (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()));
         const requireAll = masterPoint.RequireAllPoints === undefined || masterPoint.RequireAllPoints === null
             ? true : !(masterPoint.RequireAllPoints === false || masterPoint.RequireAllPoints === 0 ||
