@@ -224,12 +224,7 @@
         set("inspectionMapPendingCount", pending);
         set("inspectionMapIncompleteCount", incomplete);
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
-        if (pendingLegend) {
-            var hasPartialMap = points.some(function (p) {
-                return Number(p.MapID || 0) === Number(currentMapId || 0) && !pointRequiresInspection(p);
-            });
-            pendingLegend.textContent = "Belum diperiksa";
-        }
+        if (pendingLegend) pendingLegend.textContent = "Belum diperiksa";
     }
 
     function openPoint(id) {
