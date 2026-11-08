@@ -1016,11 +1016,11 @@ function renderBatchPointCondition(masterPoint, point, readOnly) {
     const id = String(masterPoint.InspectionPointID).replace(/[^0-9a-z_-]/gi, "");
     host.innerHTML = '<div class="inspection-item border rounded-3 p-3">' +
         '<div class="fw-bold mb-2"><i class="bi bi-clipboard2-pulse me-2"></i>KONDISI TITIK PEMERIKSAAN <span class="text-danger">*</span></div>' +
-        '<div class="btn-group w-100" role="group" aria-label="Kondisi titik pemeriksaan">' +
+        '<div class="inspection-option-list d-flex flex-wrap gap-2" role="group" aria-label="Kondisi titik pemeriksaan">' +
             '<input class="btn-check" type="radio" name="inspectionPointCondition" id="pointConditionNormal_' + id + '" value="NORMAL" ' + (choice === "NORMAL" ? "checked " : "") + (readOnly ? "disabled" : "") + '>' +
-            '<label class="btn btn-outline-success inspection-option-choice" for="pointConditionNormal_' + id + '">NORMAL</label>' +
+            '<label class="btn btn-outline-primary inspection-option-choice" for="pointConditionNormal_' + id + '">NORMAL</label>' +
             '<input class="btn-check" type="radio" name="inspectionPointCondition" id="pointConditionAbnormal_' + id + '" value="ABNORMAL" ' + (choice === "ABNORMAL" ? "checked " : "") + (readOnly ? "disabled" : "") + '>' +
-            '<label class="btn btn-outline-danger inspection-option-choice" for="pointConditionAbnormal_' + id + '">ABNORMAL</label>' +
+            '<label class="btn btn-outline-primary inspection-option-choice" for="pointConditionAbnormal_' + id + '">ABNORMAL</label>' +
         '</div>' +
         '<div id="pointAbnormalRemarkRow_' + id + '" class="mt-3 ' + (choice === "ABNORMAL" ? "" : "d-none") + '">' +
             '<label class="form-label small fw-semibold">Abnormal Remark <span class="text-danger">*</span></label>' +
