@@ -50,9 +50,9 @@
                         </div>
                         <div class="col-sm-6 mb-1">
                             <div class="row mt-1">
-                                <div class="col-sm-4 d-flex align-items-center">PDF Floor Plan</div>
+                                <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG)</div>
                                 <div class="col-sm-8">
-                                    <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,application/pdf" />
+                                    <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" />
                                 </div>
                             </div>
                             <div class="row mt-1">
