@@ -1337,10 +1337,11 @@ html += `
 //     </div>
 // </div>
 // `;
-const workOrderSummaryRequired = !(currentTemplate.sections || []).length ||
-    (currentTemplate.sections || []).some(section =>
-        (section.items || []).some(item => item.isSummaryRequired !== false && item.IsSummaryRequired !== false)
-    );
+const woSummaryFlag = currentTemplate.isSummaryRequired !== undefined
+    ? currentTemplate.isSummaryRequired : currentTemplate.IsSummaryRequired;
+const workOrderSummaryRequired = woSummaryFlag === undefined || woSummaryFlag === null
+    ? true
+    : !(woSummaryFlag === false || woSummaryFlag === 0 || woSummaryFlag === "0" || String(woSummaryFlag).toLowerCase() === "false");
 html += `
 <div class="accordion-item border-info shadow-sm" id="section_${nextId + 2}" style="${workOrderSummaryRequired ? '' : 'display:none;'}">
 
@@ -2429,11 +2430,6 @@ async function getTemplate(templateNo, modelCode, sectionID, companyID, location
                             })
                             .map(item => ({
                                 ...item,
-                                isSummaryRequired: item.isSummaryRequired === undefined && item.IsSummaryRequired === undefined
-                                    ? true
-                                    : !(item.isSummaryRequired === false || item.isSummaryRequired === 0 || item.isSummaryRequired === "0" ||
-                                        item.IsSummaryRequired === false || item.IsSummaryRequired === 0 || item.IsSummaryRequired === "0" ||
-                                        String(item.isSummaryRequired).toLowerCase() === "false" || String(item.IsSummaryRequired).toLowerCase() === "false"),
                                 remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
                                     ? item.remarkRequiredOptions.map(String)
                                     : Array.isArray(item.RemarkRequiredOptions)
