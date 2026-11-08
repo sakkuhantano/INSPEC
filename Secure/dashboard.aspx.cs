@@ -107,7 +107,7 @@ namespace INSPEC.Secure
                     section = String.Join(";", requestedSections);
                 }
                 DataTable dt = br.EQuery(
-@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'BOTH') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, ISNULL(a.IsSummaryRequired,1) VersionIsSummaryRequired, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'BOTH') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
@@ -150,6 +150,7 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
                     dict["SummarySampleText"] = GF.GetString(row["SummarySampleText"]);
+                    dict["IsSummaryRequired"] = row["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(row["VersionIsSummaryRequired"]);
                     dict["RemarkRequiredOptions"] = String.IsNullOrWhiteSpace(GF.GetString(row["VersionRemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["VersionRemarkRequiredOptions"]).Split(';');
                     dict["IsRemark1Required"] = Convert.ToBoolean(row["VersionIsRemark1Required"]);
                     dict["Remark1Text"] = GF.GetString(row["VersionRemark1Text"]);
@@ -172,7 +173,6 @@ i.MinValue,
 i.MaxValue,
 ISNULL(i.Unit,'') Unit,
 i.IsValueRequired,
-ISNULL(i.IsSummaryRequired,1) IsSummaryRequired,
 i.IsRemark1Required, i.IsRemark2Required, i.IsRemark1Mandatory, i.IsRemark2Mandatory, i.Remark1Text, i.Remark2Text, i.IsUseDefaultRemark1, i.IsUseDefaultRemark2, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
 i.DisplayOrder AS ItemOrder,
 v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
@@ -250,7 +250,6 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     max = item["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(item["MaxValue"]),
                                     unit = item["Unit"].ToString(),
                                     isValueRequired = Convert.ToBoolean(item["IsValueRequired"]),
-                                    isSummaryRequired = item["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(item["IsSummaryRequired"]),
                                     versionIsRemark1Required = Convert.ToBoolean(row["VersionIsRemark1Required"]),
                                     versionIsRemark2Required = Convert.ToBoolean(row["VersionIsRemark2Required"]),
                                     versionRemark1Text = GF.GetString(row["VersionRemark1Text"]),
