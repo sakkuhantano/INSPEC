@@ -643,7 +643,6 @@ function createNewItem()
         Remark1Text:"",
         Remark2Text:"",
         IsValueRequired:false,
-        IsSummaryRequired:true,
         ShowUnitInRange:false,
         UseDefaultOption:false,
         OptionList:"",
@@ -662,6 +661,7 @@ function createNewVersion()
         EffectiveDate:"",
         Remark:"NEW VERSION",
         SummarySampleText:"",
+        IsSummaryRequired:true,
         IsRemark1Required:false,
         Remark1Text:"",
         IsRemark2Required:false,
@@ -2923,6 +2923,12 @@ function showVersionPropertiesEvent(version) {
                 });
             });
 
+        const summaryRequiredSwitch = document.getElementById("propVersionSummaryRequired");
+        if (summaryRequiredSwitch) summaryRequiredSwitch.addEventListener("change", function () {
+            version.IsSummaryRequired = this.checked;
+            markCurrentVersionDirty();
+        });
+
         const photoRequirementSelect = document.getElementById("propVersionPhotoRequirement");
         if (photoRequirementSelect) photoRequirementSelect.addEventListener("change", function () {
             version.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "BOTH";
@@ -3001,6 +3007,8 @@ function showVersionPropertiesEvent(version) {
 }
 function showVersionProperties(version, isNewTemplate)
 {
+    if (version.IsSummaryRequired === undefined || version.IsSummaryRequired === null)
+        version.IsSummaryRequired = true;
     const isNew =
         version.IDVersion == 0;
     const rightPanel =
@@ -3104,6 +3112,13 @@ function showVersionProperties(version, isNewTemplate)
                     <label class="form-label text-xs fw-bold mb-1">Summary Sample Text</label>
                     <textarea id="propVersionSummarySample" class="form-control form-control-compact" rows="4" maxlength="2000" ${isReadonlyMode ? 'disabled' : ''}>${version.SummarySampleText || ""}</textarea>
                     <div class="form-text text-xs">Example text shown as the Summary placeholder in the Work Order checklist.</div>
+                </div>
+                <div class="mb-3 border rounded p-2">
+                    <div class="form-check form-switch">
+                        <input id="propVersionSummaryRequired" class="form-check-input" type="checkbox" ${version.IsSummaryRequired !== false ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Version: Require Final Summary</label>
+                    </div>
+                    <div class="form-text text-xs">If enabled, the Final Summary panel is shown for Work Order and Inspection using this Version.</div>
                 </div>
                 <div class="mb-3 border rounded p-2">
                     <div class="form-check form-switch mb-2">
@@ -3472,6 +3487,8 @@ function normalizeVersionStructure(data)
         data.VersionInfo.GroupEquipment || "";
     data.VersionInfo.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(data.VersionInfo.PhotoRequirement) ? data.VersionInfo.PhotoRequirement : "BOTH";
     data.VersionInfo.SummarySampleText = data.VersionInfo.SummarySampleText || "";
+    data.VersionInfo.IsSummaryRequired = data.VersionInfo.IsSummaryRequired === undefined || data.VersionInfo.IsSummaryRequired === null
+        ? true : !(data.VersionInfo.IsSummaryRequired === false || data.VersionInfo.IsSummaryRequired === 0 || data.VersionInfo.IsSummaryRequired === "0" || String(data.VersionInfo.IsSummaryRequired).toLowerCase() === "false");
     data.VersionInfo.IsRemark1Required = !!data.VersionInfo.IsRemark1Required;
     data.VersionInfo.IsRemark2Required = !!data.VersionInfo.IsRemark2Required;
     data.VersionInfo.Remark1Text = data.VersionInfo.IsRemark1Required ? (data.VersionInfo.Remark1Text || "Remark") : "";
