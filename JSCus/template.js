@@ -2089,7 +2089,6 @@ async function addNewTemplate(sectionId, btn)
     };
     sec.Dirty = true;
     templateCache.Dirty = true;
-    recordTemplateHistoryChange();
     //----------------------------------
     // SET CURRENT STATE BEFORE RENDER
     //----------------------------------
