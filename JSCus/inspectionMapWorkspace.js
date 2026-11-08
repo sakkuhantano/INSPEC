@@ -259,7 +259,11 @@
                 statusValue === "INCOMPLETE" ? "text-warning" : "text-secondary");
             status.textContent = statusLabel(statusValue, selectedPoint);
         }
-        if (desc) desc.textContent = selectedPoint.PointDescription || selectedPoint.ObjectReferenceCode || "";
+        var pointTransaction = getPointTransaction(selectedPoint);
+        var abnormalRemark = String(pointTransaction && pointTransaction.AbnormalRemark || "").trim();
+        if (desc) desc.textContent = abnormalRemark
+            ? "ABNORMAL: " + abnormalRemark
+            : (selectedPoint.PointDescription || selectedPoint.ObjectReferenceCode || "");
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.remove("d-none");
     }
