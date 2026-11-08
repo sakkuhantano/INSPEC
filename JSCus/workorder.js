@@ -2432,7 +2432,8 @@ async function getTemplate(templateNo, modelCode, sectionID, companyID, location
                                 isSummaryRequired: item.isSummaryRequired === undefined && item.IsSummaryRequired === undefined
                                     ? true
                                     : !(item.isSummaryRequired === false || item.isSummaryRequired === 0 || item.isSummaryRequired === "0" ||
-                                        item.IsSummaryRequired === false || item.IsSummaryRequired === 0 || item.IsSummaryRequired === "0"),
+                                        item.IsSummaryRequired === false || item.IsSummaryRequired === 0 || item.IsSummaryRequired === "0" ||
+                                        String(item.isSummaryRequired).toLowerCase() === "false" || String(item.IsSummaryRequired).toLowerCase() === "false"),
                                 remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
                                     ? item.remarkRequiredOptions.map(String)
                                     : Array.isArray(item.RemarkRequiredOptions)
