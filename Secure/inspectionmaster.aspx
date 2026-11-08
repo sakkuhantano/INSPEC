@@ -47,6 +47,13 @@
                                     <asp:TextBox ID="txtMapDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
                                 </div>
                             </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Inspection Coverage</div>
+                                <div class="col-sm-8">
+                                    <asp:CheckBox ID="chkRequireAllPoints" runat="server" Text=" Semua titik wajib diinspeksi" Checked="true" />
+                                    <div class="form-text small">Centang untuk lampu dan objek yang seluruhnya harus dites. Kosongkan untuk car park: hanya titik yang ada kendaraan perlu diinspeksi.</div>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm-6 mb-1">
                             <div class="row mt-1">
