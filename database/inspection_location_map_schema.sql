@@ -170,6 +170,7 @@ BEGIN
         PointName VARCHAR(200) NOT NULL,
         PointObjectType VARCHAR(30) NOT NULL,
         PointDescription VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_M_InspectionPoint_Description DEFAULT (''),
+        IsNormalAbnormalRequired BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionPoint_IsNormalAbnormalRequired DEFAULT (0),
 
         /*
            Universal master-object reference.
