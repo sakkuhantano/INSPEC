@@ -37,8 +37,9 @@
         return normalizedStatus(status).toLowerCase();
     }
 
-    function statusLabel(status) {
+    function statusLabel(status, point) {
         var value = normalizedStatus(status);
+        if (value === "PENDING" && point && !pointRequiresInspection(point)) return "BELUM ADA HASIL";
         return value === "DONE" ? "DONE" : value === "ABNORMAL" ? "ABNORMAL" :
             value === "INCOMPLETE" ? "INCOMPLETE" : "PENDING";
     }
@@ -97,7 +98,7 @@
                 'style="left:' + x + '%;top:' + y + '%" ' +
                 'data-point-id="' + esc(point.InspectionPointID) + '" aria-label="' +
                 esc(code + " " + (point.PointName || "")) + '" title="' +
-                esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status)) + '">' +
+                esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status, point)) + '">' +
                 '<span class="inspection-map-point-dot"></span>' +
                 '<span class="inspection-map-point-label">' + esc(code) + '</span></button>';
         }).join("");
@@ -157,7 +158,7 @@
                     '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
                     status === "ABNORMAL" ? "text-bg-danger" :
                     status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
-                    statusLabel(status) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
+                    statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
 
         host.querySelectorAll("[data-point-id]").forEach(function (button) {
@@ -215,6 +216,11 @@
         set("inspectionMapDoneCount", done);
         set("inspectionMapAbnormalCount", abnormal);
         set("inspectionMapPendingCount", pending + incomplete);
+        var pendingLegend = document.getElementById("inspectionMapPendingLegend");
+        if (pendingLegend) {
+            var hasPartialMap = points.some(function (p) { return !pointRequiresInspection(p); });
+            pendingLegend.textContent = hasPartialMap ? "Belum ada hasil" : "Belum diperiksa";
+        }
     }
 
     function openPoint(id) {
@@ -241,7 +247,7 @@
             status.className = "inspection-map-point-status mt-3 " +
                 (statusValue === "ABNORMAL" ? "text-danger" : statusValue === "DONE" ? "text-success" :
                 statusValue === "INCOMPLETE" ? "text-warning" : "text-secondary");
-            status.textContent = statusLabel(statusValue);
+            status.textContent = statusLabel(statusValue, selectedPoint);
         }
         if (desc) desc.textContent = selectedPoint.PointDescription || selectedPoint.ObjectReferenceCode || "";
         var sheet = document.getElementById("inspectionMapPointSheet");
