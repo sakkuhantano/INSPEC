@@ -1015,7 +1015,7 @@ WHERE a.SectionID = @SectionID
                                         {
                                             int idItem = Convert.ToInt32(item["IDItem"]);
                                             int runtimeItemID = item.ContainsKey("RuntimeItemID") ? Convert.ToInt32(item["RuntimeItemID"]) : idItem;
-                                            bool isSummaryRequired = !item.ContainsKey("IsSummaryRequired") || Convert.ToBoolean(item["IsSummaryRequired"]);
+                                            bool isSummaryRequired = !item.ContainsKey("IsSummaryRequired") || item["IsSummaryRequired"] == null || Convert.ToBoolean(item["IsSummaryRequired"]);
                                             itemSummaryFlags.Add(Tuple.Create(idItem, runtimeItemID, isSummaryRequired));
 
                                             string optionListStr = "";
