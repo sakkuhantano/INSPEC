@@ -314,6 +314,45 @@ WHERE T.IDTemplate=@IDTemplate
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
                             throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
 
+                        if (isBatchInspection)
+                        {
+                            syncStage = "validate batch map coverage";
+                            JArray submittedPointArray = record["Points"] as JArray ?? new JArray();
+                            var submittedPointIDs = new HashSet<long>();
+                            foreach (JObject submittedPoint in submittedPointArray.OfType<JObject>())
+                                submittedPointIDs.Add(TokenLong(submittedPoint, "InspectionPointID"));
+
+                            DataTable coveragePoints = br.EQueryP(@"
+SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+       P.PointCode
+FROM dbo.PIP_M_InspectionPoint P
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND P.InspectionTypeCode=@InspectionTypeCode
+  AND P.InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND P.IsActive=1
+  AND (P.MapID IS NULL OR (M.IsCurrentVersion=1 AND M.IsActive=1))",
+                                new SqlParameter[] {
+                                    new SqlParameter("@CompanyID", companyId),
+                                    new SqlParameter("@LocationID", locationId),
+                                    new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                                    new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
+                                });
+                            var validMasterPointIDs = new HashSet<long>();
+                            foreach (DataRow masterPoint in coveragePoints.Rows)
+                            {
+                                long masterPointID = Convert.ToInt64(masterPoint["InspectionPointID"]);
+                                validMasterPointIDs.Add(masterPointID);
+                                if (Convert.ToBoolean(masterPoint["RequireAllPoints"]) && !submittedPointIDs.Contains(masterPointID))
+                                    throw new Exception("Titik " + Convert.ToString(masterPoint["PointCode"]) +
+                                        " wajib diinspeksi sesuai pengaturan master map.");
+                            }
+                            foreach (long submittedPointID in submittedPointIDs)
+                                if (!validMasterPointIDs.Contains(submittedPointID))
+                                    throw new Exception("Inspection Point " + submittedPointID +
+                                        " tidak termasuk master point aktif untuk Inspection Type dan Detail ini.");
+                        }
+
                         syncStage = "preflight existing inspection";
                         DataTable existingRows = br.EQueryP(@"
 SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
@@ -1025,7 +1064,8 @@ WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
 SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
        P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY, P.DisplayOrder,
-       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
+       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion,
+       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
 FROM dbo.PIP_M_InspectionPoint P
 LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
@@ -1054,7 +1094,8 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                             { "MapCode", GF.GetString(row["MapCode"]) },
                             { "MapName", GF.GetString(row["MapName"]) },
                             { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"])) },
-                            { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) }
+                            { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) },
+                            { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
                         });
                     }
 
@@ -1071,7 +1112,8 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                         { "MapX", row["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapX"]) },
                         { "MapY", row["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapY"]) },
                         { "DisplayOrder", Convert.ToInt32(row["DisplayOrder"]) },
-                        { "MapCode", GF.GetString(row["MapCode"]) }
+                        { "MapCode", GF.GetString(row["MapCode"]) },
+                        { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
                     });
                 }
 
