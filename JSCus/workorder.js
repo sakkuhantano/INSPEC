@@ -1337,9 +1337,10 @@ html += `
 //     </div>
 // </div>
 // `;
-const workOrderSummaryRequired = (currentTemplate.sections || []).some(section =>
-    (section.items || []).some(item => item.isSummaryRequired !== false && item.IsSummaryRequired !== false)
-);
+const workOrderSummaryRequired = !(currentTemplate.sections || []).length ||
+    (currentTemplate.sections || []).some(section =>
+        (section.items || []).some(item => item.isSummaryRequired !== false && item.IsSummaryRequired !== false)
+    );
 html += `
 <div class="accordion-item border-info shadow-sm" id="section_${nextId + 2}" style="${workOrderSummaryRequired ? '' : 'display:none;'}">
 
