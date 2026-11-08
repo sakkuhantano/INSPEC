@@ -983,6 +983,69 @@ function normalizeInspectionPhotoRequirement(value) {
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
 }
 
+function isInspectionFlagEnabled(value, defaultValue) {
+    if (value === undefined || value === null || value === "") return defaultValue === true;
+    return !(value === false || value === 0 || value === "0" || String(value).toLowerCase() === "false");
+}
+
+function inspectionTemplateRequiresSummary(template) {
+    const sections = template && Array.isArray(template.sections) ? template.sections : [];
+    return sections.some(section => (section.items || []).some(item => {
+        const value = item.isSummaryRequired !== undefined ? item.isSummaryRequired : item.IsSummaryRequired;
+        return isInspectionFlagEnabled(value, true);
+    }));
+}
+
+function renderBatchPointCondition(masterPoint, point, readOnly) {
+    const host = document.getElementById("inspectionPointConditionPanel");
+    if (!host) return;
+    const required = isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
+    if (!required) {
+        host.innerHTML = "";
+        host.classList.add("d-none");
+        return;
+    }
+    if (!point.PointCondition && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
+        point.PointCondition = String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : "NORMAL";
+    const choice = String(point.PointCondition || "").toUpperCase();
+    const remark = String(point.AbnormalRemark || "");
+    const id = String(masterPoint.InspectionPointID).replace(/[^0-9a-z_-]/gi, "");
+    host.innerHTML = '<div class="inspection-item border rounded-3 p-3">' +
+        '<div class="fw-bold mb-2"><i class="bi bi-clipboard2-pulse me-2"></i>KONDISI TITIK PEMERIKSAAN <span class="text-danger">*</span></div>' +
+        '<div class="btn-group w-100" role="group" aria-label="Kondisi titik pemeriksaan">' +
+            '<input class="btn-check" type="radio" name="inspectionPointCondition" id="pointConditionNormal_' + id + '" value="NORMAL" ' + (choice === "NORMAL" ? "checked " : "") + (readOnly ? "disabled" : "") + '>' +
+            '<label class="btn btn-outline-success inspection-option-choice" for="pointConditionNormal_' + id + '">NORMAL</label>' +
+            '<input class="btn-check" type="radio" name="inspectionPointCondition" id="pointConditionAbnormal_' + id + '" value="ABNORMAL" ' + (choice === "ABNORMAL" ? "checked " : "") + (readOnly ? "disabled" : "") + '>' +
+            '<label class="btn btn-outline-danger inspection-option-choice" for="pointConditionAbnormal_' + id + '">ABNORMAL</label>' +
+        '</div>' +
+        '<div id="pointAbnormalRemarkRow_' + id + '" class="mt-3 ' + (choice === "ABNORMAL" ? "" : "d-none") + '">' +
+            '<label class="form-label small fw-semibold">Abnormal Remark <span class="text-danger">*</span></label>' +
+            '<textarea id="txtPointAbnormalRemark_' + id + '" class="form-control" rows="3" maxlength="500" placeholder="Jelaskan kondisi abnormal (maks. 500 karakter)" ' + (readOnly ? "disabled" : "") + '>' +
+                remark.replace(/[&<>"]/g, function (ch) { return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;" })[ch]; }) +
+            '</textarea>' +
+            '<div class="small text-muted text-end mt-1">Maksimum 500 karakter.</div>' +
+        '</div>' +
+    '</div>';
+    host.classList.remove("d-none");
+    host.querySelectorAll('input[name="inspectionPointCondition"]').forEach(input => {
+        input.addEventListener("change", function () {
+            point.PointCondition = this.value;
+            const row = document.getElementById("pointAbnormalRemarkRow_" + id);
+            if (row) row.classList.toggle("d-none", this.value !== "ABNORMAL");
+            if (this.value === "NORMAL") point.AbnormalRemark = "";
+            if (this.value === "ABNORMAL") {
+                const field = document.getElementById("txtPointAbnormalRemark_" + id);
+                if (field) field.focus();
+            }
+        });
+    });
+    const remarkInput = document.getElementById("txtPointAbnormalRemark_" + id);
+    if (remarkInput) remarkInput.addEventListener("input", function () {
+        point.AbnormalRemark = this.value;
+    });
+}
+
+
 function applyInspectionPhotoRequirement(record) {
     const requirement = normalizeInspectionPhotoRequirement(
         record && (record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement))
@@ -1009,7 +1072,7 @@ window.mountInspectionBatchSummary = function (record) {
         if (reasonVoid) host.appendChild(reasonVoid);
         host.classList.remove("d-none");
         followUp.classList.remove("d-none");
-        summary.classList.remove("d-none");
+        summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
         const readOnly = currentInspectionReadOnly || record.Status === "DONE";
         document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => { el.disabled = readOnly; });
         document.getElementById("inspectionFollowUpSection").disabled = readOnly;
@@ -1022,7 +1085,7 @@ window.mountInspectionBatchSummary = function (record) {
         if (reasonVoid) checklistPane.appendChild(reasonVoid);
         host.classList.add("d-none");
         followUp.classList.remove("d-none");
-        summary.classList.remove("d-none");
+        summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
     }
 };
 
@@ -1655,6 +1718,8 @@ async function openBatchInspectionPointChecklist(masterPoint) {
             PointName: String(masterPoint.PointName || ""),
             InspectionDateTime: localDateTimeString(new Date()),
             Status: "PENDING",
+            PointCondition: "",
+            AbnormalRemark: "",
             Items: [],
             NextPhotoSeqNo: 1
         };
@@ -1671,6 +1736,7 @@ async function openBatchInspectionPointChecklist(masterPoint) {
         pointReadOnly,
         "inspectionSection"
     );
+    renderBatchPointCondition(masterPoint, point, pointReadOnly);
     const title = document.getElementById("inspectionFormTitle");
     if (title) title.textContent = point.PointCode + " · " + point.PointName;
     const followUp = document.getElementById("inspectionFollowUpPanel");
@@ -1716,6 +1782,29 @@ async function saveBatchInspectionPoint(status) {
 
     const items = collectInspectionItems();
     const photos = await getCurrentInspectionPhotos();
+    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+        Number(item.InspectionPointID) === Number(point.InspectionPointID));
+    const conditionRequired = isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
+    if (status === "DONE" && conditionRequired) {
+        const selectedCondition = document.querySelector('input[name="inspectionPointCondition"]:checked')?.value ||
+            String(point.PointCondition || "").toUpperCase();
+        const abnormalRemark = String(document.getElementById("inspectionPointConditionPanel")?.querySelector("textarea")?.value ||
+            point.AbnormalRemark || "").trim();
+        if (selectedCondition !== "NORMAL" && selectedCondition !== "ABNORMAL") {
+            showToast("Pilih kondisi NORMAL atau ABNORMAL untuk " + point.PointCode + ".", "warning");
+            const conditionPanel = document.getElementById("inspectionPointConditionPanel");
+            if (conditionPanel) conditionPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+        }
+        if (selectedCondition === "ABNORMAL" && !abnormalRemark) {
+            showToast("Abnormal Remark wajib diisi untuk " + point.PointCode + ".", "warning");
+            const field = document.querySelector("#inspectionPointConditionPanel textarea");
+            if (field) field.focus();
+            return;
+        }
+        point.PointCondition = selectedCondition;
+        point.AbnormalRemark = selectedCondition === "ABNORMAL" ? abnormalRemark : "";
+    }
     if (status === "DONE") {
         const error = validateInspectionItems(items);
         if (error) {
@@ -1736,7 +1825,7 @@ async function saveBatchInspectionPoint(status) {
             showToast("Foto AFTER wajib diisi untuk " + point.PointCode + ".", "warning");
             return;
         }
-        point.Status = items.some(item => item.IsAnomali) ? "ABNORMAL" : "DONE";
+        point.Status = "DONE";
     } else {
         point.Status = items.some(item => item.Value || Object.keys(item.Values || {}).some(key => item.Values[key]))
             ? "INCOMPLETE" : "PENDING";
@@ -1754,7 +1843,7 @@ async function saveBatchInspectionPoint(status) {
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
     if (followUp) followUp.classList.remove("d-none");
-    if (summary) summary.classList.remove("d-none");
+    if (summary) summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
     const saveButton = document.getElementById("btnSaveInspectionDraft");
     const completeButton = document.getElementById("btnCompleteInspection");
     if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Draft';
@@ -1784,15 +1873,29 @@ window.submitInspectionBatch = async function () {
     const incompleteMaster = masterPoints.find(masterPoint => {
         const point = points.find(item => Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
         const completed = point && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
+        const conditionRequired = isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false);
+        const condition = point && (String(point.PointCondition || "").toUpperCase() ||
+            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : (completed ? "NORMAL" : "")));
+        const conditionMissing = conditionRequired && (!condition || (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()));
         const requireAll = masterPoint.RequireAllPoints === undefined || masterPoint.RequireAllPoints === null
             ? true : !(masterPoint.RequireAllPoints === false || masterPoint.RequireAllPoints === 0 ||
                 String(masterPoint.RequireAllPoints).toLowerCase() === "false" || String(masterPoint.RequireAllPoints) === "0");
-        return (point && !completed) || (requireAll && !completed);
+        return conditionMissing || (point && !completed) || (requireAll && !completed);
     });
     if (incompleteMaster) {
         await openBatchInspectionPointChecklist(incompleteMaster);
         showInspectionNotice("Masih ada titik yang wajib diselesaikan. " +
             (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
+        return;
+    }
+
+    const summaryElement = document.getElementById("txtInspectionSummary");
+    if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) &&
+        (!summaryElement || !summaryElement.value.trim())) {
+        showInspectionNotice("Final Summary wajib diisi sebelum Submit Batch.", "warning");
+        const summaryPanel = document.getElementById("inspectionSummaryPanel");
+        if (summaryPanel) { summaryPanel.classList.remove("d-none"); summaryPanel.scrollIntoView({ behavior: "smooth", block: "center" }); }
+        if (summaryElement) summaryElement.focus();
         return;
     }
 
@@ -1865,6 +1968,14 @@ async function saveInspection(status) {
             showToast(error.message + ". Periksa kembali item yang ditandai merah.", "warning");
             showInspectionEditorTab("checklist");
             focusInvalidInspectionItem(error);
+            return;
+        }
+        if (inspectionTemplateRequiresSummary(currentInspectionRecord.TemplateSnapshot) &&
+            !String(document.getElementById("txtInspectionSummary").value || "").trim()) {
+            showToast("Final Summary wajib diisi.", "warning");
+            const summaryPanel = document.getElementById("inspectionSummaryPanel");
+            if (summaryPanel) summaryPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById("txtInspectionSummary").focus();
             return;
         }
         const followUp = collectInspectionFollowUp();
@@ -3002,6 +3113,8 @@ async function updateInspectionChecklistGate() {
     const before = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
     const checklistLocked = beforeRequired && !before;
     document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
+        .forEach(el => { el.disabled = currentInspectionReadOnly || checklistLocked; });
+    document.querySelectorAll("#inspectionPointConditionPanel input, #inspectionPointConditionPanel textarea")
         .forEach(el => { el.disabled = currentInspectionReadOnly || checklistLocked; });
     document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || checklistLocked;
     document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || checklistLocked;
