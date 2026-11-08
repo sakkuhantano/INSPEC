@@ -297,7 +297,7 @@
         viewport.setAttribute("data-map-gestures", "1");
 
         viewport.addEventListener("wheel", function (event) {
-            if (!currentPdfDocument) return;
+            if (!currentPdfDocument && !document.querySelector('#inspectionMapPdfStage img.inspection-map-image')) return;
             event.preventDefault();
             var factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
             zoomMapTo(mapZoom * factor, event.clientX, event.clientY);
