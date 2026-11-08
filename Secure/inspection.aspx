@@ -759,7 +759,7 @@
                 <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
             </div>
             <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Selesai / OK</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist · Untuk car park, 1 point = 1 area inspeksi, bukan 1 slot kendaraan.</div>
+            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist · Car park: inspeksi tiap slot yang ada kendaraan; slot kosong tidak perlu di-action.</div>
         </div>
         <div id="inspectionPointList" class="inspection-point-list d-none"></div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
