@@ -636,7 +636,13 @@ async function getCheckList() {
                 ? template.PhotoRequirement
                 : template.photoRequirement;
             const photoRequirement = String(rawPhotoRequirement || "BOTH").trim().toUpperCase();
+            const rawSummaryRequired = template.IsSummaryRequired !== undefined
+                ? template.IsSummaryRequired : template.isSummaryRequired;
             const normalizedTemplate = Object.assign({}, template, {
+                IsSummaryRequired: rawSummaryRequired === undefined || rawSummaryRequired === null
+                    ? true
+                    : !(rawSummaryRequired === false || rawSummaryRequired === 0 || rawSummaryRequired === "0" ||
+                        String(rawSummaryRequired).toLowerCase() === "false"),
                 PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement)
                     ? photoRequirement : "BOTH"
             });
@@ -743,7 +749,13 @@ async function getInspectionData() {
             const detailCodes = template.InspectionTypeDetailCode != null
                 ? template.InspectionTypeDetailCode
                 : (template.inspectionTypeDetailCode != null ? template.inspectionTypeDetailCode : "");
+            const rawSummaryRequired = template.IsSummaryRequired !== undefined
+                ? template.IsSummaryRequired : template.isSummaryRequired;
             return Object.assign({}, template, {
+                IsSummaryRequired: rawSummaryRequired === undefined || rawSummaryRequired === null
+                    ? true
+                    : !(rawSummaryRequired === false || rawSummaryRequired === 0 || rawSummaryRequired === "0" ||
+                        String(rawSummaryRequired).toLowerCase() === "false"),
                 InspectionTypeDetailCode: String(detailCodes || "").split(";")
                     .map(function (code) { return code.trim().toUpperCase(); })
                     .filter(Boolean)
