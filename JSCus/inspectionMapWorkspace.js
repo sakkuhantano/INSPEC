@@ -356,78 +356,58 @@
     }
 
     async function renderPdf(map) {
-        var message = document.getElementById("inspectionMapPdfMessage");
-        var canvas = document.getElementById("inspectionMapPdfCanvas");
-        var stage = document.getElementById("inspectionMapPdfStage");
+        var message = document.getElementById('inspectionMapPdfMessage');
+        var canvas = document.getElementById('inspectionMapPdfCanvas');
+        var stage = document.getElementById('inspectionMapPdfStage');
         if (!canvas || !stage) return;
         resetMapView();
-
-        if (currentPdfDocument && currentPdfDocument.destroy) {
-            try { await currentPdfDocument.destroy(); } catch (_) { }
-            currentPdfDocument = null;
-        }
-        var context = canvas.getContext("2d");
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        canvas.width = 0;
-        canvas.height = 0;
-
-        if (!map || !map.MapUrl) {
-            if (message) {
-                message.textContent = "Denah PDF belum tersedia. Gunakan tampilan List untuk memilih Inspection Point.";
-                message.classList.remove("d-none");
-            }
-            stage.style.width = "100%";
-            stage.style.minHeight = "260px";
-            return;
-        }
-        if (!window.pdfjsLib) {
-            if (message) {
-                message.textContent = "PDF.js belum termuat. Periksa file pdf.min.js.";
-                message.classList.remove("d-none");
-            }
-            return;
-        }
-
+        if (currentPdfDocument && currentPdfDocument.destroy) { try { await currentPdfDocument.destroy(); } catch (_) { } currentPdfDocument = null; }
+        var previousImage = stage.querySelector('img.inspection-map-image');
+        if (previousImage) { if (previousImage.dataset.objectUrl) URL.revokeObjectURL(previousImage.dataset.objectUrl); previousImage.remove(); }
+        var context = canvas.getContext('2d'); context.clearRect(0, 0, canvas.width, canvas.height); canvas.width = 0; canvas.height = 0;
+        if (!map || !map.MapUrl) { if (message) { message.textContent = 'Denah belum tersedia. Gunakan tampilan List untuk memilih Inspection Point.'; message.classList.remove('d-none'); } stage.style.width = '100%'; stage.style.minHeight = '260px'; return; }
         try {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "../JSCus/pdf.worker.min.js";
-            if (message) {
-                message.textContent = "Memuat denah PDF...";
-                message.classList.remove("d-none");
+            if (message) { message.textContent = 'Memuat denah...'; message.classList.remove('d-none'); }
+            var blob = map.MapBlob || map.PdfBlob || null;
+            if (!blob || typeof blob.arrayBuffer !== 'function') {
+                var response = await fetch(map.MapUrl, { credentials: 'same-origin' });
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                blob = await response.blob(); map.MapBlob = blob;
             }
-            if (map.PdfBlob && typeof map.PdfBlob.arrayBuffer === "function") {
-                var pdfBytes = new Uint8Array(await map.PdfBlob.arrayBuffer());
-                currentPdfDocument = await window.pdfjsLib.getDocument({ data: pdfBytes }).promise;
-            } else {
-                currentPdfDocument = await window.pdfjsLib.getDocument({
-                    url: map.MapUrl,
-                    withCredentials: true
-                }).promise;
+            var mime = String(blob.type || '').toLowerCase();
+            var urlPath = String(map.MapUrl).split('?')[0].toLowerCase();
+            var isJpeg = mime.indexOf('image/jpeg') === 0 || /\.(jpg|jpeg)$/.test(urlPath);
+            if (isJpeg) {
+                canvas.style.display = 'none';
+                var image = document.createElement('img'); image.className = 'inspection-map-image'; image.alt = 'Inspection floor plan'; image.draggable = false;
+                stage.insertBefore(image, document.getElementById('inspectionMapPoints'));
+                var objectUrl = URL.createObjectURL(blob); image.dataset.objectUrl = objectUrl;
+                image.onload = function () {
+                    var available = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
+                    image.style.width = available + 'px'; image.style.height = 'auto'; image.style.maxWidth = 'none'; image.style.display = 'block';
+                    stage.style.width = available + 'px'; stage.style.minHeight = '0';
+                    if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
+                };
+                image.onerror = function () { if (message) { message.textContent = 'Gambar JPG/JPEG tidak dapat dibuka.'; message.classList.remove('d-none'); } };
+                image.src = objectUrl; return;
             }
-            var page = await currentPdfDocument.getPage(1);
-            var baseViewport = page.getViewport({ scale: 1 });
-            var availableWidth = Math.max(300, Math.min(1200, document.getElementById("inspectionMapCanvas").clientWidth - 28));
-            var scale = availableWidth / baseViewport.width;
-            var pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
-            var viewport = page.getViewport({ scale: scale * pixelRatio });
-            canvas.width = Math.floor(viewport.width);
-            canvas.height = Math.floor(viewport.height);
-            canvas.style.width = Math.floor(viewport.width / pixelRatio) + "px";
-            canvas.style.height = Math.floor(viewport.height / pixelRatio) + "px";
-            stage.style.width = canvas.style.width;
-            stage.style.minHeight = "0";
+            canvas.style.display = 'block';
+            if (!window.pdfjsLib) throw new Error('PDF.js belum termuat. Periksa file pdf.min.js.');
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
+            currentPdfDocument = await window.pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+            var page = await currentPdfDocument.getPage(1); var base = page.getViewport({ scale: 1 });
+            var width = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
+            var ratio = Math.min(window.devicePixelRatio || 1, 1.5); var viewport = page.getViewport({ scale: (width / base.width) * ratio });
+            canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
+            canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px';
+            stage.style.width = canvas.style.width; stage.style.minHeight = '0';
             await page.render({ canvasContext: context, viewport: viewport }).promise;
-            if (message) message.classList.add("d-none");
-            applyMapTransform();
-            renderPoints();
+            if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
         } catch (error) {
-            console.error("Inspection PDF render failed:", error);
-            if (message) {
-                message.textContent = "Denah PDF gagal dimuat: " + (error && error.message ? error.message : "periksa akses file PDF.");
-                message.classList.remove("d-none");
-            }
+            console.error('Inspection map render failed:', error);
+            if (message) { message.textContent = 'Denah gagal dimuat: ' + (error && error.message ? error.message : 'periksa file map.'); message.classList.remove('d-none'); }
         }
     }
-
     function renderMapOptions() {
         var wrap = document.getElementById("inspectionMapSelectWrap");
         var select = document.getElementById("inspectionMapSelect");
