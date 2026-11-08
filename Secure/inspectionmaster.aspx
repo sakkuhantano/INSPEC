@@ -145,7 +145,8 @@
                                         </div>
                                         <div class="row mt-1">
                                             <div class="col-sm-4"></div>
-                                            <div class="col-sm-8"><asp:CheckBox ID="chkPointActive" runat="server" Text=" Active" Checked="true" /></div>
+                                            <div class="col-sm-8"><asp:CheckBox ID="chkPointActive" runat="server" Text=" Active" Checked="true" />
+                                            <asp:CheckBox ID="chkNormalAbnormalRequired" runat="server" Text=" Require Normal / Abnormal selection" Checked="false" /></div>
                                         </div>
                                     </div>
                                 </div>
