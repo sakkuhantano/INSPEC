@@ -825,10 +825,10 @@ async function startNewInspection() {
                 for (const map of (batchMapSetup.maps || [])) {
                     if (!map.MapUrl) continue;
                     try {
-                        const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
-                        if (pdfResponse.ok) map.PdfBlob = await pdfResponse.blob();
+                        const mapResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
+                        if (mapResponse.ok) map.MapBlob = await mapResponse.blob();
                     } catch (pdfError) {
-                        console.warn("Inspection PDF could not be cached for this batch:", map.MapCode, pdfError);
+                        console.warn("Inspection map could not be cached for this batch:", map.MapCode, pdfError);
                     }
                 }
             } catch (mapError) {
@@ -845,8 +845,8 @@ async function startNewInspection() {
             return;
         }
         if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
-            map.MapUrl && (!map.PdfBlob || typeof map.PdfBlob.arrayBuffer !== "function"))) {
-            showInspectionNotice("File PDF denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
+            map.MapUrl && (!map.MapBlob || typeof map.MapBlob.arrayBuffer !== "function"))) {
+            showInspectionNotice("File denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
             return;
         }
     }
