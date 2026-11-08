@@ -989,12 +989,11 @@ function isInspectionFlagEnabled(value, defaultValue) {
 }
 
 function inspectionTemplateRequiresSummary(template) {
-    const sections = template && Array.isArray(template.sections) ? template.sections : [];
-    if (!sections.length) return true;
-    return sections.some(section => (section.items || []).some(item => {
-        const value = item.isSummaryRequired !== undefined ? item.isSummaryRequired : item.IsSummaryRequired;
-        return isInspectionFlagEnabled(value, true);
-    }));
+    if (!template) return true;
+    const versionInfo = template.VersionInfo || template.versionInfo || template;
+    const value = versionInfo.isSummaryRequired !== undefined
+        ? versionInfo.isSummaryRequired : versionInfo.IsSummaryRequired;
+    return isInspectionFlagEnabled(value, true);
 }
 
 function renderBatchPointCondition(masterPoint, point, readOnly) {
