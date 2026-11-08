@@ -465,6 +465,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             txtPointDescription.Text = "";
             txtPointOrder.Text = "0";
             chkPointActive.Checked = true;
+            chkNormalAbnormalRequired.Checked = false;
             if (ddlInspectionType.Items.Count > 0) ddlInspectionType.SelectedIndex = 0;
             BindInspectionDetails();
             if (ddlPointMap.Items.Count > 0) ddlPointMap.SelectedIndex = 0;
@@ -1014,6 +1015,7 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 txtPointDescription.Text = Convert.ToString(row["PointDescription"]);
                 txtPointOrder.Text = Convert.ToString(row["DisplayOrder"]);
                 chkPointActive.Checked = Convert.ToBoolean(row["IsActive"]);
+                chkNormalAbnormalRequired.Checked = row["IsNormalAbnormalRequired"] != DBNull.Value && Convert.ToBoolean(row["IsNormalAbnormalRequired"]);
                 txtMarkerX.Text = row["MapX"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
                 txtMarkerY.Text = row["MapY"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
                 BindEditorMaps();
@@ -1162,7 +1164,7 @@ SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
     ObjectReferenceCode=@ReferenceCode, MapID=@MapID, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
-    IsActive=@IsActive, UpdateUser=@UserID, UpdateDate=GETDATE()
+    IsActive=@IsActive, IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
                             PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
                     }
@@ -1173,10 +1175,10 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
 INSERT INTO dbo.PIP_M_InspectionPoint
 (InspectionPointID,CompanyID,LocationID,InspectionTypeCode,InspectionTypeDetailCode,
  PointCode,PointName,PointObjectType,PointDescription,ObjectReferenceType,ObjectReferenceID,
- ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,IsActive,EntryUser,UpdateUser)
+ ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
 VALUES
 (@PointID,@CompanyID,@LocationID,@TypeCode,@DetailCode,@PointCode,@PointName,@ObjectType,
- @Description,@ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,@IsActive,@UserID,@UserID)",
+ @Description,@ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,@IsActive,@IsNormalAbnormalRequired,@UserID,@UserID)",
                             PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
                     }
                 }
@@ -1213,6 +1215,7 @@ VALUES
                 new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsActive", chkPointActive.Checked),
+                new SqlParameter("@IsNormalAbnormalRequired", chkNormalAbnormalRequired.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
             };
         }
