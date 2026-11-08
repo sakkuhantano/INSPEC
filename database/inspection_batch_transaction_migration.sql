@@ -42,6 +42,18 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.PIP_T_InspectionPoint', 'AbnormalRemark') IS NULL
+    ALTER TABLE dbo.PIP_T_InspectionPoint ADD AbnormalRemark VARCHAR(500) NULL;
+GO
+
+IF COL_LENGTH('dbo.PIP_M_InspectionPoint', 'IsNormalAbnormalRequired') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionPoint ADD IsNormalAbnormalRequired BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionPoint_IsNormalAbnormalRequired DEFAULT (0);
+GO
+
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsSummaryRequired') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsSummaryRequired BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsSummaryRequired DEFAULT (1);
+GO
+
 IF COL_LENGTH('dbo.PIP_T_InspectionResult', 'InspectionPointTransactionID') IS NULL
     ALTER TABLE dbo.PIP_T_InspectionResult ADD InspectionPointTransactionID BIGINT NULL;
 GO
@@ -268,6 +280,41 @@ BEGIN
 
     IF EXISTS
     (
+        SELECT 1
+        FROM @p_Points P
+        INNER JOIN dbo.PIP_M_InspectionPoint M ON M.InspectionPointID=CAST(P.C2 AS BIGINT)
+        WHERE ISNULL(M.IsNormalAbnormalRequired,0)=1
+          AND ISNULL(P.C6,'') NOT IN ('NORMAL','ABNORMAL')
+    )
+    BEGIN
+        RAISERROR('Normal/Abnormal must be selected for every required Inspection Point.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_Points
+        WHERE UPPER(ISNULL(C6,''))='ABNORMAL'
+          AND ISNULL(LTRIM(RTRIM(C5)),'')=''
+    )
+    BEGIN
+        RAISERROR('Abnormal Remark is required when an Inspection Point is ABNORMAL.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_Points
+        WHERE UPPER(ISNULL(C6,''))='NORMAL'
+          AND ISNULL(LTRIM(RTRIM(C5)),'')<>''
+    )
+    BEGIN
+        RAISERROR('Abnormal Remark must be empty when an Inspection Point is NORMAL.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
         SELECT 1 FROM @p_Points
         WHERE ISNULL(C4,'') NOT IN ('DONE','ABNORMAL')
     )
@@ -358,6 +405,7 @@ BEGIN
         SET T.InspectionPointID=CAST(P.C2 AS BIGINT),
             T.InspectionDateTime=ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()),
             T.Status=P.C4,
+            T.AbnormalRemark=NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),''),
             T.UpdateUser=@p_UpdateUser,
             T.UpdateDate=GETDATE()
         FROM dbo.PIP_T_InspectionPoint T
@@ -373,6 +421,7 @@ BEGIN
             SELECT P.C1 ClientPointID, CAST(P.C2 AS BIGINT) InspectionPointID,
                    ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()) InspectionDateTime,
                    P.C4 Status,
+                   NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),'') AbnormalRemark,
                    @V_NextPointID+ROW_NUMBER() OVER (ORDER BY P.C1) NewID
             FROM @p_Points P
             WHERE NOT EXISTS
@@ -384,12 +433,12 @@ BEGIN
         INSERT dbo.PIP_T_InspectionPoint
         (
             InspectionPointTransactionID,InspectionID,ClientPointID,InspectionPointID,
-            InspectionDateTime,Status,EntryUser,EntryDate,UpdateUser,UpdateDate
+            InspectionDateTime,Status,AbnormalRemark,EntryUser,EntryDate,UpdateUser,UpdateDate
         )
         OUTPUT inserted.ClientPointID, inserted.InspectionPointTransactionID
             INTO @V_PointMap(ClientPointID,InspectionPointTransactionID)
         SELECT N.NewID,@V_InspectionID,N.ClientPointID,N.InspectionPointID,
-               N.InspectionDateTime,N.Status,@p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
+               N.InspectionDateTime,N.Status,N.AbnormalRemark,@p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM NewPoints N;
 
         INSERT @V_PointMap(ClientPointID,InspectionPointTransactionID)
