@@ -695,6 +695,7 @@ WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
                                     new SqlParameter("@MapCode", code), new SqlParameter("@MapName", name),
                                     new SqlParameter("@ImagePath", savedPath), new SqlParameter("@MapVersion", version),
                                     new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                                    new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                                     new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
                                 });
                             hidMapID.Value = newID.ToString(CultureInfo.InvariantCulture);
@@ -730,6 +731,7 @@ VALUES
                                 new SqlParameter("@LocationID", Master.Mn_LocationID), new SqlParameter("@MapCode", code),
                                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", savedPath),
                                 new SqlParameter("@MapVersion", version), new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                                new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                                 new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
                             });
                         hidMapID.Value = newID.ToString(CultureInfo.InvariantCulture);
