@@ -99,6 +99,11 @@ function restoreTemplateHistoryState(state) {
         currentTemplate = templateNode ? templateNode.Template : null;
         currentVersions = templateNode && templateNode.Versions
             ? Object.values(templateNode.Versions) : [];
+        // JSON snapshots split shared VersionInfo references; restore the alias used by Save All dirty tracking.
+        currentVersions.forEach(node => {
+            if (node && node.Structure && node.VersionInfo)
+                node.Structure.VersionInfo = node.VersionInfo;
+        });
         const versionNode = templateNode && templateNode.Versions
             ? templateNode.Versions[selection.versionRuntimeId] : null;
         currentVersion = versionNode ? versionNode.VersionInfo : null;
