@@ -3,9 +3,11 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
     .inspection-card { border: 1px solid var(--bs-border-color); border-radius: .75rem; background: var(--bs-body-bg); }
-.inspection-map-workspace{position:relative;min-height:calc(100dvh - 150px);border:1px solid var(--bs-border-color);border-radius:.9rem;background:var(--bs-body-bg);overflow:hidden}.inspection-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .9rem;border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-title-wrap{min-width:0}.inspection-map-eyebrow{font-size:.65rem;font-weight:800;letter-spacing:.09em;color:var(--bs-primary)}.inspection-map-title{font-weight:800;font-size:1rem;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inspection-map-subtitle{color:var(--bs-secondary-color);font-size:.72rem;margin-top:.15rem}.inspection-map-actions{display:flex;align-items:center;gap:.35rem;flex:0 0 auto}.inspection-map-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-stat{min-width:0;padding:.45rem .2rem;text-align:center;border-right:1px solid var(--bs-border-color);font-size:.58rem;color:var(--bs-secondary-color);text-transform:uppercase;letter-spacing:0}.inspection-map-stat:last-child{border-right:0}.inspection-map-stat-value{display:block;font-size:1.05rem;font-weight:900;color:var(--bs-body-color);line-height:1.15;margin-bottom:2px}.inspection-map-stat-label{display:block;line-height:1.15;min-height:1.35em}
+.inspection-map-workspace{position:relative;min-height:calc(100dvh - 150px);border:1px solid var(--bs-border-color);border-radius:.9rem;background:var(--bs-body-bg);overflow:hidden}.inspection-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .9rem;border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-title-wrap{min-width:0}.inspection-map-eyebrow{font-size:.65rem;font-weight:800;letter-spacing:.09em;color:var(--bs-primary)}.inspection-map-title{font-weight:800;font-size:1rem;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inspection-map-subtitle{color:var(--bs-secondary-color);font-size:.72rem;margin-top:.15rem}.inspection-map-actions{display:flex;align-items:center;gap:.35rem;flex:0 0 auto}.inspection-map-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-stat{min-width:0;padding:.45rem .2rem;text-align:center;border-right:1px solid var(--bs-border-color);font-size:.58rem;color:var(--bs-secondary-color);text-transform:uppercase;letter-spacing:0}.inspection-map-stat:last-child{border-right:0}.inspection-map-stat-value{display:block;font-size:1.05rem;font-weight:900;color:var(--bs-body-color);line-height:1.15;margin-bottom:2px}.inspection-map-stat-label{display:block;line-height:1.15;min-height:1.35em}
 .inspection-map-point.pending .inspection-map-point-dot{background:#64748b;color:#fff}
 .inspection-map-point.done .inspection-map-point-dot{background:#198754;color:#fff}
+    .inspection-map-point.abnormal .inspection-map-point-dot{background:#dc3545;color:#fff}
+    .inspection-map-dot.abnormal{background:#dc3545}
 
 .inspection-map-point.incomplete .inspection-map-point-dot{background:#ffc107;color:#212529}
 .inspection-map-point-dot{font-size:.62rem;font-weight:900}
@@ -25,6 +27,9 @@
     .inspection-map-dot.incomplete{background:#ffc107}
     .inspection-map-point-dot.pending{background:#6c757d}
     .inspection-map-point-dot.done{background:#198754}
+    .inspection-map-point.abnormal .inspection-map-point-dot{background:#dc3545}
+    .inspection-map-point-dot.abnormal{background:#dc3545}
+    .inspection-map-dot.abnormal{background:#dc3545}
     
     .inspection-map-point-dot.incomplete{background:#ffc107;color:#212529}
     .inspection-map-legend{z-index:5;left:8px;bottom:8px;gap:.45rem;max-width:calc(100% - 16px)}
@@ -746,6 +751,7 @@
         <div class="inspection-map-summary" aria-label="Ringkasan status semua titik">
             <div class="inspection-map-stat"><span class="inspection-map-stat-value" id="inspectionMapTotalCount">0</span><span class="inspection-map-stat-label">Total</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-success" id="inspectionMapDoneCount">0</span><span class="inspection-map-stat-label">Selesai</span></div>
+            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span class="inspection-map-stat-label">Abnormal</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
@@ -765,7 +771,7 @@
                 <div id="inspectionMapPoints" class="inspection-map-points"></div>
                 <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
             </div>
-            <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Selesai</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
+            <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
             <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist · Car park: inspeksi tiap slot yang ada kendaraan; slot kosong tidak perlu di-action.</div>
         </div>
         <div id="inspectionPointList" class="inspection-point-list d-none"></div>
