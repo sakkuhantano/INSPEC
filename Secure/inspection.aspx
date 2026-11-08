@@ -732,6 +732,7 @@
                     <button type="button" id="btnInspectionMapView" class="btn btn-primary"><i class="bi bi-map me-1"></i>Map</button>
                     <button type="button" id="btnInspectionPointListView" class="btn btn-outline-primary"><i class="bi bi-list-ul me-1"></i>List</button>
                 </div>
+                <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning"><i class="bi bi-arrow-right-circle me-1"></i>Next Pending</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
             </div>
         </div>
@@ -757,8 +758,8 @@
                 <div id="inspectionMapPoints" class="inspection-map-points"></div>
                 <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
             </div>
-            <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> Belum diperiksa</span><span><i class="inspection-map-dot done"></i> Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist</div>
+            <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> Belum diperiksa</span><span><i class="inspection-map-dot done"></i> Selesai / OK</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
+            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist · Untuk car park, 1 point = 1 area inspeksi, bukan 1 slot kendaraan.</div>
         </div>
         <div id="inspectionPointList" class="inspection-point-list d-none"></div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
