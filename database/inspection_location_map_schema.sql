@@ -352,6 +352,7 @@ BEGIN
 
         PointInspectionDateTime DATETIME NOT NULL,
         Status VARCHAR(10) NOT NULL CONSTRAINT DF_PIP_T_InspectionPoint_Status DEFAULT ('PENDING'),
+        AbnormalRemark VARCHAR(500) NULL,
 
         EntryUser VARCHAR(50) NOT NULL,
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionPoint_EntryDate DEFAULT (GETDATE()),
