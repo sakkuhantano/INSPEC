@@ -1337,8 +1337,11 @@ html += `
 //     </div>
 // </div>
 // `;
+const workOrderSummaryRequired = (currentTemplate.sections || []).some(section =>
+    (section.items || []).some(item => item.isSummaryRequired !== false && item.IsSummaryRequired !== false)
+);
 html += `
-<div class="accordion-item border-info shadow-sm" id="section_${nextId + 2}">
+<div class="accordion-item border-info shadow-sm" id="section_${nextId + 2}" style="${workOrderSummaryRequired ? '' : 'display:none;'}">
 
     <div class="accordion-header">
 
@@ -1374,6 +1377,7 @@ html += `
         <textarea
             class="form-control"
             data-role="summary"
+            data-summary-required="${workOrderSummaryRequired ? '1' : '0'}"
             maxlength="500"
             rows="5"
             ${!isEntryMode ? "disabled" : ""}
@@ -2424,6 +2428,10 @@ async function getTemplate(templateNo, modelCode, sectionID, companyID, location
                             })
                             .map(item => ({
                                 ...item,
+                                isSummaryRequired: item.isSummaryRequired === undefined && item.IsSummaryRequired === undefined
+                                    ? true
+                                    : !(item.isSummaryRequired === false || item.isSummaryRequired === 0 || item.isSummaryRequired === "0" ||
+                                        item.IsSummaryRequired === false || item.IsSummaryRequired === 0 || item.IsSummaryRequired === "0"),
                                 remarkRequiredOptions: Array.isArray(item.remarkRequiredOptions)
                                     ? item.remarkRequiredOptions.map(String)
                                     : Array.isArray(item.RemarkRequiredOptions)
@@ -3096,7 +3104,9 @@ function validateItem(item, container) {
     return error;
 }
 async function validateExtra() {
-    let summary = document.querySelector("[data-role='summary']").value;
+    const summaryElement = document.querySelector("[data-role='summary']");
+    let summary = summaryElement ? summaryElement.value : "";
+    const summaryRequired = !!summaryElement && summaryElement.dataset.summaryRequired === "1";
     let checkedFollowUp = (document.querySelector("[data-role='followup'] input[data-role='followup']:checked")?.value) || '';
     let followup = checkedFollowUp ?? ''
 
@@ -3112,7 +3122,7 @@ async function validateExtra() {
         showToast('Follow Up recommendation must be choosed');
         valid = false;
     }
-    if (valid && (!summary || summary.trim() === "")) {
+    if (valid && summaryRequired && (!summary || summary.trim() === "")) {
         showToast('Final Summary wajib diisi');
         valid = false;
     }
