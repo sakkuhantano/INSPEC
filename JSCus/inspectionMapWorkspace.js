@@ -39,9 +39,15 @@
 
     function statusLabel(status, point) {
         var value = normalizedStatus(status);
-        if (value === "PENDING" && point && !pointRequiresInspection(point)) return "BELUM ADA HASIL";
-        return value === "DONE" ? "DONE" : value === "ABNORMAL" ? "ABNORMAL" :
-            value === "INCOMPLETE" ? "INCOMPLETE" : "PENDING";
+        return value === "DONE" ? "SELESAI / OK" :
+            value === "ABNORMAL" ? "ABNORMAL" :
+            value === "INCOMPLETE" ? "BELUM LENGKAP" : "BELUM DIPERIKSA";
+    }
+
+    function statusSymbol(status) {
+        var value = normalizedStatus(status);
+        return value === "DONE" ? "✓" : value === "ABNORMAL" ? "!" :
+            value === "INCOMPLETE" ? "…" : "·";
     }
 
     function getPointTransaction(point) {
@@ -99,7 +105,7 @@
                 'data-point-id="' + esc(point.InspectionPointID) + '" aria-label="' +
                 esc(code + " " + (point.PointName || "")) + '" title="' +
                 esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status, point)) + '">' +
-                '<span class="inspection-map-point-dot"></span>' +
+                '<span class="inspection-map-point-dot">' + statusSymbol(status) + '</span>' +
                 '<span class="inspection-map-point-label">' + esc(code) + '</span></button>';
         }).join("");
 
@@ -152,7 +158,7 @@
                 var status = getPointStatus(point);
                 return '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
-                    '<span class="inspection-map-point-dot ' + pointClass(status) + '"></span>' +
+                    '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
                     '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
                     '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
@@ -206,7 +212,7 @@
         var abnormal = points.filter(function (p) { return getPointStatus(p) === "ABNORMAL"; }).length;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
         var pending = points.filter(function (p) {
-            return getPointStatus(p) === "PENDING" && pointRequiresInspection(p);
+            return getPointStatus(p) === "PENDING";
         }).length;
         var set = function (id, value) {
             var element = document.getElementById(id);
@@ -215,13 +221,14 @@
         set("inspectionMapTotalCount", points.length);
         set("inspectionMapDoneCount", done);
         set("inspectionMapAbnormalCount", abnormal);
-        set("inspectionMapPendingCount", pending + incomplete);
+        set("inspectionMapPendingCount", pending);
+        set("inspectionMapIncompleteCount", incomplete);
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
         if (pendingLegend) {
             var hasPartialMap = points.some(function (p) {
                 return Number(p.MapID || 0) === Number(currentMapId || 0) && !pointRequiresInspection(p);
             });
-            pendingLegend.textContent = hasPartialMap ? "Belum ada hasil" : "Belum diperiksa";
+            pendingLegend.textContent = "Belum diperiksa";
         }
     }
 
