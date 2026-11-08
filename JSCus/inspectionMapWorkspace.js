@@ -27,8 +27,7 @@
 
     function normalizedStatus(status) {
         status = String(status || "PENDING").toUpperCase();
-        if (status === "DONE" || status === "INSPECTED") return "DONE";
-        if (status === "ABNORMAL") return "ABNORMAL";
+        if (status === "DONE" || status === "INSPECTED" || status === "ABNORMAL") return "DONE";
         if (status === "INCOMPLETE") return "INCOMPLETE";
         return "PENDING";
     }
@@ -39,15 +38,13 @@
 
     function statusLabel(status, point) {
         var value = normalizedStatus(status);
-        return value === "DONE" ? "SELESAI / OK" :
-            value === "ABNORMAL" ? "ABNORMAL" :
+        return value === "DONE" ? "SELESAI" :
             value === "INCOMPLETE" ? "BELUM LENGKAP" : "BELUM DIPERIKSA";
     }
 
     function statusSymbol(status) {
         var value = normalizedStatus(status);
-        return value === "DONE" ? "✓" : value === "ABNORMAL" ? "!" :
-            value === "INCOMPLETE" ? "…" : "·";
+        return value === "DONE" ? "✓" : value === "INCOMPLETE" ? "…" : "·";
     }
 
     function getPointTransaction(point) {
@@ -162,7 +159,6 @@
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
                     '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
                     '<span class="badge ' + (status === "DONE" ? "text-bg-success" :
-                    status === "ABNORMAL" ? "text-bg-danger" :
                     status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
                     statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
@@ -209,7 +205,6 @@
     function updateSummary() {
         var points = getVisiblePoints();
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
-        var abnormal = points.filter(function (p) { return getPointStatus(p) === "ABNORMAL"; }).length;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
         var pending = points.filter(function (p) {
             return getPointStatus(p) === "PENDING";
@@ -220,7 +215,6 @@
         };
         set("inspectionMapTotalCount", points.length);
         set("inspectionMapDoneCount", done);
-        set("inspectionMapAbnormalCount", abnormal);
         set("inspectionMapPendingCount", pending);
         set("inspectionMapIncompleteCount", incomplete);
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
@@ -249,7 +243,7 @@
             (selectedPoint.MapCode ? " · " + selectedPoint.MapCode : " · Tanpa denah");
         if (status) {
             status.className = "inspection-map-point-status mt-3 " +
-                (statusValue === "ABNORMAL" ? "text-danger" : statusValue === "DONE" ? "text-success" :
+                (statusValue === "DONE" ? "text-success" :
                 statusValue === "INCOMPLETE" ? "text-warning" : "text-secondary");
             status.textContent = statusLabel(statusValue, selectedPoint);
         }
