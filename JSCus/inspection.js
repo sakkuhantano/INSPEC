@@ -1704,6 +1704,8 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     await persistInspectionRecord(currentInspectionRecord);
 }
 
+window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
+
 async function saveBatchInspectionPoint(status) {
     const record = currentInspectionRecord;
     const point = getActiveInspectionPoint();
