@@ -538,7 +538,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                     txtMapName.Text = Convert.ToString(row["MapName"]);
                     txtMapDescription.Text = Convert.ToString(row["Description"]);
                     lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
-                        " · Upload PDF baru untuk membuat versi berikutnya.";
+                        " · Upload PDF/JPG baru untuk membuat versi berikutnya.";
                 }
 
                 ShowMapPreview(row);
@@ -595,39 +595,32 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
         private void ShowMapPreview(DataRow row)
         {
             string url = ResolveMapPdfUrl(Convert.ToString(row["ImagePath"]));
-            lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " +
-                Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
+            string extension = Path.GetExtension(url).ToLowerInvariant();
+            bool isJpeg = extension == ".jpg" || extension == ".jpeg";
+            lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
-            litMapPreview.Text = "<iframe class='inspection-pdf-preview' title='Inspection floor plan' src='" +
-                HttpUtility.HtmlAttributeEncode(url) + "'></iframe>";
+            litMapPreview.Text = isJpeg
+                ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
+                : "<iframe class='inspection-pdf-preview' title='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "'></iframe>";
             pnlMapPreview.Visible = true;
         }
 
         private void LoadEditorMapPdf()
         {
-            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
-            {
-                litEditorPdfBackground.Text = "";
-                lnkEditorPdf.Visible = false;
-                return;
-            }
-
+            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue)) { litEditorPdfBackground.Text = ""; lnkEditorPdf.Visible = false; return; }
             DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
-            if (selectedMap == null || selectedMap.Rows.Count == 0)
-                throw new Exception("Map yang dipilih tidak ditemukan.");
-
+            if (selectedMap == null || selectedMap.Rows.Count == 0) throw new Exception("Map yang dipilih tidak ditemukan.");
             string url = ResolveMapPdfUrl(Convert.ToString(selectedMap.Rows[0]["ImagePath"]));
-            if (String.IsNullOrWhiteSpace(url))
-                throw new Exception("File PDF untuk map ini belum tersedia.");
-
-            litEditorPdfBackground.Text = "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-pdf-url='" +
-                HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas>" +
-                "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah PDF...</div>";
-            lnkEditorPdf.NavigateUrl = url;
-            lnkEditorPdf.Visible = true;
+            if (String.IsNullOrWhiteSpace(url)) throw new Exception("File denah untuk map ini belum tersedia.");
+            string extension = Path.GetExtension(url).ToLowerInvariant();
+            bool isJpeg = extension == ".jpg" || extension == ".jpeg";
+            string media = isJpeg
+                ? "<img id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' alt='Inspection floor plan' />"
+                : "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas>";
+            litEditorPdfBackground.Text = media + "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah...</div>";
+            lnkEditorPdf.NavigateUrl = url; lnkEditorPdf.Visible = true;
             lblPointMapCode.Text = "· " + Convert.ToString(selectedMap.Rows[0]["MapCode"]);
         }
-
         protected void btnSaveMap_Click(object sender, EventArgs e)
         {
             string code = txtMapCode.Text.Trim().ToUpperInvariant();
@@ -644,7 +637,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             try
             {
                 if (fuMapPdf.HasFile)
-                    savedPath = SavePdfFile(fuMapPdf);
+                    savedPath = SaveMapFile(fuMapPdf);
 
                 using (var br = new WAL.BR.CF())
                 {
@@ -705,7 +698,7 @@ WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
                     }
                     else
                     {
-                        if (savedPath == "") throw new Exception("Pilih file PDF denah terlebih dahulu.");
+                        if (savedPath == "") throw new Exception("Pilih file PDF atau JPG/JPEG denah terlebih dahulu.");
                         int version;
                         using (var brVersion = new WAL.BR.CF())
                         {
@@ -772,50 +765,28 @@ VALUES
             };
         }
 
-        private string SavePdfFile(FileUpload upload)
+        private string SaveMapFile(FileUpload upload)
         {
-            if (upload == null || !upload.HasFile)
-                throw new Exception("Silakan pilih file PDF denah.");
-
-            if (upload.PostedFile.ContentLength <= 0 ||
-                upload.PostedFile.ContentLength > _MaxPdfBytes)
-                throw new Exception("Ukuran PDF harus lebih dari 0 dan maksimal 50 MB.");
-
-            string extension = Path.GetExtension(upload.FileName);
-            if (!String.Equals(extension, ".pdf", StringComparison.OrdinalIgnoreCase))
-                throw new Exception("File denah harus berformat PDF.");
-
-            byte[] signature = new byte[5];
+            if (upload == null || !upload.HasFile) throw new Exception("Silakan pilih file PDF atau JPG/JPEG denah.");
+            if (upload.PostedFile.ContentLength <= 0 || upload.PostedFile.ContentLength > _MaxPdfBytes)
+                throw new Exception("Ukuran file denah harus lebih dari 0 dan maksimal 50 MB.");
+            string extension = Path.GetExtension(upload.FileName).ToLowerInvariant();
+            byte[] signature = new byte[8];
             upload.PostedFile.InputStream.Position = 0;
-            if (upload.PostedFile.InputStream.Read(signature, 0, signature.Length) != 5 ||
-                System.Text.Encoding.ASCII.GetString(signature) != "%PDF-")
-                throw new Exception("File yang dipilih bukan PDF yang valid.");
-
+            int read = upload.PostedFile.InputStream.Read(signature, 0, signature.Length);
+            bool pdf = extension == ".pdf" && read >= 5 && System.Text.Encoding.ASCII.GetString(signature, 0, 5) == "%PDF-";
+            bool jpg = (extension == ".jpg" || extension == ".jpeg") && read >= 3 && signature[0] == 0xFF && signature[1] == 0xD8 && signature[2] == 0xFF;
+            if (!pdf && !jpg) throw new Exception("Format denah tidak valid. Gunakan PDF atau JPG/JPEG yang valid.");
             string webFolder = PB.Path_WebFolder1;
-            if (String.IsNullOrWhiteSpace(webFolder))
-                throw new Exception("PB.Path_WebFolder1 is empty; Inspection map storage root is not configured.");
-
-            string root = GetInspectionMapRoot();
-            string companyLocation =
-                SafePathPart(Master.Mn_CompanyID) + "_" + SafePathPart(Master.Mn_LocationID);
-
-            string relativeFolder = Path.Combine(root, "PIP_M_InspectionMap", companyLocation);
+            if (String.IsNullOrWhiteSpace(webFolder)) throw new Exception("PB.Path_WebFolder1 is empty; Inspection map storage root is not configured.");
+            string relativeFolder = Path.Combine(GetInspectionMapRoot(), "PIP_M_InspectionMap", SafePathPart(Master.Mn_CompanyID) + "_" + SafePathPart(Master.Mn_LocationID));
             string physicalFolder = Path.Combine(webFolder, relativeFolder);
-
-            if (!Directory.Exists(physicalFolder))
-                Directory.CreateDirectory(physicalFolder);
-
-            string fileName = Guid.NewGuid().ToString("N") + ".pdf";
-            string fullPath = Path.Combine(physicalFolder, fileName);
-
+            if (!Directory.Exists(physicalFolder)) Directory.CreateDirectory(physicalFolder);
+            string fileName = Guid.NewGuid().ToString("N") + extension;
             upload.PostedFile.InputStream.Position = 0;
-            upload.SaveAs(fullPath);
-
-            string relativeUrl = relativeFolder.Replace("\\", "/");
-            string urlRoot = (PB.Url_WebFolder1 ?? "").TrimEnd('/');
-            return urlRoot + "/" + relativeUrl + "/" + fileName;
+            upload.SaveAs(Path.Combine(physicalFolder, fileName));
+            return (PB.Url_WebFolder1 ?? "").TrimEnd('/') + "/" + relativeFolder.Replace("\\", "/") + "/" + fileName;
         }
-
         private string GetInspectionMapRoot()
         {
             string appPath = System.Web.HttpContext.Current.Request.ApplicationPath ?? "";
