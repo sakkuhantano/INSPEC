@@ -189,7 +189,7 @@
             var point = findNextPendingPoint();
             if (!point) {
                 if (typeof showInspectionNotice === "function")
-                    showInspectionNotice("Semua unit inspeksi sudah memiliki hasil.", "success");
+                    showInspectionNotice("Tidak ada titik wajib atau checklist yang masih perlu diselesaikan.", "success");
                 return;
             }
             openPoint(point.InspectionPointID);
