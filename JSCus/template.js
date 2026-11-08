@@ -5075,7 +5075,7 @@ function renderVersionStructure(data, isNewTemplate=false)
 
     }
     initSectionCollapseIcon();
-    if (!templateHistoryRestoring && !templateHistorySnapshot)
+    if (!templateHistoryRestoring)
         templateHistorySnapshot = captureTemplateHistoryState();
     updateTemplateHistoryButtons();
 }
