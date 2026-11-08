@@ -1881,7 +1881,8 @@ window.submitInspectionBatch = async function () {
         const condition = point && (String(point.PointCondition || "").toUpperCase() ||
             (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" :
                 (Number(point.InspectionPointTransactionID || 0) > 0 || record.SyncStatus === "SYNCED" ? "NORMAL" : "")));
-        const conditionMissing = conditionRequired && (!condition || (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()));
+        const conditionMissing = !!point && conditionRequired &&
+            (!condition || (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()));
         const requireAll = masterPoint.RequireAllPoints === undefined || masterPoint.RequireAllPoints === null
             ? true : !(masterPoint.RequireAllPoints === false || masterPoint.RequireAllPoints === 0 ||
                 String(masterPoint.RequireAllPoints).toLowerCase() === "false" || String(masterPoint.RequireAllPoints) === "0");
