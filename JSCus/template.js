@@ -3915,6 +3915,10 @@ function evaluateDirtyState()
         sec.Dirty = secDirty;
     });
 
+    const hasPendingDeletes = !!(templateCache.deleted &&
+        ((templateCache.deleted.templates || []).length || (templateCache.deleted.versions || []).length));
+    if (hasPendingDeletes) dirty = true;
+
     templateCache.Dirty = dirty;
 
     updatePageTitle();
