@@ -119,8 +119,8 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsUseDefaultRemark1') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsUseDefaultRemark1 BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsUseDefaultRemark1 DEFAULT (0);
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsUseDefaultRemark2') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsUseDefaultRemark2 BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsUseDefaultRemark2 DEFAULT (0);
-IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Item', 'IsSummaryRequired') IS NULL
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ADD IsSummaryRequired BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Item_IsSummaryRequired DEFAULT (1);
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_Version', 'IsSummaryRequired') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_Version ADD IsSummaryRequired BIT NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_Version_IsSummaryRequired DEFAULT (1);
 
 /* Preserve legacy item-level behavior only during the first schema upgrade. */
 IF @RemarkDefaultsAdded = 1
