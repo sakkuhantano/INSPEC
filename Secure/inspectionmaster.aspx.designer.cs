@@ -33,6 +33,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.TextBox txtPointDescription;
         protected global::System.Web.UI.WebControls.TextBox txtPointOrder;
         protected global::System.Web.UI.WebControls.CheckBox chkPointActive;
+        protected global::System.Web.UI.WebControls.CheckBox chkNormalAbnormalRequired;
         protected global::System.Web.UI.WebControls.LinkButton btnSavePoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPointGrid;
