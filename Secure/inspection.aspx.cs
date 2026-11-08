@@ -1722,7 +1722,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
 object approvalTemplateSnapshot = null;
                 DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
-   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
@@ -1738,7 +1738,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
    I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
    ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
    I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired, ISNULL(I.IsSummaryRequired,1) IsSummaryRequired,
+   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
    I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
    I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -1798,7 +1798,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                                     max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                     unit = itemRow["Unit"].ToString(),
                                     isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                    isSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
+                                    
                                     versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                     versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                     versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -1829,6 +1829,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                         TemplateName = m["TemplateName"].ToString(),
                         StatusOption = m["StatusOption"].ToString(),
                         SummarySampleText = GF.GetString(m["SummarySampleText"]),
+                        IsSummaryRequired = m["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsSummaryRequired"]),
                         IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                         Remark1Text = GF.GetString(m["VersionRemark1Text"]),
                         IsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
@@ -2021,7 +2022,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
 
                     DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
-       V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+       V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
@@ -2037,7 +2038,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
        ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
        I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired, ISNULL(I.IsSummaryRequired,1) IsSummaryRequired,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
        I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -2097,7 +2098,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                                         max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                         unit = itemRow["Unit"].ToString(),
                                         isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                    isSummaryRequired = itemRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(itemRow["IsSummaryRequired"]),
+                                    
                                         versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                         versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                         versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -2128,6 +2129,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                             TemplateName = m["TemplateName"].ToString(),
                             StatusOption = m["StatusOption"].ToString(),
                             SummarySampleText = GF.GetString(m["SummarySampleText"]),
+                        IsSummaryRequired = m["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsSummaryRequired"]),
                             IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                             Remark1Text = GF.GetString(m["VersionRemark1Text"]),
                             IsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
