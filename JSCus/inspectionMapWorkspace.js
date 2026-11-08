@@ -218,7 +218,9 @@
         set("inspectionMapPendingCount", pending + incomplete);
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
         if (pendingLegend) {
-            var hasPartialMap = points.some(function (p) { return !pointRequiresInspection(p); });
+            var hasPartialMap = points.some(function (p) {
+                return Number(p.MapID || 0) === Number(currentMapId || 0) && !pointRequiresInspection(p);
+            });
             pendingLegend.textContent = hasPartialMap ? "Belum ada hasil" : "Belum diperiksa";
         }
     }
