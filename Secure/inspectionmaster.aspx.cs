@@ -1251,10 +1251,21 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             long mapID;
             if (!Int64.TryParse(hidMapID.Value, out mapID) || mapID <= 0)
             {
-                //ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
-                GF.MsgBox(this, "Find Map terlebih dahulu sebelum menambah Inspection Point.", "BS-5.3.0");
-                SetTab("#tab-map");
-                return;
+                // For a new Map, Save Inspection Point creates the Map first using
+                // the Map form + the uploaded floor-plan draft, then continues
+                // with the normal point insert flow.
+                try
+                {
+                    mapID = CreateMapForNewPoint();
+                    if (mapID <= 0) return;
+                    hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
+                }
+                catch (Exception mapError)
+                {
+                    GF.MsgBox(this, "Gagal menyimpan Master Map sebelum menambah Inspection Point: " + mapError.Message, "BS-5.3.0");
+                    SetTab("#tab-map");
+                    return;
+                }
             }
 
             DataTable map = GetMap(mapID);
@@ -1370,6 +1381,74 @@ VALUES
                 GF.MsgBox(this, "Gagal menyimpan Inspection Point: " + ex.Message, "BS-5.3.0");
             }
             SetTab("#tab-point");
+        }
+
+        private long CreateMapForNewPoint()
+        {
+            string code = txtMapCode.Text.Trim().ToUpperInvariant();
+            string name = txtMapName.Text.Trim();
+            string typeCode = ddlInspectionType.SelectedValue;
+            string detailCode = ddlInspectionDetail.SelectedValue;
+            string imagePath = Convert.ToString(Session[DraftMapFileSessionKey]);
+
+            if (String.IsNullOrWhiteSpace(code) || String.IsNullOrWhiteSpace(name) ||
+                String.IsNullOrWhiteSpace(typeCode) || String.IsNullOrWhiteSpace(detailCode))
+                throw new Exception("Map Code, Map Name, Inspection Type, dan Inspection Detail wajib diisi.");
+
+            if (!IsValidMapTypeDetail(typeCode, detailCode))
+                throw new Exception("Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.");
+
+            if (String.IsNullOrWhiteSpace(imagePath))
+                throw new Exception("Floor Plan belum tersimpan. Kembali ke Master Map dan attach file PDF/JPG terlebih dahulu.");
+
+            int version;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable next = br.EQueryP(@"
+SELECT ISNULL(MAX(MapVersion),0)+1 AS NextVersion
+FROM dbo.PIP_M_InspectionMap
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapCode=@MapCode",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapCode", code)
+                    });
+                version = Convert.ToInt32(next.Rows[0]["NextVersion"]);
+            }
+
+            long newMapID = NextId("dbo.PIP_M_InspectionMap", "MapID");
+            using (var br = new WAL.BR.CF())
+            {
+                br.EQueryP(@"
+INSERT INTO dbo.PIP_M_InspectionMap
+(MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
+ MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+VALUES
+(@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
+ @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UserID,@UserID)",
+                    new SqlParameter[] {
+                        new SqlParameter("@MapID", newMapID),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapCode", code),
+                        new SqlParameter("@MapName", name),
+                        new SqlParameter("@ImagePath", imagePath),
+                        new SqlParameter("@MapVersion", version),
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode),
+                        new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
+                        new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                        new SqlParameter("@UserID", Master.Mn_EmployeeID)
+                    });
+            }
+
+            Session.Remove(DraftMapFileSessionKey);
+            BindMaps();
+            BindEditorMaps();
+            DataTable savedMap = GetMap(newMapID);
+            if (savedMap.Rows.Count > 0) ShowMapPreview(savedMap.Rows[0]);
+            lblMapVersion.Text = "Map tersimpan otomatis saat Inspection Point pertama disimpan.";
+            return newMapID;
         }
 
         private SqlParameter[] PointParameters(long pointID, object mapValue,
