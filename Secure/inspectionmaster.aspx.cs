@@ -321,8 +321,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
 WITH PointRows AS
 (
     SELECT P.InspectionPointID, P.PointCode, P.PointName,
-           M.InspectionTypeCode, M.InspectionTypeDetailCode,
-           P.PointObjectType, P.IsActive,
+           P.ObjectReferenceCode, P.IsNormalAbnormalRequired,
            P.DisplayOrder,
            ISNULL(M.MapCode,'') AS MapCode,
            ROW_NUMBER() OVER
@@ -348,8 +347,7 @@ WITH PointRows AS
       ))
 )
 SELECT InspectionPointID, PointCode, PointName,
-       InspectionTypeCode, InspectionTypeDetailCode,
-       PointObjectType, IsActive, DisplayOrder, MapCode
+       ObjectReferenceCode, IsNormalAbnormalRequired, DisplayOrder, MapCode
 FROM PointRows
 WHERE RowNum BETWEEN @StartRow AND @EndRow
 ORDER BY RowNum",
@@ -658,7 +656,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT P.MapX, P.MapY
+SELECT P.MapX, P.MapY, P.PointCode, P.PointName
 FROM dbo.PIP_M_InspectionPoint P
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
   AND P.MapID=@MapID AND P.IsActive=1
@@ -673,7 +671,10 @@ ORDER BY P.DisplayOrder, P.PointCode",
             System.Text.StringBuilder html = new System.Text.StringBuilder();
             foreach (DataRow point in points.Rows)
             {
-                html.Append("<span class='inspection-map-preview-marker' style='left:");
+                string pointLabel = Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"]);
+                html.Append("<span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
+                html.Append(HttpUtility.HtmlAttributeEncode(pointLabel));
+                html.Append("' style='left:");
                 html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
                 html.Append("%;top:");
                 html.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
