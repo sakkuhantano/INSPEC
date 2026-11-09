@@ -4277,6 +4277,10 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const batchPoints = result.points || [];
         const batchMaps = result.maps || [];
         const isBatchApproval = String(h.InspectionMode || "").toUpperCase() === "BATCH";
+        const approvalTabButton = document.getElementById(isBatchApproval
+            ? "inspectionApprovalChecklistTab" : "inspectionApprovalParamTab");
+        if (approvalTabButton && window.bootstrap && bootstrap.Tab)
+            bootstrap.Tab.getOrCreateInstance(approvalTabButton).show();
         window.currentInspectionApprovalPhotos = photos;
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
