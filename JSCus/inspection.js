@@ -260,6 +260,15 @@ function wireInspectionEvents() {
     document.getElementById("btnInspectionParamTab").addEventListener("click", () => showInspectionEditorTab("param"));
     if (typeof wireInspectionMapWorkspace === "function") wireInspectionMapWorkspace();
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", async () => {
+        const isBatch = currentInspectionRecord &&
+            String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        if (isBatch && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)) {
+            updateInspectionParameterTabGate();
+            if (typeof showInspectionMapWorkspace === "function")
+                showInspectionMapWorkspace(currentInspectionRecord, true);
+            showInspectionNotice("Pilih Inspection Point dari denah atau daftar terlebih dahulu untuk membuka Checklist.", "info");
+            return;
+        }
         // Server-only submitted records intentionally use synthetic parameter options because
         // their original masters may no longer exist in IndexedDB. They are read-only, so
         // don't revalidate those synthetic values against the local master caches.
@@ -1742,6 +1751,7 @@ async function openBatchInspectionPointChecklist(masterPoint) {
 
     currentInspectionRecord.ActiveInspectionPointID = Number(masterPoint.InspectionPointID);
     currentInspectionRecord.Items = point.Items || [];
+    updateInspectionParameterTabGate();
     const host = document.getElementById("inspectionChecklistHost");
     host.innerHTML = renderInspectionSections(
         currentInspectionRecord.TemplateSnapshot,
@@ -2604,6 +2614,24 @@ async function closeInspectionForm() {
 function returnFromInspectionPage(){if(!document.getElementById("inspectionInputPanel").classList.contains("d-none")){closeInspectionForm();return;}window.location.href="dashboard.aspx";}
 function showInspectionEditorTab(tab) {
     const p = tab === "param";
+    const isBatch = currentInspectionRecord &&
+        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+    if (!p && isBatch && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)) {
+        document.getElementById("inspectionParamsPane").classList.add("d-none");
+        document.getElementById("inspectionChecklistPane").classList.add("d-none");
+        const workspace = document.getElementById("inspectionMapWorkspace");
+        if (workspace) workspace.classList.remove("d-none");
+        const mapTab = document.getElementById("btnInspectionMapTab");
+        const paramTab = document.getElementById("btnInspectionParamTab");
+        const checklistTab = document.getElementById("btnInspectionChecklistTab");
+        if (mapTab) mapTab.classList.add("active");
+        if (paramTab) paramTab.classList.remove("active");
+        if (checklistTab) checklistTab.classList.remove("active");
+        const sectionNavHost = document.getElementById("inspectionSectionNavHost");
+        if (sectionNavHost) sectionNavHost.classList.add("d-none");
+        updateInspectionParameterTabGate();
+        return;
+    }
     if (!p && document.getElementById("btnInspectionChecklistTab").disabled) {
         document.getElementById("inspectionParamsPane").classList.remove("d-none");
         document.getElementById("inspectionChecklistPane").classList.add("d-none");
@@ -2641,11 +2669,16 @@ function isInspectionParameterSelectionComplete() {
 function updateInspectionParameterTabGate() {
     const button = document.getElementById("btnInspectionChecklistTab");
     if (!button) return;
-    const complete = currentInspectionReadOnly || isInspectionParameterSelectionComplete();
+    const isBatch = currentInspectionRecord &&
+        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+    const hasSelectedPoint = !isBatch || Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0;
+    const complete = (currentInspectionReadOnly || isInspectionParameterSelectionComplete()) && hasSelectedPoint;
     button.disabled = !complete;
     button.classList.toggle("disabled", !complete);
     button.setAttribute("aria-disabled", complete ? "false" : "true");
-    button.title = complete ? "" : "Lengkapi semua parameter inspeksi terlebih dahulu.";
+    button.title = !hasSelectedPoint
+        ? "Pilih Inspection Point dari MAP terlebih dahulu."
+        : (complete ? "" : "Lengkapi semua parameter inspeksi terlebih dahulu.");
 }
 function setInspectionFormHeader(transactionNo, infoLines) {
     const title = document.getElementById("inspectionFormTitle");
