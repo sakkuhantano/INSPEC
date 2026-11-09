@@ -15,7 +15,6 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.FileUpload fuMapPdf;
         protected global::System.Web.UI.WebControls.LinkButton btnSaveMap;
         protected global::System.Web.UI.WebControls.LinkButton btnNewMap;
-        protected global::System.Web.UI.WebControls.LinkButton btnRefreshMap;
         protected global::System.Web.UI.WebControls.Label lblMapVersion;
         protected global::System.Web.UI.WebControls.Literal litEditorPdfBackground;
         protected global::System.Web.UI.WebControls.LinkButton lBtnInspectionType;
@@ -32,7 +31,6 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.TextBox txtObjectReferenceCode;
         protected global::System.Web.UI.WebControls.TextBox txtPointDescription;
         protected global::System.Web.UI.WebControls.TextBox txtPointOrder;
-        protected global::System.Web.UI.WebControls.CheckBox chkPointActive;
         protected global::System.Web.UI.WebControls.CheckBox chkNormalAbnormalRequired;
         protected global::System.Web.UI.WebControls.LinkButton btnSavePoint;
         protected global::System.Web.UI.WebControls.LinkButton btnNewPoint;
