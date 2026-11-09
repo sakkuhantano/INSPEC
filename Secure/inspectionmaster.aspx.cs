@@ -1090,12 +1090,37 @@ ORDER BY M.MapVersion DESC",
         {
             // Add Point is available only after a Map Code and its floor plan
             // have both been selected (existing Map) or attached (new Map).
-            if (String.IsNullOrWhiteSpace(txtMapCode.Text.Trim()))
+            if (txtMapCode.Text == "")
             {
-                GF.MsgBox(this, "Isi atau pilih Map Code terlebih dahulu.", "BS-5.3.0");
-                SetTab("#tab-map");
+                GF.MsgBox(this, "Map Code must not empty.", "BS-5.3.0");
                 return;
             }
+            if (txtMapName.Text == "")
+            {
+                GF.MsgBox(this, "Map Name must not empty.", "BS-5.3.0");
+                return;
+            }
+            if (ddlInspectionType.SelectedValue == "")
+            {
+                GF.MsgBox(this, "Inspection Type must not empty.", "BS-5.3.0");
+                return;
+            }
+            if (ddlInspectionDetail.SelectedValue == "")
+            {
+                GF.MsgBox(this, "Inspection Type Detail must not empty.", "BS-5.3.0");
+                return;
+            }
+            if (hidMapID.Value == "" && !fuMapPdf.HasFile)
+            {
+                GF.MsgBox(this, "Please attach map file first", "BS-5.3.0");
+                return;
+            }
+            //if (String.IsNullOrWhiteSpace(txtMapCode.Text.Trim()))
+            //{
+            //    GF.MsgBox(this, "Isi atau pilih Map Code terlebih dahulu.", "BS-5.3.0");
+            //    SetTab("#tab-map");
+            //    return;
+            //}
 
             long currentMapID;
             bool hasSavedMap = Int64.TryParse(hidMapID.Value, out currentMapID) && currentMapID > 0;
