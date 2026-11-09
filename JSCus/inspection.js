@@ -1780,7 +1780,8 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     showInspectionEditorTab("checklist");
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
-    await persistInspectionRecord(currentInspectionRecord);
+    // Opening a map point is navigation only. The point and its parent batch
+    // remain in memory until the user explicitly presses Save Point / Save Draft.
 }
 
 window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
@@ -2067,6 +2068,32 @@ function scheduleInspectionAutosave() {
         clearTimeout(inspectionAutoSaveTimer);
         inspectionAutoSaveTimer = null;
     }
+}
+
+function isInspectionRecordPersisted(localId) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_records", "readonly");
+        const request = tx.objectStore("inspection_records").get(localId);
+        request.onsuccess = () => resolve(!!request.result);
+        request.onerror = () => reject(request.error || tx.error);
+    });
+}
+
+function deleteInspectionPhotosForLocalRecord(localId) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction("inspection_photos", "readwrite");
+        const request = tx.objectStore("inspection_photos").index("LocalInspectionID")
+            .openCursor(IDBKeyRange.only(localId));
+        request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) return;
+            cursor.delete();
+            cursor.continue();
+        };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("Gagal membersihkan foto inspeksi sementara."));
+    });
 }
 
 function persistInspectionRecord(record) {
@@ -2512,18 +2539,23 @@ function resetInspectionSelection() {
 }
 
 async function closeInspectionForm() {
-    if (inspectionAutoSaveTimer) await flushInspectionAutosave();
+    if (inspectionAutoSaveTimer) {
+        clearTimeout(inspectionAutoSaveTimer);
+        inspectionAutoSaveTimer = null;
+    }
     const closingRecord = currentInspectionRecord;
-    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
-        Number(closingRecord.ActiveInspectionPointID || 0) > 0 && !currentInspectionReadOnly) {
-        await saveBatchInspectionPoint("DRAFT");
+    const closingBatch = closingRecord &&
+        String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH";
+    const batchWasSaved = closingBatch
+        ? await isInspectionRecordPersisted(closingRecord.LocalInspectionID)
+        : false;
+
+    // Leaving the form/map is never an implicit Save Point or Save Draft action.
+    // For an entirely new batch, also remove any photo blobs attached to its temporary ID.
+    if (closingBatch && !batchWasSaved) {
+        await deleteInspectionPhotosForLocalRecord(closingRecord.LocalInspectionID);
     }
-    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH" && !currentInspectionReadOnly) {
-        closingRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
-        Object.assign(closingRecord, collectInspectionFollowUp());
-        await persistInspectionRecord(closingRecord);
-    }
-    if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() !== "BATCH" &&
+    if (closingRecord && !closingBatch &&
         inspectionPhotoBaseline !== null && !currentInspectionReadOnly) {
         const baseline = inspectionPhotoBaseline;
         await new Promise((resolve, reject) => {
@@ -2544,7 +2576,7 @@ async function closeInspectionForm() {
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error("Gagal membatalkan perubahan foto inspeksi."));
         });
-    } else if (closingRecord && String(closingRecord.InspectionMode || "").toUpperCase() !== "BATCH" &&
+    } else if (closingRecord && !closingBatch &&
         !inspectionRecords.some(r => r.LocalInspectionID === closingRecord.LocalInspectionID)) {
         await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_photos", "readwrite");
@@ -2845,7 +2877,12 @@ async function applyInspectionParameters() {
     updateInspectionRemarkPanels();
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
-    await persistInspectionRecord(record);
+    // Selecting/changing parameters while starting a new BATCH is not a save action.
+    // Existing locally-saved batch drafts may still be updated when parameters change.
+    if (String(record.InspectionMode || "").toUpperCase() !== "BATCH" ||
+        await isInspectionRecordPersisted(record.LocalInspectionID)) {
+        await persistInspectionRecord(record);
+    }
     return true;
 }
 
