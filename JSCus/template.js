@@ -6269,6 +6269,35 @@ async function refreshInspectionTypeDropdown(template)
         console.error(ex);
     }
 }
+function markTemplateMetadataDirty(template) {
+    if (!template) return;
+
+    template.MetadataDirty = true;
+    templateCache.Dirty = true;
+
+    // Save All reads metadata from the canonical template cache node.
+    // Keep it synchronized even if a tag's click handler captured an older object.
+    const sectionId = template.SectionID;
+    const runtimeTemplateId = template.RuntimeTemplateID;
+    const node = sectionId != null && runtimeTemplateId != null
+        ? getTemplateCache(sectionId, runtimeTemplateId)
+        : null;
+    if (node && node.Template) {
+        node.Template.MetadataDirty = true;
+        node.Template.TemplateType = template.TemplateType;
+        node.Template.InspectionTypeCode = template.InspectionTypeCode;
+        node.Template.InspectionTypeDetailCode = template.InspectionTypeDetailCode;
+        node.Template.CompanyScope = template.CompanyScope;
+    }
+
+    if (currentTemplate && runtimeTemplateId != null &&
+        String(currentTemplate.RuntimeTemplateID) === String(runtimeTemplateId)) {
+        currentTemplate.MetadataDirty = true;
+        currentTemplate.InspectionTypeDetailCode = template.InspectionTypeDetailCode;
+        if (node && node.Template) currentTemplate = node.Template;
+    }
+}
+
 function getTemplateInspectionDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";").map(code => code.trim()).filter(Boolean);
@@ -6304,8 +6333,7 @@ function renderTemplateInspectionDetailTags(template, details) {
             remove.addEventListener("click", function() {
                 const remaining = getTemplateInspectionDetailCodes(template).filter(x => x !== code);
                 template.InspectionTypeDetailCode = remaining.join(";");
-                template.MetadataDirty = true;
-                templateCache.Dirty = true;
+                markTemplateMetadataDirty(template);
                 refreshInspectionDetailDropdown(template);
             });
             tag.appendChild(remove);
@@ -6521,8 +6549,7 @@ async function appendTemplateMetadataControls(template)
     scopeSelect.value = template.CompanyScope;
 
     const markMetadataDirty = function() {
-        template.MetadataDirty = true;
-        templateCache.Dirty = true;
+        markTemplateMetadataDirty(template);
     };
 
     typeSelect.addEventListener('change', async function() {
