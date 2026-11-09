@@ -662,6 +662,7 @@ function createNewVersion()
         Remark:"NEW VERSION",
         SummarySampleText:"",
         IsSummaryRequired:true,
+        IsFollowUpRequired:true,
         IsRemark1Required:false,
         Remark1Text:"",
         IsRemark2Required:false,
@@ -2929,6 +2930,12 @@ function showVersionPropertiesEvent(version) {
             markCurrentVersionDirty();
         });
 
+        const followUpRequiredSwitch = document.getElementById("propVersionFollowUpRequired");
+        if (followUpRequiredSwitch) followUpRequiredSwitch.addEventListener("change", function () {
+            version.IsFollowUpRequired = this.checked;
+            markCurrentVersionDirty();
+        });
+
         const photoRequirementSelect = document.getElementById("propVersionPhotoRequirement");
         if (photoRequirementSelect) photoRequirementSelect.addEventListener("change", function () {
             version.PhotoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(this.value) ? this.value : "BOTH";
@@ -3009,6 +3016,8 @@ function showVersionProperties(version, isNewTemplate)
 {
     if (version.IsSummaryRequired === undefined || version.IsSummaryRequired === null)
         version.IsSummaryRequired = true;
+    if (version.IsFollowUpRequired === undefined || version.IsFollowUpRequired === null)
+        version.IsFollowUpRequired = true;
     const isNew =
         version.IDVersion == 0;
     const rightPanel =
@@ -3119,6 +3128,13 @@ function showVersionProperties(version, isNewTemplate)
                         <label class="form-check-label text-xs">Version: Require Final Summary</label>
                     </div>
                     <div class="form-text text-xs">If enabled, the Final Summary panel is shown for Work Order and Inspection using this Version.</div>
+                </div>
+                <div class="mb-3 border rounded p-2">
+                    <div class="form-check form-switch">
+                        <input id="propVersionFollowUpRequired" class="form-check-input" type="checkbox" ${version.IsFollowUpRequired !== false ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                        <label class="form-check-label text-xs">Version: Enable Follow Up Work Order</label>
+                    </div>
+                    <div class="form-text text-xs">If enabled, the Follow Up Work Order panel is shown for Work Order and Inspection using this Version.</div>
                 </div>
                 <div class="mb-3 border rounded p-2">
                     <div class="form-check form-switch mb-2">
@@ -3489,6 +3505,8 @@ function normalizeVersionStructure(data)
     data.VersionInfo.SummarySampleText = data.VersionInfo.SummarySampleText || "";
     data.VersionInfo.IsSummaryRequired = data.VersionInfo.IsSummaryRequired === undefined || data.VersionInfo.IsSummaryRequired === null
         ? true : !(data.VersionInfo.IsSummaryRequired === false || data.VersionInfo.IsSummaryRequired === 0 || data.VersionInfo.IsSummaryRequired === "0" || String(data.VersionInfo.IsSummaryRequired).toLowerCase() === "false");
+    data.VersionInfo.IsFollowUpRequired = data.VersionInfo.IsFollowUpRequired === undefined || data.VersionInfo.IsFollowUpRequired === null
+        ? true : !(data.VersionInfo.IsFollowUpRequired === false || data.VersionInfo.IsFollowUpRequired === 0 || data.VersionInfo.IsFollowUpRequired === "0" || String(data.VersionInfo.IsFollowUpRequired).toLowerCase() === "false");
     data.VersionInfo.IsRemark1Required = !!data.VersionInfo.IsRemark1Required;
     data.VersionInfo.IsRemark2Required = !!data.VersionInfo.IsRemark2Required;
     data.VersionInfo.Remark1Text = data.VersionInfo.IsRemark1Required ? (data.VersionInfo.Remark1Text || "Remark") : "";
