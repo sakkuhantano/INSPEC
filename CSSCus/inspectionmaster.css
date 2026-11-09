@@ -135,3 +135,10 @@
 .inspection-coordinate-hint-action{color:#6c757d}
 .inspection-point-modal-body .inspection-coordinate-board{height:clamp(180px,34vh,350px)}
 @media(max-width:767.98px){.inspection-coordinate-hint{gap:.3rem .65rem;font-size:.68rem}.inspection-coordinate-hint-action{flex-basis:100%}}
+
+/* Saved inspection points on the lower floor-plan preview. */
+.inspection-map-preview-media{position:relative;width:100%;display:block;line-height:0}
+.inspection-map-preview-media .inspection-map-preview-canvas,
+.inspection-map-preview-media .inspection-image-preview{display:block;width:100%;height:auto;max-height:75vh;object-fit:contain}
+.inspection-map-preview-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.inspection-map-preview-marker{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;min-width:17px;height:17px;padding:0 3px;border:1.5px solid #fff;border-radius:50px;background:#0d6efd;color:#fff;font:600 8px/1 Arial,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.45);text-shadow:0 1px 1px rgba(0,0,0,.35)}
