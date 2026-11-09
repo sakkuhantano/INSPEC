@@ -535,6 +535,24 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
 
         private void ProcessMapRowCommand(string commandName, object commandArgument)
         {
+            decimal? coordinateX = null;
+            decimal? coordinateY = null;
+            if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
+            {
+                decimal parsedX, parsedY;
+                if (!Decimal.TryParse(txtMarkerX.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedX) ||
+                    !Decimal.TryParse(txtMarkerY.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedY) ||
+                    parsedX < 0 || parsedX > 100 || parsedY < 0 || parsedY > 100)
+                {
+                    //ShowMessage("Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", true);
+                    GF.MsgBox(this, "Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", "BS-5.3.0");
+                    SetTab("#tab-point");
+                    return;
+                }
+                coordinateX = parsedX;
+                coordinateY = parsedY;
+            }
+
             long mapID;
             if (!Int64.TryParse(Convert.ToString(commandArgument), out mapID) || mapID <= 0)
             {
@@ -1284,24 +1302,6 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
                 GF.MsgBox(this, "Inspection Type dan Detail harus ditentukan pada Master Map terlebih dahulu.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
-            }
-
-            decimal? coordinateX = null;
-            decimal? coordinateY = null;
-            if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
-            {
-                decimal parsedX, parsedY;
-                if (!Decimal.TryParse(txtMarkerX.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedX) ||
-                    !Decimal.TryParse(txtMarkerY.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedY) ||
-                    parsedX < 0 || parsedX > 100 || parsedY < 0 || parsedY > 100)
-                {
-                    //ShowMessage("Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", true);
-                    GF.MsgBox(this, "Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", "BS-5.3.0");
-                    SetTab("#tab-point");
-                    return;
-                }
-                coordinateX = parsedX;
-                coordinateY = parsedY;
             }
 
             object mapValue = mapID;
