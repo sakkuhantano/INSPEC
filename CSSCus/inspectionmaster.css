@@ -92,9 +92,14 @@
 .inspection-coordinate-pdf{display:block;max-width:100%}
 
 /* Map preview is intentionally the final section below the Inspection Points panel. */
-.inspection-map-preview-stage{position:relative;width:100%;max-height:75vh;min-height:260px;overflow:auto;border:1px solid var(--bs-border-color);border-radius:.4rem;background:#f8fafc;display:flex;align-items:flex-start;justify-content:center}
-.inspection-map-preview-canvas{display:block;max-width:100%;height:auto;background:#fff}
-.inspection-map-preview-stage .inspection-image-preview{max-height:75vh;object-fit:contain;border:0}
+.inspection-map-preview-toolbar .btn{min-width:32px}
+.inspection-map-preview-stage{position:relative;width:100%;height:min(75vh,720px);min-height:260px;overflow:hidden;border:1px solid var(--bs-border-color);border-radius:.4rem;background:#f8fafc;touch-action:pan-y;cursor:default}
+.inspection-map-preview-stage.inspection-map-preview-zoomed{cursor:grab;touch-action:none}
+.inspection-map-preview-stage.inspection-map-preview-zoomed:active{cursor:grabbing}
+.inspection-map-preview-media{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;line-height:0}
+.inspection-map-preview-canvas,.inspection-map-preview-media .inspection-image-preview{display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:fill;border:0;background:#fff}
+.inspection-map-preview-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.inspection-map-preview-marker{position:absolute;transform:translate(-50%,-50%);width:9px;height:9px;border:1.5px solid #fff;border-radius:50%;background:#0d6efd;box-shadow:0 1px 4px rgba(0,0,0,.55)}
 .inspection-point-pager{padding:.2rem .35rem;border:1px solid #e2e8f0;border-radius:.45rem;background:#f8fafc}
 .inspection-point-pager .btn{min-width:32px;border-radius:.3rem!important;font-size:.78rem}
 .inspection-point-pager .btn:disabled,.inspection-point-pager .btn[disabled]{opacity:.4}
