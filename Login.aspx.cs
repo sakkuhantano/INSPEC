@@ -105,12 +105,7 @@ namespace INSPEC
                       AND S.Token = @Token
                       AND S.IsActive = 1
                       AND S.ExpireTime > GETDATE()
-                      AND U.IsActive = 1
-                      AND EXISTS (
-                          SELECT 1
-                          FROM dbo.F_SelectALLMenuAuthorization('inspecfo', U.EmployeeID, '') M
-                          WHERE M.MenuID IN ('20011','20012','20021','20022','20031','20041','20042','20043')
-                      )",
+                      AND U.IsActive = 1",
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
                     "@Token=" + token).Rows.Count > 0;
