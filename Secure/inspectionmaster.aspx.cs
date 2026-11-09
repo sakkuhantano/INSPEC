@@ -1048,10 +1048,6 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
                 btnSwapPosition.Visible = true;
                 ShowPointEditor();
-                ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
-                BindInspectionDetails();
-                if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
-                    ddlInspectionDetail.SelectedValue = Convert.ToString(row["InspectionTypeDetailCode"]);
                 txtPointCode.Text = Convert.ToString(row["PointCode"]);
                 txtPointName.Text = Convert.ToString(row["PointName"]);
                 if (ddlPointObjectType.Items.FindByValue(Convert.ToString(row["PointObjectType"])) != null)
