@@ -122,14 +122,18 @@
         if (board && content && markerX && markerY) {
             var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
             var zoomLabel = document.getElementById('lblMapZoom');
+            function updateMarkerScale() {
+                // Markers are children of the zoomed content, so compensate for
+                // the content scale. Include dynamically-created preview markers.
+                var markers = content.querySelectorAll('.inspection-coordinate-marker, .inspection-coordinate-preview');
+                var inverseScale = 1 / zoom;
+                for (var i = 0; i < markers.length; i++) {
+                    markers[i].style.transform = 'translate(-50%, -50%) scale(' + inverseScale + ')';
+                }
+            }
             function applyView() {
                 content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
-                // Keep marker circles readable and easy to select while the PDF is zoomed.
-                // The parent scales up, so each marker receives the inverse scale.
-                var markers = content.querySelectorAll('.inspection-coordinate-marker, .inspection-coordinate-preview');
-                for (var i = 0; i < markers.length; i++) {
-                    markers[i].style.transform = 'translate(-50%, -50%) scale(' + (1 / zoom) + ')';
-                }
+                updateMarkerScale();
                 if (zoomLabel) zoomLabel.textContent = Math.round(zoom * 100) + '%';
                 board.classList.toggle('inspection-map-zoomed', zoom > 1);
             }
@@ -201,6 +205,9 @@
                     content.appendChild(preview);
                 }
                 preview.style.left = x + '%'; preview.style.top = y + '%';
+                // A preview may be created after the last zoom event. Apply the
+                // current inverse scale immediately so its visible size stays fixed.
+                updateMarkerScale();
             });
             applyView();
         }
