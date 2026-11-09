@@ -74,6 +74,7 @@
                                 <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG)</div>
                                 <div class="col-sm-8">
                                     <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" />
+                                    <asp:LinkButton ID="btnClearMapFile" runat="server" CssClass="btn btn-sm btn-outline-secondary mt-1" OnClick="btnClearMapFile_Click" CausesValidation="false"><i class="fas fa-eraser"></i> Clear Floor Plan</asp:LinkButton>
                                 </div>
                             </div>
                             <div class="row mt-1">
