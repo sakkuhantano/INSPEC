@@ -88,15 +88,16 @@
 
 
                     <asp:Panel ID="pnlPointEditor" runat="server" Visible="false" CssClass="modal fade" ClientIDMode="Static" role="dialog" aria-labelledby="inspectionPointModalTitle" tabindex="-1">
-                        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
-                            <div class="modal-content">
-                        <div class="row my-1">
-                            <div class="col border rounded shadow-sm">
+                        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable inspection-point-dialog" role="document">
+                            <div class="modal-content inspection-point-modal-content">
                                 <div class="modal-header py-2">
-                                    <h5 class="modal-title fs-6" id="inspectionPointModalTitle">Inspection Point</h5>
+                                    <div>
+                                        <h5 class="modal-title fs-6 mb-0" id="inspectionPointModalTitle">Inspection Point</h5>
+                                        <div class="small text-muted">Isi data point, lalu pilih posisi pada denah.</div>
+                                    </div>
                                     <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn-close" OnClick="btnClosePoint_Click" CausesValidation="false" ToolTip="Close" />
                                 </div>
-                                <div class="modal-body">
+                                <div class="modal-body inspection-point-modal-body">
                                 <div class="row my-1">
                                     <div class="col-sm-6 mb-1">
                                         <div class="row mt-1">
@@ -168,14 +169,11 @@
                                         </div>
                                     </div>
                                 </asp:Panel>
-                                <div class="row my-2">
-                                    <div class="col d-flex justify-content-end">
-                                        <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Inspection Point</asp:LinkButton>
-                                    </div>
                                 </div>
+                                <div class="modal-footer py-2 inspection-point-modal-footer">
+                                    <span class="small text-muted me-auto">Koordinat tersimpan setelah tombol Save ditekan.</span>
+                                    <asp:LinkButton ID="btnSavePoint" runat="server" CssClass="btn btn-primary btn-sm px-4" OnClick="btnSavePoint_Click"><i class="fas fa-save"></i> Save Inspection Point</asp:LinkButton>
                                 </div>
-                            </div>
-                            </div>
                             </div>
                         </div>
                     </asp:Panel>
