@@ -13,6 +13,14 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.TextBox txtMapName;
         protected global::System.Web.UI.WebControls.TextBox txtMapDescription;
         protected global::System.Web.UI.WebControls.FileUpload fuMapPdf;
+        
+        /// <summary>
+        /// btnClearMapFile control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.LinkButton btnClearMapFile;
         protected global::System.Web.UI.WebControls.LinkButton btnSaveMap;
         protected global::System.Web.UI.WebControls.LinkButton btnNewMap;
         protected global::System.Web.UI.WebControls.Label lblMapVersion;
