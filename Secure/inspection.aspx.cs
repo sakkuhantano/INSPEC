@@ -329,7 +329,7 @@ SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        P.PointCode
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.InspectionTypeCode=@InspectionTypeCode
   AND M.InspectionTypeDetailCode=@InspectionTypeDetailCode
   AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1",
@@ -1058,7 +1058,7 @@ SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.InspectionTypeCode=@TypeCode
   AND M.InspectionTypeDetailCode=@DetailCode
   AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1
