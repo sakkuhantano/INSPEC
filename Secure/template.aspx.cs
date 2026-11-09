@@ -1050,22 +1050,22 @@ WHERE a.SectionID = @SectionID
                                             iRow["C8"] = item.ContainsKey("IsValueRequired") ? (item["IsValueRequired"] ?? false) : false;
                                             iRow["C9"] = item.ContainsKey("ShowUnitInRange") ? (item["ShowUnitInRange"] ?? false) : false;
                                             iRow["C10"] = optionListStr;
-                                            if (GF.GetString(item["MinValue"]) == "")
+                                            if (Convert.ToString(item["MinValue"]) == "")
                                                 iRow["C11"] = "0";
                                             else
-                                                iRow["C11"] = GF.GetString(item["MinValue"]);
-                                            if (GF.GetString(item["MaxValue"]) == "")
+                                                iRow["C11"] = Convert.ToString(item["MinValue"]);
+                                            if (Convert.ToString(item["MaxValue"]) == "")
                                                 iRow["C12"] = "0";
                                             else
-                                                iRow["C12"] = GF.GetString(item["MaxValue"]);
-                                            if (GF.GetString(item["MinTolerance"]) == "")
+                                                iRow["C12"] = Convert.ToString(item["MaxValue"]);
+                                            if (Convert.ToString(item["MinTolerance"]) == "")
                                                 iRow["C13"] = "0";
                                             else
-                                                iRow["C13"] = GF.GetString(item["MinTolerance"]);
-                                            if (GF.GetString(item["MaxTolerance"]) == "")
+                                                iRow["C13"] = Convert.ToString(item["MinTolerance"]);
+                                            if (Convert.ToString(item["MaxTolerance"]) == "")
                                                 iRow["C14"] = "0";
                                             else
-                                                iRow["C14"] = GF.GetString(item["MaxTolerance"]);
+                                                iRow["C14"] = Convert.ToString(item["MaxTolerance"]);
                                             iRow["C15"] = item["ModelCode"];
                                             iRow["C16"] = (itemType == "INPUT" || itemType == "RANGE") && Convert.ToBoolean(item["UseTolerance"]);
                                             iRow["C17"] = itemRemarkRequiredOptionsStr;
