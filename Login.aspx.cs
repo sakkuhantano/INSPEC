@@ -140,6 +140,33 @@ namespace INSPEC
 
         }
         [WebMethod]
+        public static bool ConfirmSessionCookie(string token)
+        {
+            HttpContext context = HttpContext.Current;
+            if (context == null || String.IsNullOrWhiteSpace(token))
+                return false;
+
+            HttpCookie authCookie = context.Request.Cookies[GFC.CookieName];
+            string requestToken = authCookie == null
+                ? String.Empty : Convert.ToString(authCookie.Value).Trim();
+
+            if (!String.Equals(requestToken, token, StringComparison.Ordinal))
+                return false;
+
+            using (var br = new WAL.BR.CF())
+            {
+                return br.EQuery(@"SELECT TOP 1 S.UserID
+                    FROM UserSession S
+                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
+                    WHERE S.Token = @Token
+                      AND S.IsActive = 1
+                      AND S.ExpireTime > GETDATE()
+                      AND U.IsActive = 1",
+                    "@Token=" + token).Rows.Count > 0;
+            }
+        }
+
+        [WebMethod]
         public static bool F_Logout(string browserGuid, string serverGuid, string token)
         {
             using (var br = new WAL.BR.CF())
