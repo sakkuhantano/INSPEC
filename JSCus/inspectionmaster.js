@@ -102,6 +102,23 @@
         var markerY = document.getElementById('txtMarkerY');
         var swapTarget = document.getElementById('hidSwapPointID');
         var swapLabel = document.getElementById('lblSwapTarget');
+        var clearCoordinateButton = document.getElementById('btnClearCoordinate');
+        if (clearCoordinateButton) {
+            clearCoordinateButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                var xField = document.getElementById('txtMarkerX');
+                var yField = document.getElementById('txtMarkerY');
+                if (xField) xField.value = '';
+                if (yField) yField.value = '';
+                var preview = document.getElementById('inspectionCoordinatePreview');
+                if (preview && preview.parentNode) preview.parentNode.removeChild(preview);
+                var swapTargetField = document.getElementById('hidSwapPointID');
+                var swapTargetLabel = document.getElementById('lblSwapTarget');
+                if (swapTargetField) swapTargetField.value = '';
+                if (swapTargetLabel) swapTargetLabel.textContent = 'Koordinat dikosongkan.';
+            });
+        }
         if (board && content && markerX && markerY) {
             var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
             var zoomLabel = document.getElementById('lblMapZoom');
