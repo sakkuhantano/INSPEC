@@ -108,3 +108,22 @@
  .inspection-point-goto{width:126px}
  .inspection-map-preview-stage{min-height:200px}
 }
+
+/* Inspection Point modal: keep the action bar visible and prevent the map from pushing it off-screen. */
+.inspection-point-dialog{max-width:min(1180px,96vw);height:calc(100% - 1rem);max-height:94vh}
+.inspection-point-modal-content{display:flex;flex-direction:column;max-height:94vh;overflow:hidden;border:0;border-radius:.65rem;box-shadow:0 1rem 3rem rgba(15,23,42,.22)}
+.inspection-point-modal-body{overflow-y:auto;overscroll-behavior:contain;padding:.7rem .85rem}
+.inspection-point-modal-footer{position:sticky;bottom:0;z-index:8;flex:0 0 auto;background:#fff;border-top:1px solid #dee2e6;box-shadow:0 -3px 10px rgba(15,23,42,.05)}
+.inspection-point-modal-body>.row:first-child{margin-top:0!important}
+.inspection-point-modal-body .inspection-coordinate-board{height:clamp(180px,34vh,350px);min-height:180px;max-height:350px;aspect-ratio:auto}
+.inspection-point-modal-body .inspection-coordinate-content{width:100%;height:100%}
+.inspection-point-modal-body .inspection-coordinate-pdf{object-fit:fill}
+.inspection-point-modal-footer .btn{min-height:36px;font-weight:600}
+@media(max-width:767.98px){
+ .inspection-point-dialog{max-width:100%;height:100%;max-height:100%;margin:0}
+ .inspection-point-modal-content{height:100%;max-height:100%;border-radius:0}
+ .inspection-point-modal-body{padding:.55rem}
+ .inspection-point-modal-body .inspection-coordinate-board{height:clamp(175px,29vh,270px);min-height:175px;max-height:270px}
+ .inspection-point-modal-footer{padding:.55rem!important}
+ .inspection-point-modal-footer .btn{min-height:40px}
+}
