@@ -3132,7 +3132,7 @@ async function validateExtra() {
         showToast('Final Summary maximum 500 characters');
         valid = false;
     }
-    if (valid && workOrderFollowUpRequired && followup.toUpperCase() === "RECOMMEND FOLLOW UP") {
+    if (valid && workOrderRequiresFollowUp(currentTemplate) && followup.toUpperCase() === "RECOMMEND FOLLOW UP") {
         const sectionFollowUp = (document.querySelector('input[name="followupSection"]:checked')?.value) || "";
         if (!sectionFollowUp || sectionFollowUp.trim() === "") {
             showToast('Follow Up Section must be choosed');
