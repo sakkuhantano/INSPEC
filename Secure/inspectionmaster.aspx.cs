@@ -325,6 +325,7 @@ WITH PointRows AS
     FROM dbo.PIP_M_InspectionPoint P
     INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
     WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+      AND P.IsActive=1
       AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
       AND (@IsAdmin=1 OR EXISTS
       (
