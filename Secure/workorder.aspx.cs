@@ -952,7 +952,7 @@ string.Format(@"
 
                 // Enforce the selected template-version Follow Up rule on the server too.
                 // This also cleans stale offline values if a device still has an older cached form.
-                if (dtChecklist.Columns.Contains("FollowUp"))
+                if (dtChecklist.Columns.Contains("KeyHD") && dtChecklist.Columns.Contains("FollowUp"))
                 {
                     foreach (DataRow checklistRow in dtChecklist.Rows)
                     {
