@@ -757,11 +757,17 @@ async function getInspectionData() {
                 : (template.inspectionTypeDetailCode != null ? template.inspectionTypeDetailCode : "");
             const rawSummaryRequired = template.IsSummaryRequired !== undefined
                 ? template.IsSummaryRequired : template.isSummaryRequired;
+            const rawFollowUpRequired = template.IsFollowUpRequired !== undefined
+                ? template.IsFollowUpRequired : template.isFollowUpRequired;
             return Object.assign({}, template, {
                 IsSummaryRequired: rawSummaryRequired === undefined || rawSummaryRequired === null
                     ? true
                     : !(rawSummaryRequired === false || rawSummaryRequired === 0 || rawSummaryRequired === "0" ||
                         String(rawSummaryRequired).toLowerCase() === "false"),
+                IsFollowUpRequired: rawFollowUpRequired === undefined || rawFollowUpRequired === null
+                    ? true
+                    : !(rawFollowUpRequired === false || rawFollowUpRequired === 0 || rawFollowUpRequired === "0" ||
+                        String(rawFollowUpRequired).toLowerCase() === "false"),
                 InspectionTypeDetailCode: String(detailCodes || "").split(";")
                     .map(function (code) { return code.trim().toUpperCase(); })
                     .filter(Boolean)
