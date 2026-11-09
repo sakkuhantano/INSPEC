@@ -642,7 +642,13 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             string media = isJpeg
                 ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
                 : "<canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div>";
-            litMapPreview.Text = "<div class='inspection-map-preview-stage'><div class='inspection-map-preview-media'>" + media +
+            litMapPreview.Text = "<div class='inspection-map-preview-toolbar d-flex align-items-center gap-1 mb-2'>" +
+                "<button type='button' class='btn btn-sm btn-outline-secondary' id='btnMapPreviewZoomOut' title='Zoom out'><i class='bi bi-zoom-out'></i></button>" +
+                "<button type='button' class='btn btn-sm btn-outline-secondary' id='btnMapPreviewZoomIn' title='Zoom in'><i class='bi bi-zoom-in'></i></button>" +
+                "<button type='button' class='btn btn-sm btn-outline-secondary' id='btnMapPreviewZoomFit'>Fit</button>" +
+                "<span class='small text-muted ms-1' id='lblMapPreviewZoom'>100%</span>" +
+                "<span class='small text-muted ms-auto'>Titik = master point sudah memiliki koordinat</span></div>" +
+                "<div class='inspection-map-preview-stage' id='inspectionMapPreviewStage'><div class='inspection-map-preview-media' id='inspectionMapPreviewMedia'>" + media +
                 "<div class='inspection-map-preview-markers'>" + markers + "</div></div></div>";
             pnlMapPreview.Visible = true;
         }
@@ -652,15 +658,8 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT
-    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointCode ELSE '•' END AS PointCode,
-    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointName ELSE 'Occupied by another Profit Center' END AS PointName,
-    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN LEFT(P.PointCode,8) ELSE '•' END AS MarkerLabel,
-    P.MapX, P.MapY
+SELECT P.MapX, P.MapY
 FROM dbo.PIP_M_InspectionPoint P
-INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
-INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
   AND P.MapID=@MapID AND P.IsActive=1
   AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
@@ -668,26 +667,17 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@MapID", mapID),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                        new SqlParameter("@MapID", mapID)
                     });
 
             System.Text.StringBuilder html = new System.Text.StringBuilder();
             foreach (DataRow point in points.Rows)
             {
-                string code = Convert.ToString(point["PointCode"]);
-                string name = Convert.ToString(point["PointName"]);
-                string label = Convert.ToString(point["MarkerLabel"]);
                 html.Append("<span class='inspection-map-preview-marker' style='left:");
                 html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
                 html.Append("%;top:");
                 html.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
-                html.Append("%' title='");
-                html.Append(HttpUtility.HtmlAttributeEncode(code + " - " + name));
-                html.Append("'>");
-                html.Append(HttpUtility.HtmlEncode(label));
-                html.Append("</span>");
+                html.Append("%'></span>");
             }
             return html.ToString();
         }
