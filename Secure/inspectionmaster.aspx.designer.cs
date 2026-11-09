@@ -43,6 +43,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.DropDownList ddlPointPageSize;
         protected global::System.Web.UI.WebControls.GridView gvPoints;
         protected global::System.Web.UI.WebControls.Label lblPointPageInfo;
+        protected global::System.Web.UI.WebControls.Panel pnlPointPager;
         protected global::System.Web.UI.WebControls.LinkButton btnPointFirst;
         protected global::System.Web.UI.WebControls.LinkButton btnPointPrevious;
         protected global::System.Web.UI.WebControls.LinkButton btnPointNext;
