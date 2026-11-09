@@ -1076,7 +1076,7 @@ ORDER BY M.MapVersion DESC",
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
-            GF.MsgBox(this, "Map " + txtMapCode.Text + " berhasil dibuka", "BS-5.3.0");
+            //GF.MsgBox(this, "Map " + txtMapCode.Text + " berhasil dibuka", "BS-5.3.0");
             SetTab("#tab-map");
         }
 
