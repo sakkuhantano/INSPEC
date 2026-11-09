@@ -1183,23 +1183,28 @@ WHERE a.SectionID = @SectionID
 
                     // Persist version-level Summary and Follow Up flags after the legacy TVP/SP save,
                     // keeping the existing stored procedure and table type compatible.
+                    // Use a fresh CF instance and explicitly mark this as a parameterized SQL command,
+                    // not a stored procedure call.
                     saveStage = "Persist version-level Summary/Follow Up flags";
-                    foreach (Tuple<int, int, bool, bool> versionFlag in versionFlags)
+                    using (var flagBr = new WAL.BR.CF())
                     {
-                        int targetVersionID = versionFlag.Item1;
-                        if (targetVersionID <= 0 && !savedVersionIDs.TryGetValue(versionFlag.Item2, out targetVersionID))
-                            throw new Exception("Could not resolve the saved Version ID for version-level flags.");
-                        if (targetVersionID > 0)
+                        foreach (Tuple<int, int, bool, bool> versionFlag in versionFlags)
                         {
-                            br.EQueryP(@"UPDATE dbo.PIP_M_CheckListWOPM_Version
+                            int targetVersionID = versionFlag.Item1;
+                            if (targetVersionID <= 0 && !savedVersionIDs.TryGetValue(versionFlag.Item2, out targetVersionID))
+                                throw new Exception("Could not resolve the saved Version ID for version-level flags.");
+                            if (targetVersionID > 0)
+                            {
+                                flagBr.EQueryP(@"UPDATE dbo.PIP_M_CheckListWOPM_Version
 SET IsSummaryRequired=@IsSummaryRequired,
     IsFollowUpRequired=@IsFollowUpRequired
 WHERE IDVersion=@IDVersion",
-                                new SqlParameter[] {
-                                    new SqlParameter("@IsSummaryRequired", versionFlag.Item3),
-                                    new SqlParameter("@IsFollowUpRequired", versionFlag.Item4),
-                                    new SqlParameter("@IDVersion", targetVersionID)
-                                });
+                                    new SqlParameter[] {
+                                        new SqlParameter("@IsSummaryRequired", versionFlag.Item3),
+                                        new SqlParameter("@IsFollowUpRequired", versionFlag.Item4),
+                                        new SqlParameter("@IDVersion", targetVersionID)
+                                    }, false, false);
+                            }
                         }
                     }
 
