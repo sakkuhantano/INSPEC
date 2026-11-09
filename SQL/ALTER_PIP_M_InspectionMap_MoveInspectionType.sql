@@ -75,16 +75,40 @@ WHERE DC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
 IF @DropDefaults<>N'' EXEC sp_executesql @DropDefaults;
 
 /* Remove foreign keys that depend on either point-level column. */
-DECLARE @DropForeignKeys NVARCHAR(MAX);
-SET @DropForeignKeys=N'';
-SELECT @DropForeignKeys=@DropForeignKeys +
-    N'ALTER TABLE dbo.PIP_M_InspectionPoint DROP CONSTRAINT ' + QUOTENAME(FK.name) + N';'
+DECLARE @ConstraintName SYSNAME;
+DECLARE FKCursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT DISTINCT FK.name
 FROM sys.foreign_keys FK
 INNER JOIN sys.foreign_key_columns FKC ON FKC.constraint_object_id=FK.object_id
 INNER JOIN sys.columns C ON C.object_id=FKC.parent_object_id AND C.column_id=FKC.parent_column_id
 WHERE FKC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
   AND C.name IN ('InspectionTypeCode','InspectionTypeDetailCode');
-IF @DropForeignKeys<>N'' EXEC sp_executesql @DropForeignKeys;
+OPEN FKCursor;
+FETCH NEXT FROM FKCursor INTO @ConstraintName;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @sql=N'ALTER TABLE dbo.PIP_M_InspectionPoint DROP CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @sql;
+    FETCH NEXT FROM FKCursor INTO @ConstraintName;
+END;
+CLOSE FKCursor;
+DEALLOCATE FKCursor;
+
+/* Remove check constraints that reference either point-level column. */
+DECLARE CheckCursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT name FROM sys.check_constraints
+WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
+  AND (definition LIKE '%InspectionTypeCode%' OR definition LIKE '%InspectionTypeDetailCode%');
+OPEN CheckCursor;
+FETCH NEXT FROM CheckCursor INTO @ConstraintName;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @sql=N'ALTER TABLE dbo.PIP_M_InspectionPoint DROP CONSTRAINT ' + QUOTENAME(@ConstraintName) + N';';
+    EXEC sp_executesql @sql;
+    FETCH NEXT FROM CheckCursor INTO @ConstraintName;
+END;
+CLOSE CheckCursor;
+DEALLOCATE CheckCursor;
 
 /* Remove unique constraints that depend on either point-level column. */
 DECLARE @DropUniqueConstraints NVARCHAR(MAX);
