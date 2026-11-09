@@ -996,6 +996,14 @@ function inspectionTemplateRequiresSummary(template) {
     return isInspectionFlagEnabled(value, true);
 }
 
+function inspectionTemplateRequiresFollowUp(template) {
+    if (!template) return true;
+    const versionInfo = template.VersionInfo || template.versionInfo || template;
+    const value = versionInfo.isFollowUpRequired !== undefined
+        ? versionInfo.isFollowUpRequired : versionInfo.IsFollowUpRequired;
+    return isInspectionFlagEnabled(value, true);
+}
+
 function renderBatchPointCondition(masterPoint, point, readOnly) {
     const host = document.getElementById("inspectionPointConditionPanel");
     if (!host) return;
@@ -1074,7 +1082,7 @@ window.mountInspectionBatchSummary = function (record) {
         host.appendChild(summary);
         if (reasonVoid) host.appendChild(reasonVoid);
         host.classList.remove("d-none");
-        followUp.classList.remove("d-none");
+        followUp.classList.toggle("d-none", !inspectionTemplateRequiresFollowUp(record.TemplateSnapshot));
         summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
         const readOnly = currentInspectionReadOnly || record.Status === "DONE";
         document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => { el.disabled = readOnly; });
@@ -1087,7 +1095,7 @@ window.mountInspectionBatchSummary = function (record) {
         checklistPane.appendChild(summary);
         if (reasonVoid) checklistPane.appendChild(reasonVoid);
         host.classList.add("d-none");
-        followUp.classList.remove("d-none");
+        followUp.classList.toggle("d-none", !inspectionTemplateRequiresFollowUp(record.TemplateSnapshot));
         summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
     }
 };
@@ -1245,6 +1253,8 @@ function updateInspectionFollowUpPanel() {
 }
 
 function collectInspectionFollowUp() {
+    if (!inspectionTemplateRequiresFollowUp(currentInspectionRecord && currentInspectionRecord.TemplateSnapshot))
+        return { FollowUp: "No Follow Up", FollowUpSection: "", FollowUpRemark: "" };
     const selected = document.querySelector('input[name="inspectionFollowUp"]:checked');
     const followUp = selected ? selected.value : "No Follow Up";
     return {
@@ -1905,7 +1915,7 @@ window.submitInspectionBatch = async function () {
     }
 
     const batchFollowUp = collectInspectionFollowUp();
-    if (batchFollowUp.FollowUp === "Recommend Follow Up" &&
+    if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && batchFollowUp.FollowUp === "Recommend Follow Up" &&
         (!batchFollowUp.FollowUpSection || !batchFollowUp.FollowUpRemark)) {
         showInspectionNotice("Pilih Responsible Section dan isi deskripsi Follow Up sebelum Submit Batch.", "warning");
         const followUpPanel = document.getElementById("inspectionFollowUpPanel");
@@ -1984,7 +1994,7 @@ async function saveInspection(status) {
             return;
         }
         const followUp = collectInspectionFollowUp();
-        if (followUp.FollowUp === "Recommend Follow Up" && (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
+        if (inspectionTemplateRequiresFollowUp(currentInspectionRecord.TemplateSnapshot) && followUp.FollowUp === "Recommend Follow Up" && (!followUp.FollowUpSection || !followUp.FollowUpRemark)) {
             showToast("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
             return;
         }
@@ -4111,7 +4121,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const followUpWONo = String(h.FollowUpWONo || "").trim();
         const sectionIcons = { ACON: "bi-fan", COMM: "bi-broadcast", MECH: "bi-gear", ELEC: "bi-lightning-charge", CIVIL: "bi-building", PFIT: "bi-hammer", PHKP: "bi-brush", PSEC: "bi-shield-check" };
         const sectionLabels = { ACON: "Air Cond.", COMM: "Comm.", MECH: "Mechanical", ELEC: "Electrical", CIVIL: "Civil", PFIT: "Fit Out", PHKP: "Housekeeping", PSEC: "Security" };
-        const followUpHtml = '<div class="accordion-item border-warning shadow-sm mt-3" id="inspectionApprovalFollowUpPanel">' +
+        const followUpHtml = inspectionTemplateRequiresFollowUp(template) ? ('<div class="accordion-item border-warning shadow-sm mt-3" id="inspectionApprovalFollowUpPanel">' +
             '<div class="accordion-header"><div class="accordion-button bg-warning-subtle text-dark fw-bold"><i class="bi bi-lightbulb-fill fs-5 me-2 text-warning"></i><div class="d-flex flex-column"><span>FOLLOW UP WORK ORDER RECOMMENDATION</span><small class="text-muted fw-normal">Tentukan apakah diperlukan Work Order lanjutan.</small></div></div></div>' +
             '<div class="accordion-body p-3"><div class="alert alert-warning py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Bila ditemukan kerusakan yang memerlukan pekerjaan lanjutan, pilih <strong>Recommend Follow Up</strong>, kemudian tentukan section yang bertanggung jawab dan isi WO Remark.</div>' +
             '<div class="mb-3"><div class="btn-group w-100 shadow-sm" role="group"><input class="btn-check" type="radio" disabled ' + (followUpValue !== "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">No Follow Up</label><input class="btn-check" type="radio" disabled ' + (followUpValue === "Recommend Follow Up" ? 'checked' : '') + '><label class="btn btn-outline-primary">Recommend Follow Up</label></div></div>' +
@@ -4124,7 +4134,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '</div></div></div>' +
             '<div class="card border-warning-subtle bg-light"><div class="card-body"><label class="form-label small fw-semibold mb-2"><i class="bi bi-card-text me-1"></i>Follow Up Work Order Description</label><div class="form-control bg-body-secondary" style="min-height:5rem;white-space:pre-wrap">' + escInspection(h.FollowUpRemark || "-") + '</div><div class="d-flex justify-content-end mt-2"><small class="text-muted">' + String((h.FollowUpRemark || "").length) + ' / 300</small></div></div></div>' +
             (followUpWONo ? '<div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0"><i class="bi bi-file-earmark-check-fill fs-5"></i><div><div class="small text-muted">Generated Follow Up WO No.</div><div class="fw-bold">' + escInspection(followUpWONo) + '</div></div></div>' : '') +
-            '</div></div></div>';
+            '</div></div></div>') : "";
         const templateSummaryText = template && (template.SummarySampleText || template.summarySampleText || (template.VersionInfo && template.VersionInfo.SummarySampleText)) || "";
         const summaryRequired = !templateAvailable || inspectionTemplateRequiresSummary(template);
         const summaryHtml = summaryRequired ? '<div class="accordion-item border-info shadow-sm mt-3" id="inspectionApprovalSummaryPanel"><div class="accordion-header"><div class="accordion-button bg-info-subtle text-dark fw-bold"><i class="bi bi-clipboard2-check-fill fs-5 me-2 text-info"></i><div class="d-flex flex-column"><span>FINAL INSPECTION SUMMARY</span><small class="text-muted fw-normal">Ringkasan hasil inspeksi dan pekerjaan yang telah dilakukan.</small></div></div></div><div class="accordion-body p-3"><div class="alert alert-info py-2 px-3 mb-3 small"><i class="bi bi-info-circle-fill me-1"></i>Jelaskan secara singkat hasil pemeriksaan, tindakan yang dilakukan, serta kondisi akhir unit setelah pekerjaan selesai.</div><textarea class="form-control" rows="5" maxlength="500" disabled placeholder="' + escInspection(templateSummaryText) + '">' + escInspection(h.Summary || "") + '</textarea><div class="d-flex justify-content-between align-items-center mt-2"><small class="text-muted">Maksimum 500 karakter.</small><small class="text-muted">' + String((h.Summary || "").length) + ' / 500</small></div></div></div>' : "";
