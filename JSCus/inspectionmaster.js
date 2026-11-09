@@ -11,9 +11,10 @@
         var canvas = document.getElementById('inspectionMapPreviewCanvas');
         if (!canvas) return;
         var url = canvas.getAttribute('data-map-url');
-        var stage = canvas.parentNode;
+        var media = document.getElementById('inspectionMapPreviewMedia');
+        var stage = document.getElementById('inspectionMapPreviewStage');
         var status = document.getElementById('inspectionMapPreviewStatus');
-        if (!url) return;
+        if (!url || !media || !stage) return;
         if (!window.pdfjsLib) {
             if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa JSCus/pdf.min.js.';
             return;
@@ -26,11 +27,12 @@
             var width = stage.clientWidth;
             if (!width) throw new Error('Area preview denah belum terlihat.');
             var viewport = page.getViewport({ scale: width / base.width });
-            stage.style.aspectRatio = base.width + ' / ' + base.height;
+            media.style.width = width + 'px';
+            media.style.aspectRatio = base.width + ' / ' + base.height;
             canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
             canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
             canvas.style.width = '100%';
-            canvas.style.height = '100%';
+            canvas.style.height = 'auto';
             var context = canvas.getContext('2d');
             context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
             return page.render({ canvasContext: context, viewport: viewport }).promise;
@@ -43,6 +45,58 @@
             }
             if (window.console && console.error) console.error('Inspection map preview error:', error);
         });
+    }
+    function initMapPreviewInteraction() {
+        var stage = document.getElementById('inspectionMapPreviewStage');
+        var media = document.getElementById('inspectionMapPreviewMedia');
+        if (!stage || !media) return;
+        var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
+        var label = document.getElementById('lblMapPreviewZoom');
+        function apply() {
+            media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+            if (label) label.textContent = Math.round(zoom * 100) + '%';
+            stage.classList.toggle('inspection-map-preview-zoomed', zoom > 1);
+        }
+        function setZoom(next, cx, cy) {
+            next = Math.max(1, Math.min(5, next));
+            if (next === zoom) return;
+            var rect = stage.getBoundingClientRect();
+            var x = cx == null ? rect.width / 2 : cx;
+            var y = cy == null ? rect.height / 2 : cy;
+            var ratio = next / zoom;
+            panX = x - (x - panX) * ratio;
+            panY = y - (y - panY) * ratio;
+            zoom = next;
+            if (zoom === 1) { panX = 0; panY = 0; }
+            apply();
+        }
+        var zoomIn = document.getElementById('btnMapPreviewZoomIn');
+        var zoomOut = document.getElementById('btnMapPreviewZoomOut');
+        var fit = document.getElementById('btnMapPreviewZoomFit');
+        if (zoomIn) zoomIn.addEventListener('click', function () { setZoom(zoom + 0.25); });
+        if (zoomOut) zoomOut.addEventListener('click', function () { setZoom(zoom - 0.25); });
+        if (fit) fit.addEventListener('click', function () { zoom = 1; panX = 0; panY = 0; apply(); });
+        stage.addEventListener('wheel', function (event) {
+            if (!event.ctrlKey && !event.shiftKey) return;
+            event.preventDefault();
+            var rect = stage.getBoundingClientRect();
+            setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
+        }, { passive: false });
+        stage.addEventListener('pointerdown', function (event) {
+            if (zoom <= 1 || event.button !== 0) return;
+            dragging = true; moved = false;
+            startX = event.clientX - panX; startY = event.clientY - panY;
+            stage.setPointerCapture(event.pointerId);
+        });
+        stage.addEventListener('pointermove', function (event) {
+            if (!dragging) return;
+            var nx = event.clientX - startX, ny = event.clientY - startY;
+            if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
+            panX = nx; panY = ny; apply();
+        });
+        stage.addEventListener('pointerup', function () { dragging = false; });
+        stage.addEventListener('pointercancel', function () { dragging = false; });
+        apply();
     }
     var inspectionPdfRenderVersion = 0;
     var inspectionPdfRenderTask = null;
@@ -99,6 +153,7 @@
         }
         window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
+        initMapPreviewInteraction();
         var pointModal = document.getElementById('pnlPointEditor');
         if (pointModal) pointModal.addEventListener('shown.bs.modal', function () { window.requestAnimationFrame(renderInspectionPdf); });
         var board = document.getElementById('inspectionCoordinateBoard');
