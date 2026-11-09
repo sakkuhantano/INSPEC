@@ -93,11 +93,10 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS (
       SELECT 1
-      FROM dbo.PIP_M_InspectionPoint P
-      INNER JOIN dbo.PIP_M_InspectionMap MP ON MP.MapID=P.MapID
-        INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=MP.InspectionTypeCode
+      FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+      WHERE IT.InspectionTypeCode=M.InspectionTypeCode
+        AND S.ProfitCenterNo=@ProfitCenterNo))
   AND ((@Direction=-1 AND M.MapCode < @CurrentCode)
        OR (@Direction=1 AND M.MapCode > @CurrentCode))
 ORDER BY M.MapCode " + order,
