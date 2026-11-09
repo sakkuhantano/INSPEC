@@ -10157,15 +10157,15 @@ async function saveAllTemplate()
             if (tpl && tpl.MetadataDirty &&
                 String(tpl.TemplateType || 'W').toUpperCase() === 'I' &&
                 !String(tpl.InspectionTypeCode || '').trim()) {
-                missingInspectionType.push(tpl);
+                missingInspectionType.push(node);
             }
         });
     });
     if (missingInspectionType.length) {
         const missing = missingInspectionType[0];
-        if (currentTemplate && String(currentTemplate.RuntimeTemplateID) !== String(missing.RuntimeTemplateID)) {
+        if (currentTemplate && String(currentTemplate.RuntimeTemplateID) !== String(missing.Template.RuntimeTemplateID)) {
             currentTemplate = missing;
-            await showTemplateRootProperties(missing, null);
+            await showTemplateRootProperties(missing.Template, null);
         }
         const inspectionSelect = document.getElementById('propInspectionType');
         if (inspectionSelect) {
