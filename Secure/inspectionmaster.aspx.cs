@@ -40,14 +40,14 @@ namespace INSPEC.Secure
             string mapSearchArgs = Master.Mn_CompanyID + GF.Str + ";" +
                 Master.Mn_LocationID + GF.Str + ";" +
                 Master.Mn_ProfitCenterNo + GF.Str + ";" +
-                Master.Mn_EmployeeID;
+                Master.Mn_EmployeeID + GF.Str;
 
             lBtnMapCode.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             txtMapCode.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
                 "155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
-            txtMapCode.Attributes["ondblclick"] = GF.JSOpenSearchList_2(
-                "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
+            //txtMapCode.Attributes["ondblclick"] = GF.JSOpenSearchList_2(
+            //    "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
         }
 
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
@@ -308,19 +308,33 @@ WITH PointRows AS
 (
     SELECT P.InspectionPointID, P.PointCode, P.PointName,
            P.InspectionTypeCode, P.InspectionTypeDetailCode,
-           P.PointObjectType, P.IsActive, ISNULL(M.MapCode,'') AS MapCode,
+           P.PointObjectType, P.IsActive,
+           P.DisplayOrder,
+           ISNULL(M.MapCode,'') AS MapCode,
            ROW_NUMBER() OVER
-           (ORDER BY P.InspectionTypeCode, P.InspectionTypeDetailCode, P.DisplayOrder, P.PointCode, P.InspectionPointID) AS RowNum
+           (
+               ORDER BY P.InspectionTypeCode,
+                        P.InspectionTypeDetailCode,
+                        P.DisplayOrder,
+                        P.PointCode,
+                        P.InspectionPointID
+           ) AS RowNum
     FROM dbo.PIP_M_InspectionPoint P
     LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
     WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
       AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
-      AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
+      AND (@IsAdmin=1 OR EXISTS
+      (
+          SELECT 1
+          FROM dbo.PIP_M_InspectionType IT
           INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-          WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))
+          WHERE IT.InspectionTypeCode=P.InspectionTypeCode
+            AND S.ProfitCenterNo=@ProfitCenterNo
+      ))
 )
-SELECT InspectionPointID, PointCode, PointName, InspectionTypeCode,
-       InspectionTypeDetailCode, PointObjectType, IsActive, MapCode
+SELECT InspectionPointID, PointCode, PointName,
+       InspectionTypeCode, InspectionTypeDetailCode,
+       PointObjectType, IsActive, DisplayOrder, MapCode
 FROM PointRows
 WHERE RowNum BETWEEN @StartRow AND @EndRow
 ORDER BY RowNum",
@@ -535,8 +549,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                 {
                     hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
                     txtMapCode.Text = Convert.ToString(row["MapCode"]);
-                Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
-                Master.TB_VisibleButton(ToolbarItem_2.Next, true);
+                    Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+                    Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                     txtMapName.Text = Convert.ToString(row["MapName"]);
                     txtMapDescription.Text = Convert.ToString(row["Description"]);
                     chkRequireAllPoints.Checked = row["RequireAllPoints"] == DBNull.Value || Convert.ToBoolean(row["RequireAllPoints"]);
@@ -888,7 +902,7 @@ ORDER BY M.MapVersion DESC",
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
-                            pnlEditor.Visible = false;
+                    pnlEditor.Visible = false;
                     litEditorPdfBackground.Text = "";
                     lnkEditorPdf.Visible = false;
                     ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
