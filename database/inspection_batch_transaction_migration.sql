@@ -168,10 +168,11 @@ BEGIN
            OR ISNUMERIC(P.C2)=0
            OR NOT EXISTS
              (SELECT 1 FROM dbo.PIP_M_InspectionPoint M
+              INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
               WHERE M.InspectionPointID=CAST(P.C2 AS BIGINT)
-                AND M.CompanyID=@p_CompanyID AND M.LocationID=@p_LocationID
-                AND M.InspectionTypeCode=@p_InspectionTypeCode
-                AND M.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+                AND MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+                AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+                AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
                 AND M.IsActive=1)
     )
     BEGIN
@@ -183,9 +184,10 @@ BEGIN
     (
         SELECT 1
         FROM dbo.PIP_M_InspectionPoint M
-        WHERE M.CompanyID=@p_CompanyID AND M.LocationID=@p_LocationID
-          AND M.InspectionTypeCode=@p_InspectionTypeCode
-          AND M.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+        INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
+        WHERE MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+          AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+          AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
           AND M.IsActive=1
           AND NOT EXISTS
           (
