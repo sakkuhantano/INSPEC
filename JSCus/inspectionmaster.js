@@ -28,11 +28,11 @@
             if (!width) throw new Error('Area preview denah belum terlihat.');
             var viewport = page.getViewport({ scale: width / base.width });
             media.style.width = width + 'px';
-            media.style.aspectRatio = base.width + ' / ' + base.height;
+            media.style.height = stage.clientHeight + 'px';
             canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
             canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
             canvas.style.width = '100%';
-            canvas.style.height = 'auto';
+            canvas.style.height = '100%';
             var context = canvas.getContext('2d');
             context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
             return page.render({ canvasContext: context, viewport: viewport }).promise;
@@ -57,7 +57,12 @@
             var sizeImage = function () {
                 if (!image.naturalWidth || !image.naturalHeight) return;
                 media.style.width = stage.clientWidth + 'px';
-                media.style.aspectRatio = image.naturalWidth + ' / ' + image.naturalHeight;
+                media.style.height = stage.clientHeight + 'px';
+                image.style.width = '100%';
+                image.style.height = '100%';
+                image.style.maxWidth = 'none';
+                image.style.maxHeight = 'none';
+                image.style.objectFit = 'fill';
             };
             image.addEventListener('load', sizeImage);
             if (image.complete) sizeImage();
