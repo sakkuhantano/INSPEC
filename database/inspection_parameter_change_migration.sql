@@ -172,6 +172,19 @@ BEGIN
     SET @p_FollowUpSection = LTRIM(RTRIM(ISNULL(@p_FollowUpSection, '')));
     SET @p_FollowUpRemark = LTRIM(RTRIM(ISNULL(@p_FollowUpRemark, '')));
 
+    /* Follow Up is controlled by the selected checklist Version for both STANDARD and BATCH.
+       BATCH delegates its header to this canonical procedure, so one rule covers both modes. */
+    DECLARE @V_IsFollowUpRequired BIT;
+    SELECT @V_IsFollowUpRequired=ISNULL(V.IsFollowUpRequired,1)
+    FROM dbo.PIP_M_CheckListWOPM_Version V
+    WHERE V.IDVersion=@p_IDVersion AND V.IDTemplate=@p_IDTemplate;
+    IF ISNULL(@V_IsFollowUpRequired,1)=0
+    BEGIN
+        SET @p_FollowUp='No Follow Up';
+        SET @p_FollowUpSection='';
+        SET @p_FollowUpRemark='';
+    END;
+
     IF @p_FollowUp NOT IN ('No Follow Up', 'Recommend Follow Up')
     BEGIN
         RAISERROR('Invalid Inspection Follow Up selection.', 16, 1);
