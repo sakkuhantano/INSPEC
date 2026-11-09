@@ -109,10 +109,33 @@ namespace INSPEC
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
                     "@Token=" + token).Rows.Count > 0;
-                // The login response already issued the HttpOnly cookie.
-                // Do not rewrite or clear it during validation: concurrent requests
-                // from an older tab/session could otherwise overwrite a newer login cookie.
-                return valid;
+                if (!valid)
+                    return false;
+
+                // The browser may still have a valid UserSession in localStorage
+                // while the HttpOnly cookie was lost (for example after browser
+                // cookie cleanup). Restore it only when absent. Never overwrite a
+                // different cookie here: it may belong to a newer login in another tab.
+                HttpContext context = HttpContext.Current;
+                if (context != null)
+                {
+                    HttpCookie authCookie = context.Request.Cookies[GFC.CookieName];
+                    string requestToken = authCookie == null
+                        ? String.Empty : Convert.ToString(authCookie.Value).Trim();
+
+                    if (String.IsNullOrEmpty(requestToken))
+                    {
+                        GFC.SetCookie(token);
+                    }
+                    else if (!String.Equals(requestToken, token, StringComparison.Ordinal))
+                    {
+                        // A different cookie is present; do not create a redirect
+                        // loop by claiming this browser session is ready to enter.
+                        return false;
+                    }
+                }
+
+                return true;
             }
 
         }
