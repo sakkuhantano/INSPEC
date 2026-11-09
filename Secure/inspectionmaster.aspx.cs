@@ -412,11 +412,13 @@ ORDER BY RowNum",
                 DataTable dt = br.EQueryP(@"
 SELECT COUNT(1) AS TotalRecords
 FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND P.IsActive=1
   AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
+      WHERE IT.InspectionTypeCode=M.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
@@ -578,7 +580,7 @@ FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
       (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
-       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
        INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
        WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
@@ -894,7 +896,7 @@ WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
       (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
-       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
        INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
        WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY M.MapVersion DESC",
@@ -1053,14 +1055,12 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
 
         protected void btnSavePoint_Click(object sender, EventArgs e)
         {
-            string typeCode = ddlInspectionType.SelectedValue;
-            string detailCode = ddlInspectionDetail.SelectedValue;
             string code = txtPointCode.Text.Trim().ToUpperInvariant();
             string name = txtPointName.Text.Trim();
             int order;
-            if (typeCode == "" || detailCode == "" || code == "" || name == "")
+            if (code == "" || name == "")
             {
-                ShowMessage("Inspection Type, Detail, Point Code, dan Point Name wajib diisi.", true);
+                ShowMessage("Point Code dan Point Name wajib diisi.", true);
                 SetTab("#tab-point");
                 return;
             }
@@ -1070,65 +1070,30 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
                 SetTab("#tab-point");
                 return;
             }
-
-            if (String.IsNullOrWhiteSpace(hidMapID.Value))
+            long mapID;
+            if (!Int64.TryParse(hidMapID.Value, out mapID) || mapID <= 0)
             {
                 ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
                 SetTab("#tab-map");
                 return;
             }
-            using (var access = new WAL.BR.CF())
+
+            DataTable map = GetMap(mapID);
+            if (map == null || map.Rows.Count == 0)
             {
-                DataTable allowed = access.EQueryP(@"
-SELECT COUNT(1) AS TotalRows
-FROM dbo.PIP_M_InspectionType IT
-INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
-WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
-  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
-  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
-  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
-                    new SqlParameter[] {
-                        new SqlParameter("@TypeCode", typeCode),
-                        new SqlParameter("@DetailCode", detailCode),
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
-                    });
-                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
-                {
-                    ShowMessage("Inspection Type atau Detail tidak termasuk Profit Center Anda.", true);
-                    SetTab("#tab-point");
-                    return;
-                }
+                ShowMessage("Map tidak ditemukan atau Anda tidak memiliki akses.", true);
+                SetTab("#tab-map");
+                return;
             }
-            using (var access = new WAL.BR.CF())
+            string typeCode = Convert.ToString(map.Rows[0]["InspectionTypeCode"]);
+            string detailCode = Convert.ToString(map.Rows[0]["InspectionTypeDetailCode"]);
+            if (String.IsNullOrWhiteSpace(typeCode) || String.IsNullOrWhiteSpace(detailCode))
             {
-                DataTable allowed = access.EQueryP(@"
-SELECT COUNT(1) AS TotalRows
-FROM dbo.PIP_M_InspectionType IT
-INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
-WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
-  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
-  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
-  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
-                    new SqlParameter[] {
-                        new SqlParameter("@TypeCode", typeCode),
-                        new SqlParameter("@DetailCode", detailCode),
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@IsAdmin", IsAdministrator()),
-                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
-                    });
-                if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) == 0)
-                {
-                    ShowMessage("Inspection Type atau Detail tidak termasuk Profit Center Anda.", true);
-                    SetTab("#tab-point");
-                    return;
-                }
+                ShowMessage("Inspection Type dan Detail harus ditentukan pada Master Map terlebih dahulu.", true);
+                SetTab("#tab-map");
+                return;
             }
+
             decimal? coordinateX = null;
             decimal? coordinateY = null;
             if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
@@ -1146,7 +1111,7 @@ WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
                 coordinateY = parsedY;
             }
 
-            object mapValue = Convert.ToInt64(hidMapID.Value);
+            object mapValue = mapID;
             long pointID;
             bool editing = Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0;
             if (coordinateX.HasValue)
@@ -1157,7 +1122,7 @@ WHERE IT.InspectionTypeCode=@TypeCode AND D.InspectionTypeDetailCode=@DetailCode
 SELECT TOP 1 PointCode,PointName
 FROM dbo.PIP_M_InspectionPoint
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
-  AND InspectionPointID<>@PointID
+  AND InspectionPointID<>@PointID AND IsActive=1
   AND MapX IS NOT NULL AND MapY IS NOT NULL
   AND ((MapX-@MapX)*(MapX-@MapX)+(MapY-@MapY)*(MapY-@MapY))<0.25
 ORDER BY PointCode",
@@ -1177,6 +1142,7 @@ ORDER BY PointCode",
                     }
                 }
             }
+
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -1185,26 +1151,26 @@ ORDER BY PointCode",
                     {
                         br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionPoint
-SET InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
-    PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
+SET PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
-    ObjectReferenceCode=@ReferenceCode, MapID=@MapID, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
-    IsActive=@IsActive, IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
+    ObjectReferenceCode=@ReferenceCode, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
+    IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
+WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID AND IsActive=1",
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
                     }
                     else
                     {
                         pointID = NextId("dbo.PIP_M_InspectionPoint", "InspectionPointID");
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionPoint
-(InspectionPointID,CompanyID,LocationID,InspectionTypeCode,InspectionTypeDetailCode,
- PointCode,PointName,PointObjectType,PointDescription,ObjectReferenceType,ObjectReferenceID,
- ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
+(InspectionPointID,CompanyID,LocationID,PointCode,PointName,PointObjectType,PointDescription,
+ ObjectReferenceType,ObjectReferenceID,ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,
+ IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
 VALUES
-(@PointID,@CompanyID,@LocationID,@TypeCode,@DetailCode,@PointCode,@PointName,@ObjectType,
- @Description,@ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,@IsActive,@IsNormalAbnormalRequired,@UserID,@UserID)",
-                            PointParameters(pointID, mapValue, typeCode, detailCode, code, name, order, coordinateX, coordinateY));
+(@PointID,@CompanyID,@LocationID,@PointCode,@PointName,@ObjectType,@Description,
+ @ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,
+ 1,@IsNormalAbnormalRequired,@UserID,@UserID)",
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
@@ -1221,15 +1187,13 @@ VALUES
             SetTab("#tab-point");
         }
 
-        private SqlParameter[] PointParameters(long pointID, object mapValue, string typeCode,
-            string detailCode, string code, string name, int order, decimal? coordinateX, decimal? coordinateY)
+        private SqlParameter[] PointParameters(long pointID, object mapValue,
+            string code, string name, int order, decimal? coordinateX, decimal? coordinateY)
         {
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
                 new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                 new SqlParameter("@LocationID", Master.Mn_LocationID),
-                new SqlParameter("@TypeCode", typeCode),
-                new SqlParameter("@DetailCode", detailCode),
                 new SqlParameter("@PointCode", code),
                 new SqlParameter("@PointName", name),
                 new SqlParameter("@ObjectType", ddlPointObjectType.SelectedValue),
@@ -1239,7 +1203,6 @@ VALUES
                 new SqlParameter("@MapX", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value },
                 new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
                 new SqlParameter("@DisplayOrder", order),
-                new SqlParameter("@IsActive", chkPointActive.Checked),
                 new SqlParameter("@IsNormalAbnormalRequired", chkNormalAbnormalRequired.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
             };
