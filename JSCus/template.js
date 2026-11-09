@@ -1569,8 +1569,37 @@ async function refreshSavedTemplateSection(sectionId)
     if (!container)
         return;
     // Fetch persisted template metadata instead of trusting the pre-save client cache.
+    // Re-rendering the section rebuilds every Template node, including its version
+    // container. Restore the selected Template's cached versions immediately so a
+    // successful Save All does not leave the left panel at "Click to load versions...".
+    const selectedTemplate = currentTemplate &&
+        String(currentTemplate.SectionID) === String(sectionId)
+        ? currentTemplate
+        : null;
+    const selectedRuntimeTemplateID = selectedTemplate
+        ? selectedTemplate.RuntimeTemplateID
+        : null;
+
     container.dataset.loaded = "0";
     await loadTemplatesBySection(sectionId);
+
+    if (selectedRuntimeTemplateID == null) return;
+
+    const selectedNode = getTemplateCache(sectionId, selectedRuntimeTemplateID);
+    const versionContainer = document.querySelector(
+        '.template-version-container[data-section-id="' +
+        String(sectionId).replace(/"/g, '\\"') +
+        '"][data-template-id="' +
+        String(selectedRuntimeTemplateID).replace(/"/g, '\\"') +
+        '"]'
+    );
+
+    if (selectedNode && versionContainer) {
+        renderTemplateVersions(
+            Object.values(selectedNode.Versions || {}),
+            versionContainer
+        );
+    }
 }
 function renderTemplates(data, container, sectionId)
 {
