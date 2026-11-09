@@ -167,7 +167,9 @@ namespace INSPEC.MasterPages
             if (context == null || context.Response == null)
                 return;
 
-            GFC.ClearCookie();
+            // Do not clear the auth cookie from a redirect response.
+            // A delayed response from an older request can arrive after a newer
+            // login and otherwise erase the newly-issued browser session.
             string loginUrl = VirtualPathUtility.ToAbsolute("~/Login.aspx") +
                 "?session=expired";
             context.Response.Redirect(loginUrl, true);
