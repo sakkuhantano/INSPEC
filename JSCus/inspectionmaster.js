@@ -44,7 +44,14 @@
             if (window.console && console.error) console.error('Inspection map preview error:', error);
         });
     }
+    var inspectionPdfRenderVersion = 0;
+    var inspectionPdfRenderTask = null;
     function renderInspectionPdf() {
+        var renderVersion = ++inspectionPdfRenderVersion;
+        if (inspectionPdfRenderTask && inspectionPdfRenderTask.cancel) {
+            try { inspectionPdfRenderTask.cancel(); } catch (ignore) { }
+            inspectionPdfRenderTask = null;
+        }
         var media = document.getElementById('inspectionPdfCanvas');
         if (!media) return;
         var url = media.getAttribute('data-map-url') || media.getAttribute('data-pdf-url');
@@ -62,6 +69,7 @@
         if (!window.pdfjsLib) { if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa file JSCus/pdf.min.js.'; return; }
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
         window.pdfjsLib.getDocument({ url: url }).promise.then(function (pdf) { return pdf.getPage(1); }).then(function (page) {
+            if (renderVersion !== inspectionPdfRenderVersion) return null;
             var base = page.getViewport({ scale: 1 }); var width = board.clientWidth;
             if (!width) throw new Error('Area denah belum terlihat.');
             var viewport = page.getViewport({ scale: width / base.width });
@@ -69,8 +77,15 @@
             media.width = Math.floor(viewport.width * window.devicePixelRatio); media.height = Math.floor(viewport.height * window.devicePixelRatio);
             media.style.width = '100%'; media.style.height = '100%';
             var context = media.getContext('2d'); context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-            return page.render({ canvasContext: context, viewport: viewport }).promise;
-        }).then(function () { if (status) status.style.display = 'none'; }).catch(function (error) {
+            inspectionPdfRenderTask = page.render({ canvasContext: context, viewport: viewport });
+            return inspectionPdfRenderTask.promise;
+        }).then(function () {
+            if (renderVersion !== inspectionPdfRenderVersion) return;
+            inspectionPdfRenderTask = null;
+            if (status) status.style.display = 'none';
+        }).catch(function (error) {
+            if (renderVersion !== inspectionPdfRenderVersion || (error && error.name === 'RenderingCancelledException')) return;
+            inspectionPdfRenderTask = null;
             if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat denah: ' + (error && error.message ? error.message : error); }
             if (window.console && console.error) console.error('Inspection map render error:', error);
         });
