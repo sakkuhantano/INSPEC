@@ -871,20 +871,51 @@ async function getInspectionData() {
         });
 
         const replaceStore = (name, rows) => new Promise((resolve, reject) => {
+            // Detail master endpoint returns the complete active detail list for
+            // the currently selected company/location. Reconcile that scope as a
+            // snapshot: remove rows no longer returned (including deleted CP.1/CP.2),
+            // while preserving detail caches belonging to other properties.
+            if (name === "inspection_type_details") {
+                const companyId = companyLocation[0] || "";
+                const locationId = companyLocation[1] || "";
+                const incoming = rows || [];
+                const incomingKeys = new Set(incoming.map(row =>
+                    [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|")
+                ));
+                const tx = db.transaction(name, "readwrite");
+                const store = tx.objectStore(name);
+                const readReq = store.getAll();
+                readReq.onsuccess = () => {
+                    (readReq.result || []).forEach(row => {
+                        const inCurrentScope = String(row.CompanyID || "") === companyId &&
+                            String(row.LocationID || "") === locationId;
+                        const key = [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|");
+                        if (inCurrentScope && !incomingKeys.has(key)) {
+                            store.delete([
+                                row.CompanyID, row.LocationID,
+                                row.InspectionTypeCode, row.InspectionTypeDetailCode
+                            ]);
+                        }
+                    });
+                    incoming.forEach(row => store.put(row));
+                };
+                readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error || new Error("Inspection detail reconciliation failed"));
+                tx.onabort = () => reject(tx.error || new Error("Inspection detail reconciliation aborted"));
+                return;
+            }
+
+            // Templates are still merged by IDTemplate because this endpoint may
+            // return only templates visible to the current employee.
             const readTx = db.transaction(name, "readonly");
             const readReq = readTx.objectStore(name).getAll();
             readReq.onsuccess = () => {
                 const existing = readReq.result || [];
                 const merged = new Map();
-                const keyOf = row => {
-                    if (name === "inspection_type_details") {
-                        return [row.CompanyID, row.LocationID, row.InspectionTypeCode, row.InspectionTypeDetailCode].join("|");
-                    }
-                    if (name === "inspection_templates") {
-                        return String(row.IDTemplate);
-                    }
-                    return String(row.InspectionTypeCode);
-                };
+                const keyOf = row => name === "inspection_templates"
+                    ? String(row.IDTemplate)
+                    : String(row.InspectionTypeCode);
                 existing.forEach(row => merged.set(keyOf(row), row));
                 (rows || []).forEach(row => merged.set(keyOf(row), row));
                 const writeTx = db.transaction(name, "readwrite");
