@@ -1855,7 +1855,7 @@ async function saveBatchInspectionPoint(status) {
     await persistInspectionRecord(record);
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
-    if (followUp) followUp.classList.remove("d-none");
+    if (followUp) followUp.classList.toggle("d-none", !inspectionTemplateRequiresFollowUp(record.TemplateSnapshot));
     if (summary) summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
     const saveButton = document.getElementById("btnSaveInspectionDraft");
     const completeButton = document.getElementById("btnCompleteInspection");
