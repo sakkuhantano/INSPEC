@@ -4066,17 +4066,17 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             const badgeClass = state.status === "ABNORMAL" ? "text-bg-danger" :
                 state.status === "NORMAL" ? "text-bg-success" : "text-bg-warning";
             return '<tr class="' + (id === selectedPointId ? 'table-active' : '') + '">' +
-                '<td class="text-nowrap"><button type="button" class="btn btn-link btn-sm p-0 fw-semibold text-decoration-none" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointCode || "-") + '</button></td>' +
-                '<td><button type="button" class="btn btn-link btn-sm p-0 text-start text-decoration-none text-body" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointName || "-") + '</button></td>' +
-                '<td class="text-nowrap"><span class="badge ' + badgeClass + '">' + state.status + '</span></td>' +
-                '<td class="small text-muted">' + escInspection(summary) + '</td>' +
-                '<td class="text-nowrap small">' + (photoCount ? '<i class="bi bi-camera-fill text-primary"></i> ' + photoCount : '<span class="text-muted">—</span>') + '</td>' +
+                '<td style="width:18%;overflow-wrap:anywhere"><button type="button" class="btn btn-link btn-sm p-0 fw-semibold text-decoration-none text-start" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointCode || "-") + '</button></td>' +
+                '<td style="width:22%;overflow-wrap:anywhere"><button type="button" class="btn btn-link btn-sm p-0 text-start text-decoration-none text-body" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointName || "-") + '</button></td>' +
+                '<td style="width:15%;overflow-wrap:anywhere"><span class="badge ' + badgeClass + '">' + state.status + '</span></td>' +
+                '<td class="small text-muted" style="width:35%;overflow-wrap:anywhere">' + escInspection(summary) + '</td>' +
+                '<td class="small text-center" style="width:10%">' + (photoCount ? '<i class="bi bi-camera-fill text-primary"></i> ' + photoCount : '<span class="text-muted">—</span>') + '</td>' +
                 '</tr>';
         }).join("");
 
         listHost.innerHTML =
-            '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead><tr>' +
-            '<th style="width:105px">Point Code</th><th style="min-width:150px">Inspection Point</th><th style="width:110px">Status</th><th>Ringkasan</th><th style="width:70px">Foto</th>' +
+            '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0" style="width:100%;table-layout:fixed"><thead><tr>' +
+            '<th style="width:18%">Point Code</th><th style="width:22%">Inspection Point</th><th style="width:15%">Status</th><th style="width:35%">Ringkasan</th><th style="width:10%">Foto</th>' +
             '</tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="5" class="text-center text-muted py-3">Tidak ada point yang cocok.</td></tr>') +
             '</tbody></table></div>' +
             '<div class="d-flex align-items-center justify-content-between small text-muted mt-2 px-2 pb-2">' +
