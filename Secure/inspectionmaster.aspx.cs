@@ -295,7 +295,7 @@ ORDER BY InspectionTypeDetailCode",
 SELECT COUNT(1) AS TotalRecords
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1
   AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
@@ -334,7 +334,7 @@ WITH PointRows AS
            ) AS RowNum
     FROM dbo.PIP_M_InspectionPoint P
     INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-    WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+    WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
       AND P.IsActive=1
       AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
       AND (@IsAdmin=1 OR EXISTS
@@ -658,7 +658,8 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                 points = br.EQueryP(@"
 SELECT P.MapX, P.MapY, P.PointCode, P.PointName
 FROM dbo.PIP_M_InspectionPoint P
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND P.MapID=@MapID AND P.IsActive=1
   AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
 ORDER BY P.DisplayOrder, P.PointCode",
@@ -811,7 +812,7 @@ VALUES
 (@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
  @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
+WHERE MapID=@OldMapID;
 ",
                                 new SqlParameter[] {
                                     new SqlParameter("@OldMapID", oldID), new SqlParameter("@NewMapID", newID),
@@ -1232,7 +1233,9 @@ ORDER BY M.MapVersion DESC",
                 using (var br = new WAL.BR.CF())
                     br.EQueryP(@"UPDATE dbo.PIP_M_InspectionPoint
 SET IsActive=0, UpdateUser=@UserID, UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID AND IsActive=1",
+WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=@MapID
+              AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)",
                         new SqlParameter[] {
                             new SqlParameter("@UserID", Master.Mn_EmployeeID),
                             new SqlParameter("@PointID", pointID),
@@ -1261,7 +1264,7 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
 SELECT P.*, M.InspectionTypeCode, M.InspectionTypeDetailCode
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
@@ -1383,9 +1386,10 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             {
                 DataTable duplicate = duplicateCheck.EQueryP(@"
 SELECT TOP 1 InspectionPointID
-FROM dbo.PIP_M_InspectionPoint
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
-  AND PointCode=@PointCode AND IsActive=1
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.MapID=@MapID AND P.PointCode=@PointCode AND P.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=P.MapID
+              AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)
   AND InspectionPointID<>@PointID",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -1408,9 +1412,10 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
                 {
                     DataTable occupied = check.EQueryP(@"
 SELECT TOP 1 PointCode,PointName
-FROM dbo.PIP_M_InspectionPoint
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
-  AND InspectionPointID<>@PointID AND IsActive=1
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.MapID=@MapID AND P.InspectionPointID<>@PointID AND P.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=P.MapID
+              AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)
   AND MapX IS NOT NULL AND MapY IS NOT NULL
   AND ((MapX-@MapX)*(MapX-@MapX)+(MapY-@MapY)*(MapY-@MapY))<0.25
 ORDER BY PointCode",
@@ -1452,11 +1457,11 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                         pointID = NextId("dbo.PIP_M_InspectionPoint", "InspectionPointID");
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionPoint
-(InspectionPointID,CompanyID,LocationID,PointCode,PointName,PointObjectType,PointDescription,
+(InspectionPointID,PointCode,PointName,PointObjectType,PointDescription,
  ObjectReferenceType,ObjectReferenceID,ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,
  IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
 VALUES
-(@PointID,@CompanyID,@LocationID,@PointCode,@PointName,@ObjectType,@Description,
+(@PointID,@PointCode,@PointName,@ObjectType,@Description,
  @ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,
  1,@IsNormalAbnormalRequired,@UserID,@UserID)",
                             PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
@@ -1554,8 +1559,6 @@ VALUES
         {
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
-                new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                new SqlParameter("@LocationID", Master.Mn_LocationID),
                 new SqlParameter("@PointCode", code),
                 new SqlParameter("@PointName", name),
                 new SqlParameter("@ObjectType", ddlPointObjectType.SelectedValue),
@@ -1634,7 +1637,7 @@ INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
-  AND P.MapID=@MapID AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND P.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
                     new SqlParameter[] {
                         new SqlParameter("@PointID", pointID),
@@ -1662,16 +1665,17 @@ WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
 SET XACT_ABORT ON;
 BEGIN TRY
 BEGIN TRANSACTION;
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap WITH (UPDLOCK,HOLDLOCK)
+               WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID)
+    RAISERROR('Map tidak valid untuk Company/Location aktif.',16,1);
 DECLARE @CurrentX DECIMAL(9,4), @CurrentY DECIMAL(9,4),
         @OtherX DECIMAL(9,4), @OtherY DECIMAL(9,4);
 SELECT @CurrentX=MapX,@CurrentY=MapY
 FROM dbo.PIP_M_InspectionPoint WITH (UPDLOCK,HOLDLOCK)
-WHERE InspectionPointID=@PointID AND MapID=@MapID
-  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+WHERE InspectionPointID=@PointID AND MapID=@MapID;
 SELECT @OtherX=MapX,@OtherY=MapY
 FROM dbo.PIP_M_InspectionPoint WITH (UPDLOCK,HOLDLOCK)
-WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
-  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+WHERE InspectionPointID=@OtherPointID AND MapID=@MapID;
 IF @CurrentX IS NULL OR @CurrentY IS NULL OR @OtherX IS NULL OR @OtherY IS NULL
 BEGIN
     RAISERROR('Kedua Inspection Point harus sudah memiliki koordinat pada Map yang sama.',16,1);
