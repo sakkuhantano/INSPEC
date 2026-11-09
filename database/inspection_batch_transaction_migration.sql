@@ -86,86 +86,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_InspectionPhoto(InspectionID, InspectionPointTransactionID, SeqNo);
 GO
 
-IF OBJECT_ID('dbo.PIP_T_InspectionBatchSequence','U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_T_InspectionBatchSequence
-    (
-        MonthKey CHAR(6) NOT NULL,
-        LastSequence INT NOT NULL,
-        UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionBatchSequence_UpdateDate DEFAULT(GETDATE()),
-        CONSTRAINT PK_PIP_T_InspectionBatchSequence PRIMARY KEY CLUSTERED(MonthKey),
-        CONSTRAINT CK_PIP_T_InspectionBatchSequence_LastSequence CHECK(LastSequence BETWEEN 0 AND 9999)
-    );
-END;
-GO
-
-/* Continue the monthly sequence if BATCH numbers already exist in this database. */
-INSERT dbo.PIP_T_InspectionBatchSequence(MonthKey,LastSequence,UpdateDate)
-SELECT LEFT(I.InspectionNo,6),MAX(CAST(RIGHT(I.InspectionNo,4) AS INT)),GETDATE()
-FROM dbo.PIP_T_Inspection I
-WHERE LEN(I.InspectionNo)=10
-  AND I.InspectionNo LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
-  AND NOT EXISTS
-      (SELECT 1 FROM dbo.PIP_T_InspectionBatchSequence S WHERE S.MonthKey=LEFT(I.InspectionNo,6))
-GROUP BY LEFT(I.InspectionNo,6);
-GO
-
-IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve','P') IS NOT NULL
-    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve;
-GO
-IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve','P') IS NULL
-    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve AS RETURN 0;');
-GO
-ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_BatchNumber_Reserve
-    @p_InspectionDate DATETIME
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-    DECLARE @V_MonthKey CHAR(6);
-    DECLARE @V_Next INT;
-    DECLARE @V_TranCount INT;
-    SET @V_MonthKey=CONVERT(CHAR(6),@p_InspectionDate,112);
-    SET @V_TranCount=@@TRANCOUNT;
-    BEGIN TRY
-        IF @V_TranCount=0 BEGIN TRANSACTION;
-        ELSE SAVE TRANSACTION InspectionBatchNumberSave;
-
-        SELECT @V_Next=LastSequence+1
-        FROM dbo.PIP_T_InspectionBatchSequence WITH (UPDLOCK,HOLDLOCK)
-        WHERE MonthKey=@V_MonthKey;
-
-        IF @V_Next IS NULL
-        BEGIN
-            SET @V_Next=1;
-            INSERT dbo.PIP_T_InspectionBatchSequence(MonthKey,LastSequence,UpdateDate)
-            VALUES(@V_MonthKey,@V_Next,GETDATE());
-        END
-        ELSE
-            UPDATE dbo.PIP_T_InspectionBatchSequence
-            SET LastSequence=@V_Next,UpdateDate=GETDATE()
-            WHERE MonthKey=@V_MonthKey;
-
-        IF @V_Next>9999
-            RAISERROR('Monthly Inspection Batch number sequence is exhausted.',16,1);
-
-        IF @V_TranCount=0 COMMIT TRANSACTION;
-        SELECT @V_MonthKey+RIGHT('0000'+CAST(@V_Next AS VARCHAR(4)),4) AS InspectionNo;
-    END TRY
-    BEGIN CATCH
-        IF XACT_STATE()=1
-        BEGIN
-            IF @V_TranCount=0 ROLLBACK TRANSACTION;
-            ELSE ROLLBACK TRANSACTION InspectionBatchNumberSave;
-        END
-        ELSE IF XACT_STATE()=-1 AND @V_TranCount=0 ROLLBACK TRANSACTION;
-        DECLARE @V_Message NVARCHAR(4000),@V_Severity INT,@V_State INT;
-        SELECT @V_Message=ERROR_MESSAGE(),@V_Severity=ERROR_SEVERITY(),@V_State=ERROR_STATE();
-        RAISERROR(@V_Message,@V_Severity,@V_State);
-    END CATCH;
-END;
-GO
-
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Batch_Sync', 'P') IS NOT NULL
     DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_Batch_Sync;
 GO
@@ -331,20 +251,10 @@ BEGIN
         ELSE SAVE TRANSACTION InspectionBatchSyncSave;
 
         DECLARE @V_InspectionNo VARCHAR(10);
-        SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))),'');
-        IF @V_InspectionNo IS NULL
-            RAISERROR('Reserve the monthly BATCH InspectionNo before calling the sync procedure.',16,1);
+        SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))), '');
 
-        IF @V_InspectionNo NOT LIKE CONVERT(VARCHAR(6),@p_InspectionDate,112)+'[0-9][0-9][0-9][0-9]'
-            RAISERROR('InspectionNo must use the yyyymmxxxx batch format for the inspection date.',16,1);
-
-        IF EXISTS
-        (
-            SELECT 1 FROM dbo.PIP_T_Inspection
-            WHERE InspectionNo=@V_InspectionNo
-              AND ClientInspectionID<>@p_ClientInspectionID
-        )
-            RAISERROR('The reserved InspectionNo is already assigned to another inspection.',16,1);
+        /* The canonical Inspection sync generates InspectionNo when this parameter is empty.
+           Batch inspections use the same InspectionNo mechanism; no separate batch sequence is required. */
 
         /* Reuse the current canonical header sync procedure. Empty checklist/photo
            TVPs ensure no batch-level results are written; all child data is saved below. */
