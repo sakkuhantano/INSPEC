@@ -156,8 +156,13 @@
                                                         </button>
                                                     </ItemTemplate>
                                                 </asp:Repeater>
-                                                <div class="inspection-coordinate-hint">Marker biru = point lain · Oranye = point aktif · Hijau = posisi baru · Klik marker lain untuk Swap</div>
                                             </div>
+                                        </div>
+                                        <div class="inspection-coordinate-hint" role="note">
+                                            <span><i class="fas fa-circle text-primary"></i> Point lain</span>
+                                            <span><i class="fas fa-circle text-warning"></i> Point aktif</span>
+                                            <span><i class="fas fa-circle text-success"></i> Posisi baru</span>
+                                            <span class="inspection-coordinate-hint-action">Klik marker lain untuk Swap</span>
                                         </div>
                                         <div class="row g-2 mt-2 align-items-end">
                                             <div class="col-6 col-md-2"><label class="small">X (%)</label><asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" /></div>
