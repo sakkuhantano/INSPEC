@@ -127,3 +127,11 @@
  .inspection-point-modal-footer{padding:.55rem!important}
  .inspection-point-modal-footer .btn{min-height:40px}
 }
+
+/* Keep the point-map legend outside the drawing so it never covers floor-plan details. */
+.inspection-coordinate-hint{position:static;display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .9rem;padding:.4rem .15rem 0;color:#596579;font-size:.72rem;line-height:1.35;background:transparent;pointer-events:auto}
+.inspection-coordinate-hint>span{display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap}
+.inspection-coordinate-hint>span i{font-size:.55rem}
+.inspection-coordinate-hint-action{color:#6c757d}
+.inspection-point-modal-body .inspection-coordinate-board{height:clamp(180px,34vh,350px)}
+@media(max-width:767.98px){.inspection-coordinate-hint{gap:.3rem .65rem;font-size:.68rem}.inspection-coordinate-hint-action{flex-basis:100%}}
