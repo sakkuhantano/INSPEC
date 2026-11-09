@@ -629,20 +629,27 @@ SELECT ISNULL(@SectionList,'') Section;",
         {
             string id = CurrentEmployeeID();
 
-            using (var br = new WAL.BR.CF())
+            // Use the same authorization function as Login.aspx.cs when building
+            // the user's INSPEC menu. Directly joining SysWebUserGroupMenu here
+            // can disagree with F_SelectALLMenuAuthorization and reject a user
+            // whose login was already accepted by that authoritative function.
+            if (menuIDs == null || menuIDs.Length == 0)
             {
-                DataTable dt = br.EQueryP(@"
-SELECT TOP 1 1
-FROM dbo.SysWebUserUserGroup UG
-INNER JOIN dbo.SysWebUserGroupMenu GM ON GM.UserGroupID=UG.UserGroupID
-INNER JOIN dbo.SysWebMenu M ON M.MenuID=GM.MenuID
-WHERE UG.UserID=@EmployeeID
-  AND M.AppID='inspecfo'",
-                    new System.Data.SqlClient.SqlParameter[] {
-                        new System.Data.SqlClient.SqlParameter("@EmployeeID", id)
-                    });
+                using (var br = new WAL.BR.CF())
+                {
+                    DataTable dt = br.EQuery(
+                        @"SELECT TOP 1 MenuID
+                          FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '')",
+                        "@EmployeeID=" + id);
+                    if (dt.Rows.Count > 0) return id;
+                }
 
-                if (dt.Rows.Count > 0) return id;
+                throw new HttpException(403, "You are not authorized to access this function.");
+            }
+
+            foreach (string menuID in menuIDs)
+            {
+                if (HasMenu(id, menuID)) return id;
             }
 
             throw new HttpException(403, "You are not authorized to access this function.");
