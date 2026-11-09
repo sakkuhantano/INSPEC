@@ -109,11 +109,9 @@ namespace INSPEC
                     "@BrowserGuid=" + browserGuid + GF.Str2 +
                     "@ServerGuid=" + serverGuid + GF.Str2 +
                     "@Token=" + token).Rows.Count > 0;
-                if (valid)
-                    GFC.SetCookie(token);
-                else
-                    GFC.ClearCookie();
-
+                // The login response already issued the HttpOnly cookie.
+                // Do not rewrite or clear it during validation: concurrent requests
+                // from an older tab/session could otherwise overwrite a newer login cookie.
                 return valid;
             }
 
