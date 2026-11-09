@@ -71,7 +71,10 @@ namespace INSPEC.MasterPages
 
             string authenticatedEmployeeID = GFC.TryCurrentEmployeeID();
 
-            if (!String.IsNullOrEmpty(legacyEmployeeID))
+            // A valid INSPEC_AUTH session always takes precedence over the legacy
+            // WAL.PB cache. The legacy cache is only a one-time migration source;
+            // it must never re-login the user and revoke a newer token.
+            if (!String.IsNullOrEmpty(authenticatedEmployeeID))
             {
                 string savedEmployeeID = Convert.ToString(
                     context.Session["INSPECFO_LEGACY_EMPLOYEEID"]).Trim();
@@ -81,85 +84,98 @@ namespace INSPEC.MasterPages
                 string requestToken = authCookie == null
                     ? String.Empty : Convert.ToString(authCookie.Value).Trim();
 
-                bool savedDataMatches = false;
+                // Bootstrap the old client cache only when it still belongs to
+                // the exact token that authenticated this request. Never replace
+                // loginData from an older legacy session.
                 if (!String.IsNullOrEmpty(savedLoginData) &&
-                    String.Equals(savedEmployeeID, legacyEmployeeID,
+                    String.Equals(savedEmployeeID, authenticatedEmployeeID,
                         StringComparison.OrdinalIgnoreCase) &&
                     !String.IsNullOrEmpty(requestToken))
                 {
                     try
                     {
-                        System.Web.Script.Serialization.JavaScriptSerializer checkSerializer =
+                        System.Web.Script.Serialization.JavaScriptSerializer serializer =
                             new System.Web.Script.Serialization.JavaScriptSerializer();
                         Dictionary<string, object> saved =
-                            checkSerializer.Deserialize<Dictionary<string, object>>(savedLoginData);
-                        savedDataMatches = saved != null &&
-                            saved.ContainsKey("token") &&
+                            serializer.Deserialize<Dictionary<string, object>>(savedLoginData);
+                        if (saved != null && saved.ContainsKey("token") &&
                             String.Equals(Convert.ToString(saved["token"]), requestToken,
-                                StringComparison.Ordinal);
+                                StringComparison.Ordinal))
+                        {
+                            _legacyLoginBootstrapJson = savedLoginData;
+                        }
                     }
                     catch
                     {
-                        savedDataMatches = false;
+                        // A malformed legacy bootstrap must not affect authentication.
                     }
-                }
-
-                // Provision once per legacy browser session. Re-provision if the
-                // HttpOnly token no longer matches the bootstrap data saved in Session.
-                if (!String.Equals(authenticatedEmployeeID, legacyEmployeeID,
-                        StringComparison.OrdinalIgnoreCase) || !savedDataMatches)
-                {
-                    string browserGuid = Convert.ToString(
-                        context.Session["INSPECFO_BROWSER_GUID"]).Trim();
-
-                    if (String.IsNullOrEmpty(browserGuid))
-                    {
-                        browserGuid = Guid.NewGuid().ToString();
-                        context.Session["INSPECFO_BROWSER_GUID"] = browserGuid;
-                    }
-
-                    object loginResult = INSPEC.Login.F_LoginFromLegacySession(
-                        legacyEmployeeID,
-                        legacyPasswordHash,
-                        browserGuid,
-                        context.Request.UserAgent ?? "Legacy INSPEC session");
-
-                    System.Web.Script.Serialization.JavaScriptSerializer serializer =
-                        new System.Web.Script.Serialization.JavaScriptSerializer();
-                    serializer.MaxJsonLength = Int32.MaxValue;
-
-                    string resultJson = serializer.Serialize(loginResult);
-                    Dictionary<string, object> result =
-                        serializer.Deserialize<Dictionary<string, object>>(resultJson);
-
-                    bool success = result != null &&
-                        result.ContainsKey("success") &&
-                        Convert.ToBoolean(result["success"]);
-
-                    if (!success)
-                    {
-                        RedirectToInspecFOLogin(context);
-                        return;
-                    }
-
-                    result["browserGuid"] = browserGuid;
-                    resultJson = serializer.Serialize(result);
-
-                    context.Session["INSPECFO_LEGACY_EMPLOYEEID"] = legacyEmployeeID;
-                    context.Session["INSPECFO_LEGACY_LOGIN_DATA"] = resultJson;
-                    _legacyLoginBootstrapJson = resultJson;
-                }
-                else
-                {
-                    _legacyLoginBootstrapJson = savedLoginData;
                 }
 
                 return;
             }
 
+            // No valid INSPEC token exists. Allow the legacy cache to create a
+            // token only once per ASP.NET browser session. If a migration was
+            // already attempted, require an explicit login instead of issuing
+            // another token (F_LoginWithHash revokes the previous active token).
+            if (!String.IsNullOrEmpty(legacyEmployeeID))
+            {
+                string savedEmployeeID = Convert.ToString(
+                    context.Session["INSPECFO_LEGACY_EMPLOYEEID"]).Trim();
+                string savedLoginData = Convert.ToString(
+                    context.Session["INSPECFO_LEGACY_LOGIN_DATA"]);
+
+                if (!String.IsNullOrEmpty(savedEmployeeID) ||
+                    !String.IsNullOrEmpty(savedLoginData))
+                {
+                    RedirectToInspecFOLogin(context);
+                    return;
+                }
+
+                string browserGuid = Convert.ToString(
+                    context.Session["INSPECFO_BROWSER_GUID"]).Trim();
+
+                if (String.IsNullOrEmpty(browserGuid))
+                {
+                    browserGuid = Guid.NewGuid().ToString();
+                    context.Session["INSPECFO_BROWSER_GUID"] = browserGuid;
+                }
+
+                object loginResult = INSPEC.Login.F_LoginFromLegacySession(
+                    legacyEmployeeID,
+                    legacyPasswordHash,
+                    browserGuid,
+                    context.Request.UserAgent ?? "Legacy INSPEC session");
+
+                System.Web.Script.Serialization.JavaScriptSerializer resultSerializer =
+                    new System.Web.Script.Serialization.JavaScriptSerializer();
+                resultSerializer.MaxJsonLength = Int32.MaxValue;
+
+                string resultJson = resultSerializer.Serialize(loginResult);
+                Dictionary<string, object> result =
+                    resultSerializer.Deserialize<Dictionary<string, object>>(resultJson);
+
+                bool success = result != null &&
+                    result.ContainsKey("success") &&
+                    Convert.ToBoolean(result["success"]);
+
+                if (!success)
+                {
+                    RedirectToInspecFOLogin(context);
+                    return;
+                }
+
+                result["browserGuid"] = browserGuid;
+                resultJson = resultSerializer.Serialize(result);
+
+                context.Session["INSPECFO_LEGACY_EMPLOYEEID"] = legacyEmployeeID;
+                context.Session["INSPECFO_LEGACY_LOGIN_DATA"] = resultJson;
+                _legacyLoginBootstrapJson = resultJson;
+                return;
+            }
+
             // INSPECFO users without a legacy DataSet continue with their own token.
-            if (String.IsNullOrEmpty(authenticatedEmployeeID))
-                RedirectToInspecFOLogin(context);
+            RedirectToInspecFOLogin(context);
         }
 
         private void RedirectToInspecFOLogin(HttpContext context)
