@@ -533,6 +533,8 @@
             if (checklistTab) checklistTab.classList.remove("active");
             closePoint();
             switchMapList(false);
+            if (typeof window.updateInspectionParameterTabGate === "function")
+                window.updateInspectionParameterTabGate();
         }
     };
 
