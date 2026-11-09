@@ -40,8 +40,7 @@ namespace INSPEC.Secure
             string mapSearchArgs = Master.Mn_CompanyID + GF.Str + ";" +
                 Master.Mn_LocationID + GF.Str + ";" +
                 Master.Mn_ProfitCenterNo + GF.Str + ";" +
-                Master.Mn_EmployeeID + GF.Str + ";" +
-                Master.Mn_UserID + GF.Str;
+                Master.Mn_EmployeeID + GF.Str;
 
             lBtnMapCode.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
@@ -112,7 +111,7 @@ ORDER BY M.MapCode " + order,
                     });
                 if (dt.Rows.Count == 0)
                 {
-                    ShowMessage(direction < 0 ? "Sudah di Map pertama." : "Sudah di Map terakhir.", false);
+                    GF.MsgBox(this, direction < 0 ? "Sudah di Map pertama." : "Sudah di Map terakhir.", "BS-5.3.0");
                     return;
                 }
                 txtMapCode.Text = Convert.ToString(dt.Rows[0]["MapCode"]);
@@ -152,7 +151,7 @@ ORDER BY M.MapCode " + order,
                 DataTable dt = br.EQueryP(@"SELECT CASE WHEN EXISTS
 (SELECT 1 FROM dbo.syswebuserusergroup WHERE usergroupid='administrator' AND userid=@UserID)
 THEN 1 ELSE 0 END AS IsAdmin",
-                    new SqlParameter[] { new SqlParameter("@UserID", Master.Mn_UserID) });
+                    new SqlParameter[] { new SqlParameter("@UserID", Master.Mn_EmployeeID) });
                 return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["IsAdmin"]) == 1;
             }
         }
@@ -440,7 +439,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             int page;
             if (!Int32.TryParse(txtPointGoToPage.Text.Trim(), out page) || page < 1)
             {
-                ShowMessage("Nomor halaman tidak valid.", true);
+                //ShowMessage("Nomor halaman tidak valid.", true);
+                GF.MsgBox(this, "Nomor halaman tidak valid.", "BS-5.3.0");
                 BindPoints();
                 SetTab("#tab-point");
                 return;
@@ -525,7 +525,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             long mapID;
             if (!Int64.TryParse(Convert.ToString(commandArgument), out mapID) || mapID <= 0)
             {
-                ShowMessage("Map ID tidak valid. Silakan refresh daftar map.", true);
+                //ShowMessage("Map ID tidak valid. Silakan refresh daftar map.", true);
+                GF.MsgBox(this, "Map ID tidak valid. Silakan refresh daftar map.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
@@ -535,9 +536,12 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                 DataTable dt = GetMap(mapID);
                 if (dt == null || dt.Rows.Count == 0)
                 {
-                    ShowMessage("Data map tidak ditemukan untuk Map ID " +
+                    //ShowMessage("Data map tidak ditemukan untuk Map ID " +
+                    //    mapID.ToString(CultureInfo.InvariantCulture) +
+                    //    ". Periksa CompanyID/LocationID atau refresh daftar map.", true);
+                    GF.MsgBox(this, "Data map tidak ditemukan untuk Map ID " +
                         mapID.ToString(CultureInfo.InvariantCulture) +
-                        ". Periksa CompanyID/LocationID atau refresh daftar map.", true);
+                        ". Periksa CompanyID/LocationID atau refresh daftar map.", "BS-5.3.0");
                     SetTab("#tab-map");
                     return;
                 }
@@ -565,7 +569,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             }
             catch (Exception ex)
             {
-                ShowMessage("Gagal membuka map: " + ex.Message, true);
+                //ShowMessage("Gagal membuka map: " + ex.Message, true);
+                GF.MsgBox(this, "Gagal membuka map: " + ex.Message, "BS-5.3.0");
                 SetTab("#tab-map");
             }
         }
@@ -650,14 +655,16 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             string detailCode = ddlInspectionDetail.SelectedValue;
             if (code == "" || name == "" || typeCode == "" || detailCode == "")
             {
-                ShowMessage("Map Code, Map Name, Inspection Type, dan Inspection Detail wajib diisi.", true);
+                //ShowMessage("Map Code, Map Name, Inspection Type, dan Inspection Detail wajib diisi.", true);
+                GF.MsgBox(this, "Map Code, Map Name, Inspection Type, dan Inspection Detail wajib diisi.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
 
             if (!IsValidMapTypeDetail(typeCode, detailCode))
             {
-                ShowMessage("Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.", true);
+                //ShowMessage("Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.", true);
+                GF.MsgBox(this, "Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
@@ -780,12 +787,14 @@ VALUES
                 DataTable current = GetMap(Convert.ToInt64(hidMapID.Value));
                 if (current.Rows.Count > 0) ShowMapPreview(current.Rows[0]);
                 lblMapVersion.Text = "Map tersimpan. PDF dan versi map sudah tercatat.";
-                ShowMessage("Map berhasil disimpan.", false);
+                //ShowMessage("Map berhasil disimpan.", false);
+                GF.MsgBox(this, "Map berhasil disimpan.", "BS-5.3.0");
             }
             catch (Exception ex)
             {
                 if (!databaseSaved && savedPath != "") TryDeleteFile(savedPath);
-                ShowMessage("Gagal menyimpan map: " + ex.Message, true);
+                //ShowMessage("Gagal menyimpan map: " + ex.Message, true);
+                GF.MsgBox(this, "Gagal menyimpan map: " + ex.Message, "BS-5.3.0");
             }
             SetTab("#tab-map");
         }
@@ -951,7 +960,7 @@ ORDER BY M.MapVersion DESC",
                     pnlEditor.Visible = false;
                     litEditorPdfBackground.Text = "";
                     lnkEditorPdf.Visible = false;
-                    ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
+                    //ShowMessage("Map tidak ditemukan atau tidak termasuk Profit Center Anda.", true);
                     BindPoints();
                     SetTab("#tab-map");
                     return;
@@ -1023,7 +1032,8 @@ ORDER BY M.MapVersion DESC",
             }
             catch (Exception ex)
             {
-                ShowMessage("Gagal memuat denah untuk Inspection Point: " + ex.Message, true);
+                //ShowMessage("Gagal memuat denah untuk Inspection Point: " + ex.Message, true);
+                GF.MsgBox(this, "Gagal memuat denah untuk Inspection Point: " + ex.Message, "BS-5.3.0");
             }
             ShowPointEditor();
             SetTab("#tab-point");
@@ -1049,7 +1059,8 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                         });
                 BindPoints();
                 BindMapElements();
-                ShowMessage("Inspection Point berhasil dinonaktifkan.", false);
+                //ShowMessage("Inspection Point berhasil dinonaktifkan.", false);
+                GF.MsgBox(this, "Inspection Point berhasil dinonaktifkan.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
@@ -1110,20 +1121,23 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             int order;
             if (code == "" || name == "")
             {
-                ShowMessage("Point Code dan Point Name wajib diisi.", true);
+                //ShowMessage("Point Code dan Point Name wajib diisi.", true);
+                GF.MsgBox(this, "Point Code dan Point Name wajib diisi.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
             if (!Int32.TryParse(txtPointOrder.Text.Trim(), out order))
             {
-                ShowMessage("Display Order harus berupa angka.", true);
+                //ShowMessage("Display Order harus berupa angka.", true);
+                GF.MsgBox(this, "Display Order harus berupa angka.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
             long mapID;
             if (!Int64.TryParse(hidMapID.Value, out mapID) || mapID <= 0)
             {
-                ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
+                //ShowMessage("Find Map terlebih dahulu sebelum menambah Inspection Point.", true);
+                GF.MsgBox(this, "Find Map terlebih dahulu sebelum menambah Inspection Point.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
@@ -1131,7 +1145,8 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             DataTable map = GetMap(mapID);
             if (map == null || map.Rows.Count == 0)
             {
-                ShowMessage("Map tidak ditemukan atau Anda tidak memiliki akses.", true);
+                //ShowMessage("Map tidak ditemukan atau Anda tidak memiliki akses.", true);
+                GF.MsgBox(this, "Map tidak ditemukan atau Anda tidak memiliki akses.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
@@ -1139,7 +1154,8 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             string detailCode = Convert.ToString(map.Rows[0]["InspectionTypeDetailCode"]);
             if (String.IsNullOrWhiteSpace(typeCode) || String.IsNullOrWhiteSpace(detailCode))
             {
-                ShowMessage("Inspection Type dan Detail harus ditentukan pada Master Map terlebih dahulu.", true);
+                //ShowMessage("Inspection Type dan Detail harus ditentukan pada Master Map terlebih dahulu.", true);
+                GF.MsgBox(this, "Inspection Type dan Detail harus ditentukan pada Master Map terlebih dahulu.", "BS-5.3.0");
                 SetTab("#tab-map");
                 return;
             }
@@ -1153,7 +1169,8 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
                     !Decimal.TryParse(txtMarkerY.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedY) ||
                     parsedX < 0 || parsedX > 100 || parsedY < 0 || parsedY > 100)
                 {
-                    ShowMessage("Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", true);
+                    //ShowMessage("Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", true);
+                    GF.MsgBox(this, "Koordinat X dan Y harus diisi dengan angka antara 0 sampai 100.", "BS-5.3.0");
                     SetTab("#tab-point");
                     return;
                 }
@@ -1186,7 +1203,8 @@ ORDER BY PointCode",
                         });
                     if (occupied.Rows.Count > 0)
                     {
-                        ShowMessage("Posisi tersebut sudah ditempati Inspection Point lain. Pilih lokasi lain atau gunakan Swap Position.", true);
+                        //ShowMessage("Posisi tersebut sudah ditempati Inspection Point lain. Pilih lokasi lain atau gunakan Swap Position.", true);
+                        GF.MsgBox(this, "Posisi tersebut sudah ditempati Inspection Point lain. Pilih lokasi lain atau gunakan Swap Position.", "BS-5.3.0");
                         SetTab("#tab-point");
                         return;
                     }
@@ -1228,11 +1246,13 @@ VALUES
                 BindPoints();
                 BindMapElements();
                 pnlEditor.Visible = true;
-                ShowMessage("Inspection Point berhasil disimpan.", false);
+                //ShowMessage("Inspection Point berhasil disimpan.", false);
+                GF.MsgBox(this, "Inspection Point berhasil disimpan.", "BS-5.3.0");
             }
             catch (Exception ex)
             {
-                ShowMessage("Gagal menyimpan Inspection Point: " + ex.Message, true);
+                //ShowMessage("Gagal menyimpan Inspection Point: " + ex.Message, true);
+                GF.MsgBox(this, "Gagal menyimpan Inspection Point: " + ex.Message, "BS-5.3.0");
             }
             SetTab("#tab-point");
         }
@@ -1292,7 +1312,8 @@ ORDER BY P.DisplayOrder,P.PointCode",
         {
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
-            ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
+            //ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
+            GF.MsgBox(this, "Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", "BS-5.3.0");
             pnlPointEditor.Visible = true;
             pnlEditor.Visible = true;
             BindMapElements();
@@ -1306,7 +1327,8 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 !Int64.TryParse(hidSwapPointID.Value, out otherPointID) || otherPointID <= 0 ||
                 pointID == otherPointID)
             {
-                ShowMessage("Pilih marker Inspection Point lain pada denah untuk melakukan Swap Position.", true);
+                //ShowMessage("Pilih marker Inspection Point lain pada denah untuk melakukan Swap Position.", true);
+                GF.MsgBox(this, "Pilih marker Inspection Point lain pada denah untuk melakukan Swap Position.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
@@ -1333,7 +1355,8 @@ WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
                     });
                 if (allowed.Rows.Count == 0 || Convert.ToInt32(allowed.Rows[0]["TotalRows"]) != 2)
                 {
-                    ShowMessage("Kedua Inspection Point tidak valid atau tidak termasuk Profit Center Anda.", true);
+                    //ShowMessage("Kedua Inspection Point tidak valid atau tidak termasuk Profit Center Anda.", true);
+                    GF.MsgBox(this, "Kedua Inspection Point tidak valid atau tidak termasuk Profit Center Anda.", "BS-5.3.0");
                     SetTab("#tab-point");
                     return;
                 }
@@ -1400,11 +1423,13 @@ WHERE InspectionPointID=@PointID AND MapID=@MapID",
                 }
                 hidSwapPointID.Value = "";
                 BindMapElements();
-                ShowMessage("Koordinat kedua Inspection Point berhasil ditukar.", false);
+                //ShowMessage("Koordinat kedua Inspection Point berhasil ditukar.", false);
+                GF.MsgBox(this, "Koordinat kedua Inspection Point berhasil ditukar.", "BS-5.3.0");
             }
             catch (Exception ex)
             {
-                ShowMessage("Gagal menukar koordinat: " + ex.Message, true);
+                //ShowMessage("Gagal menukar koordinat: " + ex.Message, true);
+                GF.MsgBox(this, "Gagal menukar koordinat: " + ex.Message, "BS-5.3.0");
             }
             pnlPointEditor.Visible = true;
             pnlEditor.Visible = true;
