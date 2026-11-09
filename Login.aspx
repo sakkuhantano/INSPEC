@@ -710,6 +710,6 @@
 
     <uc1:toast runat="server" />
     <script type="text/javascript" src="JSCus/GFC_FO.js"></script>
-    <script type="text/javascript" src="JSCus/Login.js"></script>
+    <script type="text/javascript" src="JSCus/Login.js?v=20261109-1605"></script>
 </body>
 </html>
