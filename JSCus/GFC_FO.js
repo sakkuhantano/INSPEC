@@ -638,11 +638,17 @@ async function getCheckList() {
             const photoRequirement = String(rawPhotoRequirement || "BOTH").trim().toUpperCase();
             const rawSummaryRequired = template.IsSummaryRequired !== undefined
                 ? template.IsSummaryRequired : template.isSummaryRequired;
+            const rawFollowUpRequired = template.IsFollowUpRequired !== undefined
+                ? template.IsFollowUpRequired : template.isFollowUpRequired;
             const normalizedTemplate = Object.assign({}, template, {
                 IsSummaryRequired: rawSummaryRequired === undefined || rawSummaryRequired === null
                     ? true
                     : !(rawSummaryRequired === false || rawSummaryRequired === 0 || rawSummaryRequired === "0" ||
                         String(rawSummaryRequired).toLowerCase() === "false"),
+                IsFollowUpRequired: rawFollowUpRequired === undefined || rawFollowUpRequired === null
+                    ? true
+                    : !(rawFollowUpRequired === false || rawFollowUpRequired === 0 || rawFollowUpRequired === "0" ||
+                        String(rawFollowUpRequired).toLowerCase() === "false"),
                 PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement)
                     ? photoRequirement : "BOTH"
             });
