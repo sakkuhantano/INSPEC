@@ -1070,21 +1070,68 @@ ORDER BY M.MapVersion DESC",
             pnlPointEditor.Visible = false;
         }
 
+        protected void btnClearMapFile_Click(object sender, EventArgs e)
+        {
+            // This clears the unsaved floor-plan attachment for a new Map.
+            // Existing registered Map files are kept intact.
+            if (String.IsNullOrWhiteSpace(hidMapID.Value))
+                Session.Remove(DraftMapFileSessionKey);
+
+            litEditorPdfBackground.Text = "";
+            lnkEditorPdf.Visible = false;
+            pnlEditor.Visible = false;
+            pnlPointEditor.Visible = false;
+            GF.MsgBox(this, "Floor Plan draft dikosongkan. Silakan attach file baru bila diperlukan.", "BS-5.3.0");
+            SetTab("#tab-map");
+        }
+
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
-            // Persist a newly selected floor plan before the postback loses
-            // the FileUpload value. The URL is scoped to this user's draft.
-            if (String.IsNullOrWhiteSpace(hidMapID.Value) && fuMapPdf.HasFile)
+            // Add Point is available only after a Map Code and its floor plan
+            // have both been selected (existing Map) or attached (new Map).
+            if (String.IsNullOrWhiteSpace(txtMapCode.Text.Trim()))
             {
-                try
+                GF.MsgBox(this, "Isi atau pilih Map Code terlebih dahulu.", "BS-5.3.0");
+                SetTab("#tab-map");
+                return;
+            }
+
+            long currentMapID;
+            bool hasSavedMap = Int64.TryParse(hidMapID.Value, out currentMapID) && currentMapID > 0;
+            if (hasSavedMap)
+            {
+                DataTable currentMap = GetMap(currentMapID);
+                if (currentMap == null || currentMap.Rows.Count == 0 ||
+                    String.IsNullOrWhiteSpace(Convert.ToString(currentMap.Rows[0]["ImagePath"])))
                 {
-                    Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
-                }
-                catch (Exception uploadError)
-                {
-                    GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
+                    GF.MsgBox(this, "Floor Plan belum tersedia. Attach file PDF/JPG pada Master Map terlebih dahulu.", "BS-5.3.0");
                     SetTab("#tab-map");
                     return;
+                }
+            }
+            else
+            {
+                if (!fuMapPdf.HasFile && String.IsNullOrWhiteSpace(Convert.ToString(Session[DraftMapFileSessionKey])))
+                {
+                    GF.MsgBox(this, "Attach file Floor Plan PDF/JPG terlebih dahulu sebelum menambah Inspection Point.", "BS-5.3.0");
+                    SetTab("#tab-map");
+                    return;
+                }
+
+                // Persist a newly selected floor plan before the postback loses
+                // the FileUpload value. The URL is scoped to this user's draft.
+                if (fuMapPdf.HasFile)
+                {
+                    try
+                    {
+                        Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
+                    }
+                    catch (Exception uploadError)
+                    {
+                        GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
+                        SetTab("#tab-map");
+                        return;
+                    }
                 }
             }
 
@@ -1098,8 +1145,9 @@ ORDER BY M.MapVersion DESC",
             }
             catch (Exception ex)
             {
-                //ShowMessage("Gagal memuat denah untuk Inspection Point: " + ex.Message, true);
                 GF.MsgBox(this, "Gagal memuat denah untuk Inspection Point: " + ex.Message, "BS-5.3.0");
+                SetTab("#tab-map");
+                return;
             }
             ShowPointEditor();
             SetTab("#tab-point");
