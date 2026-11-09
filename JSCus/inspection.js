@@ -3924,8 +3924,7 @@ function renderInspectionApprovalBatchPoints(template, points, photos) {
     };
     if (!points || !points.length)
         return '<div class="alert alert-warning small">Batch ini belum memiliki Inspection Point transaction.</div>';
-    return '<div id="inspectionApprovalSelectedPointHost" class="alert alert-light border small">' +
-        '<i class="bi bi-hand-index-thumb me-2"></i>Pilih marker atau Inspection Point pada daftar untuk melihat checklist dan dokumentasi foto.</div>';
+    return "";
 }
 
 window.renderInspectionApprovalSelectedPoint = function (pointId) {
@@ -3982,7 +3981,7 @@ async function renderInspectionApprovalBatchMap(maps, points) {
                 maps.map(map => '<option value="' + escInspection(map.MapID) + '">' + escInspection(map.MapCode + " - " + map.MapName) + '</option>').join("") +
              '</select>' : '') +
         '</div>' +
-        (hasAnyFloorPlan ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mb-3"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>' :
+        (hasAnyFloorPlan ? '<details class="mb-3"><summary class="small fw-semibold text-primary py-2">Tampilkan denah inspeksi (opsional)</summary><div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mt-2"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div></details>' :
             '<div class="alert alert-light small">Batch ini tidak menggunakan file denah. Seluruh hasil diperiksa melalui daftar Inspection Point.</div>') +
         '<div id="inspectionApprovalPointCounters"></div>' +
         '<div class="d-flex flex-wrap gap-2 align-items-center mb-2"><div class="btn-group btn-group-sm flex-wrap" id="inspectionApprovalPointFilters" role="group" aria-label="Filter status point">' +
