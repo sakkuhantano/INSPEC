@@ -499,7 +499,9 @@ namespace WAL
             if (String.Equals(currentPath, "~/Login.aspx", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            ClearCookie();
+            // Do not expire the browser cookie from this redirect response.
+            // A delayed response from an older request could otherwise clear a
+            // newer session cookie issued by a subsequent successful login.
             context.Response.Redirect(
                 VirtualPathUtility.ToAbsolute("~/Login.aspx") + "?session=expired",
                 true);
