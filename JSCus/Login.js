@@ -17,18 +17,20 @@ window.addEventListener("load", async function () {
     var query = new URLSearchParams(window.location.search);
     var cameFromExpiredRedirect = query.get("session") === "expired";
 
-    // Do not discard loginData just because a page redirected here.
-    // The redirect can be caused by a transient/recycled ASP.NET application
-    // even though the persistent INSPEC UserSession is still valid.
-    if (cameFromExpiredRedirect) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
     // Portal-selected identity takes precedence over a cached INSPEC session.
     var infoID = query.get("InfoID");
     if (infoID) {
         window.history.replaceState({}, document.title, window.location.pathname);
         F_LoginByPortal(infoID);
+        return;
+    }
+
+    // A protected page has explicitly rejected this browser session.
+    // Do NOT auto-redirect back to the dashboard even if the DB token still
+    // validates: that creates a Login -> Dashboard -> Login redirect loop.
+    // Keep the query marker in the URL so refreshing this page also stays here.
+    if (cameFromExpiredRedirect) {
+        showToast("Sesi sebelumnya ditolak. Silakan login kembali.", "warning", 6000);
         return;
     }
 
