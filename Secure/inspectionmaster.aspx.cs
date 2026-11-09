@@ -18,6 +18,17 @@ namespace INSPEC.Secure
         private const string _MenuID = "10013";
         private const int _MaxPdfBytes = 50 * 1024 * 1024;
 
+        private string DraftMapFileSessionKey
+        {
+            get
+            {
+                return "INSPEC_InspectionMapDraft_" +
+                    SafePathPart(Master.Mn_CompanyID) + "_" +
+                    SafePathPart(Master.Mn_LocationID) + "_" +
+                    SafePathPart(Master.Mn_EmployeeID);
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (Page.Form != null) Page.Form.Enctype = "multipart/form-data";
@@ -500,6 +511,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
 
         protected void btnNewMap_Click(object sender, EventArgs e)
         {
+            Session.Remove(DraftMapFileSessionKey);
             PrepareMap();
             PreparePoint();
             BindEditorMaps();
@@ -633,19 +645,46 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
 
         private void LoadEditorMapPdf()
         {
-            if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue)) { litEditorPdfBackground.Text = ""; lnkEditorPdf.Visible = false; return; }
-            DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
-            if (selectedMap == null || selectedMap.Rows.Count == 0) throw new Exception("Map yang dipilih tidak ditemukan.");
-            string url = ResolveMapPdfUrl(Convert.ToString(selectedMap.Rows[0]["ImagePath"]));
-            if (String.IsNullOrWhiteSpace(url)) throw new Exception("File denah untuk map ini belum tersedia.");
+            string url = "";
+            string mapLabel = "";
+
+            if (!String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
+            {
+                DataTable selectedMap = GetMap(Convert.ToInt64(ddlEditorMap.SelectedValue));
+                if (selectedMap == null || selectedMap.Rows.Count == 0)
+                    throw new Exception("Map yang dipilih tidak ditemukan.");
+
+                url = ResolveMapPdfUrl(Convert.ToString(selectedMap.Rows[0]["ImagePath"]));
+                mapLabel = Convert.ToString(selectedMap.Rows[0]["MapCode"]);
+            }
+            else
+            {
+                // A new Map has no MapID yet. Use the uploaded draft file so
+                // PDF.js can render the floor plan before the Map is inserted.
+                string draftUrl = Convert.ToString(Session[DraftMapFileSessionKey]);
+                if (!String.IsNullOrWhiteSpace(draftUrl))
+                {
+                    url = ResolveMapPdfUrl(draftUrl);
+                    mapLabel = "New Map (not saved)";
+                }
+            }
+
+            if (String.IsNullOrWhiteSpace(url))
+            {
+                litEditorPdfBackground.Text = "";
+                lnkEditorPdf.Visible = false;
+                throw new Exception("Pilih file PDF/JPG pada Master Map terlebih dahulu, lalu klik Add Point.");
+            }
+
             string extension = Path.GetExtension(url).ToLowerInvariant();
             bool isJpeg = extension == ".jpg" || extension == ".jpeg";
             string media = isJpeg
                 ? "<img id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' alt='Inspection floor plan' />"
                 : "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas>";
             litEditorPdfBackground.Text = media + "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah...</div>";
-            lnkEditorPdf.NavigateUrl = url; lnkEditorPdf.Visible = true;
-            lblPointMapCode.Text = "· " + Convert.ToString(selectedMap.Rows[0]["MapCode"]);
+            lnkEditorPdf.NavigateUrl = url;
+            lnkEditorPdf.Visible = true;
+            lblPointMapCode.Text = "· " + mapLabel;
         }
         protected void btnSaveMap_Click(object sender, EventArgs e)
         {
@@ -671,10 +710,20 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
 
             string savedPath = "";
             bool databaseSaved = false;
+            bool uploadedThisRequest = false;
             try
             {
                 if (fuMapPdf.HasFile)
+                {
                     savedPath = SaveMapFile(fuMapPdf);
+                    uploadedThisRequest = true;
+                }
+                else if (String.IsNullOrWhiteSpace(hidMapID.Value))
+                {
+                    // The FileUpload was consumed by the Add Point postback.
+                    // Reuse its session draft when the user saves the new Map.
+                    savedPath = Convert.ToString(Session[DraftMapFileSessionKey]);
+                }
 
                 using (var br = new WAL.BR.CF())
                 {
@@ -778,6 +827,7 @@ VALUES
                 }
 
                 databaseSaved = true;
+                Session.Remove(DraftMapFileSessionKey);
 
                 BindMaps();
                 BindEditorMaps();
@@ -792,7 +842,7 @@ VALUES
             }
             catch (Exception ex)
             {
-                if (!databaseSaved && savedPath != "") TryDeleteFile(savedPath);
+                if (!databaseSaved && uploadedThisRequest && savedPath != "") TryDeleteFile(savedPath);
                 //ShowMessage("Gagal menyimpan map: " + ex.Message, true);
                 GF.MsgBox(this, "Gagal menyimpan map: " + ex.Message, "BS-5.3.0");
             }
@@ -1022,6 +1072,22 @@ ORDER BY M.MapVersion DESC",
 
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
+            // Persist a newly selected floor plan before the postback loses
+            // the FileUpload value. The URL is scoped to this user's draft.
+            if (String.IsNullOrWhiteSpace(hidMapID.Value) && fuMapPdf.HasFile)
+            {
+                try
+                {
+                    Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
+                }
+                catch (Exception uploadError)
+                {
+                    GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
+                    SetTab("#tab-map");
+                    return;
+                }
+            }
+
             PreparePoint();
             BindEditorMaps();
             try
