@@ -36,9 +36,14 @@ window.addEventListener("load", async function () {
     if (data) {
         var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
         if (success === true) {
-            // The server-side UserSession is still valid. Restore the normal
-            // authenticated route without forcing the user to log in again.
-            window.location.href = "Secure/dashboard.aspx";
+            // Do not enter the protected area until the browser proves that it
+            // accepted and sends back the HttpOnly authentication cookie.
+            var cookieReady = await confirmSessionCookie(data.token);
+            if (cookieReady === true) {
+                window.location.href = "Secure/dashboard.aspx";
+            } else {
+                showToast("Cookie sesi belum diterima browser. Silakan refresh atau login kembali.", "warning", 6000);
+            }
             return;
         } else if (success === false) {
             // Only discard cached credentials after the server confirms that
@@ -57,6 +62,22 @@ window.addEventListener("load", async function () {
         showToast("Sesi login telah berakhir. Silakan login kembali.", "warning", 5000);
     }
 });
+
+async function confirmSessionCookie(token) {
+    try {
+        const response = await fetch("Login.aspx/ConfirmSessionCookie", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: token })
+        });
+        if (!response.ok) return null;
+        const result = await response.json();
+        return result.d === true;
+    } catch (err) {
+        console.error("confirmSessionCookie error:", err);
+        return null;
+    }
+}
 
 // Toggle Password Visibility
 passwordToggle.addEventListener('click', function() {
@@ -145,6 +166,12 @@ function F_LoginByPortal(infoID) {
             if (data.curcompany) {
                 const parts = data.curcompany.split(';');
                 if (parts.length === 2) await setLastSyncData(parts[0], parts[1]);
+            }
+            var cookieReady = await confirmSessionCookie(data.token);
+            if (!cookieReady) {
+                showToast("Login berhasil, tetapi cookie sesi belum diterima browser. Silakan coba lagi.", "warning", 6000);
+                F_PS();
+                return;
             }
             showToast(data.message || "Login successful");
             window.location.href = "Secure/dashboard.aspx";
@@ -258,6 +285,12 @@ function F_Login() {
             await setLastSyncData(companyId, locationId);
 
             //await getEmployees();
+            var cookieReady = await confirmSessionCookie(data.token);
+            if (!cookieReady) {
+                showToast("Login berhasil, tetapi cookie sesi belum diterima browser. Silakan coba lagi.", "warning", 6000);
+                F_PS();
+                return;
+            }
             showToast(data.message);
             window.location.href = "Secure/dashboard.aspx";
         } else {
