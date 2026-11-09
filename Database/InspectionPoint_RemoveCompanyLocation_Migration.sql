@@ -36,6 +36,12 @@ WHERE SED.referenced_id = OBJECT_ID('dbo.PIP_M_InspectionPoint')
 ORDER BY ReferencingSchema, ReferencingObject, ReferencedColumn;
 GO
 
+IF OBJECT_ID('dbo.PIP_M_InspectionPoint', 'U') IS NULL
+BEGIN
+    RAISERROR('dbo.PIP_M_InspectionPoint does not exist; migration stopped.', 16, 1);
+    RETURN;
+END;
+
 BEGIN TRANSACTION;
 
 /* Stop rather than break a stored procedure, view, function, or trigger. */
