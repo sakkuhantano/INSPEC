@@ -772,7 +772,6 @@ VALUES
                 databaseSaved = true;
 
                 BindMaps();
-                BindPointLookups();
                 BindEditorMaps();
                 PointPageIndex = 0;
                 txtPointSearch.Text = "";
