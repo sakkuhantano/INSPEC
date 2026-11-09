@@ -4007,10 +4007,17 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     };
     const getPointSummary = function (point, state) {
         if (String(point.AbnormalRemark || "").trim()) return String(point.AbnormalRemark).trim();
-        if (state.abnormalItems.length) {
-            const labels = state.abnormalItems.slice(0, 2).map(item => String(item.ItemLabel || item.Label || "Checklist abnormal"));
-            return labels.join(", ") + (state.abnormalItems.length > 2 ? " +" + (state.abnormalItems.length - 2) : "");
-        }
+        const sourceItems = state.abnormalItems.length ? state.abnormalItems : (Array.isArray(point.Items) ? point.Items : []);
+        const summaries = sourceItems.map(item => {
+            const label = String(item.ItemLabel || item.Label || "Checklist");
+            const values = item.Values && typeof item.Values === "object"
+                ? Object.keys(item.Values).map(key => String(item.Values[key] == null ? "" : item.Values[key])).filter(value => value.trim() !== "")
+                : [];
+            const value = String(item.Value == null ? "" : item.Value).trim();
+            const displayValue = value || values.join(" / ");
+            return displayValue ? label + ": " + displayValue : (state.abnormalItems.length ? label : "");
+        }).filter(value => value !== "");
+        if (summaries.length) return summaries.slice(0, 2).join(" · ") + (summaries.length > 2 ? " +" + (summaries.length - 2) : "");
         if (state.status === "INCOMPLETE") return "Perlu pemeriksaan / data belum lengkap";
         return "Tidak ada temuan abnormal";
     };
@@ -4073,10 +4080,6 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         const next = document.getElementById("inspectionApprovalPointNext");
         if (prev) prev.addEventListener("click", function () { approvalPage--; renderList(); });
         if (next) next.addEventListener("click", function () { approvalPage++; renderList(); });
-        const selected = points.find(point => String(point.InspectionPointTransactionID) === selectedPointId);
-        const detailHost = document.getElementById("inspectionApprovalSelectedPointHost");
-        if (selected && detailHost && !detailHost.innerHTML.trim())
-            window.renderInspectionApprovalSelectedPoint(selectedPointId);
     };
     const search = document.getElementById("inspectionApprovalPointSearch");
     if (search) search.addEventListener("input", function () { approvalPage = 1; renderList(); });
