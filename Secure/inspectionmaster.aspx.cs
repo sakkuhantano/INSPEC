@@ -360,6 +360,7 @@ ORDER BY RowNum",
 
                 bool hasPrevious = PointPageIndex > 0;
                 bool hasNext = PointPageIndex < totalPages - 1;
+                pnlPointPager.Visible = totalPages > 1;
                 btnPointFirst.Enabled = btnPointPrevious.Enabled = hasPrevious;
                 btnPointNext.Enabled = btnPointLast.Enabled = hasNext;
             }
@@ -618,8 +619,8 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
             litMapPreview.Text = isJpeg
-                ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
-                : "<iframe class='inspection-pdf-preview' title='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "'></iframe>";
+                ? "<div class='inspection-map-preview-stage'><img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' /></div>"
+                : "<div class='inspection-map-preview-stage'><canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div></div>";
             pnlMapPreview.Visible = true;
         }
 
