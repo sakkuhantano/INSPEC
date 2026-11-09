@@ -10101,6 +10101,9 @@ function syncVisibleTemplateMetadataBeforeSave()
 }
 async function saveAllTemplate()
 {
+    // Prevent a second click while the complete Save All pipeline is still running.
+    if (saveAllTemplate._busy) return;
+
     syncVisibleTemplateMetadataBeforeSave();
     // Flush the currently visible builder DOM into the canonical draft object before
     // constructing the Save All payload. This prevents recently moved/added Sub-sections
@@ -10322,7 +10325,8 @@ async function saveAllTemplate()
     // Save
     //-----------------------------------
 
-    showLoading();
+    saveAllTemplate._busy = true;
+    showLoading("Saving template...");
 
     try
     {
@@ -10337,7 +10341,6 @@ async function saveAllTemplate()
 
             if (!result || !result.success)
             {
-                hideLoading();
                 alert((result && result.message) || "Save All Template returned no success response.");
                 return;
             }
@@ -10349,7 +10352,6 @@ async function saveAllTemplate()
                 patchSavedIdentity(result);
         }
 
-        hideLoading();
         templateCache.deleted.templates=[];
         templateCache.deleted.versions=[];
 
@@ -10420,13 +10422,17 @@ async function saveAllTemplate()
     }
     catch(ex)
     {
-        hideLoading();
-
         const detail = (ex && (ex.message || (typeof ex.get_message === "function" && ex.get_message()))) ||
             (ex && ex.get_message) ||
             (typeof ex === "string" ? ex : "");
         console.error("Save All Template failed:", ex);
         alert(detail || "Save All Template failed. See the browser console for the server error details.");
+    }
+    finally
+    {
+        // Keep the overlay visible through metadata persistence and explorer refresh.
+        hideLoading();
+        saveAllTemplate._busy = false;
     }
 }
 async function publishVersion()
