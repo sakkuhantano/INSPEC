@@ -638,10 +638,49 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             bool isJpeg = extension == ".jpg" || extension == ".jpeg";
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
-            litMapPreview.Text = isJpeg
-                ? "<div class='inspection-map-preview-stage'><img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' /></div>"
-                : "<div class='inspection-map-preview-stage'><canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div></div>";
+            string markers = BuildMapPreviewMarkers(Convert.ToInt64(row["MapID"]));
+            string media = isJpeg
+                ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
+                : "<canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div>";
+            litMapPreview.Text = "<div class='inspection-map-preview-stage'><div class='inspection-map-preview-media'>" + media +
+                "<div class='inspection-map-preview-markers'>" + markers + "</div></div></div>";
             pnlMapPreview.Visible = true;
+        }
+
+        private string BuildMapPreviewMarkers(long mapID)
+        {
+            DataTable points;
+            using (var br = new WAL.BR.CF())
+                points = br.EQueryP(@"
+SELECT P.PointCode, P.PointName, P.MapX, P.MapY
+FROM dbo.PIP_M_InspectionPoint P
+WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
+  AND P.MapID=@MapID AND P.IsActive=1
+  AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
+ORDER BY P.DisplayOrder, P.PointCode",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapID", mapID)
+                    });
+
+            System.Text.StringBuilder html = new System.Text.StringBuilder();
+            foreach (DataRow point in points.Rows)
+            {
+                string code = Convert.ToString(point["PointCode"]);
+                string name = Convert.ToString(point["PointName"]);
+                string label = code.Length > 8 ? code.Substring(0, 8) : code;
+                html.Append("<span class='inspection-map-preview-marker' style='left:");
+                html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
+                html.Append("%;top:");
+                html.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
+                html.Append("%' title='");
+                html.Append(HttpUtility.HtmlAttributeEncode(code + " - " + name));
+                html.Append("'>");
+                html.Append(HttpUtility.HtmlEncode(label));
+                html.Append("</span>");
+            }
+            return html.ToString();
         }
 
         private void LoadEditorMapPdf()
@@ -1199,6 +1238,9 @@ WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@Locati
                         });
                 BindPoints();
                 BindMapElements();
+                DataTable refreshedMap = GetMap(Convert.ToInt64(hidMapID.Value));
+                if (refreshedMap != null && refreshedMap.Rows.Count > 0)
+                    ShowMapPreview(refreshedMap.Rows[0]);
                 //ShowMessage("Inspection Point berhasil dinonaktifkan.", false);
                 GF.MsgBox(this, "Inspection Point berhasil dinonaktifkan.", "BS-5.3.0");
                 SetTab("#tab-point");
@@ -1332,6 +1374,30 @@ WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@Locat
             object mapValue = mapID;
             long pointID;
             bool editing = Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0;
+
+            using (var duplicateCheck = new WAL.BR.CF())
+            {
+                DataTable duplicate = duplicateCheck.EQueryP(@"
+SELECT TOP 1 InspectionPointID
+FROM dbo.PIP_M_InspectionPoint
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
+  AND PointCode=@PointCode AND IsActive=1
+  AND InspectionPointID<>@PointID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapID", mapValue),
+                        new SqlParameter("@PointCode", code),
+                        new SqlParameter("@PointID", editing ? pointID : 0)
+                    });
+                if (duplicate != null && duplicate.Rows.Count > 0)
+                {
+                    GF.MsgBox(this, "Point Code sudah digunakan oleh Inspection Point yang masih aktif pada Map ini. Gunakan kode lain atau nonaktifkan point lama terlebih dahulu.", "BS-5.3.0");
+                    SetTab("#tab-point");
+                    return;
+                }
+            }
+
             if (coordinateX.HasValue)
             {
                 using (var check = new WAL.BR.CF())
@@ -1396,6 +1462,9 @@ VALUES
                 pnlPointEditor.Visible = false;
                 BindPoints();
                 BindMapElements();
+                DataTable refreshedMap = GetMap(mapID);
+                if (refreshedMap != null && refreshedMap.Rows.Count > 0)
+                    ShowMapPreview(refreshedMap.Rows[0]);
                 pnlEditor.Visible = true;
                 //ShowMessage("Inspection Point berhasil disimpan.", false);
                 GF.MsgBox(this, "Inspection Point berhasil disimpan.", "BS-5.3.0");
