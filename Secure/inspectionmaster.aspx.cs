@@ -654,6 +654,13 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                 return;
             }
 
+            if (!IsValidMapTypeDetail(typeCode, detailCode))
+            {
+                ShowMessage("Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.", true);
+                SetTab("#tab-map");
+                return;
+            }
+
             string savedPath = "";
             bool databaseSaved = false;
             try
@@ -781,6 +788,33 @@ VALUES
                 ShowMessage("Gagal menyimpan map: " + ex.Message, true);
             }
             SetTab("#tab-map");
+        }
+
+        private bool IsValidMapTypeDetail(string typeCode, string detailCode)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT COUNT(1) AS TotalRows
+FROM dbo.PIP_M_InspectionType IT
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+INNER JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=IT.InspectionTypeCode
+WHERE IT.InspectionTypeCode=@TypeCode
+  AND D.InspectionTypeDetailCode=@DetailCode
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND IT.IsActive=1 AND D.IsActive=1
+  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                    new SqlParameter[] {
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+                return dt != null && dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["TotalRows"]) > 0;
+            }
         }
 
         private SqlParameter[] MapParameters(long mapID, string code, string name, string imagePath)
@@ -1241,7 +1275,7 @@ INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
  INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
-  AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
+  AND P.IsActive=1 AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
 ORDER BY P.DisplayOrder,P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
