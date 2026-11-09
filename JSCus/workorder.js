@@ -791,6 +791,12 @@ function updateWorkOrderRemarkPanels(template) {
     });
 }
 
+function workOrderRequiresFollowUp(template) {
+    const raw = template && (template.IsFollowUpRequired !== undefined ? template.IsFollowUpRequired : template.isFollowUpRequired);
+    return raw === undefined || raw === null ? true :
+        !(raw === false || raw === 0 || raw === "0" || String(raw).toLowerCase() === "false");
+}
+
 function normalizeWOPhotoRequirement(value) {
     const requirement = String(value || "BOTH").toUpperCase();
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
@@ -1230,11 +1236,7 @@ let radiosFollowUp = optionsFollowUp.map((opt, i) => `
 //         </div>
 //     </div>
 // </div>`;
-const woFollowUpFlag = currentTemplate.IsFollowUpRequired !== undefined
-    ? currentTemplate.IsFollowUpRequired : currentTemplate.isFollowUpRequired;
-const workOrderFollowUpRequired = woFollowUpFlag === undefined || woFollowUpFlag === null
-    ? true
-    : !(woFollowUpFlag === false || woFollowUpFlag === 0 || woFollowUpFlag === "0" || String(woFollowUpFlag).toLowerCase() === "false");
+const workOrderFollowUpRequired = workOrderRequiresFollowUp(currentTemplate);
 html += `
 <div class="accordion-item border-warning shadow-sm" id="section_${nextId + 1}" style="${workOrderFollowUpRequired ? '' : 'display:none;'}">
     <div class="accordion-header">
@@ -2502,7 +2504,7 @@ async function getTemplate(templateNo, modelCode, sectionID, companyID, location
 //     });
 // }
 function collectData(template, wo) {
-    let checkedFollowUp = workOrderFollowUpRequired
+    let checkedFollowUp = workOrderRequiresFollowUp(template)
         ? (document.querySelector("[data-role='followup'] input[data-role='followup']:checked")?.value || "")
         : "No Follow Up";
     let data = {
@@ -2511,9 +2513,9 @@ function collectData(template, wo) {
         Summary:
             document.querySelector("[data-role='summary']")?.value || "",
         FollowUp: checkedFollowUp,
-        FollowUpSection: workOrderFollowUpRequired
+        FollowUpSection: workOrderRequiresFollowUp(template)
             ? (document.querySelector('input[name="followupSection"]:checked')?.value ?? "") : "",
-        FollowUpRemark: workOrderFollowUpRequired
+        FollowUpRemark: workOrderRequiresFollowUp(template)
             ? (document.querySelector('#txtFollowupRemark')?.value || "") : "",
         Photos: {},
         Status: "",
@@ -3118,7 +3120,7 @@ async function validateExtra() {
 
     let valid = true;
 
-    if (valid && workOrderFollowUpRequired && (!followup || followup.trim() === "")) {
+    if (valid && workOrderRequiresFollowUp(currentTemplate) && (!followup || followup.trim() === "")) {
         showToast('Follow Up recommendation must be choosed');
         valid = false;
     }
