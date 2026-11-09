@@ -312,7 +312,7 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(@"
-SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text, ISNULL(A.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(A.IsSummaryRequired,1) IsSummaryRequired
+SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text, ISNULL(A.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(A.IsSummaryRequired,1) IsSummaryRequired, ISNULL(A.IsFollowUpRequired,1) IsFollowUpRequired
 FROM PIP_M_CheckListWOPM_Version A JOIN PIP_M_CheckListWOPM B ON B.IDTemplate = A.IDTemplate 
 WHERE IDVersion = @IDVersion;
 
