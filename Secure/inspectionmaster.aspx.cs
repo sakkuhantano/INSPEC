@@ -94,7 +94,8 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS (
       SELECT 1
       FROM dbo.PIP_M_InspectionPoint P
-      INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+      INNER JOIN dbo.PIP_M_InspectionMap MP ON MP.MapID=P.MapID
+        INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=MP.InspectionTypeCode
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
       WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
   AND ((@Direction=-1 AND M.MapCode < @CurrentCode)
@@ -282,11 +283,13 @@ ORDER BY InspectionTypeDetailCode",
                 DataTable count = br.EQueryP(@"
 SELECT COUNT(1) AS TotalRecords
 FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND P.IsActive=1
   AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=P.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
+      WHERE IT.InspectionTypeCode=M.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
@@ -307,14 +310,14 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
 WITH PointRows AS
 (
     SELECT P.InspectionPointID, P.PointCode, P.PointName,
-           P.InspectionTypeCode, P.InspectionTypeDetailCode,
+           M.InspectionTypeCode, M.InspectionTypeDetailCode,
            P.PointObjectType, P.IsActive,
            P.DisplayOrder,
            ISNULL(M.MapCode,'') AS MapCode,
            ROW_NUMBER() OVER
            (
-               ORDER BY P.InspectionTypeCode,
-                        P.InspectionTypeDetailCode,
+               ORDER BY M.InspectionTypeCode,
+                        M.InspectionTypeDetailCode,
                         P.DisplayOrder,
                         P.PointCode,
                         P.InspectionPointID
@@ -924,10 +927,6 @@ ORDER BY M.MapVersion DESC",
                 Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                 txtMapName.Text = Convert.ToString(row["MapName"]);
                 txtMapDescription.Text = Convert.ToString(row["Description"]);
-                ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
-                BindInspectionDetails();
-                if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
-                    ddlInspectionDetail.SelectedValue = Convert.ToString(row["InspectionTypeDetailCode"]);
                 lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
                 ShowMapPreview(row);
             }
@@ -1006,11 +1005,14 @@ ORDER BY M.MapVersion DESC",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT * FROM dbo.PIP_M_InspectionPoint
-WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID
+SELECT P.*, M.InspectionTypeCode, M.InspectionTypeDetailCode
+FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+WHERE P.InspectionPointID=@ID AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+  AND P.IsActive=1
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-      WHERE IT.InspectionTypeCode=dbo.PIP_M_InspectionPoint.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
+      WHERE IT.InspectionTypeCode=M.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@ID", pointID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -1038,7 +1040,6 @@ WHERE InspectionPointID=@ID AND CompanyID=@CompanyID AND LocationID=@LocationID 
                 txtObjectReferenceCode.Text = Convert.ToString(row["ObjectReferenceCode"]);
                 txtPointDescription.Text = Convert.ToString(row["PointDescription"]);
                 txtPointOrder.Text = Convert.ToString(row["DisplayOrder"]);
-                chkPointActive.Checked = Convert.ToBoolean(row["IsActive"]);
                 chkNormalAbnormalRequired.Checked = row["IsNormalAbnormalRequired"] != DBNull.Value && Convert.ToBoolean(row["IsNormalAbnormalRequired"]);
                 txtMarkerX.Text = row["MapX"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
                 txtMarkerY.Text = row["MapY"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
