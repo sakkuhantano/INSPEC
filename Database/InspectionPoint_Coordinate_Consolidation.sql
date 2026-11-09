@@ -83,7 +83,7 @@ IF NOT EXISTS
 )
 BEGIN
     CREATE NONCLUSTERED INDEX IX_PIP_M_InspectionPoint_MapCoordinate
-    ON dbo.PIP_M_InspectionPoint (CompanyID,LocationID,MapID,MapX,MapY);
+    ON dbo.PIP_M_InspectionPoint (MapID,MapX,MapY);
 END;
 GO
 
