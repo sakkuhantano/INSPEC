@@ -1043,12 +1043,12 @@ WHERE a.SectionID = @SectionID
                                             iRow["C4"] = item["ItemName"];
                                             iRow["C5"] = item["ItemType"];
                                             iRow["C6"] = itemType == "TEXT" ? "" : item["Unit"];
-                                            iRow["C7"] = item.ContainsKey("IsRemark1Required") ? item["IsRemark1Required"] : item["IsRemarkRequired"];
+                                            iRow["C7"] = item.ContainsKey("IsRemark1Required") ? (item["IsRemark1Required"] ?? false) : (item.ContainsKey("IsRemarkRequired") ? (item["IsRemarkRequired"] ?? false) : false);
                                             iRow["C18"] = item.ContainsKey("IsRemark2Required") ? item["IsRemark2Required"] : false;
                                             iRow["C19"] = item.ContainsKey("Remark1Text") ? item["Remark1Text"] : "Remark";
                                             iRow["C20"] = item.ContainsKey("Remark2Text") ? item["Remark2Text"] : "Remark";
-                                            iRow["C8"] = item["IsValueRequired"];
-                                            iRow["C9"] = item["ShowUnitInRange"];
+                                            iRow["C8"] = item.ContainsKey("IsValueRequired") ? (item["IsValueRequired"] ?? false) : false;
+                                            iRow["C9"] = item.ContainsKey("ShowUnitInRange") ? (item["ShowUnitInRange"] ?? false) : false;
                                             iRow["C10"] = optionListStr;
                                             if (GF.GetString(item["MinValue"]) == "")
                                                 iRow["C11"] = "0";
