@@ -3938,10 +3938,13 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
 
     const id = String(point.InspectionPointTransactionID || "");
     const status = String(point.Status || "PENDING").toUpperCase();
-    const isAbnormal = String(point.AbnormalRemark || "").trim() !== "";
-    const statusLabel = isAbnormal ? "ABNORMAL" : (status === "ABNORMAL" ? "DONE" : status);
+    const pointItems = Array.isArray(point.Items) ? point.Items : [];
+    const isAbnormal = status === "ABNORMAL" ||
+        String(point.AbnormalRemark || "").trim() !== "" ||
+        pointItems.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
+    const statusLabel = isAbnormal ? "ABNORMAL" : (status === "DONE" ? "NORMAL" : status);
     const statusClass = isAbnormal ? "text-bg-danger" :
-        status === "DONE" || status === "ABNORMAL" ? "text-bg-success" :
+        status === "DONE" ? "text-bg-success" :
         status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
     const pointPhotos = data.photos.filter(photo => String(photo.PointID || "") === id);
     const photoStage = type => {
@@ -3981,38 +3984,119 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         '</div>' +
         (hasAnyFloorPlan ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mb-3"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>' :
             '<div class="alert alert-light small">Batch ini tidak menggunakan file denah. Seluruh hasil diperiksa melalui daftar Inspection Point.</div>') +
-        '<div class="inspection-point-list-tools mb-2"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div>' +
-        '<div id="inspectionApprovalPointList" class="d-flex flex-column gap-1"></div>' +
-    '</div>';
-
-    const listHost = document.getElementById("inspectionApprovalPointList");
+        '<div id="inspectionApprovalPointCounters"></div>' +
+        '<div class="d-flex flex-wrap gap-2 align-items-center mb-2"><div class="btn-group btn-group-sm flex-wrap" id="inspectionApprovalPointFilters" role="group" aria-label="Filter status point">' +
+            '<button type="button" class=    const listHost = document.getElementById("inspectionApprovalPointList");
+    const photos = window._inspectionApprovalBatchData && Array.isArray(window._inspectionApprovalBatchData.photos)
+        ? window._inspectionApprovalBatchData.photos : [];
     let approvalPage = 1;
-    const approvalPageSize = 20;
-    const renderList = function (keyword) {
-        const q = String(keyword || "").trim().toLowerCase();
-        const filtered = points.filter(point => !q ||
-            String(point.PointCode || "").toLowerCase().indexOf(q) >= 0 ||
-            String(point.PointName || "").toLowerCase().indexOf(q) >= 0);
+    let approvalFilter = "ALL";
+    let selectedPointId = points.length ? String(points[0].InspectionPointTransactionID) : "";
+    const approvalPageSize = 30;
+    const pointState = function (point) {
+        const status = String(point.Status || "PENDING").toUpperCase();
+        const items = Array.isArray(point.Items) ? point.Items : [];
+        const abnormalItems = items.filter(item =>
+            item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
+        const abnormal = status === "ABNORMAL" || !!String(point.AbnormalRemark || "").trim() || abnormalItems.length > 0;
+        const incomplete = !abnormal && status !== "DONE";
+        return { status: abnormal ? "ABNORMAL" : (incomplete ? "INCOMPLETE" : "NORMAL"), abnormalItems: abnormalItems };
+    };
+    const getPointPhotoCount = function (point) {
+        const id = String(point.InspectionPointTransactionID || "");
+        return photos.filter(photo => String(photo.PointID || "") === id).length;
+    };
+    const getPointSummary = function (point, state) {
+        if (String(point.AbnormalRemark || "").trim()) return String(point.AbnormalRemark).trim();
+        if (state.abnormalItems.length) {
+            const labels = state.abnormalItems.slice(0, 2).map(item => String(item.ItemLabel || item.Label || "Checklist abnormal"));
+            return labels.join(", ") + (state.abnormalItems.length > 2 ? " +" + (state.abnormalItems.length - 2) : "");
+        }
+        if (state.status === "INCOMPLETE") return "Perlu pemeriksaan / data belum lengkap";
+        return "Tidak ada temuan abnormal";
+    };
+    const renderList = function () {
+        const searchInput = document.getElementById("inspectionApprovalPointSearch");
+        const q = String(searchInput ? searchInput.value : "").trim().toLowerCase();
+        const filtered = points.filter(point => {
+            const state = pointState(point);
+            const matchesFilter = approvalFilter === "ALL" || state.status === approvalFilter;
+            const matchesSearch = !q ||
+                String(point.PointCode || "").toLowerCase().indexOf(q) >= 0 ||
+                String(point.PointName || "").toLowerCase().indexOf(q) >= 0;
+            return matchesFilter && matchesSearch;
+        });
         const pageCount = Math.max(1, Math.ceil(filtered.length / approvalPageSize));
         approvalPage = Math.min(Math.max(1, approvalPage), pageCount);
         const startIndex = (approvalPage - 1) * approvalPageSize;
         const rows = filtered.slice(startIndex, startIndex + approvalPageSize);
-        listHost.innerHTML = rows.map(point =>
-            '<button type="button" class="btn btn-sm btn-outline-secondary text-start" data-approval-point-target="' +
-            escInspection(point.InspectionPointTransactionID) + '">' +
-            '<span class="fw-semibold">' + escInspection(point.PointCode) + '</span> · ' + escInspection(point.PointName) +
-            ' <span class="badge ms-1 ' + ((String(point.Status || "").toUpperCase() === "ABNORMAL" || String(point.AbnormalRemark || "").trim()) ? "text-bg-danger" : "text-bg-success") + '">' +
-            ((String(point.Status || "").toUpperCase() === "ABNORMAL" || String(point.AbnormalRemark || "").trim()) ? "ABNORMAL" : "DONE") + '</span></button>'
-        ).join("") || '<div class="text-muted small py-2">Tidak ada point yang cocok.</div>';
-        listHost.innerHTML += '<div class="d-flex align-items-center justify-content-between small text-muted mt-2">' +
-            '<span>' + (filtered.length ? (startIndex + 1) + '-' + Math.min(startIndex + approvalPageSize, filtered.length) : 0) +
-            ' dari ' + filtered.length + ' point</span><div class="btn-group btn-group-sm">' +
-            '<button type="button" id="inspectionApprovalPointPrev" class="btn btn-outline-secondary" ' + (approvalPage <= 1 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>' +
+        const counters = { ALL: points.length, ABNORMAL: 0, NORMAL: 0, INCOMPLETE: 0 };
+        points.forEach(point => counters[pointState(point).status]++);
+        const counterHost = document.getElementById("inspectionApprovalPointCounters");
+        if (counterHost) counterHost.innerHTML =
+            '<div class="row g-2 mb-2">' +
+            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">TOTAL POINT</small><strong>' + counters.ALL + '</strong></div></div>' +
+            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">NORMAL</small><strong class="text-success">' + counters.NORMAL + '</strong></div></div>' +
+            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">ABNORMAL</small><strong class="text-danger">' + counters.ABNORMAL + '</strong></div></div>' +
+            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">INCOMPLETE</small><strong class="text-warning">' + counters.INCOMPLETE + '</strong></div></div></div>';
+        const rowsHtml = rows.map(point => {
+            const id = String(point.InspectionPointTransactionID || "");
+            const state = pointState(point);
+            const photoCount = getPointPhotoCount(point);
+            const summary = getPointSummary(point, state);
+            const badgeClass = state.status === "ABNORMAL" ? "text-bg-danger" :
+                state.status === "NORMAL" ? "text-bg-success" : "text-bg-warning";
+            return '<tr class="' + (id === selectedPointId ? 'table-active' : '') + '">' +
+                '<td class="text-nowrap"><button type="button" class="btn btn-link btn-sm p-0 fw-semibold text-decoration-none" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointCode || "-") + '</button></td>' +
+                '<td><button type="button" class="btn btn-link btn-sm p-0 text-start text-decoration-none text-body" data-approval-point-target="' + escInspection(id) + '">' + escInspection(point.PointName || "-") + '</button></td>' +
+                '<td class="text-nowrap"><span class="badge ' + badgeClass + '">' + state.status + '</span></td>' +
+                '<td class="small text-muted">' + escInspection(summary) + '</td>' +
+                '<td class="text-nowrap small">' + (photoCount ? '<i class="bi bi-camera-fill text-primary"></i> ' + photoCount : '<span class="text-muted">—</span>') + '</td>' +
+                '</tr>';
+        }).join("");
+        listHost.innerHTML =
+            '<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0"><thead><tr>' +
+            '<th style="width:105px">Point Code</th><th style="min-width:150px">Inspection Point</th><th style="width:110px">Status</th><th>Ringkasan</th><th style="width:70px">Foto</th>' +
+            '</tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="5" class="text-center text-muted py-3">Tidak ada point yang cocok.</td></tr>') +
+            '</tbody></table></div>' +
+            '<div class="d-flex align-items-center justify-content-between small text-muted mt-2">' +
+            '<span>' + (filtered.length ? (startIndex + 1) + '-' + Math.min(startIndex + approvalPageSize, filtered.length) : 0) + ' dari ' + filtered.length + ' point</span>' +
+            '<div class="btn-group btn-group-sm"><button type="button" id="inspectionApprovalPointPrev" class="btn btn-outline-secondary" ' + (approvalPage <= 1 ? 'disabled' : '') + '><i class="bi bi-chevron-left"></i></button>' +
             '<span class="btn btn-outline-secondary disabled">' + approvalPage + ' / ' + pageCount + '</span>' +
-            '<button type="button" id="inspectionApprovalPointNext" class="btn btn-outline-secondary" ' + (approvalPage >= pageCount ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button>' +
-            '</div></div>';
+            '<button type="button" id="inspectionApprovalPointNext" class="btn btn-outline-secondary" ' + (approvalPage >= pageCount ? 'disabled' : '') + '><i class="bi bi-chevron-right"></i></button></div></div>';
         listHost.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
+            selectedPointId = String(this.getAttribute("data-approval-point-target") || "");
             if (typeof window.renderInspectionApprovalSelectedPoint === "function")
+                window.renderInspectionApprovalSelectedPoint(selectedPointId);
+            renderList();
+        }));
+        const prev = document.getElementById("inspectionApprovalPointPrev");
+        const next = document.getElementById("inspectionApprovalPointNext");
+        if (prev) prev.addEventListener("click", function () { approvalPage--; renderList(); });
+        if (next) next.addEventListener("click", function () { approvalPage++; renderList(); });
+        const selected = points.find(point => String(point.InspectionPointTransactionID) === selectedPointId);
+        const detailHost = document.getElementById("inspectionApprovalSelectedPointHost");
+        if (selected && detailHost && !detailHost.innerHTML.trim())
+            window.renderInspectionApprovalSelectedPoint(selectedPointId);
+    };
+    const search = document.getElementById("inspectionApprovalPointSearch");
+    if (search) search.addEventListener("input", function () { approvalPage = 1; renderList(); });
+    const filterHost = document.getElementById("inspectionApprovalPointFilters");
+    if (filterHost) filterHost.querySelectorAll("[data-approval-filter]").forEach(button =>
+        button.addEventListener("click", function () {
+            approvalFilter = this.getAttribute("data-approval-filter") || "ALL";
+            approvalPage = 1;
+            filterHost.querySelectorAll("[data-approval-filter]").forEach(item => {
+                item.classList.toggle("active", item === this);
+                item.setAttribute("aria-pressed", item === this ? "true" : "false");
+            });
+            renderList();
+        }));
+    renderList();
+    if (points.length && typeof window.renderInspectionApprovalSelectedPoint === "function")
+        window.renderInspectionApprovalSelectedPoint(selectedPointId);
+
+f (typeof window.renderInspectionApprovalSelectedPoint === "function")
                 window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
         }));
         const prev = document.getElementById("inspectionApprovalPointPrev");
