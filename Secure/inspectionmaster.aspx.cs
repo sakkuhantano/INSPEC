@@ -40,7 +40,8 @@ namespace INSPEC.Secure
             string mapSearchArgs = Master.Mn_CompanyID + GF.Str + ";" +
                 Master.Mn_LocationID + GF.Str + ";" +
                 Master.Mn_ProfitCenterNo + GF.Str + ";" +
-                Master.Mn_EmployeeID + GF.Str;
+                Master.Mn_EmployeeID + GF.Str + ";" +
+                Master.Mn_UserID + GF.Str;
 
             lBtnMapCode.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
@@ -149,9 +150,9 @@ ORDER BY M.MapCode " + order,
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"SELECT CASE WHEN EXISTS
-(SELECT 1 FROM dbo.syswebuserusergroup WHERE usergroupid='administrator' AND userid=@EmployeeID)
+(SELECT 1 FROM dbo.syswebuserusergroup WHERE usergroupid='administrator' AND userid=@UserID)
 THEN 1 ELSE 0 END AS IsAdmin",
-                    new SqlParameter[] { new SqlParameter("@EmployeeID", Master.Mn_EmployeeID) });
+                    new SqlParameter[] { new SqlParameter("@UserID", Master.Mn_UserID) });
                 return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["IsAdmin"]) == 1;
             }
         }
