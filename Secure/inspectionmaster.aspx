@@ -47,6 +47,20 @@
                                     <asp:TextBox ID="txtMapDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
                                 </div>
                             </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">
+                                                <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
+                                            </div>
+                                            <div class="col-sm-8">
+                                                <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
+                                            </div>
+                                        </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Inspection Detail</div>
+                                            <div class="col-sm-8">
+                                                <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" />
+                                            </div>
+                                        </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Inspection Coverage</div>
                                 <div class="col-sm-8">
@@ -68,12 +82,6 @@
                                     <asp:Label ID="lblMapVersion" runat="server" CssClass="small text-muted" />
                                 </div>
                             </div>
-                            <div class="row mt-1">
-                                <div class="col-sm-4"></div>
-                                <div class="col-sm-8">
-                                    <asp:LinkButton ID="btnRefreshMap" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnRefreshMap_Click"><i class="fas fa-sync-alt"></i> Refresh</asp:LinkButton>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -91,20 +99,6 @@
                                 <div class="modal-body">
                                 <div class="row my-1">
                                     <div class="col-sm-6 mb-1">
-                                        <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">
-                                                <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
-                                            </div>
-                                            <div class="col-sm-8">
-                                                <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
-                                            </div>
-                                        </div>
-                                        <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">Inspection Detail</div>
-                                            <div class="col-sm-8">
-                                                <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" />
-                                            </div>
-                                        </div>
                                         <div class="row mt-1">
                                             <div class="col-sm-4 d-flex align-items-center">Point Code</div>
                                             <div class="col-sm-8"><asp:TextBox ID="txtPointCode" runat="server" MaxLength="50" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
@@ -129,8 +123,7 @@
                                         </div>
                                         <div class="row mt-1">
                                             <div class="col-sm-4"></div>
-                                            <div class="col-sm-8"><asp:CheckBox ID="chkPointActive" runat="server" Text=" Active" Checked="true" />
-                                            <asp:CheckBox ID="chkNormalAbnormalRequired" runat="server" Text=" Require Normal / Abnormal selection" Checked="false" /></div>
+                                            <div class="col-sm-8"><asp:CheckBox ID="chkNormalAbnormalRequired" runat="server" Text=" Require Normal / Abnormal selection" Checked="false" /></div>
                                         </div>
                                     </div>
                                 </div>
