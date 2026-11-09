@@ -1230,8 +1230,13 @@ let radiosFollowUp = optionsFollowUp.map((opt, i) => `
 //         </div>
 //     </div>
 // </div>`;
+const woFollowUpFlag = currentTemplate.IsFollowUpRequired !== undefined
+    ? currentTemplate.IsFollowUpRequired : currentTemplate.isFollowUpRequired;
+const workOrderFollowUpRequired = woFollowUpFlag === undefined || woFollowUpFlag === null
+    ? true
+    : !(woFollowUpFlag === false || woFollowUpFlag === 0 || woFollowUpFlag === "0" || String(woFollowUpFlag).toLowerCase() === "false");
 html += `
-<div class="accordion-item border-warning shadow-sm" id="section_${nextId + 1}">
+<div class="accordion-item border-warning shadow-sm" id="section_${nextId + 1}" style="${workOrderFollowUpRequired ? '' : 'display:none;'}">
     <div class="accordion-header">
         <div class="accordion-button bg-warning-subtle text-dark fw-bold">
             <i class="bi bi-lightbulb-fill fs-5 me-2 text-warning"></i>
@@ -2497,22 +2502,19 @@ async function getTemplate(templateNo, modelCode, sectionID, companyID, location
 //     });
 // }
 function collectData(template, wo) {
-    let checkedFollowUp =
-        document.querySelector(
-            "[data-role='followup'] input[data-role='followup']:checked"
-        )?.value || "";
+    let checkedFollowUp = workOrderFollowUpRequired
+        ? (document.querySelector("[data-role='followup'] input[data-role='followup']:checked")?.value || "")
+        : "No Follow Up";
     let data = {
         KeyHD: wo.KeyHD,
         Items: [],
         Summary:
             document.querySelector("[data-role='summary']")?.value || "",
         FollowUp: checkedFollowUp,
-        FollowUpSection:
-            document.querySelector(
-                'input[name="followupSection"]:checked'
-            )?.value ?? "",
-        FollowUpRemark:
-            document.querySelector('#txtFollowupRemark')?.value || "",
+        FollowUpSection: workOrderFollowUpRequired
+            ? (document.querySelector('input[name="followupSection"]:checked')?.value ?? "") : "",
+        FollowUpRemark: workOrderFollowUpRequired
+            ? (document.querySelector('#txtFollowupRemark')?.value || "") : "",
         Photos: {},
         Status: "",
         UpdatedAt: null
@@ -3116,7 +3118,7 @@ async function validateExtra() {
 
     let valid = true;
 
-    if (valid && (!followup || followup.trim() === "")) {
+    if (valid && workOrderFollowUpRequired && (!followup || followup.trim() === "")) {
         showToast('Follow Up recommendation must be choosed');
         valid = false;
     }
@@ -3128,7 +3130,7 @@ async function validateExtra() {
         showToast('Final Summary maximum 500 characters');
         valid = false;
     }
-    if (valid && followup.toUpperCase() === "RECOMMEND FOLLOW UP") {
+    if (valid && workOrderFollowUpRequired && followup.toUpperCase() === "RECOMMEND FOLLOW UP") {
         const sectionFollowUp = (document.querySelector('input[name="followupSection"]:checked')?.value) || "";
         if (!sectionFollowUp || sectionFollowUp.trim() === "") {
             showToast('Follow Up Section must be choosed');
