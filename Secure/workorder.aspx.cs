@@ -950,6 +950,34 @@ string.Format(@"
                 DataTable dtChecklistgroups = GFC.JsonToDataTable(arrChecklistgroups);
                 DataTable dtChecklistsummarys = GFC.JsonToDataTable(arrChecklistsummarys);
 
+                // Enforce the selected template-version Follow Up rule on the server too.
+                // This also cleans stale offline values if a device still has an older cached form.
+                if (dtChecklist.Columns.Contains("FollowUp"))
+                {
+                    foreach (DataRow checklistRow in dtChecklist.Rows)
+                    {
+                        int followUpKey;
+                        if (!Int32.TryParse(Convert.ToString(checklistRow["KeyHD"]), out followUpKey)) continue;
+                        using (var followUpBr = new WAL.BR.CF())
+                        {
+                            DataTable followUpRule = followUpBr.EQueryP(@"
+SELECT ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired
+FROM dbo.PIP_T_WO W
+JOIN dbo.PIP_M_CheckListWOPM T ON T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+LEFT JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate AND V.Version=W.TemplateVersion
+WHERE W.KeyHD=@KeyHD AND ISNULL(T.TemplateType,'W')='W'",
+                                new SqlParameter[] { new SqlParameter("@KeyHD", followUpKey) });
+                            if (followUpRule != null && followUpRule.Rows.Count > 0 &&
+                                !Convert.ToBoolean(followUpRule.Rows[0]["IsFollowUpRequired"]))
+                            {
+                                checklistRow["FollowUp"] = "No Follow Up";
+                                if (dtChecklist.Columns.Contains("FollowUpSection")) checklistRow["FollowUpSection"] = "";
+                                if (dtChecklist.Columns.Contains("FollowUpRemark")) checklistRow["FollowUpRemark"] = "";
+                            }
+                        }
+                    }
+                }
+
                 // Server-side section/role validation protects against a client attempting
                 // to upload a cached WO belonging to another division.
                 var actionByKey = new Dictionary<int, string>();
