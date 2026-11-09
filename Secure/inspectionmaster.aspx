@@ -42,7 +42,7 @@
                                 </div>
                             </div>
                             <div class="row mt-1">
-                                <div class="col-sm-4 d-flex align-items-center">Description</div>
+                                <div class="col-sm-4 d-flex align-items-center">Map Description <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Keterangan tambahan tentang cakupan atau lokasi denah. Contoh: Denah area parkir basement lantai P1. Tidak perlu mengulang Map Name." aria-label="Panduan Map Description"></i></div>
                                 <div class="col-sm-8">
                                     <asp:TextBox ID="txtMapDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
                                 </div>
@@ -112,11 +112,11 @@
                                     </div>
                                     <div class="col-sm-6 mb-1">
                                         <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">Object Reference</div>
+                                            <div class="col-sm-4 d-flex align-items-center">Object Reference <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Kode referensi aset atau objek fisik jika tersedia, misalnya nomor aset, tag equipment, atau kode lampu. Opsional; boleh dikosongkan jika tidak ada." aria-label="Panduan Object Reference"></i></div>
                                             <div class="col-sm-8"><asp:TextBox ID="txtObjectReferenceCode" runat="server" MaxLength="100" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
                                         </div>
                                         <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">Description</div>
+                                            <div class="col-sm-4 d-flex align-items-center">Point Description <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Keterangan spesifik untuk titik inspeksi ini, misalnya posisi detail, ciri lokasi, atau instruksi identifikasi. Contoh: Lampu di atas pintu masuk basement. Tidak perlu mengulang Point Name. Opsional." aria-label="Panduan Point Description"></i></div>
                                             <div class="col-sm-8"><asp:TextBox ID="txtPointDescription" runat="server" MaxLength="500" TextMode="MultiLine" Rows="2" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
                                         </div>
                                         <div class="row mt-1">
@@ -212,11 +212,6 @@
                                             <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
                                                 <ItemTemplate>
                                                     <asp:LinkButton ID="btnEditPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Inspection Point" CommandName="EditPoint" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="far fa-edit"></i></asp:LinkButton>
-                                                </ItemTemplate>
-                                            </asp:TemplateField>
-                                            <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
-                                                <ItemTemplate>
-                                                    <asp:LinkButton ID="btnMapPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Point and Map Coordinate" CommandName="MapEditor" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="fas fa-map-marker-alt"></i></asp:LinkButton>
                                                 </ItemTemplate>
                                             </asp:TemplateField>
                                             <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
