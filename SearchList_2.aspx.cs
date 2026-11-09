@@ -380,8 +380,8 @@ namespace INSPEC
                     _retval[1] = "InspectionTypeCode;InspectionTypeName";
                     break;
                 case "155":
-                    _retval[0] = "MapCode;MapName;Version";
-                    _retval[1] = "M.MapCode;M.MapName;M.MapVersion";
+                    _retval[0] = "MapCode;MapName;Inspection Type;Inspection Detail;Version";
+                    _retval[1] = "M.MapCode;M.MapName;M.InspectionTypeCode;M.InspectionTypeDetailCode;M.MapVersion";
                     break;            }
 
             ucfsl.ListFieldText = _retval[0];
@@ -528,16 +528,16 @@ namespace INSPEC
                             using (WAL.BR.CF br = new WAL.BR.CF())
                             {
                                 _retval = br.EQueryP(@"
-SELECT TOP " + MaxRecord + @" M.MapCode, M.MapName, M.MapVersion
+SELECT TOP " + MaxRecord + @" M.MapCode, M.MapName,
+       M.InspectionTypeCode, M.InspectionTypeDetailCode, M.MapVersion
 FROM dbo.PIP_M_InspectionMap M
+INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
 AND (EXISTS (SELECT 1 FROM dbo.syswebuserusergroup U
              WHERE U.usergroupid='administrator' AND U.userid=@EmployeeID)
  OR M.EntryUser=@EmployeeID
- OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
-            INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
-            INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-            WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+ OR EXISTS (SELECT 1 FROM dbo.PIP_M_Section S
+            WHERE S.SectionID=IT.SectionID AND S.ProfitCenterNo=@ProfitCenterNo))
 " + (Condition.Trim() == "" ? "" : " AND (" + Condition.Trim() + ")") + @"
 ORDER BY M.MapCode",
                                     new System.Data.SqlClient.SqlParameter[] {
