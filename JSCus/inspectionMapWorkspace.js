@@ -559,11 +559,12 @@
         if (zoomReset) zoomReset.addEventListener("click", resetMapView);
 
         var mapTab = document.getElementById("btnInspectionMapTab");
-        if (mapTab) mapTab.addEventListener("click", async function () {
-            if (currentMapRecord && Number(currentMapRecord.ActiveInspectionPointID || 0) > 0 &&
-                typeof window.saveBatchInspectionPoint === "function") {
-                await window.saveBatchInspectionPoint("DRAFT");
-                return;
+        if (mapTab) mapTab.addEventListener("click", function () {
+            if (currentMapRecord && Number(currentMapRecord.ActiveInspectionPointID || 0) > 0) {
+                // Returning to MAP is navigation, not Save Point. Discard the
+                // unsaved editor values and leave previously saved point data intact.
+                currentMapRecord.ActiveInspectionPointID = 0;
+                currentMapRecord.Items = [];
             }
             if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord, true);
         });
