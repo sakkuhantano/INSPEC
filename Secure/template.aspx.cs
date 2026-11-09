@@ -273,7 +273,7 @@ WHERE 1=1
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQuery(@"
-SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(a.IsSummaryRequired,1) IsSummaryRequired
+SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(a.IsSummaryRequired,1) IsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) IsFollowUpRequired
 FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
@@ -295,7 +295,8 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
                     IsRemark2Required = Convert.ToBoolean(row["IsRemark2Required"]),
                     Remark2Text = GF.GetString(row["Remark2Text"]),
                     PhotoRequirement = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(row["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(row["PhotoRequirement"]).ToUpperInvariant() : "NONE",
-                    IsSummaryRequired = row["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(row["IsSummaryRequired"])
+                    IsSummaryRequired = row["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(row["IsSummaryRequired"]),
+                    IsFollowUpRequired = row["IsFollowUpRequired"] == DBNull.Value || Convert.ToBoolean(row["IsFollowUpRequired"])
                 }).ToList();
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
@@ -363,6 +364,7 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                         Remark2Text = GF.GetString(versionRow["Remark2Text"]),
                         PhotoRequirement = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(versionRow["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(versionRow["PhotoRequirement"]).ToUpperInvariant() : "NONE",
                         IsSummaryRequired = versionRow["IsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(versionRow["IsSummaryRequired"]),
+                        IsFollowUpRequired = versionRow["IsFollowUpRequired"] == DBNull.Value || Convert.ToBoolean(versionRow["IsFollowUpRequired"]),
                         RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(versionRow["RemarkRequiredOptionsRaw"])) ? new string[0] : GF.GetString(versionRow["RemarkRequiredOptionsRaw"]).Split(';'),
                         // Mengubah string koma "OK;MF;NA" dari DB menjadi array ["OK","MF","NA"]
                         StatusOption = versionRow["StatusOptionRaw"] == DBNull.Value ? new string[0] : versionRow["StatusOptionRaw"].ToString().Split(';')
@@ -838,7 +840,7 @@ WHERE a.SectionID = @SectionID
                 DataTable dtItem = new DataTable();
                 for (int i = 1; i <= 25; i++)
                     dtItem.Columns.Add("C" + i + "", typeof(System.String));
-                List<Tuple<int, int, bool>> versionSummaryFlags = new List<Tuple<int, int, bool>>();
+                List<Tuple<int, int, bool, bool>> versionFlags = new List<Tuple<int, int, bool, bool>>();
                 DataTable dtGroup = new DataTable();
                 for (int i = 1; i <= 7; i++)
                     dtGroup.Columns.Add("C" + i + "", typeof(System.String));
@@ -951,7 +953,8 @@ WHERE a.SectionID = @SectionID
                                 idVersion = Convert.ToInt32(vInfo["IDVersion"]);
                                 runtimeVersionID = Convert.ToInt32(vInfo["RuntimeVersionID"]);
                                 bool isSummaryRequired = !vInfo.ContainsKey("IsSummaryRequired") || vInfo["IsSummaryRequired"] == null || Convert.ToBoolean(vInfo["IsSummaryRequired"]);
-                                versionSummaryFlags.Add(Tuple.Create(idVersion, runtimeVersionID, isSummaryRequired));
+                                bool isFollowUpRequired = !vInfo.ContainsKey("IsFollowUpRequired") || vInfo["IsFollowUpRequired"] == null || Convert.ToBoolean(vInfo["IsFollowUpRequired"]);
+                                versionFlags.Add(Tuple.Create(idVersion, runtimeVersionID, isSummaryRequired, isFollowUpRequired));
                                 string statusOptionStr = "";
                                 if (vInfo.ContainsKey("StatusOption") && vInfo["StatusOption"] is ArrayList)
                                 {
@@ -1172,20 +1175,22 @@ WHERE a.SectionID = @SectionID
                             savedVersionIDs[runtimeID] = savedID;
                     }
 
-                    // Persist Version-level Summary Required after the legacy TVP/SP save,
+                    // Persist version-level Summary and Follow Up flags after the legacy TVP/SP save,
                     // keeping the existing stored procedure and table type compatible.
-                    foreach (Tuple<int, int, bool> summaryFlag in versionSummaryFlags)
+                    foreach (Tuple<int, int, bool, bool> versionFlag in versionFlags)
                     {
-                        int targetVersionID = summaryFlag.Item1;
-                        if (targetVersionID <= 0 && !savedVersionIDs.TryGetValue(summaryFlag.Item2, out targetVersionID))
-                            throw new Exception("Could not resolve the saved Version ID for IsSummaryRequired.");
+                        int targetVersionID = versionFlag.Item1;
+                        if (targetVersionID <= 0 && !savedVersionIDs.TryGetValue(versionFlag.Item2, out targetVersionID))
+                            throw new Exception("Could not resolve the saved Version ID for version-level flags.");
                         if (targetVersionID > 0)
                         {
                             br.EQueryP(@"UPDATE dbo.PIP_M_CheckListWOPM_Version
-SET IsSummaryRequired=@IsSummaryRequired
+SET IsSummaryRequired=@IsSummaryRequired,
+    IsFollowUpRequired=@IsFollowUpRequired
 WHERE IDVersion=@IDVersion",
                                 new SqlParameter[] {
-                                    new SqlParameter("@IsSummaryRequired", summaryFlag.Item3),
+                                    new SqlParameter("@IsSummaryRequired", versionFlag.Item3),
+                                    new SqlParameter("@IsFollowUpRequired", versionFlag.Item4),
                                     new SqlParameter("@IDVersion", targetVersionID)
                                 });
                         }
