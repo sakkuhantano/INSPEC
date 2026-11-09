@@ -466,6 +466,8 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             Master.TB_VisibleButton(ToolbarItem_2.Next, false);
             txtMapName.Text = "";
             txtMapDescription.Text = "";
+            if (ddlInspectionType.Items.Count > 0) ddlInspectionType.SelectedIndex = 0;
+            BindInspectionDetails();
             chkRequireAllPoints.Checked = true;
             lblMapVersion.Text = "New map · version will start at 1";
             pnlMapPreview.Visible = false;
@@ -479,10 +481,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             txtObjectReferenceCode.Text = "";
             txtPointDescription.Text = "";
             txtPointOrder.Text = "0";
-            chkPointActive.Checked = true;
             chkNormalAbnormalRequired.Checked = false;
-            if (ddlInspectionType.Items.Count > 0) ddlInspectionType.SelectedIndex = 0;
-            BindInspectionDetails();
             if (ddlPointMap.Items.Count > 0) ddlPointMap.SelectedIndex = 0;
             if (!String.IsNullOrWhiteSpace(hidMapID.Value)) BindEditorMaps();
             txtMarkerX.Text = "";
@@ -502,14 +501,6 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
-            SetTab("#tab-map");
-        }
-
-        protected void btnRefreshMap_Click(object sender, EventArgs e)
-        {
-            BindMaps();
-            BindPointLookups();
-            BindEditorMaps();
             SetTab("#tab-map");
         }
 
@@ -554,6 +545,10 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
                     Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                     txtMapName.Text = Convert.ToString(row["MapName"]);
                     txtMapDescription.Text = Convert.ToString(row["Description"]);
+                    ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
+                    BindInspectionDetails();
+                    if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
+                        ddlInspectionDetail.SelectedValue = Convert.ToString(row["InspectionTypeDetailCode"]);
                     chkRequireAllPoints.Checked = row["RequireAllPoints"] == DBNull.Value || Convert.ToBoolean(row["RequireAllPoints"]);
                     lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]) +
                         " · Upload PDF/JPG baru untuk membuat versi berikutnya.";
@@ -574,6 +569,7 @@ WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
             using (var br = new WAL.BR.CF())
                 return br.EQueryP(@"
 SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.Description,
+       M.InspectionTypeCode, M.InspectionTypeDetailCode,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
@@ -644,9 +640,11 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
         {
             string code = txtMapCode.Text.Trim().ToUpperInvariant();
             string name = txtMapName.Text.Trim();
-            if (code == "" || name == "")
+            string typeCode = ddlInspectionType.SelectedValue;
+            string detailCode = ddlInspectionDetail.SelectedValue;
+            if (code == "" || name == "" || typeCode == "" || detailCode == "")
             {
-                ShowMessage("Map Code dan Map Name wajib diisi.", true);
+                ShowMessage("Map Code, Map Name, Inspection Type, dan Inspection Detail wajib diisi.", true);
                 SetTab("#tab-map");
                 return;
             }
@@ -671,6 +669,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                             br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionMap
 SET MapCode=@MapCode, MapName=@MapName, Description=@Description,
+    InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                                 MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
@@ -698,10 +697,10 @@ SET IsCurrentVersion=0, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
 (@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
- @MapVersion,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser);
+ @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 ",
@@ -711,6 +710,8 @@ WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
                                     new SqlParameter("@MapCode", code), new SqlParameter("@MapName", name),
                                     new SqlParameter("@ImagePath", savedPath), new SqlParameter("@MapVersion", version),
                                     new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                                    new SqlParameter("@TypeCode", typeCode),
+                                    new SqlParameter("@DetailCode", detailCode),
                                     new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                                     new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
                                 });
@@ -738,15 +739,17 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapCode=@MapCode",
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
 (@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
- @MapVersion,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser)",
+ @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser)",
                             new SqlParameter[] {
                                 new SqlParameter("@MapID", newID), new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                                 new SqlParameter("@LocationID", Master.Mn_LocationID), new SqlParameter("@MapCode", code),
                                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", savedPath),
                                 new SqlParameter("@MapVersion", version), new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                                new SqlParameter("@TypeCode", typeCode),
+                                new SqlParameter("@DetailCode", detailCode),
                                 new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                                 new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
                             });
@@ -781,6 +784,8 @@ VALUES
                 new SqlParameter("@MapID", mapID), new SqlParameter("@MapCode", code),
                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", imagePath),
                 new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                new SqlParameter("@TypeCode", ddlInspectionType.SelectedValue),
+                new SqlParameter("@DetailCode", ddlInspectionDetail.SelectedValue),
                 new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
                 new SqlParameter("@UpdateUser", Master.Mn_EmployeeID),
                 new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -879,7 +884,8 @@ VALUES
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath
+SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath,
+       InspectionTypeCode, InspectionTypeDetailCode
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
@@ -918,6 +924,10 @@ ORDER BY M.MapVersion DESC",
                 Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                 txtMapName.Text = Convert.ToString(row["MapName"]);
                 txtMapDescription.Text = Convert.ToString(row["Description"]);
+                ddlInspectionType.SelectedValue = Convert.ToString(row["InspectionTypeCode"]);
+                BindInspectionDetails();
+                if (ddlInspectionDetail.Items.FindByValue(Convert.ToString(row["InspectionTypeDetailCode"])) != null)
+                    ddlInspectionDetail.SelectedValue = Convert.ToString(row["InspectionTypeDetailCode"]);
                 lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
                 ShowMapPreview(row);
             }
@@ -929,8 +939,8 @@ ORDER BY M.MapVersion DESC",
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
-            ShowMessage("Map " + txtMapCode.Text + " berhasil dibuka.", false);
-            SetTab("#tab-point");
+            GF.MsgBox(this, "Map " + txtMapCode.Text + " berhasil dibuka", "BS-5.3.0");
+            SetTab("#tab-map");
         }
 
         private void ShowPointEditor()
@@ -951,8 +961,7 @@ ORDER BY M.MapVersion DESC",
         protected void ddlInspectionType_SelectedIndexChanged(object sender, EventArgs e)
         {
             BindInspectionDetails();
-            ShowPointEditor();
-            SetTab("#tab-point");
+            SetTab("#tab-map");
         }
 
         protected void btnNewPoint_Click(object sender, EventArgs e)
