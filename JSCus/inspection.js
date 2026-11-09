@@ -3971,15 +3971,16 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     points = Array.isArray(points) ? points : [];
     if (!points.length) { host.innerHTML = ""; return; }
 
+    const hasAnyFloorPlan = maps.some(map => !!String(map.MapUrl || "").trim());
     host.innerHTML = '<div class="border rounded-3 p-3 mb-3">' +
         '<div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">' +
-            '<div><div class="fw-bold"><i class="bi bi-map me-2"></i>BATCH INSPECTION MAP</div><small class="text-muted">' + points.length + ' inspected point(s)</small></div>' +
+            '<div><div class="fw-bold"><i class="bi bi-clipboard2-check me-2"></i>BATCH INSPECTION REVIEW</div><small class="text-muted">' + points.length + ' inspected point(s)</small></div>' +
             (maps.length > 1 ? '<select id="inspectionApprovalMapSelect" class="form-select form-select-sm" style="max-width:260px">' +
                 maps.map(map => '<option value="' + escInspection(map.MapID) + '">' + escInspection(map.MapCode + " - " + map.MapName) + '</option>').join("") +
              '</select>' : '') +
         '</div>' +
-        (maps.length ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mb-3"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>' :
-            '<div class="alert alert-light small">Denah PDF tidak tersedia untuk point pada batch ini. Gunakan daftar Inspection Point di bawah.</div>') +
+        (hasAnyFloorPlan ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mb-3"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>' :
+            '<div class="alert alert-light small">Batch ini tidak menggunakan file denah. Seluruh hasil diperiksa melalui daftar Inspection Point.</div>') +
         '<div class="inspection-point-list-tools mb-2"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div>' +
         '<div id="inspectionApprovalPointList" class="d-flex flex-column gap-1"></div>' +
     '</div>';
@@ -4000,8 +4001,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             '<button type="button" class="btn btn-sm btn-outline-secondary text-start" data-approval-point-target="' +
             escInspection(point.InspectionPointTransactionID) + '">' +
             '<span class="fw-semibold">' + escInspection(point.PointCode) + '</span> · ' + escInspection(point.PointName) +
-            ' <span class="badge ms-1 ' + (String(point.AbnormalRemark || "").trim() ? "text-bg-danger" : "text-bg-success") + '">' +
-            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" : "DONE") + '</span></button>'
+            ' <span class="badge ms-1 ' + ((String(point.Status || "").toUpperCase() === "ABNORMAL" || String(point.AbnormalRemark || "").trim()) ? "text-bg-danger" : "text-bg-success") + '">' +
+            ((String(point.Status || "").toUpperCase() === "ABNORMAL" || String(point.AbnormalRemark || "").trim()) ? "ABNORMAL" : "DONE") + '</span></button>'
         ).join("") || '<div class="text-muted small py-2">Tidak ada point yang cocok.</div>';
         listHost.innerHTML += '<div class="d-flex align-items-center justify-content-between small text-muted mt-2">' +
             '<span>' + (filtered.length ? (startIndex + 1) + '-' + Math.min(startIndex + approvalPageSize, filtered.length) : 0) +
@@ -4031,7 +4032,15 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         const canvas = document.getElementById('inspectionApprovalMapCanvas');
         const overlay = document.getElementById('inspectionApprovalMapPoints');
         const stage = document.getElementById('inspectionApprovalMapStage');
-        if (!canvas || !overlay || !stage || !map || !map.MapUrl) return;
+        if (!canvas || !overlay || !stage || !map) return;
+        if (!String(map.MapUrl || "").trim()) {
+            canvas.style.display = "none";
+            overlay.innerHTML = "";
+            stage.innerHTML = '<div class="alert alert-light small mb-0">Denah untuk ' +
+                escInspection(map.MapCode || "Map") + ' tidak tersedia. Periksa hasil melalui daftar Inspection Point.</div>';
+            return;
+        }
+        stage.innerHTML = '<canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div>';
         try {
             const response = await fetch(map.MapUrl, { credentials: 'same-origin' });
             if (!response.ok) throw new Error('HTTP ' + response.status);
