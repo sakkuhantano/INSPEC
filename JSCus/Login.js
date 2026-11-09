@@ -15,13 +15,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener("load", async function () {
     var query = new URLSearchParams(window.location.search);
-    if (query.get("session") === "expired") {
-        localStorage.removeItem("loginData");
-        showToast("Sesi login telah berakhir. Silakan login kembali.", "warning", 5000);
+    var cameFromExpiredRedirect = query.get("session") === "expired";
+
+    // Do not discard loginData just because a page redirected here.
+    // The redirect can be caused by a transient/recycled ASP.NET application
+    // even though the persistent INSPEC UserSession is still valid.
+    if (cameFromExpiredRedirect) {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // Portal-selected identity takes precedence over a cached UTL1 session.
+    // Portal-selected identity takes precedence over a cached INSPEC session.
     var infoID = query.get("InfoID");
     if (infoID) {
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -33,15 +36,25 @@ window.addEventListener("load", async function () {
     if (data) {
         var success = await validateSession(data.browserGuid, data.serverGuid, data.token);
         if (success === true) {
+            // The server-side UserSession is still valid. Restore the normal
+            // authenticated route without forcing the user to log in again.
             window.location.href = "Secure/dashboard.aspx";
+            return;
         } else if (success === false) {
-            // Invalid/expired session or revoked INSPEC authorization:
-            // remove the cached credentials so Login.aspx will not retry them.
+            // Only discard cached credentials after the server confirms that
+            // this exact session is invalid or has been revoked.
             localStorage.removeItem("loginData");
+            if (cameFromExpiredRedirect) {
+                showToast("Sesi login telah berakhir. Silakan login kembali.", "warning", 5000);
+            }
+        } else if (cameFromExpiredRedirect) {
+            // A network/server error is not proof that the session expired.
+            showToast("Belum dapat memvalidasi sesi. Periksa koneksi lalu coba lagi.", "warning", 5000);
         }
-        // If validation fails due to a network/server error (null), keep the
-        // cached data for a later retry, but stay on the login page.
-        //await getEmployees();
+        // If validation fails due to a network/server error (null), retain
+        // loginData so a temporary outage does not sign the user out.
+    } else if (cameFromExpiredRedirect) {
+        showToast("Sesi login telah berakhir. Silakan login kembali.", "warning", 5000);
     }
 });
 
