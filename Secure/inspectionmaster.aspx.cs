@@ -1559,6 +1559,9 @@ VALUES
         {
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
+                // These parameters validate the owning Map; they are not Point columns.
+                new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                new SqlParameter("@LocationID", Master.Mn_LocationID),
                 new SqlParameter("@PointCode", code),
                 new SqlParameter("@PointName", name),
                 new SqlParameter("@ObjectType", ddlPointObjectType.SelectedValue),
