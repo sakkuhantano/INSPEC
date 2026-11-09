@@ -1282,7 +1282,8 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 DataTable allowed = access.EQueryP(@"
 SELECT COUNT(DISTINCT P.InspectionPointID) AS TotalRows
 FROM dbo.PIP_M_InspectionPoint P
-INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.InspectionPointID IN (@PointID,@OtherPointID)
   AND P.MapID=@MapID AND P.CompanyID=@CompanyID AND P.LocationID=@LocationID
