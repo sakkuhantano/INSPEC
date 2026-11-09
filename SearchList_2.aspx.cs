@@ -534,7 +534,7 @@ FROM dbo.PIP_M_InspectionMap M
 INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND M.IsCurrentVersion=1
 AND (EXISTS (SELECT 1 FROM dbo.syswebuserusergroup U
-             WHERE U.usergroupid='administrator' AND U.userid=@EmployeeID)
+             WHERE U.usergroupid='administrator' AND U.userid=@UserID)
  OR M.EntryUser=@EmployeeID
  OR EXISTS (SELECT 1 FROM dbo.PIP_M_Section S
             WHERE S.SectionID=IT.SectionID AND S.ProfitCenterNo=@ProfitCenterNo))
@@ -544,7 +544,8 @@ ORDER BY M.MapCode",
                                         new System.Data.SqlClient.SqlParameter("@CompanyID", Request.QueryString["0"] ?? ""),
                                         new System.Data.SqlClient.SqlParameter("@LocationID", Request.QueryString["1"] ?? ""),
                                         new System.Data.SqlClient.SqlParameter("@ProfitCenterNo", Request.QueryString["2"] ?? ""),
-                                        new System.Data.SqlClient.SqlParameter("@EmployeeID", Request.QueryString["3"] ?? "")
+                                        new System.Data.SqlClient.SqlParameter("@EmployeeID", Request.QueryString["3"] ?? ""),
+                                        new System.Data.SqlClient.SqlParameter("@UserID", Request.QueryString["4"] ?? "")
                                     }).DefaultView;
                             }
                             break;
