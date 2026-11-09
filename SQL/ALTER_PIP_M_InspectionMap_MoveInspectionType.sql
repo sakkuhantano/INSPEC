@@ -74,18 +74,59 @@ WHERE DC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
   AND C.name IN ('InspectionTypeCode','InspectionTypeDetailCode');
 IF @DropDefaults<>N'' EXEC sp_executesql @DropDefaults;
 
-/* Remove indexes that include either point-level column. */
-DECLARE @DropIndexes NVARCHAR(MAX);
-SET @DropIndexes=N'';
-SELECT DISTINCT @DropIndexes=@DropIndexes +
-    N'DROP INDEX ' + QUOTENAME(I.name) + N' ON dbo.PIP_M_InspectionPoint;'
-FROM sys.indexes I
-INNER JOIN sys.index_columns IC ON IC.object_id=I.object_id AND IC.index_id=I.index_id
-INNER JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
-WHERE I.object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
-  AND I.is_primary_key=0 AND I.is_unique_constraint=0
+/* Remove foreign keys that depend on either point-level column. */
+DECLARE @DropForeignKeys NVARCHAR(MAX);
+SET @DropForeignKeys=N'';
+SELECT @DropForeignKeys=@DropForeignKeys +
+    N'ALTER TABLE dbo.PIP_M_InspectionPoint DROP CONSTRAINT ' + QUOTENAME(FK.name) + N';'
+FROM sys.foreign_keys FK
+INNER JOIN sys.foreign_key_columns FKC ON FKC.constraint_object_id=FK.object_id
+INNER JOIN sys.columns C ON C.object_id=FKC.parent_object_id AND C.column_id=FKC.parent_column_id
+WHERE FKC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
   AND C.name IN ('InspectionTypeCode','InspectionTypeDetailCode');
-IF @DropIndexes<>N'' EXEC sp_executesql @DropIndexes;
+IF @DropForeignKeys<>N'' EXEC sp_executesql @DropForeignKeys;
+
+/* Remove unique constraints that depend on either point-level column. */
+DECLARE @DropUniqueConstraints NVARCHAR(MAX);
+SET @DropUniqueConstraints=N'';
+SELECT @DropUniqueConstraints=@DropUniqueConstraints +
+    N'ALTER TABLE dbo.PIP_M_InspectionPoint DROP CONSTRAINT ' + QUOTENAME(IX.name) + N';'
+FROM sys.indexes IX
+WHERE IX.object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
+  AND IX.is_unique_constraint=1
+  AND EXISTS
+  (
+      SELECT 1 FROM sys.index_columns IC
+      INNER JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
+      WHERE IC.object_id=IX.object_id AND IC.index_id=IX.index_id
+        AND C.name IN ('InspectionTypeCode','InspectionTypeDetailCode')
+  );
+IF @DropUniqueConstraints<>N'' EXEC sp_executesql @DropUniqueConstraints;
+
+/* Remove ordinary indexes once each, even if both columns occur in one index. */
+DECLARE @IndexName SYSNAME;
+DECLARE IndexCursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT DISTINCT IX.name
+FROM sys.indexes IX
+WHERE IX.object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
+  AND IX.type>0 AND IX.is_primary_key=0 AND IX.is_unique_constraint=0
+  AND EXISTS
+  (
+      SELECT 1 FROM sys.index_columns IC
+      INNER JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
+      WHERE IC.object_id=IX.object_id AND IC.index_id=IX.index_id
+        AND C.name IN ('InspectionTypeCode','InspectionTypeDetailCode')
+  );
+OPEN IndexCursor;
+FETCH NEXT FROM IndexCursor INTO @IndexName;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @sql=N'DROP INDEX ' + QUOTENAME(@IndexName) + N' ON dbo.PIP_M_InspectionPoint;';
+    EXEC sp_executesql @sql;
+    FETCH NEXT FROM IndexCursor INTO @IndexName;
+END;
+CLOSE IndexCursor;
+DEALLOCATE IndexCursor;
 
 /* The point table no longer owns Type and Detail. */
 IF COL_LENGTH('dbo.PIP_M_InspectionPoint','InspectionTypeCode') IS NOT NULL
