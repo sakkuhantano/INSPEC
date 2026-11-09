@@ -397,30 +397,18 @@ WHERE InspectionID=@InspectionID",
 
                         if (String.IsNullOrWhiteSpace(inspectionNo))
                         {
-                            syncStage = "reserve inspection number";
-                            DataTable generatedNo;
-                            if (isBatchInspection)
-                            {
-                                generatedNo = br.EQueryP("spUTL_PIP_T_Inspection_BatchNumber_Reserve",
-                                    new SqlParameter[] { new SqlParameter("@p_InspectionDate", inspectionDate) });
-                                if (generatedNo == null || generatedNo.Rows.Count == 0 ||
-                                    generatedNo.Rows[0]["InspectionNo"] == DBNull.Value ||
-                                    String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["InspectionNo"])))
-                                    throw new Exception("Failed to reserve monthly Inspection Batch number.");
-                                inspectionNo = Convert.ToString(generatedNo.Rows[0]["InspectionNo"]);
-                            }
-                            else
-                            {
-                                generatedNo = br.EQueryP(@"
+                            // Both STANDARD and BATCH use the same canonical InspectionNo generator.
+                            // The number is obtained before staging photos because the photo folder is keyed by InspectionNo.
+                            syncStage = "generate InspectionNo";
+                            DataTable generatedNo = br.EQueryP(@"
 DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
 INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
 SELECT ID FROM @AutoNumResult;",
-                                    new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
-                                if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
-                                    String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
-                                    throw new Exception("Failed to reserve InspectionNo before saving transaction data.");
-                                inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
-                            }
+                                new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
+                            if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
+                                String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
+                                throw new Exception("Failed to generate InspectionNo before saving transaction data.");
+                            inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
                         }
 
                         string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
