@@ -26,10 +26,16 @@ window.addEventListener("load", async function () {
     }
 
     // A protected page has explicitly rejected this browser session.
-    // Do NOT auto-redirect back to the dashboard even if the DB token still
-    // validates: that creates a Login -> Dashboard -> Login redirect loop.
-    // Keep the query marker in the URL so refreshing this page also stays here.
+    // Latch the block in sessionStorage before cleaning the URL, so refreshing
+    // this tab cannot trigger another automatic Login -> Dashboard -> Login loop.
     if (cameFromExpiredRedirect) {
+        try { sessionStorage.setItem("INSPEC_LOGIN_BLOCK_AUTO", "1"); } catch (e) { }
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    var blockedAutoLogin = false;
+    try { blockedAutoLogin = sessionStorage.getItem("INSPEC_LOGIN_BLOCK_AUTO") === "1"; } catch (e) { }
+    if (blockedAutoLogin) {
         showToast("Sesi sebelumnya ditolak. Silakan login kembali.", "warning", 6000);
         return;
     }
@@ -175,6 +181,7 @@ function F_LoginByPortal(infoID) {
                 F_PS();
                 return;
             }
+            try { sessionStorage.removeItem("INSPEC_LOGIN_BLOCK_AUTO"); } catch (e) { }
             showToast(data.message || "Login successful");
             window.location.href = "Secure/dashboard.aspx";
         } else {
@@ -293,6 +300,7 @@ function F_Login() {
                 F_PS();
                 return;
             }
+            try { sessionStorage.removeItem("INSPEC_LOGIN_BLOCK_AUTO"); } catch (e) { }
             showToast(data.message);
             window.location.href = "Secure/dashboard.aspx";
         } else {
