@@ -3299,11 +3299,24 @@ async function loadTemplateVersions(idTemplate)
         // LOAD FROM SERVER
         // =========================
         showLoading();
-        const result = await promisifyPageMethod(
-            PageMethods.GetTemplateVersions, idTemplate
-        );  
-        hideLoading();
-        //currentVersions = JSON.parse(result || '[]');
+        let result;
+        try {
+            result = await promisifyPageMethod(
+                PageMethods.GetTemplateVersions, idTemplate
+            );
+        } finally {
+            hideLoading();
+        }
+
+        // Always render the versions returned for the selected template.
+        // Using the previous global currentVersions value can leave this panel
+        // empty/stale, especially after a Save All validation or metadata error.
+        currentVersions = typeof result === 'string'
+            ? JSON.parse(result || '[]')
+            : (result || []);
+        if (!Array.isArray(currentVersions))
+            throw new Error('GetTemplateVersions returned an invalid response.');
+
         // =========================
         // RENDER
         // =========================
@@ -10132,6 +10145,41 @@ async function saveAllTemplate()
     if (saveAllTemplate._busy) return;
 
     syncVisibleTemplateMetadataBeforeSave();
+
+    // Validate required Inspection metadata before sending any checklist data.
+    // SaveTemplateMetadata runs after SaveAllTemplate; without this preflight a
+    // new Inspection template could save its structure and then fail metadata
+    // persistence, leaving the user with a misleading follow-up load error.
+    const missingInspectionType = [];
+    Object.values(templateCache.sections || {}).forEach(function(section) {
+        Object.values(section.Templates || {}).forEach(function(node) {
+            const tpl = node && node.Template;
+            if (tpl && tpl.MetadataDirty &&
+                String(tpl.TemplateType || 'W').toUpperCase() === 'I' &&
+                !String(tpl.InspectionTypeCode || '').trim()) {
+                missingInspectionType.push(tpl);
+            }
+        });
+    });
+    if (missingInspectionType.length) {
+        const missing = missingInspectionType[0];
+        if (currentTemplate && String(currentTemplate.RuntimeTemplateID) !== String(missing.RuntimeTemplateID)) {
+            currentTemplate = missing;
+            await showTemplateRootProperties(missing, null);
+        }
+        const inspectionSelect = document.getElementById('propInspectionType');
+        if (inspectionSelect) {
+            inspectionSelect.focus();
+            inspectionSelect.classList.add('is-invalid');
+            inspectionSelect.addEventListener('change', function clearInspectionTypeError() {
+                inspectionSelect.classList.remove('is-invalid');
+                inspectionSelect.removeEventListener('change', clearInspectionTypeError);
+            }, { once: true });
+        }
+        showToast('Inspection Type is required. Please select an Inspection Type before saving.', 'warning');
+        return;
+    }
+
     // Flush the currently visible builder DOM into the canonical draft object before
     // constructing the Save All payload. This prevents recently moved/added Sub-sections
     // and their child Item parent IDs from being omitted by a stale cached structure.
