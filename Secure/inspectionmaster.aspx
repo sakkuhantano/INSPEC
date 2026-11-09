@@ -215,6 +215,11 @@
                                                     <asp:LinkButton ID="btnMapPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Point and Map Coordinate" CommandName="MapEditor" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="fas fa-map-marker-alt"></i></asp:LinkButton>
                                                 </ItemTemplate>
                                             </asp:TemplateField>
+                                            <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
+                                                <ItemTemplate>
+                                                    <asp:LinkButton ID="btnDeletePointRow" runat="server" CssClass="text-danger" ToolTip="Nonaktifkan Inspection Point" CommandName="DeletePoint" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false" OnClientClick="return confirm('Nonaktifkan Inspection Point ini?');"><i class="far fa-trash-alt"></i></asp:LinkButton>
+                                                </ItemTemplate>
+                                            </asp:TemplateField>
                                             <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
                                             <asp:BoundField DataField="PointName" HeaderText="Point Name" />
                                             <asp:BoundField DataField="InspectionTypeCode" HeaderText="Type" />
