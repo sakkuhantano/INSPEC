@@ -77,23 +77,7 @@
                         </div>
                     </div>
 
-                    <asp:Panel ID="pnlMapPreview" runat="server" Visible="false">
-                        <div class="row my-1">
-                            <div class="col border rounded shadow-sm">
-                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
-                                    <div class="col d-flex align-items-center">
-                                        <asp:Label ID="lblMapPreviewTitle" runat="server" />
-                                    </div>
-                                    <div class="col-auto d-flex align-items-center">
-                                        <asp:HyperLink ID="lnkMapPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
-                                    </div>
-                                </div>
-                                <div class="p-2">
-                                    <asp:Literal ID="litMapPreview" runat="server" />
-                                </div>
-                            </div>
-                        </div>
-                    </asp:Panel>
+
 
                     <asp:Panel ID="pnlPointEditor" runat="server" Visible="false" CssClass="modal fade" ClientIDMode="Static" role="dialog" aria-labelledby="inspectionPointModalTitle" tabindex="-1">
                         <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document">
@@ -255,18 +239,42 @@
                                     <asp:Label ID="lblPointPageInfo" runat="server" />
                                 </div>
                                 <div class="col-sm-7 d-flex justify-content-end align-items-center">
-                                    <asp:LinkButton ID="btnPointFirst" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointFirst_Click" CausesValidation="false" ToolTip="First"><i class="fas fa-angle-double-left"></i></asp:LinkButton>
-                                    <asp:LinkButton ID="btnPointPrevious" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointPrevious_Click" CausesValidation="false" ToolTip="Previous"><i class="fas fa-angle-left"></i></asp:LinkButton>
-                                    <asp:LinkButton ID="btnPointNext" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointNext_Click" CausesValidation="false" ToolTip="Next"><i class="fas fa-angle-right"></i></asp:LinkButton>
-                                    <asp:LinkButton ID="btnPointLast" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointLast_Click" CausesValidation="false" ToolTip="Last"><i class="fas fa-angle-double-right"></i></asp:LinkButton>
-                                    <span class="small text-muted mx-1">Go to</span>
-                                    <asp:TextBox ID="txtPointGoToPage" runat="server" CssClass="form-control form-control-sm fz-custom1" Width="50px" Text="1" />
-                                    <asp:LinkButton ID="btnPointGoToPage" runat="server" CssClass="CUS-lbtn-1 mx-1" OnClick="btnPointGoToPage_Click" CausesValidation="false">Go</asp:LinkButton>
-                                    <asp:Label ID="lblPointPageTotal" runat="server" CssClass="small text-muted" />
+                                    <asp:Panel ID="pnlPointPager" runat="server" CssClass="inspection-point-pager d-flex align-items-center gap-2">
+                                        <div class="btn-group btn-group-sm" role="group" aria-label="Inspection point pages">
+                                            <asp:LinkButton ID="btnPointFirst" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointFirst_Click" CausesValidation="false" ToolTip="First page"><i class="fas fa-angle-double-left"></i></asp:LinkButton>
+                                            <asp:LinkButton ID="btnPointPrevious" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointPrevious_Click" CausesValidation="false" ToolTip="Previous page"><i class="fas fa-angle-left"></i></asp:LinkButton>
+                                            <asp:LinkButton ID="btnPointNext" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointNext_Click" CausesValidation="false" ToolTip="Next page"><i class="fas fa-angle-right"></i></asp:LinkButton>
+                                            <asp:LinkButton ID="btnPointLast" runat="server" CssClass="btn btn-outline-secondary" OnClick="btnPointLast_Click" CausesValidation="false" ToolTip="Last page"><i class="fas fa-angle-double-right"></i></asp:LinkButton>
+                                        </div>
+                                        <div class="input-group input-group-sm inspection-point-goto">
+                                            <span class="input-group-text">Page</span>
+                                            <asp:TextBox ID="txtPointGoToPage" runat="server" CssClass="form-control text-center" Text="1" />
+                                            <asp:LinkButton ID="btnPointGoToPage" runat="server" CssClass="btn btn-primary" OnClick="btnPointGoToPage_Click" CausesValidation="false">Go</asp:LinkButton>
+                                        </div>
+                                        <asp:Label ID="lblPointPageTotal" runat="server" CssClass="small text-muted text-nowrap" />
+                                    </asp:Panel>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <asp:Panel ID="pnlMapPreview" runat="server" Visible="false">
+                        <div class="row my-1">
+                            <div class="col border rounded shadow-sm">
+                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                    <div class="col d-flex align-items-center">
+                                        <asp:Label ID="lblMapPreviewTitle" runat="server" />
+                                    </div>
+                                    <div class="col-auto d-flex align-items-center">
+                                        <asp:HyperLink ID="lnkMapPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <asp:Literal ID="litMapPreview" runat="server" />
+                                </div>
+                            </div>
+                        </div>
+                    </asp:Panel>
 
                 </div>
             </div>
