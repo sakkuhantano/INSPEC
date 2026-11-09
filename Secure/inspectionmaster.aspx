@@ -168,7 +168,7 @@
                                             <div class="col-6 col-md-2"><label class="small">X (%)</label><asp:TextBox ID="txtMarkerX" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" /></div>
                                             <div class="col-6 col-md-2"><label class="small">Y (%)</label><asp:TextBox ID="txtMarkerY" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm" /></div>
                                             <div class="col-12 col-md d-flex flex-wrap align-items-center gap-2">
-                                                <asp:LinkButton ID="btnClearCoordinate" runat="server" CssClass="btn btn-sm btn-outline-secondary" OnClick="btnClearCoordinate_Click" CausesValidation="false"><i class="fas fa-eraser"></i> Clear Coordinate</asp:LinkButton>
+                                                <button type="button" id="btnClearCoordinate" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eraser"></i> Clear Coordinate</button>
                                                 <asp:LinkButton ID="btnSwapPosition" runat="server" CssClass="btn btn-sm btn-outline-warning" OnClick="btnSwapPosition_Click" CausesValidation="false"><i class="fas fa-exchange-alt"></i> Swap with selected marker</asp:LinkButton>
                                                 <span id="lblSwapTarget" class="small text-muted">Klik marker lain untuk memilih target swap.</span>
                                             </div>
