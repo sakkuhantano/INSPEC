@@ -652,8 +652,15 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT P.PointCode, P.PointName, P.MapX, P.MapY
+SELECT
+    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointCode ELSE '•' END AS PointCode,
+    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointName ELSE 'Occupied by another Profit Center' END AS PointName,
+    CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN LEFT(P.PointCode,8) ELSE '•' END AS MarkerLabel,
+    P.MapX, P.MapY
 FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
+INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID
   AND P.MapID=@MapID AND P.IsActive=1
   AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
@@ -661,7 +668,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@MapID", mapID)
+                        new SqlParameter("@MapID", mapID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
                     });
 
             System.Text.StringBuilder html = new System.Text.StringBuilder();
@@ -669,7 +678,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
             {
                 string code = Convert.ToString(point["PointCode"]);
                 string name = Convert.ToString(point["PointName"]);
-                string label = code.Length > 8 ? code.Substring(0, 8) : code;
+                string label = Convert.ToString(point["MarkerLabel"]);
                 html.Append("<span class='inspection-map-preview-marker' style='left:");
                 html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
                 html.Append("%;top:");
