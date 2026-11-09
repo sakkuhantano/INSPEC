@@ -155,9 +155,6 @@ BEGIN
     CREATE TABLE dbo.PIP_M_InspectionPoint
     (
         InspectionPointID BIGINT NOT NULL,
-        CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(3) NOT NULL,
-
         /*
            The point itself belongs to exactly one inspection
            type/detail scope. The actual template/version used
@@ -197,16 +194,6 @@ BEGIN
 
         CONSTRAINT PK_PIP_M_InspectionPoint PRIMARY KEY CLUSTERED (InspectionPointID),
 
-        CONSTRAINT UQ_PIP_M_InspectionPoint_Code
-            UNIQUE
-            (
-                CompanyID,
-                LocationID,
-                InspectionTypeCode,
-                InspectionTypeDetailCode,
-                PointCode
-            ),
-
         CONSTRAINT FK_PIP_M_InspectionPoint_Map
             FOREIGN KEY (MapID)
             REFERENCES dbo.PIP_M_InspectionMap(MapID)
@@ -214,26 +201,6 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.PIP_M_InspectionPoint')
-      AND name = 'IX_PIP_M_InspectionPoint_Scope'
-)
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_PIP_M_InspectionPoint_Scope
-        ON dbo.PIP_M_InspectionPoint
-        (
-            CompanyID,
-            LocationID,
-            InspectionTypeCode,
-            InspectionTypeDetailCode,
-            IsActive,
-            DisplayOrder
-        );
-END;
-GO
 
 /* ============================================================
    4. ADD POINT REFERENCE TO MAP ELEMENT
