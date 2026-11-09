@@ -7,6 +7,43 @@
             window.bootstrap.Tab.getOrCreateInstance(tab).show();
         }
     }
+    function renderMapPreviewPdf() {
+        var canvas = document.getElementById('inspectionMapPreviewCanvas');
+        if (!canvas) return;
+        var url = canvas.getAttribute('data-map-url');
+        var stage = canvas.parentNode;
+        var status = document.getElementById('inspectionMapPreviewStatus');
+        if (!url) return;
+        if (!window.pdfjsLib) {
+            if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa JSCus/pdf.min.js.';
+            return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
+        window.pdfjsLib.getDocument({ url: url }).promise.then(function (pdf) {
+            return pdf.getPage(1);
+        }).then(function (page) {
+            var base = page.getViewport({ scale: 1 });
+            var width = stage.clientWidth;
+            if (!width) throw new Error('Area preview denah belum terlihat.');
+            var viewport = page.getViewport({ scale: width / base.width });
+            stage.style.aspectRatio = base.width + ' / ' + base.height;
+            canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
+            canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            var context = canvas.getContext('2d');
+            context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+            return page.render({ canvasContext: context, viewport: viewport }).promise;
+        }).then(function () {
+            if (status) status.style.display = 'none';
+        }).catch(function (error) {
+            if (status) {
+                status.style.display = 'flex';
+                status.textContent = 'Gagal memuat denah PDF: ' + (error && error.message ? error.message : error);
+            }
+            if (window.console && console.error) console.error('Inspection map preview error:', error);
+        });
+    }
     function renderInspectionPdf() {
         var media = document.getElementById('inspectionPdfCanvas');
         if (!media) return;
@@ -40,6 +77,7 @@
     }
     document.addEventListener('DOMContentLoaded', function () {
         restoreTab();
+        window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
         var pointModal = document.getElementById('pnlPointEditor');
         if (pointModal) pointModal.addEventListener('shown.bs.modal', function () { window.requestAnimationFrame(renderInspectionPdf); });
