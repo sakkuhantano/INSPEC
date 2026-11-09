@@ -10163,7 +10163,7 @@ async function saveAllTemplate()
     });
     if (missingInspectionType.length) {
         const missing = missingInspectionType[0];
-        if (currentTemplate && String(currentTemplate.RuntimeTemplateID) !== String(missing.Template.RuntimeTemplateID)) {
+        if (currentTemplate && String(currentTemplate.Template && currentTemplate.Template.RuntimeTemplateID) !== String(missing.Template.RuntimeTemplateID)) {
             currentTemplate = missing;
             await showTemplateRootProperties(missing.Template, null);
         }
