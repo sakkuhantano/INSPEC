@@ -814,12 +814,14 @@ WHERE a.SectionID = @SectionID
 	]
 };
             */
+            string saveStage = "Deserialize payload";
             try
             {
                 JavaScriptSerializer js = new JavaScriptSerializer();
                 js.MaxJsonLength = Int32.MaxValue;
 
                 Dictionary<string, object> root = js.Deserialize<Dictionary<string, object>>(payload);
+                saveStage = "Read authenticated session and initialize save tables";
                 DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
                 string employeeID = SessionValue(inspecUser, "EmployeeID");
                 string companyId = SessionValue(inspecUser, "CompanyID");
@@ -858,6 +860,7 @@ WHERE a.SectionID = @SectionID
                     // Loop setiap elemen template di dalam array
                     foreach (Dictionary<string, object> templateNode in templatesArray)
                     {
+                        saveStage = "Validate and parse template/version structure";
                         int accessTemplateId = 0;
                         if (templateNode.ContainsKey("Template") && templateNode["Template"] != null)
                         {
@@ -1144,6 +1147,7 @@ WHERE a.SectionID = @SectionID
 
                 }
 
+                saveStage = "Execute spUTL_PIP_M_CheckListWOPM";
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable dt = br.EQueryP("spUTL_PIP_M_CheckListWOPM", new SqlParameter[] 
@@ -1162,6 +1166,8 @@ WHERE a.SectionID = @SectionID
                         new SqlParameter("@p_IsPublished", (isPublished == "Y"))
                     }, true, true);
 
+                    saveStage = "Process stored procedure result rows";
+                    if (dt == null) throw new Exception("spUTL_PIP_M_CheckListWOPM returned a null DataTable.");
                     List<object> identityMap = new List<object>();
                     Dictionary<int, int> savedVersionIDs = new Dictionary<int, int>();
 
@@ -1177,6 +1183,7 @@ WHERE a.SectionID = @SectionID
 
                     // Persist version-level Summary and Follow Up flags after the legacy TVP/SP save,
                     // keeping the existing stored procedure and table type compatible.
+                    saveStage = "Persist version-level Summary/Follow Up flags";
                     foreach (Tuple<int, int, bool, bool> versionFlag in versionFlags)
                     {
                         int targetVersionID = versionFlag.Item1;
@@ -1211,7 +1218,7 @@ WHERE IDVersion=@IDVersion",
                 return new
                 {
                     success = false,
-                    message = ex.Message
+                    message = saveStage + ": " + ex.ToString()
                 };
             }
         }
