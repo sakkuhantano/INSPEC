@@ -323,7 +323,7 @@ WITH PointRows AS
                         P.InspectionPointID
            ) AS RowNum
     FROM dbo.PIP_M_InspectionPoint P
-    LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+    INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
     WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
       AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
       AND (@IsAdmin=1 OR EXISTS
@@ -331,7 +331,7 @@ WITH PointRows AS
           SELECT 1
           FROM dbo.PIP_M_InspectionType IT
           INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-          WHERE IT.InspectionTypeCode=P.InspectionTypeCode
+          WHERE IT.InspectionTypeCode=M.InspectionTypeCode
             AND S.ProfitCenterNo=@ProfitCenterNo
       ))
 )
@@ -1237,7 +1237,8 @@ SELECT P.InspectionPointID,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN 1 ELSE 0 END AS CanSwap,
        P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
 FROM dbo.PIP_M_InspectionPoint P
-INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=P.InspectionTypeCode
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+ INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
   AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
