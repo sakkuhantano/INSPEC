@@ -71,7 +71,7 @@
                         </div>
                         <div class="col-sm-6 mb-1">
                             <div class="row mt-1">
-                                <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG)</div>
+                                <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG) <span class="text-muted small">(optional)</span></div>
                                 <div class="col-sm-8">
                                     <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" />
                                     <asp:LinkButton ID="btnClearMapFile" runat="server" CssClass="btn btn-sm btn-outline-secondary mt-1" OnClick="btnClearMapFile_Click" CausesValidation="false"><i class="fas fa-eraser"></i> Clear Floor Plan</asp:LinkButton>
@@ -94,7 +94,7 @@
                                 <div class="modal-header py-2">
                                     <div>
                                         <h5 class="modal-title fs-6 mb-0" id="inspectionPointModalTitle">Inspection Point</h5>
-                                        <div class="small text-muted">Isi data point, lalu pilih posisi pada denah.</div>
+                                        <div class="small text-muted">Isi data point. Koordinat hanya perlu diisi jika point akan diplot pada denah.</div>
                                     </div>
                                     <asp:LinkButton ID="btnNewPoint" runat="server" CssClass="btn-close" OnClick="btnClosePoint_Click" CausesValidation="false" ToolTip="Close" />
                                 </div>
@@ -133,7 +133,7 @@
                                 <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-2">
                                     <div class="border rounded p-2">
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                                            <div class="fw-bold small">Map Coordinate <asp:Label ID="lblPointMapCode" runat="server" CssClass="text-muted fw-normal" /></div>
+                                            <div class="fw-bold small">Map Coordinate <span class="text-muted fw-normal">(optional)</span> <asp:Label ID="lblPointMapCode" runat="server" CssClass="text-muted fw-normal" /></div>
                                             <div class="inspection-map-toolbar d-flex align-items-center gap-1">
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
