@@ -4033,14 +4033,21 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         const overlay = document.getElementById('inspectionApprovalMapPoints');
         const stage = document.getElementById('inspectionApprovalMapStage');
         if (!canvas || !overlay || !stage || !map) return;
+        let mapMessage = stage.querySelector(".inspection-approval-map-message");
         if (!String(map.MapUrl || "").trim()) {
             canvas.style.display = "none";
             overlay.innerHTML = "";
-            stage.innerHTML = '<div class="alert alert-light small mb-0">Denah untuk ' +
-                escInspection(map.MapCode || "Map") + ' tidak tersedia. Periksa hasil melalui daftar Inspection Point.</div>';
+            if (!mapMessage) {
+                mapMessage = document.createElement("div");
+                mapMessage.className = "inspection-approval-map-message alert alert-light small mb-0";
+                stage.appendChild(mapMessage);
+            }
+            mapMessage.textContent = "Denah untuk " + String(map.MapCode || "Map") +
+                " tidak tersedia. Periksa hasil melalui daftar Inspection Point.";
             return;
         }
-        stage.innerHTML = '<canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div>';
+        if (mapMessage) mapMessage.remove();
+        canvas.style.display = "block";
         try {
             const response = await fetch(map.MapUrl, { credentials: 'same-origin' });
             if (!response.ok) throw new Error('HTTP ' + response.status);
