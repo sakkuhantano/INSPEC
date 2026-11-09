@@ -1000,6 +1000,26 @@ ORDER BY M.MapVersion DESC",
             long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
 
+            if (e.CommandName == "DeletePoint")
+            {
+                using (var br = new WAL.BR.CF())
+                    br.EQueryP(@"UPDATE dbo.PIP_M_InspectionPoint
+SET IsActive=0, UpdateUser=@UserID, UpdateDate=GETDATE()
+WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID AND IsActive=1",
+                        new SqlParameter[] {
+                            new SqlParameter("@UserID", Master.Mn_EmployeeID),
+                            new SqlParameter("@PointID", pointID),
+                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@MapID", Convert.ToInt64(hidMapID.Value))
+                        });
+                BindPoints();
+                BindMapElements();
+                ShowMessage("Inspection Point berhasil dinonaktifkan.", false);
+                SetTab("#tab-point");
+                return;
+            }
+
             if (e.CommandName != "EditPoint" && e.CommandName != "MapEditor") return;
             //long pointID;
             if (!Int64.TryParse(Convert.ToString(e.CommandArgument), out pointID)) return;
