@@ -52,6 +52,16 @@
         if (!stage || !media) return;
         var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
         var label = document.getElementById('lblMapPreviewZoom');
+        var image = media.querySelector('.inspection-image-preview');
+        if (image) {
+            var sizeImage = function () {
+                if (!image.naturalWidth || !image.naturalHeight) return;
+                media.style.width = stage.clientWidth + 'px';
+                media.style.aspectRatio = image.naturalWidth + ' / ' + image.naturalHeight;
+            };
+            image.addEventListener('load', sizeImage);
+            if (image.complete) sizeImage();
+        }
         function apply() {
             media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
             if (label) label.textContent = Math.round(zoom * 100) + '%';
