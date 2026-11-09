@@ -4168,12 +4168,17 @@ f (typeof window.renderInspectionApprovalSelectedPoint === "function")
             overlay.innerHTML = mapPoints.map(point => {
                 const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
                 const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
-                const visualStatus = String(point.AbnormalRemark || "").trim() ? "abnormal" :
-                    (String(point.Status || "PENDING").toUpperCase() === "ABNORMAL" ? "done" : String(point.Status || "PENDING").toLowerCase());
+                const pointHasAbnormalItem = Array.isArray(point.Items) && point.Items.some(item =>
+                    item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
+                const visualStatus = String(point.Status || "").toUpperCase() === "ABNORMAL" ||
+                    String(point.AbnormalRemark || "").trim() || pointHasAbnormalItem
+                    ? "abnormal" : String(point.Status || "PENDING").toLowerCase();
                 return '<button type="button" class="inspection-map-point ' + visualStatus + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + ' - ' + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
             }).join('');
             overlay.querySelectorAll('[data-approval-point-target]').forEach(button => button.addEventListener('click', function () {
-                if (typeof window.renderInspectionApprovalSelectedPoint === 'function') window.renderInspectionApprovalSelectedPoint(this.dataset.approvalPointTarget);
+                selectedPointId = String(this.dataset.approvalPointTarget || "");
+                if (typeof window.renderInspectionApprovalSelectedPoint === 'function') window.renderInspectionApprovalSelectedPoint(selectedPointId);
+                renderList();
             }));
         } catch (error) {
             console.warn('Approval BATCH map could not be rendered:', error);
