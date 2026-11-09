@@ -202,6 +202,22 @@ END;
 GO
 
 
+/* PointCode is unique inside its Map. Company/Location scope is inherited
+   from PIP_M_InspectionMap through MapID. */
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.PIP_M_InspectionPoint')
+      AND name = 'UX_PIP_M_InspectionPoint_Map_PointCode'
+)
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_M_InspectionPoint_Map_PointCode
+        ON dbo.PIP_M_InspectionPoint (MapID, PointCode)
+        WHERE MapID IS NOT NULL;
+END;
+GO
+
 /* ============================================================
    4. ADD POINT REFERENCE TO MAP ELEMENT
    ============================================================ */
