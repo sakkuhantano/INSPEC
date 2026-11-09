@@ -92,6 +92,11 @@
     }
     document.addEventListener('DOMContentLoaded', function () {
         restoreTab();
+        if (window.bootstrap && window.bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
+                window.bootstrap.Tooltip.getOrCreateInstance(element);
+            });
+        }
         window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
         var pointModal = document.getElementById('pnlPointEditor');
