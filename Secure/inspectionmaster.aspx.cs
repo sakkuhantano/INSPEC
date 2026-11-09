@@ -610,6 +610,19 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                     });
         }
 
+        private string GetCurrentMapImagePath()
+        {
+            long mapID;
+            if (!Int64.TryParse(hidMapID.Value, out mapID) || mapID <= 0)
+                return "";
+
+            DataTable map = GetMap(mapID);
+            if (map == null || map.Rows.Count == 0)
+                return "";
+
+            return Convert.ToString(map.Rows[0]["ImagePath"]).Trim();
+        }
+
         private string ResolveMapPdfUrl(string storedPath)
         {
             string path = (storedPath ?? "").Trim();
@@ -634,12 +647,16 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             string url = ResolveMapPdfUrl(Convert.ToString(row["ImagePath"]));
             string extension = Path.GetExtension(url).ToLowerInvariant();
             bool isJpeg = extension == ".jpg" || extension == ".jpeg";
+            bool hasFloorPlan = !String.IsNullOrWhiteSpace(url);
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
+            lnkMapPdf.Visible = hasFloorPlan;
             string markers = BuildMapPreviewMarkers(Convert.ToInt64(row["MapID"]));
-            string media = isJpeg
-                ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
-                : "<canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div>";
+            string media = !hasFloorPlan
+                ? "<div class='alert alert-light border small mb-0'>Floor Plan belum diupload. Inspection Point tetap dapat digunakan tanpa denah.</div>"
+                : (isJpeg
+                    ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
+                    : "<canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div>");
             litMapPreview.Text = "<div class='inspection-map-preview-toolbar d-flex align-items-center gap-1 mb-2'>" +
                 "<button type='button' class='btn btn-sm btn-outline-secondary' id='btnMapPreviewZoomOut' title='Zoom out'><i class='bi bi-zoom-out'></i></button>" +
                 "<button type='button' class='btn btn-sm btn-outline-secondary' id='btnMapPreviewZoomIn' title='Zoom in'><i class='bi bi-zoom-in'></i></button>" +
@@ -712,9 +729,12 @@ ORDER BY P.DisplayOrder, P.PointCode",
 
             if (String.IsNullOrWhiteSpace(url))
             {
+                // Floor plan is optional. Keep the point editor usable without
+                // a background map; MapX/MapY remain optional as well.
                 litEditorPdfBackground.Text = "";
                 lnkEditorPdf.Visible = false;
-                throw new Exception("Pilih file PDF/JPG pada Master Map terlebih dahulu, lalu klik Add Point.");
+                lblPointMapCode.Text = "· " + mapLabel + " (tanpa denah)";
+                return;
             }
 
             string extension = Path.GetExtension(url).ToLowerInvariant();
@@ -830,7 +850,9 @@ WHERE MapID=@OldMapID;
                     }
                     else
                     {
-                        if (savedPath == "") throw new Exception("Pilih file PDF atau JPG/JPEG denah terlebih dahulu.");
+                        // Floor plan is optional for a Map master. An empty
+                        // ImagePath means this Map is intentionally configured
+                        // without a background denah.
                         int version;
                         using (var brVersion = new WAL.BR.CF())
                         {
@@ -1132,8 +1154,8 @@ ORDER BY M.MapVersion DESC",
 
         protected void btnNewPointGrid_Click(object sender, EventArgs e)
         {
-            // Add Point is available only after a Map Code and its floor plan
-            // have both been selected (existing Map) or attached (new Map).
+            // Add Point requires a Map Code, but the floor plan is optional.
+            // A point can therefore be created before any PDF/JPG is uploaded.
             if (txtMapCode.Text == "")
             {
                 GF.MsgBox(this, "Map Code must not empty.", "BS-5.3.0");
@@ -1154,11 +1176,6 @@ ORDER BY M.MapVersion DESC",
                 GF.MsgBox(this, "Inspection Type Detail must not empty.", "BS-5.3.0");
                 return;
             }
-            if (hidMapID.Value == "" && !fuMapPdf.HasFile)
-            {
-                GF.MsgBox(this, "Please attach map file first", "BS-5.3.0");
-                return;
-            }
             //if (String.IsNullOrWhiteSpace(txtMapCode.Text.Trim()))
             //{
             //    GF.MsgBox(this, "Isi atau pilih Map Code terlebih dahulu.", "BS-5.3.0");
@@ -1168,40 +1185,19 @@ ORDER BY M.MapVersion DESC",
 
             long currentMapID;
             bool hasSavedMap = Int64.TryParse(hidMapID.Value, out currentMapID) && currentMapID > 0;
-            if (hasSavedMap)
+            if (!hasSavedMap && fuMapPdf.HasFile)
             {
-                DataTable currentMap = GetMap(currentMapID);
-                if (currentMap == null || currentMap.Rows.Count == 0 ||
-                    String.IsNullOrWhiteSpace(Convert.ToString(currentMap.Rows[0]["ImagePath"])))
-                {
-                    GF.MsgBox(this, "Floor Plan belum tersedia. Attach file PDF/JPG pada Master Map terlebih dahulu.", "BS-5.3.0");
-                    SetTab("#tab-map");
-                    return;
-                }
-            }
-            else
-            {
-                if (!fuMapPdf.HasFile && String.IsNullOrWhiteSpace(Convert.ToString(Session[DraftMapFileSessionKey])))
-                {
-                    GF.MsgBox(this, "Attach file Floor Plan PDF/JPG terlebih dahulu sebelum menambah Inspection Point.", "BS-5.3.0");
-                    SetTab("#tab-map");
-                    return;
-                }
-
                 // Persist a newly selected floor plan before the postback loses
                 // the FileUpload value. The URL is scoped to this user's draft.
-                if (fuMapPdf.HasFile)
+                try
                 {
-                    try
-                    {
-                        Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
-                    }
-                    catch (Exception uploadError)
-                    {
-                        GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
-                        SetTab("#tab-map");
-                        return;
-                    }
+                    Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
+                }
+                catch (Exception uploadError)
+                {
+                    GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
+                    SetTab("#tab-map");
+                    return;
                 }
             }
 
@@ -1211,7 +1207,7 @@ ORDER BY M.MapVersion DESC",
             {
                 LoadEditorMapPdf();
                 BindMapElements();
-                pnlEditor.Visible = true;
+                pnlEditor.Visible = !String.IsNullOrWhiteSpace(GetCurrentMapImagePath());
             }
             catch (Exception ex)
             {
@@ -1501,9 +1497,8 @@ VALUES
             if (!IsValidMapTypeDetail(typeCode, detailCode))
                 throw new Exception("Inspection Type atau Detail tidak aktif, bukan mode BATCH, atau tidak termasuk Profit Center Anda.");
 
-            if (String.IsNullOrWhiteSpace(imagePath))
-                throw new Exception("Floor Plan belum tersimpan. Kembali ke Master Map dan attach file PDF/JPG terlebih dahulu.");
-
+            // Floor plan is optional. Keep ImagePath empty when the Map has
+            // no PDF/JPG background yet.
             int version;
             using (var br = new WAL.BR.CF())
             {
@@ -1592,7 +1587,7 @@ FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
  INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-WHERE P.CompanyID=@CompanyID AND P.LocationID=@LocationID AND P.MapID=@MapID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1 AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
 ORDER BY P.DisplayOrder,P.PointCode",
                     new SqlParameter[] {
