@@ -579,10 +579,10 @@ SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.D
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
-      (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
-       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
+      (SELECT 1 FROM dbo.PIP_M_InspectionType IT
        INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-       WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))",
+       WHERE IT.InspectionTypeCode=M.InspectionTypeCode
+         AND S.ProfitCenterNo=@ProfitCenterNo))",
                     new SqlParameter[] {
                         new SqlParameter("@MapID", mapID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -929,10 +929,10 @@ FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
-      (SELECT 1 FROM dbo.PIP_M_InspectionPoint P
-       INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
+      (SELECT 1 FROM dbo.PIP_M_InspectionType IT
        INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
-       WHERE P.MapID=M.MapID AND S.ProfitCenterNo=@ProfitCenterNo))
+       WHERE IT.InspectionTypeCode=M.InspectionTypeCode
+         AND S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY M.MapVersion DESC",
                     new SqlParameter[] {
                         new SqlParameter("@MapCode", code),
