@@ -2249,24 +2249,45 @@ function addNewVersion()
 }
 function markCurrentVersionDirty()
 {
-    if(
-        !currentTemplate ||
-        !currentVersion
-    )
+    if (!currentTemplate || !currentVersion)
         return;
-    templateCache.sections[currentTemplate.SectionID].Dirty = true;
 
-    // Save All checks Structure.VersionInfo.Dirty, while the selected version
-    // metadata is also tracked through currentVersion. Keep both references in
-    // sync so structural-only edits (e.g. adding/renaming a Sub-section) are
-    // included in the save payload even when these objects are not the same ref.
-    if (currentVersion)
-        currentVersion.Dirty = true;
+    const section = getSectionCache(currentTemplate.SectionID);
+    const templateNode = getTemplateCache(
+        currentTemplate.SectionID,
+        currentTemplate.RuntimeTemplateID
+    );
+    const runtimeVersionID = String(
+        currentVersion.RuntimeVersionID ||
+        (currentVersionData && currentVersionData.VersionInfo &&
+            currentVersionData.VersionInfo.RuntimeVersionID) || ""
+    );
+
+    // Mark every canonical cache reference. The editor's currentVersion,
+    // Structure.VersionInfo and the version-list node can be distinct objects
+    // after a DB load, history restore, or cache refresh.
+    currentVersion.Dirty = true;
     if (currentVersionData && currentVersionData.VersionInfo)
         currentVersionData.VersionInfo.Dirty = true;
 
-    currentTemplate.Dirty=true;
-    templateCache.Dirty=true;
+    const versionNode = templateNode && Object.values(templateNode.Versions || {}).find(node =>
+        String(node && node.VersionInfo && node.VersionInfo.RuntimeVersionID || "") === runtimeVersionID
+    );
+    if (versionNode) {
+        versionNode.VersionInfo.Dirty = true;
+        if (versionNode.Structure && versionNode.Structure.VersionInfo)
+            versionNode.Structure.VersionInfo.Dirty = true;
+        if (currentVersionData && versionNode.Structure !== currentVersionData)
+            versionNode.Structure = currentVersionData;
+        if (currentVersionData && currentVersionData.VersionInfo)
+            versionNode.VersionInfo = currentVersionData.VersionInfo;
+    }
+
+    if (section) section.Dirty = true;
+    currentTemplate.Dirty = true;
+    if (templateNode && templateNode.Template)
+        templateNode.Template.Dirty = true;
+    templateCache.Dirty = true;
     recordTemplateHistoryChange();
     refreshDirtyUI();
 }
@@ -3962,16 +3983,18 @@ function evaluateDirtyState()
         Object.values(sec.Templates)
         .forEach(tpl =>
         {
-            let tplDirty = false;
+            let tplDirty = !!(tpl.Template && tpl.Template.MetadataDirty);
 
             Object.values(tpl.Versions)
             .forEach(ver =>
             {
-                if(ver.VersionInfo.Dirty)
+                if (ver.VersionInfo && ver.VersionInfo.Dirty)
+                    tplDirty = true;
+                if (ver.Structure && ver.Structure.VersionInfo && ver.Structure.VersionInfo.Dirty)
                     tplDirty = true;
             });
 
-            tpl.Template.Dirty = tplDirty;
+            if (tpl.Template) tpl.Template.Dirty = tplDirty;
 
             if(tplDirty)
             {
@@ -10045,6 +10068,10 @@ function syncVisibleTemplateMetadataBeforeSave()
     if (typeSelect) values.TemplateType = typeSelect.value || "W";
     if (inspectionSelect && typeSelect && typeSelect.value === "I")
         values.InspectionTypeCode = inspectionSelect.value || "";
+    if (typeSelect && typeSelect.value !== "I") {
+        values.InspectionTypeCode = "";
+        values.InspectionTypeDetailCode = "";
+    }
 
     const cache = getTemplateCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID);
     const cachedTemplate = cache && cache.Template;
@@ -10057,6 +10084,12 @@ function syncVisibleTemplateMetadataBeforeSave()
         currentTemplate[key] = values[key];
         if (cachedTemplate) cachedTemplate[key] = values[key];
     });
+
+    // Always keep the selected Template and its canonical cache node in sync.
+    // Inspection Detail selections live in the template's tag list, not in the
+    // dropdown's current value; preserve that semicolon-delimited value here.
+    if (cachedTemplate && currentTemplate.InspectionTypeDetailCode !== undefined)
+        cachedTemplate.InspectionTypeDetailCode = currentTemplate.InspectionTypeDetailCode;
 
     // The visible controls are the final source of truth at Save time. This also
     // protects metadata-only edits if a browser change event was not dispatched.
