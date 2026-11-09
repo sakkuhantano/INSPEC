@@ -1022,7 +1022,7 @@ WHERE IT.InspectionTypeCode=@TypeCode
             {
                 DataTable dt = br.EQueryP(@"
 SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath,
-       InspectionTypeCode, InspectionTypeDetailCode
+       InspectionTypeCode, InspectionTypeDetailCode, RequireAllPoints
 FROM dbo.PIP_M_InspectionMap M
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
@@ -1062,6 +1062,10 @@ ORDER BY M.MapVersion DESC",
                 txtMapName.Text = Convert.ToString(row["MapName"]);
                 txtMapDescription.Text = Convert.ToString(row["Description"]);
                 lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
+                GF.SelectListItem(ref ddlInspectionType, GF.GetString(row["InspectionTypeCode"]));
+                BindInspectionDetails();
+                GF.SelectListItem(ref ddlInspectionDetail, GF.GetString(row["InspectionTypeDetailCode"]));
+                chkRequireAllPoints.Checked = GF.GetBoolean(row["RequireAllPoints"]);
                 ShowMapPreview(row);
             }
             PreparePoint();
