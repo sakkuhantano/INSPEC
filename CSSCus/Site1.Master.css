@@ -723,6 +723,34 @@ body {
     text-transform: uppercase;
     margin-top: 3px;
 }
+.master-app-title {
+    min-width: 0;
+    line-height: 1.05;
+}
+.master-app-name {
+    color: #123b3d;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: -.01em;
+}
+.master-app-company {
+    color: #819496;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-top: 3px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.master-app-name-mobile {
+    color: #123b3d;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
 .master-footer {
     color: #879496;
     padding: 8px 2px 2px;
