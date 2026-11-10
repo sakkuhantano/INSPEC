@@ -482,6 +482,13 @@
         }
     }
 
+    function setInspectionSectionNavForTab(tabName) {
+        var navHost = document.getElementById("inspectionSectionNavHost");
+        if (!navHost) return;
+        // Section navigation is useful only while filling checklist sections.
+        navHost.classList.toggle("d-none", tabName !== "checklist");
+    }
+
     window.showInspectionMapWorkspace = function (record, activate) {
         if (record) currentMapRecord = record;
         record = record || currentMapRecord;
@@ -531,6 +538,7 @@
             if (mapTab) mapTab.classList.add("active");
             if (paramTab) paramTab.classList.remove("active");
             if (checklistTab) checklistTab.classList.remove("active");
+            setInspectionSectionNavForTab("map");
             closePoint();
             switchMapList(false);
             if (typeof window.updateInspectionParameterTabGate === "function")
@@ -568,6 +576,7 @@
                 currentMapRecord.ActiveInspectionPointID = 0;
                 currentMapRecord.Items = [];
             }
+            setInspectionSectionNavForTab("map");
             if (window.showInspectionMapWorkspace) window.showInspectionMapWorkspace(currentMapRecord, true);
         });
 
@@ -579,12 +588,14 @@
                     showInspectionNotice("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
                 return;
             }
+            setInspectionSectionNavForTab("checklist");
             var workspace = document.getElementById("inspectionMapWorkspace");
             if (workspace) workspace.classList.add("d-none");
         });
 
         var paramTab = document.getElementById("btnInspectionParamTab");
         if (paramTab) paramTab.addEventListener("click", function () {
+            setInspectionSectionNavForTab("param");
             var workspace = document.getElementById("inspectionMapWorkspace");
             if (workspace) workspace.classList.add("d-none");
         });
