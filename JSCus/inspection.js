@@ -13,7 +13,6 @@ let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
-let inspectionNoticeEnabled = false;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
@@ -56,14 +55,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         const approvalMode = new URLSearchParams(window.location.search).get("type") === "approval";
         if (approvalMode) {
             if (!hasAuthorizedMenu(20022)) {
-                showInspectionNotice("Akun ini tidak memiliki akses approval Inspection.", "warning");
+                showToast("Akun ini tidak memiliki akses approval Inspection.", "warning");
                 return;
             }
             // Approval uses the exact same cached, versioned checklist template as technician entry.
             if (typeof db === "undefined" || !db) await initIndexedDB();
             if (db.objectStoreNames.contains("inspection_templates")) await loadInspectionCache(true);
-            const inspectionNoticePanel = document.getElementById("inspectionNotice");
-            if (inspectionNoticePanel) inspectionNoticePanel.classList.add("d-none");
             ["inspectionStartPanel", "inspectionFormPanel"].forEach(id => document.getElementById(id).classList.add("d-none"));
             document.querySelectorAll(".inspection-card").forEach(el => {
                 if (el.id !== "inspectionApprovalPanel") el.classList.add("d-none");
@@ -75,7 +72,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         if (!hasAuthorizedMenu(20021)) {
-            showInspectionNotice("Akun ini tidak memiliki akses input inspeksi teknisi.", "warning");
+            showToast("Akun ini tidak memiliki akses input inspeksi teknisi.", "warning");
             return;
         }
 
@@ -121,11 +118,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById("inspectionConnectionLabel").textContent =
             navigator.onLine ? "Online • offline data ready" : "Offline • data tersimpan di perangkat";
         if (!inspectionTypes.length || !inspectionTemplates.length) {
-            showInspectionNotice("Belum ada master/template Inspection offline. Hubungkan internet lalu tekan Sync terlebih dahulu.", "warning");
+            showToast("Belum ada master/template Inspection offline. Hubungkan internet lalu tekan Sync terlebih dahulu.", "warning");
         }
     } catch (err) {
         console.error("Inspection page initialization failed:", err);
-        showInspectionNotice(err.message || "Gagal membuka input inspeksi.", "danger");
+        showToast(err.message || "Gagal membuka input inspeksi.", "danger");
     }
 });
 
@@ -179,7 +176,7 @@ function wireInspectionEvents() {
     document.getElementById("btnBackToInspectionRecords").addEventListener("click", function () {
         closeInspectionForm().catch(err => {
             console.error("Unable to return to inspection list:", err);
-            showInspectionNotice(err.message || "Gagal kembali ke daftar inspeksi.", "warning");
+            showToast(err.message || "Gagal kembali ke daftar inspeksi.", "warning");
         });
     });
     document.getElementById("selInspectionType").addEventListener("change", function () {
@@ -247,7 +244,7 @@ function wireInspectionEvents() {
     document.getElementById("btnFilterSubmitted").addEventListener("click", function () {
         refreshSavedInspectionList().catch(err => {
             console.error("Unable to filter submitted inspections:", err);
-            showInspectionNotice(err.message || "Gagal memfilter inspeksi submitted.", "warning");
+            showToast(err.message || "Gagal memfilter inspeksi submitted.", "warning");
         });
     });
     const submittedFilters = document.getElementById("inspectionSubmittedFilters");
@@ -267,7 +264,7 @@ function wireInspectionEvents() {
             updateInspectionParameterTabGate();
             if (typeof showInspectionMapWorkspace === "function")
                 showInspectionMapWorkspace(currentInspectionRecord, true);
-            showInspectionNotice("Pilih Inspection Point dari denah atau daftar terlebih dahulu untuk membuka Checklist.", "info");
+            showToast("Pilih Inspection Point dari denah atau daftar terlebih dahulu untuk membuka Checklist.", "info");
             return;
         }
         // Server-only submitted records intentionally use synthetic parameter options because
@@ -276,7 +273,7 @@ function wireInspectionEvents() {
         if (!currentInspectionReadOnly && !isInspectionParameterSelectionComplete()) {
             updateInspectionParameterTabGate();
             showInspectionEditorTab("param");
-            showInspectionNotice("Lengkapi Inspection Type, detail/jadwal, dan template terlebih dahulu sebelum membuka Checklist.", "warning");
+            showToast("Lengkapi Inspection Type, detail/jadwal, dan template terlebih dahulu sebelum membuka Checklist.", "warning");
             return;
         }
         if (currentInspectionRecord && !currentInspectionReadOnly && !await applyInspectionParameters()) return;
@@ -333,7 +330,7 @@ function wireInspectionEvents() {
                 delete pendingRecord.DeleteArchiveError;
                 await persistInspectionRecord(pendingRecord);
                 await refreshSavedInspectionList();
-                showInspectionNotice("Reason Cancel diperbarui. Jalankan Sync untuk menerapkannya ke server.", "success");
+                showToast("Reason Cancel diperbarui. Jalankan Sync untuk menerapkannya ke server.", "success");
                 return;
             }
             const button = event.target.closest("[data-open-inspection]");
@@ -353,7 +350,7 @@ function wireInspectionEvents() {
             badge.textContent = "!";
             badge.classList.remove("d-none");
         }
-        showInspectionNotice(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.", "warning");
+        showToast(count + " inspeksi mengalami konflik saat sync. Buka daftar inspeksi untuk melihat alasan dan pilih Delete Local Transaction bila record lokal memang harus dibuang.", "warning");
     });
     document.getElementById("inspectionChecklistHost").addEventListener("input", function (event) { if (event.target) event.target.classList.remove("is-invalid", "border-danger", "text-danger"); const item = event.target && event.target.closest(".inspection-item"); if (item) item.classList.remove("inspection-validation-error", "border", "border-danger", "rounded", "p-2"); scheduleInspectionAutosave(); updateInspectionChecklistGate(); });
     document.getElementById("inspectionFollowUpPanel").addEventListener("change", function (event) {
@@ -706,7 +703,7 @@ async function startNewInspection() {
     if (!type || !detail || !template ||
         !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
         (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
-        showInspectionNotice("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
+        showToast("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
     }
 
@@ -717,7 +714,7 @@ async function startNewInspection() {
             await refreshSavedInspectionList();
         } catch (scheduleError) {
             console.warn("Today schedule refresh failed before Start Inspection:", scheduleError);
-            showInspectionNotice("Jadwal server belum berhasil diperbarui. Pemeriksaan lokal tetap dilakukan; jika koneksi bermasalah, lanjutkan dengan hati-hati.", "warning");
+            showToast("Jadwal server belum berhasil diperbarui. Pemeriksaan lokal tetap dilakukan; jika koneksi bermasalah, lanjutkan dengan hati-hati.", "warning");
         }
     }
     const duplicate = inspectionRecords.find(record =>
@@ -732,12 +729,12 @@ async function startNewInspection() {
     );
     if (duplicate) {
         if (duplicate.SyncStatus === "CONFLICT" || duplicate.SyncStatus === "DELETE_PENDING") {
-            showInspectionNotice("Jadwal ini punya record lokal berstatus " + duplicate.SyncStatus +
+            showToast("Jadwal ini punya record lokal berstatus " + duplicate.SyncStatus +
                 ". Alasan: " + (duplicate.ConflictReason || "arsip/pemeriksaan konflik belum selesai.") +
                 " Selesaikan konflik tersebut sebelum membuat transaksi baru.", "warning");
             return;
         }
-        showInspectionNotice("Jadwal ini sudah memiliki inspeksi di perangkat (" +
+        showToast("Jadwal ini sudah memiliki inspeksi di perangkat (" +
             (duplicate.InspectionNo || "TEMP-" + String(duplicate.LocalInspectionID || "").substring(0, 8)) +
             "). Buka record yang sudah ada, jangan membuat duplikat.", "warning");
         await openSavedInspection(duplicate.LocalInspectionID);
@@ -768,7 +765,7 @@ async function startNewInspection() {
         Number(record.IDTemplate) === Number(template.IDTemplate)
     );
     if (serverDuplicate) {
-        showInspectionNotice("Jadwal ini sudah terisi di server (" +
+        showToast("Jadwal ini sudah terisi di server (" +
             (serverDuplicate.InspectionNo || serverDuplicate.Status || "inspection") +
             "). Record server tetap dipertahankan; jangan membuat transaksi duplikat.", "warning");
         return;
@@ -799,19 +796,19 @@ async function startNewInspection() {
             }
             const check = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
             if (check && check.duplicate) {
-                showInspectionNotice("Jadwal ini sudah memiliki inspeksi " +
+                showToast("Jadwal ini sudah memiliki inspeksi " +
                     (check.InspectionNo || "di server") + " untuk tanggal dan template tersebut. Duplikat tidak dibuat.", "warning");
                 return;
             }
         } catch (err) {
             const message = String(err.message || err).toLowerCase();
             if (err.status === 403 || /not authorized|not assigned|unauthorized|employee is required/.test(message)) {
-                showInspectionNotice("Validasi server menolak akses inspeksi: " + (err.message || err), "danger");
+                showToast("Validasi server menolak akses inspeksi: " + (err.message || err), "danger");
                 return;
             }
             // If the server is unreachable, offline entry remains possible; upload performs final validation.
             console.warn("Unable to pre-check duplicate inspection:", err);
-            showInspectionNotice("Pemeriksaan jadwal server gagal. Jika koneksi bermasalah, inspeksi tetap bisa dibuat offline dan akan divalidasi lagi saat upload.", "warning");
+            showToast("Pemeriksaan jadwal server gagal. Jika koneksi bermasalah, inspeksi tetap bisa dibuat offline dan akan divalidasi lagi saat upload.", "warning");
         }
     }
 
@@ -847,7 +844,7 @@ async function startNewInspection() {
                     }
                 }
             } catch (mapError) {
-                showInspectionNotice("Tidak dapat memuat denah dan Inspection Point: " + (mapError.message || mapError), "danger");
+                showToast("Tidak dapat memuat denah dan Inspection Point: " + (mapError.message || mapError), "danger");
                 return;
             }
         } else {
@@ -856,12 +853,12 @@ async function startNewInspection() {
         }
 
         if (!batchMapSetup || !Array.isArray(batchMapSetup.points) || !batchMapSetup.points.length) {
-            showInspectionNotice("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
+            showToast("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
         if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
             map.MapUrl && (!(map.MapBlob || map.PdfBlob) || typeof (map.MapBlob || map.PdfBlob).arrayBuffer !== "function"))) {
-            showInspectionNotice("File denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
+            showToast("File denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
             return;
         }
     }
@@ -1814,7 +1811,7 @@ async function saveBatchInspectionPoint(status) {
     const record = currentInspectionRecord;
     const point = getActiveInspectionPoint();
     if (!record || !point) {
-        showInspectionNotice("Pilih Inspection Point terlebih dahulu.", "warning");
+        showToast("Pilih Inspection Point terlebih dahulu.", "warning");
         return;
     }
 
@@ -1891,7 +1888,7 @@ async function saveBatchInspectionPoint(status) {
         showInspectionMapWorkspace(record, true);
     if (typeof refreshInspectionMapPointStatuses === "function")
         refreshInspectionMapPointStatuses();
-    showInspectionNotice(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
+    showToast(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
 }
 window.saveBatchInspectionPoint = saveBatchInspectionPoint;
 
@@ -1899,13 +1896,13 @@ window.submitInspectionBatch = async function () {
     const record = currentInspectionRecord;
     if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH") return;
     if (record.Status === "DONE") {
-        showInspectionNotice("Batch ini sudah disubmit dan tidak dapat diubah.", "warning");
+        showToast("Batch ini sudah disubmit dan tidak dapat diubah.", "warning");
         return;
     }
     const points = record.Points || [];
     const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
     if (!masterPoints.length) {
-        showInspectionNotice("Master Inspection Point batch ini tidak tersedia.", "danger");
+        showToast("Master Inspection Point batch ini tidak tersedia.", "danger");
         return;
     }
     const incompleteMaster = masterPoints.find(masterPoint => {
@@ -1924,7 +1921,7 @@ window.submitInspectionBatch = async function () {
     });
     if (incompleteMaster) {
         await openBatchInspectionPointChecklist(incompleteMaster);
-        showInspectionNotice("Masih ada titik yang wajib diselesaikan. " +
+        showToast("Masih ada titik yang wajib diselesaikan. " +
             (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
         return;
     }
@@ -1932,7 +1929,7 @@ window.submitInspectionBatch = async function () {
     const summaryElement = document.getElementById("txtInspectionSummary");
     if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) &&
         (!summaryElement || !summaryElement.value.trim())) {
-        showInspectionNotice("Final Summary wajib diisi sebelum Submit Batch.", "warning");
+        showToast("Final Summary wajib diisi sebelum Submit Batch.", "warning");
         const summaryPanel = document.getElementById("inspectionSummaryPanel");
         if (summaryPanel) { summaryPanel.classList.remove("d-none"); summaryPanel.scrollIntoView({ behavior: "smooth", block: "center" }); }
         if (summaryElement) summaryElement.focus();
@@ -1942,7 +1939,7 @@ window.submitInspectionBatch = async function () {
     const batchFollowUp = collectInspectionFollowUp();
     if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && batchFollowUp.FollowUp === "Recommend Follow Up" &&
         (!batchFollowUp.FollowUpSection || !batchFollowUp.FollowUpRemark)) {
-        showInspectionNotice("Pilih Responsible Section dan isi deskripsi Follow Up sebelum Submit Batch.", "warning");
+        showToast("Pilih Responsible Section dan isi deskripsi Follow Up sebelum Submit Batch.", "warning");
         const followUpPanel = document.getElementById("inspectionFollowUpPanel");
         if (followUpPanel) followUpPanel.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
@@ -1964,7 +1961,7 @@ window.submitInspectionBatch = async function () {
     record.SyncStatus = "PENDING";
     record.UpdatedAt = new Date().toISOString();
     await persistInspectionRecord(record);
-    showInspectionNotice("Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
+    showToast("Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
     await refreshSavedInspectionList();
     await closeInspectionForm();
 };
@@ -1983,18 +1980,18 @@ async function saveInspection(status) {
         Object.assign(currentInspectionRecord, collectInspectionFollowUp());
         currentInspectionRecord.SyncStatus = "PENDING";
         await persistInspectionRecord(currentInspectionRecord);
-        showInspectionNotice("Draft batch tersimpan offline.", "success");
+        showToast("Draft batch tersimpan offline.", "success");
         return;
     }
 
     if (!currentInspectionRecord) return;
     const login = getLoginData();
     if (!login || currentInspectionRecord.OwnerEmployeeID !== login.employeeid) {
-        showInspectionNotice("Data ini bukan milik akun yang sedang login. Penyimpanan dibatalkan.", "danger");
+        showToast("Data ini bukan milik akun yang sedang login. Penyimpanan dibatalkan.", "danger");
         return;
     }
     if (currentInspectionRecord.Status === "DONE" && !isVoidedServerInspectionRecord(currentInspectionRecord)) {
-        showInspectionNotice("Inspeksi yang sudah Complete bersifat read-only.", "warning");
+        showToast("Inspeksi yang sudah Complete bersifat read-only.", "warning");
         return;
     }
 
@@ -2078,7 +2075,7 @@ async function saveInspection(status) {
     await persistInspectionRecord(currentInspectionRecord);
     inspectionPhotoBaseline = null;
 
-    showInspectionNotice(status === "DONE"
+    showToast(status === "DONE"
         ? "Inspeksi selesai dan tersimpan offline. Tekan Sync untuk mengirimnya."
         : "Draft tersimpan offline.", "success");
     await refreshSavedInspectionList();
@@ -2136,7 +2133,7 @@ async function refreshSavedInspectionList() {
     const fromDate = fromInput ? fromInput.value : localDateString(new Date());
     const thruDate = thruInput ? thruInput.value : localDateString(new Date());
     if (!fromDate || !thruDate || fromDate > thruDate) {
-        showInspectionNotice("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
+        showToast("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
         return;
     }
     const all = await readInspectionStore("inspection_records");
@@ -2511,7 +2508,7 @@ async function openSavedInspection(localId) {
 
     const login = getLoginData();
     if (!login || record.OwnerEmployeeID !== login.employeeid) {
-        showInspectionNotice("Inspeksi ini bukan milik akun yang sedang login.", "danger");
+        showToast("Inspeksi ini bukan milik akun yang sedang login.", "danger");
         return;
     }
 
@@ -2537,9 +2534,7 @@ function restoreInspectionMasterDropdowns() {
 
 function resetInspectionSelection() {
     restoreInspectionMasterDropdowns();
-    showInspectionInputScreen(true);
-    const notice = document.getElementById("inspectionNotice");
-    if (notice) notice.classList.add("d-none");
+    showInspectionInputScreen();
     showToast("Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
@@ -2835,7 +2830,7 @@ async function applyInspectionParameters() {
         template.InspectionTypeCode !== typeCode ||
         !isInspectionTemplateDetailAllowed(template, detailCode) ||
         template.SectionID !== type.SectionID) {
-        showInspectionNotice("Pilih Inspection Type, detail, dan template Inspection yang sesuai.", "warning");
+        showToast("Pilih Inspection Type, detail, dan template Inspection yang sesuai.", "warning");
         updateInspectionParameterTabGate();
         return false;
     }
@@ -2853,7 +2848,7 @@ async function applyInspectionParameters() {
         r.SyncStatus !== "DELETE_PENDING"
     );
     if (duplicate) {
-        showInspectionNotice("Kombinasi parameter ini sudah dipakai transaksi lain. Draft tidak diubah.", "warning");
+        showToast("Kombinasi parameter ini sudah dipakai transaksi lain. Draft tidak diubah.", "warning");
         populateInspectionParameters(currentInspectionRecord);
         updateInspectionParameterTabGate();
         return false;
@@ -2972,7 +2967,7 @@ function wireInspectionReasonCancelDialog() {
 function showInspectionReasonCancelDialog(title, initialValue) {
     const modal = document.getElementById("inspectionReasonCancelModal");
     if (!modal) {
-        showInspectionNotice("Dialog Reason Cancel tidak tersedia. Refresh aplikasi setelah update.", "danger");
+        showToast("Dialog Reason Cancel tidak tersedia. Refresh aplikasi setelah update.", "danger");
         return Promise.resolve(null);
     }
     wireInspectionReasonCancelDialog();
@@ -2990,7 +2985,7 @@ function showInspectionReasonCancelDialog(title, initialValue) {
 async function deleteLocalInspectionDraft(localId) {
     const record = inspectionRecords.find(item => item.LocalInspectionID === localId);
     if (!record) {
-        showInspectionNotice("Transaksi inspeksi tidak ditemukan di perangkat.", "warning");
+        showToast("Transaksi inspeksi tidak ditemukan di perangkat.", "warning");
         return;
     }
     const isConflict = record.SyncStatus === "CONFLICT";
@@ -2998,7 +2993,7 @@ async function deleteLocalInspectionDraft(localId) {
     const isPureLocalDraft = record.Status === "DRAFT" && record.SyncStatus !== "SYNCED" &&
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING";
     if (!isConflict && !isVoidedServerRecord && !isPureLocalDraft) {
-        showInspectionNotice("Delete Draft hanya tersedia untuk draft lokal, transaksi conflict, atau inspeksi yang sudah di-void SPV.", "warning");
+        showToast("Delete Draft hanya tersedia untuk draft lokal, transaksi conflict, atau inspeksi yang sudah di-void SPV.", "warning");
         return;
     }
     const title = isConflict ? "Hapus Transaksi Conflict" : (isVoidedServerRecord ? "Hapus Draft Inspeksi Void" : "Hapus Draft Inspeksi");
@@ -3043,7 +3038,7 @@ async function deleteLocalInspectionDraft(localId) {
             showInspectionRecordsScreen();
         }
         await refreshSavedInspectionList();
-        showInspectionNotice(
+        showToast(
             isConflict
                 ? "Penghapusan conflict masuk antrean. Snapshot dan data lokal tetap disimpan sampai lo klik Sync."
                 : "Penghapusan masuk antrean. Data dan foto lokal tetap disimpan; klik Sync untuk mengubah IsActive menjadi 0 dan menyimpan Reason Cancel ke server.",
@@ -3071,7 +3066,7 @@ async function deleteLocalInspectionDraft(localId) {
         showInspectionRecordsScreen();
     }
     await refreshSavedInspectionList();
-    showInspectionNotice("Draft lokal beserta fotonya sudah dihapus tanpa membuat record server.", "success");
+    showToast("Draft lokal beserta fotonya sudah dihapus tanpa membuat record server.", "success");
 }
 
 async function getInspectionPhotos(localId, pointId){return new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readonly"),req=tx.objectStore("inspection_photos").index("LocalInspectionID").getAll(IDBKeyRange.only(localId));req.onsuccess=()=>resolve((req.result||[]).filter(photo=>pointId==null||String(photo.PointID||"")===String(pointId)).sort((a,b)=>String(a.Type).localeCompare(String(b.Type))||Number(a.SeqNo||a.OrderNo||0)-Number(b.SeqNo||b.OrderNo||0)));req.onerror=()=>reject(req.error);});}
@@ -3196,7 +3191,7 @@ function handleInspectionPhotoViewerKeydown(event) {
     }
 }
 
-async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const requirement=normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement||(currentInspectionRecord.TemplateSnapshot&&currentInspectionRecord.TemplateSnapshot.PhotoRequirement));if((type==="BEFORE"&&!(requirement==="BEFORE"||requirement==="BOTH"))||(type==="AFTER"&&!(requirement==="AFTER"||requirement==="BOTH"))){showInspectionNotice("Foto "+type+" tidak diaktifkan pada Template Version ini.","warning");return;}const existing=await getCurrentInspectionPhotos();let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showInspectionNotice("File harus berupa gambar.","warning");continue;}try{if(typeof compressImage!=="function")throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");const blob=await compressImage(file,{maxWidth:640,maxHeight:640,maxSize:100*1024,quality:.70,minQuality:.25});const baseName=(file.name||("inspection-"+type.toLowerCase())).replace(/\\.[^.]+$/,"");await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,PointID:getActiveInspectionPointPhotoID(),Type:type,FileName:baseName+".jpg",Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showInspectionNotice("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
+async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const requirement=normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement||(currentInspectionRecord.TemplateSnapshot&&currentInspectionRecord.TemplateSnapshot.PhotoRequirement));if((type==="BEFORE"&&!(requirement==="BEFORE"||requirement==="BOTH"))||(type==="AFTER"&&!(requirement==="AFTER"||requirement==="BOTH"))){showToast("Foto "+type+" tidak diaktifkan pada Template Version ini.","warning");return;}const existing=await getCurrentInspectionPhotos();let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showToast("File harus berupa gambar.","warning");continue;}try{if(typeof compressImage!=="function")throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");const blob=await compressImage(file,{maxWidth:640,maxHeight:640,maxSize:100*1024,quality:.70,minQuality:.25});const baseName=(file.name||("inspection-"+type.toLowerCase())).replace(/\\.[^.]+$/,"");await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,PointID:getActiveInspectionPointPhotoID(),Type:type,FileName:baseName+".jpg",Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showToast("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getCurrentInspectionPhotos();const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
     updateInspectionParameterTabGate();
@@ -3232,18 +3227,14 @@ async function updateInspectionChecklistGate() {
 
 }
 
-function showInspectionInputScreen(showNotice) {
+function showInspectionInputScreen() {
     document.getElementById("inspectionRecordsPanel").classList.add("d-none");
     document.getElementById("inspectionInputPanel").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.remove("d-none");
     document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
-    inspectionNoticeEnabled = false;
-    const notice = document.getElementById("inspectionNotice");
-    if (notice) notice.classList.add("d-none");
 }
 
 function showInspectionRecordsScreen() {
-    inspectionNoticeEnabled = false;
     document.getElementById("inspectionInputPanel").classList.add("d-none");
     document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
@@ -3268,7 +3259,7 @@ async function queueConflictInspectionDelete(localId) {
     await deleteLocalInspectionDraft(localId);
 }
 
-function showInspectionNotice(message, type) {
+function showToast(message, type) {
     // Backward-compatible alias: all Inspection feedback is shown as a toast.
     if (typeof showToast === "function") {
         showToast(message, type || "info");
