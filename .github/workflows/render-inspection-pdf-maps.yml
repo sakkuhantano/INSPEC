@@ -14,11 +14,11 @@ jobs:
     steps:
       - name: Checkout source branch
         uses: actions/checkout@v4
-      - name: Install PDF tools
+      - name: Install PDF and OCR tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y poppler-utils
-      - name: Render PDFs and extract text positions
+          sudo apt-get install -y poppler-utils tesseract-ocr
+      - name: Render PDFs and OCR point labels
         shell: bash
         run: |
           set -euo pipefail
@@ -28,14 +28,16 @@ jobs:
             base="$(basename "${pdf%.pdf}" | tr ' ()' '___' | tr -cd '[:alnum:]_.-')"
             echo "Processing: $pdf"
             pdfinfo "$pdf" > "rendered/${base}_info.txt"
-            pdftotext -bbox-layout "$pdf" "rendered/${base}_bbox.html"
-            pdftoppm -png -r 110 "$pdf" "rendered/${base}"
+            pdftoppm -png -r 250 "$pdf" "rendered/${base}"
+            for page in rendered/"${base}"-*.png; do
+              tesseract "$page" "${page%.png}" -l eng --psm 11 tsv
+            done
           done
           find rendered -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
-      - name: Upload rendered map pages and text positions
+      - name: Upload rendered maps and OCR coordinates
         uses: actions/upload-artifact@v4
         with:
-          name: inspection-map-rendered-pages
+          name: inspection-map-ocr-250dpi
           path: rendered/
           if-no-files-found: error
           retention-days: 3
