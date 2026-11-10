@@ -8,6 +8,17 @@
         var input = document.getElementById('fuMapPdf');
         return input ? input.getAttribute('data-inspection-draft-key') : null;
     }
+    function inspectionSetUploadPostbackMode(control) {
+        var input = document.getElementById('fuMapPdf');
+        if (!input) return;
+        if (!input.getAttribute('data-inspection-original-name') && input.name)
+            input.setAttribute('data-inspection-original-name', input.name);
+        var originalName = input.getAttribute('data-inspection-original-name');
+        var isSaveMap = !!(control && control.id && control.id.indexOf('lbtn_TB_Save') >= 0);
+        if (isSaveMap && originalName) input.name = originalName;
+        else input.removeAttribute('name');
+    }
+    }
     function inspectionOpenDraftDb() {
         if (inspectionDraftDbPromise) return inspectionDraftDbPromise;
         inspectionDraftDbPromise = new Promise(function (resolve, reject) {
@@ -98,6 +109,9 @@
                     console.error('Cannot restore inspection map draft to FileUpload:', error);
                 }
             }
+            // Keep the Blob local during Add Point / other postbacks. Only the
+            // toolbar Save action temporarily restores the FileUpload name.
+            input.removeAttribute('name');
             inspectionShowDraftPreview(draft.blob, draft.fileName);
         }).catch(function (error) {
             console.error('Inspection map draft restore failed:', error);
@@ -282,6 +296,8 @@
                 var file = draftInput.files && draftInput.files[0];
                 var key = inspectionDraftKey();
                 if (!file || !key) return;
+                if (!draftInput.getAttribute('data-inspection-original-name') && draftInput.name)
+                    draftInput.setAttribute('data-inspection-original-name', draftInput.name);
                 inspectionDraftWritePromise = inspectionDraftWritePromise.then(function () {
                     return inspectionDraftStore('readwrite', key, {
                         blob: file, fileName: file.name, fileType: file.type,
@@ -300,6 +316,7 @@
             var isPostback = /__doPostBack|WebForm_DoPostBackWithOptions/.test(href + ' ' + clickCode) ||
                 control.type === 'submit' || control.getAttribute('type') === 'submit';
             if (!isPostback) return;
+            inspectionSetUploadPostbackMode(control);
             event.preventDefault();
             event.stopImmediatePropagation();
             Promise.all([inspectionDraftWritePromise, inspectionDraftRestorePromise]).then(function () {
