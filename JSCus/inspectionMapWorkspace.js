@@ -173,6 +173,8 @@
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
 
         host.querySelectorAll("[data-point-id]").forEach(function (button) {
+            button.classList.toggle("active", !!selectedPoint &&
+                button.getAttribute("data-point-id") === String(selectedPoint.InspectionPointID));
             button.addEventListener("click", function () {
                 openPoint(button.getAttribute("data-point-id"));
             });
@@ -265,7 +267,16 @@
             ? "ABNORMAL: " + abnormalRemark
             : (selectedPoint.PointDescription || selectedPoint.ObjectReferenceCode || "");
         var sheet = document.getElementById("inspectionMapPointSheet");
-        if (sheet) sheet.classList.remove("d-none");
+        if (sheet) sheet.classList.add("d-none");
+
+        // Selecting a point opens its existing template checklist directly.
+        if (typeof window.openBatchInspectionPointChecklist === "function") {
+            Promise.resolve(window.openBatchInspectionPointChecklist(selectedPoint)).catch(function (error) {
+                console.error("Unable to open inspection point checklist:", error);
+                if (typeof showToast === "function")
+                    showToast(error && error.message ? error.message : "Checklist point gagal dibuka.", "warning");
+            });
+        }
     }
 
     function closePoint() {
