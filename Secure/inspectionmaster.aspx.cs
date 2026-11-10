@@ -1022,7 +1022,7 @@ WHERE IT.InspectionTypeCode=@TypeCode
                 if (String.IsNullOrWhiteSpace(storedPath)) return;
 
                 // ImagePath stores the URL returned by SavePdfFile.
-                // Only delete GUID-named PDFs from this map's configured folder.
+                // Only delete GUID-named PDF/JPG files from this map's configured folder.
                 string normalized = storedPath.Replace("\\", "/");
                 int slash = normalized.LastIndexOf('/');
                 string fileName = slash >= 0 ? normalized.Substring(slash + 1) : normalized;
@@ -1203,8 +1203,6 @@ ORDER BY M.MapVersion DESC",
             //    return;
             //}
 
-            long currentMapID;
-            bool hasSavedMap = Int64.TryParse(hidMapID.Value, out currentMapID) && currentMapID > 0;
             // The selected PDF/JPG remains in browser IndexedDB across this
             // WebForms postback. It is uploaded only when Save Map is submitted.
 
@@ -1346,9 +1344,8 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
             long mapID;
             if (!Int64.TryParse(hidMapID.Value, out mapID) || mapID <= 0)
             {
-                // For a new Map, Save Inspection Point creates the Map first using
-                // the Map form + the uploaded floor-plan draft, then continues
-                // with the normal point insert flow.
+                // For a new Map, Save Inspection Point creates the Map first.
+                // Its floor-plan Blob remains in browser IndexedDB until Save Map.
                 try
                 {
                     mapID = CreateMapForNewPoint();
