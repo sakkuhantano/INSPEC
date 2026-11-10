@@ -563,7 +563,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
                 if (commandName == "EditMap")
                 {
                     hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
-                    hidMapIsDraft.Value = "1";
+                    hidMapIsDraft.Value = "0";
                     txtMapCode.Text = Convert.ToString(row["MapCode"]);
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, true);
@@ -1354,6 +1354,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                     mapID = CreateMapForNewPoint();
                     if (mapID <= 0) return;
                     hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
+                    hidMapIsDraft.Value = "1";
                 }
                 catch (Exception mapError)
                 {
