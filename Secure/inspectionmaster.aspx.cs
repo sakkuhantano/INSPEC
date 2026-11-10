@@ -1475,10 +1475,12 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                     ScriptManager.RegisterStartupScript(this, GetType(),
                         "clearUploadedInspectionMapDraft", "inspectionMasterClearDraft();", true);
                 }
-                catch
+                catch (Exception uploadError)
                 {
                     TryDeleteFile(uploadedMapPath);
-                    throw;
+                    GF.MsgBox(this, "Gagal menyimpan denah: " + uploadError.Message, "BS-5.3.0");
+                    SetTab("#tab-point");
+                    return;
                 }
             }
 
