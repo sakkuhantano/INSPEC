@@ -790,11 +790,11 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
-        // Cache all BATCH map metadata and PDF files with bounded concurrency.
-        // The old nested await loops serialized every detail lookup and every PDF download.
+        // Cache BATCH map metadata only during Sync All.
+        // PDF/image files are loaded lazily when the user opens the map workspace;
+        // downloading every floor plan here makes mobile master sync unnecessarily slow.
         const batchTypes = (masters.types || []).filter(type =>
             String(type.InspectionMode || "STANDARD").toUpperCase() === "BATCH");
-        const cachedInspectionPdfBlobs = new Map();
         const mapTasks = [];
         const runInspectionTasks = async (items, concurrency, worker) => {
             let nextIndex = 0;
@@ -813,7 +813,6 @@ async function getInspectionData() {
             ).forEach(detail => mapTasks.push({ type: type, detail: detail }));
         });
 
-        const resolvedMapSetups = [];
         await runInspectionTasks(mapTasks, 3, async function (task) {
             const type = task.type;
             const detail = task.detail;
@@ -834,42 +833,11 @@ async function getInspectionData() {
                 const mapSetup = mapPayload && Object.prototype.hasOwnProperty.call(mapPayload, "d") ? mapPayload.d : mapPayload;
                 if (mapSetup && mapSetup.success === true) {
                     type.BatchMapSetups[String(detail.InspectionTypeDetailCode).toUpperCase()] = mapSetup;
-                    (mapSetup.maps || []).forEach(map => {
-                        if (map.MapUrl) resolvedMapSetups.push(map);
-                    });
                 }
             } catch (mapError) {
-                console.warn("BATCH Inspection map cache failed:", type.InspectionTypeCode,
+                console.warn("BATCH Inspection map metadata cache failed:", type.InspectionTypeCode,
                     detail.InspectionTypeDetailCode, mapError);
             }
-        });
-
-        // Download each unique map file once, concurrently but gently enough for phones.
-        const uniqueMaps = new Map();
-        resolvedMapSetups.forEach(map => {
-            const key = String(map.MapID || map.MapUrl);
-            if (!uniqueMaps.has(key)) uniqueMaps.set(key, map);
-        });
-        const uniqueMapEntries = Array.from(uniqueMaps.entries());
-        await runInspectionTasks(uniqueMapEntries, 3, async function (entry) {
-            const key = entry[0];
-            const map = entry[1];
-            try {
-                const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
-                if (pdfResponse.ok) {
-                    const blob = await pdfResponse.blob();
-                    cachedInspectionPdfBlobs.set(key, blob);
-                } else {
-                    console.warn("Inspection PDF cache returned HTTP", pdfResponse.status, map.MapCode);
-                }
-            } catch (pdfError) {
-                console.warn("Inspection PDF could not be cached:", map.MapCode, pdfError);
-            }
-        });
-        resolvedMapSetups.forEach(map => {
-            const key = String(map.MapID || map.MapUrl);
-            if (cachedInspectionPdfBlobs.has(key))
-                map.PdfBlob = cachedInspectionPdfBlobs.get(key);
         });
 
         // Reconcile only the logged-in company/location and sections.
