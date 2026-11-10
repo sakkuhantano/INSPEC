@@ -47,6 +47,86 @@
     .inspection-map-point-sheet{position:fixed;z-index:1085;bottom:1rem}
     @media(max-width:575.98px){.inspection-map-canvas{min-height:260px;padding:6px}.inspection-map-point-sheet{bottom:.5rem}}
 
+    /* Batch map workspace: compact, touch-friendly layout on phones. */
+    @media (max-width: 575.98px) {
+        .inspection-map-workspace {
+            min-height: calc(100dvh - 105px);
+            overflow: visible;
+        }
+        .inspection-map-toolbar {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            align-items: stretch;
+            gap: .55rem;
+            padding: .65rem;
+        }
+        .inspection-map-title-wrap {
+            width: 100%;
+            min-width: 0;
+        }
+        .inspection-map-title {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        .inspection-map-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            width: 100%;
+            min-width: 0;
+            gap: .4rem;
+        }
+        .inspection-map-actions > .btn-group {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+        }
+        .inspection-map-actions > .btn-group > .btn {
+            flex: 1 1 50%;
+            min-width: 0;
+            padding: .42rem .3rem;
+            white-space: nowrap;
+        }
+        .inspection-map-actions > .btn {
+            width: 100%;
+            min-width: 0;
+            min-height: 36px;
+            padding: .38rem .35rem;
+            white-space: normal;
+            line-height: 1.15;
+        }
+        #btnDeleteInspectionBatchDraft {
+            grid-column: 1 / -1;
+        }
+        .inspection-map-summary {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        .inspection-map-canvas {
+            min-height: 380px;
+            padding: 6px;
+        }
+        .inspection-map-zoom-tools {
+            top: 6px;
+            right: 6px;
+            max-width: calc(100% - 12px);
+        }
+        .inspection-map-legend {
+            display: flex;
+            flex-wrap: wrap;
+            position: absolute;
+            left: 6px;
+            right: 6px;
+            bottom: 6px;
+            max-width: none;
+            font-size: .58rem;
+        }
+        .inspection-map-point-sheet {
+            left: 8px;
+            right: 8px;
+            width: auto;
+            bottom: max(.5rem, env(safe-area-inset-bottom));
+        }
+    }
+
     .inspection-approval-toolbar { width: 100%; }
     .inspection-filter-control { flex: 1 1 145px; min-width: 125px; }
     .inspection-date-control { flex: 0 1 135px; min-width: 120px; }
@@ -871,8 +951,8 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261110-unscheduled-1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261110-batch-mobile-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261110-toast-cleanup-2"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261110-batch-mobile-1"></script>
 </asp:Content>
