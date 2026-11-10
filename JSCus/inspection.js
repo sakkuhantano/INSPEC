@@ -285,6 +285,11 @@ function wireInspectionEvents() {
     document.getElementById("btnDeleteInspectionDraft").addEventListener("click", async () => {
         if (currentInspectionRecord) await deleteLocalInspectionDraft(currentInspectionRecord.LocalInspectionID);
     });
+    document.getElementById("btnDeleteInspectionBatchDraft").addEventListener("click", async () => {
+        if (!currentInspectionRecord ||
+            String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH") return;
+        await deleteLocalInspectionDraft(currentInspectionRecord.LocalInspectionID);
+    });
     document.getElementById("btnCompleteInspection").addEventListener("click", () => saveInspection("DONE"));
     document.getElementById("inspectionPhotoBeforeInput").addEventListener("change", e => handleInspectionPhotoInput(e, "BEFORE"));
     document.getElementById("inspectionPhotoAfterInput").addEventListener("change", e => handleInspectionPhotoInput(e, "AFTER"));
@@ -1137,6 +1142,13 @@ async function renderInspectionForm(record, readOnly) {
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
         inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID));
     document.getElementById("btnDeleteInspectionDraft").classList.toggle("d-none", !canDeleteDraft);
+    const canDeleteBatchDraft = String(record.InspectionMode || "").toUpperCase() === "BATCH" &&
+        !currentInspectionReadOnly && record.Status === "DRAFT" &&
+        record.SyncStatus !== "SYNCED" && record.SyncStatus !== "CONFLICT" &&
+        record.SyncStatus !== "DELETE_PENDING" &&
+        !!record.LocalInspectionID;
+    const batchDeleteButton = document.getElementById("btnDeleteInspectionBatchDraft");
+    if (batchDeleteButton) batchDeleteButton.classList.toggle("d-none", !canDeleteBatchDraft);
     document.getElementById("btnSaveInspectionDraft").classList.toggle("d-none", currentInspectionReadOnly);
     document.getElementById("btnCompleteInspection").classList.toggle("d-none", currentInspectionReadOnly);
     const transactionNo = record.InspectionNo
