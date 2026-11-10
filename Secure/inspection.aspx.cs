@@ -1082,7 +1082,7 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                             { "MapID", mapId },
                             { "MapCode", GF.GetString(row["MapCode"]) },
                             { "MapName", GF.GetString(row["MapName"]) },
-                            { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"])) },
+                            { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"]), companyId, locationId) },
                             { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) },
                             { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
                         });
@@ -1695,7 +1695,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "MapID", mapID },
                                 { "MapCode", GF.GetString(pointRow["MapCode"]) },
                                 { "MapName", GF.GetString(pointRow["MapName"]) },
-                                { "MapUrl", ResolveInspectionMapUrl(GF.GetString(pointRow["MapUrl"])) },
+                                { "MapUrl", ResolveInspectionMapUrl(GF.GetString(pointRow["MapUrl"]), GF.GetString(header.Rows[0]["CompanyID"]), GF.GetString(header.Rows[0]["LocationID"])) },
                                 { "MapVersion", pointRow["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapVersion"]) }
                             });
                         }
@@ -2298,19 +2298,42 @@ WHERE I.InspectionID=@InspectionID
             return Boolean.TryParse(TokenString(obj, name), out value) && value;
         }
 
-        private static string ResolveInspectionMapUrl(string storedPath)
+        private static string ResolveInspectionMapUrl(string storedPath, string companyId, string locationId)
         {
             string path = (storedPath ?? "").Trim();
             if (path == "") return "";
-            Uri absoluteUrl;
-            if (Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl) &&
-                (absoluteUrl.Scheme == Uri.UriSchemeHttp || absoluteUrl.Scheme == Uri.UriSchemeHttps))
-                return path;
-            if (path.StartsWith("~/", StringComparison.Ordinal))
-                return VirtualPathUtility.ToAbsolute(path);
-            if (path.StartsWith("/", StringComparison.Ordinal))
-                return path;
-            return VirtualPathUtility.ToAbsolute("~/" + path.TrimStart('/'));
+
+            // Accept legacy absolute URLs/relative paths, but always rebuild
+            // the target from this request's host and deployed INSPEC app name.
+            Uri oldUrl;
+            if (Uri.TryCreate(path, UriKind.Absolute, out oldUrl) &&
+                (oldUrl.Scheme == Uri.UriSchemeHttp || oldUrl.Scheme == Uri.UriSchemeHttps))
+                path = oldUrl.AbsolutePath;
+
+            path = path.Replace('\\', '/');
+            int slash = path.LastIndexOf('/');
+            string fileName = slash >= 0 ? path.Substring(slash + 1) : path;
+            int query = fileName.IndexOf('?');
+            if (query >= 0) fileName = fileName.Substring(0, query);
+            int fragment = fileName.IndexOf('#');
+            if (fragment >= 0) fileName = fileName.Substring(0, fragment);
+            if (fileName == "") return "";
+
+            string appPath = HttpContext.Current.Request.ApplicationPath ?? "";
+            string root = appPath.Trim('/').ToUpperInvariant().Replace("INSPEC", "PIP");
+            if (root == "") root = "PIP";
+            string companyLocation = SafeInspectionMapPathPart(companyId) + "_" +
+                SafeInspectionMapPathPart(locationId);
+            string relativeUrl = "/ToolsLib/" + root + "/PIP_M_InspectionMap/" +
+                companyLocation + "/" + HttpUtility.UrlPathEncode(fileName);
+            return HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority) + relativeUrl;
+        }
+
+        private static string SafeInspectionMapPathPart(string value)
+        {
+            string result = new string((value ?? "").Where(
+                c => Char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+            return result == "" ? "_" : result;
         }
 
         private static object DbString(string value)
