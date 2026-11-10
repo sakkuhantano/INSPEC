@@ -288,6 +288,25 @@
             });
             inspectionDraftRestorePromise = inspectionRestoreDraft();
         }
+        document.addEventListener('click', function (event) {
+            var control = event.target && event.target.closest
+                ? event.target.closest('a,button,input[type="submit"]') : null;
+            if (!control || control.id === 'fuMapPdf' || control.getAttribute('data-inspection-click-ready') === '1') return;
+            var href = control.getAttribute('href') || '';
+            var isPostback = /__doPostBack|WebForm_DoPostBackWithOptions/.test(href) ||
+                control.type === 'submit' || control.getAttribute('type') === 'submit';
+            if (!isPostback) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            Promise.all([inspectionDraftWritePromise, inspectionDraftRestorePromise]).then(function () {
+                control.setAttribute('data-inspection-click-ready', '1');
+                control.click();
+                control.removeAttribute('data-inspection-click-ready');
+            }).catch(function (error) {
+                console.error('Cannot prepare inspection map draft before postback:', error);
+                alert('Gagal menyiapkan draft denah di browser. Silakan coba lagi.');
+            });
+        }, true);
         if (document.forms && document.forms.length) {
             document.forms[0].addEventListener('submit', function (event) {
                 if (document.forms[0].getAttribute('data-inspection-draft-ready') === '1') return;
