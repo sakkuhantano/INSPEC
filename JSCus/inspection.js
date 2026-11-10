@@ -3286,15 +3286,6 @@ async function queueConflictInspectionDelete(localId) {
     await deleteLocalInspectionDraft(localId);
 }
 
-function showToast(message, type) {
-    // Backward-compatible alias: all Inspection feedback is shown as a toast.
-    if (typeof showToast === "function") {
-        showToast(message, type || "info");
-        return;
-    }
-    console.warn(message);
-}
-
 function newInspectionId() {
     if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
