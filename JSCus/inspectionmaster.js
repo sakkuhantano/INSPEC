@@ -15,7 +15,14 @@
             input.setAttribute('data-inspection-original-name', input.name);
         var originalName = input.getAttribute('data-inspection-original-name');
         var isSaveMap = !!(control && control.id && control.id.indexOf('lbtn_TB_Save') >= 0);
-        if (isSaveMap && originalName) input.name = originalName;
+        var isSavePoint = !!(control && control.id && control.id.indexOf('btnSavePoint') >= 0);
+        var mapId = document.getElementById('hidMapID');
+        var mapIsDraft = document.getElementById('hidMapIsDraft');
+        var isNewOrDraftMap = !mapId || !mapId.value || (mapIsDraft && mapIsDraft.value === '1');
+        // Upload the browser draft with the first Save Point that persists a new Map.
+        // Existing saved Maps keep the file local until the toolbar Save creates a new version.
+        var uploadWithPoint = isSavePoint && isNewOrDraftMap;
+        if ((isSaveMap || uploadWithPoint) && originalName) input.name = originalName;
         else input.removeAttribute('name');
     }
     function inspectionOpenDraftDb() {
