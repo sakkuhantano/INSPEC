@@ -478,6 +478,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
         private void PrepareMap()
         {
             hidMapID.Value = "";
+            hidMapIsDraft.Value = "0";
             txtMapCode.Text = "";
             Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
             Master.TB_VisibleButton(ToolbarItem_2.Next, false);
@@ -561,6 +562,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
                 if (commandName == "EditMap")
                 {
                     hidMapID.Value = mapID.ToString(CultureInfo.InvariantCulture);
+                    hidMapIsDraft.Value = "1";
                     txtMapCode.Text = Convert.ToString(row["MapCode"]);
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, true);
@@ -800,6 +802,17 @@ SET MapCode=@MapCode, MapName=@MapName, Description=@Description,
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                                 MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
                         }
+                        else if (hidMapIsDraft.Value == "1")
+                        {
+                            string imagePath = savedPath == "" ? Convert.ToString(old.Rows[0]["ImagePath"]) : savedPath;
+                            br.EQueryP(@"
+UPDATE dbo.PIP_M_InspectionMap
+SET MapCode=@MapCode, MapName=@MapName, ImagePath=@ImagePath, Description=@Description,
+    InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
+    RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+                                MapParameters(oldID, code, name, imagePath));
+                        }
                         else
                         {
                             int version;
@@ -886,6 +899,7 @@ VALUES
                 }
 
                 databaseSaved = true;
+                hidMapIsDraft.Value = "0";
 
                 // After the first successful save of a new Map Code, the
                 // Previous/Next toolbar becomes available for this Map.
