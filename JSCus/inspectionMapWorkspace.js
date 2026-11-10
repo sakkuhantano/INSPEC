@@ -215,21 +215,65 @@
 
     function updateSummary() {
         var points = getVisiblePoints();
+        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        var templateItems = [];
+        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
+            (section.items || []).forEach(function (item) { templateItems.push(item); });
+        });
+        var binaryItem = templateItems.length === 1 ? templateItems[0] : null;
+        var binaryOptions = binaryItem && String(binaryItem.type || "").toUpperCase() === "OPTION"
+            ? String(binaryItem.optionList || "").split(";").map(function (value) { return value.trim().toUpperCase(); }).filter(Boolean)
+            : [];
+        var isOnOffTemplate = binaryOptions.indexOf("ON") >= 0 && binaryOptions.indexOf("OFF") >= 0;
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
         var abnormal = points.filter(function (p) { return getPointVisualStatus(p) === "ABNORMAL"; }).length;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
-        var pending = points.filter(function (p) {
-            return getPointStatus(p) === "PENDING";
-        }).length;
+        var pending = points.filter(function (p) { return getPointStatus(p) === "PENDING"; }).length;
         var set = function (id, value) {
             var element = document.getElementById(id);
             if (element) element.textContent = String(value);
         };
+        var labels = {
+            done: document.querySelector("#inspectionMapDoneCount"),
+            abnormal: document.querySelector("#inspectionMapAbnormalCount"),
+            pending: document.querySelector("#inspectionMapPendingCount"),
+            incomplete: document.querySelector("#inspectionMapIncompleteCount")
+        };
+        var labelFor = function (element, value) {
+            var label = element && element.parentElement ? element.parentElement.querySelector(".inspection-map-stat-label") : null;
+            if (label) label.textContent = value;
+        };
         set("inspectionMapTotalCount", points.length);
-        set("inspectionMapDoneCount", done);
-        set("inspectionMapAbnormalCount", abnormal);
-        set("inspectionMapPendingCount", pending);
-        set("inspectionMapIncompleteCount", incomplete);
+        if (isOnOffTemplate) {
+            var onCount = 0, offCount = 0, pendingCount = 0;
+            points.forEach(function (masterPoint) {
+                var transaction = getPointTransaction(masterPoint);
+                var answer = transaction && (transaction.Items || []).find(function (item) {
+                    return Number(item.IDItem) === Number(binaryItem.idItem);
+                });
+                var value = String(answer && answer.Value || "").trim().toUpperCase();
+                if (value === "ON") onCount++;
+                else if (value === "OFF") offCount++;
+                else pendingCount++;
+            });
+            set("inspectionMapDoneCount", onCount);
+            set("inspectionMapAbnormalCount", offCount);
+            set("inspectionMapPendingCount", pendingCount);
+            set("inspectionMapIncompleteCount", 0);
+            labelFor(labels.done, "ON");
+            labelFor(labels.abnormal, "OFF");
+            labelFor(labels.pending, "Belum dipilih");
+            labelFor(labels.incomplete, "—");
+        } else {
+            set("inspectionMapDoneCount", done);
+            set("inspectionMapAbnormalCount", abnormal);
+            set("inspectionMapPendingCount", pending);
+            set("inspectionMapIncompleteCount", incomplete);
+            labelFor(labels.done, "Selesai");
+            labelFor(labels.abnormal, "Abnormal");
+            labelFor(labels.pending, "Belum dicek");
+            labelFor(labels.incomplete, "Belum lengkap");
+        }
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
         if (pendingLegend) pendingLegend.textContent = "Belum diperiksa";
     }
