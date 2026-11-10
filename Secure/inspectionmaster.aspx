@@ -8,7 +8,7 @@
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
     <asp:HiddenField ID="hidActiveTab" runat="server" ClientIDMode="Static" Value="#tab-map" />
-    <asp:HiddenField ID="hidMapID" runat="server" />
+    <asp:HiddenField ID="hidMapID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hidMapIsDraft" runat="server" ClientIDMode="Static" Value="0" />
     <asp:HiddenField ID="hidPointID" runat="server" />
     <asp:HiddenField ID="hidElementID" runat="server" />
