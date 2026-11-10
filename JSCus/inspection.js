@@ -3938,10 +3938,13 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
     const id = String(point.InspectionPointTransactionID || "");
     const status = String(point.Status || "PENDING").toUpperCase();
     const pointItems = Array.isArray(point.Items) ? point.Items : [];
-    const isAbnormal = status === "ABNORMAL" ||
+    const conditionRequired = isInspectionFlagEnabled(point && point.IsNormalAbnormalRequired, false);
+    const isAbnormal = conditionRequired && (status === "ABNORMAL" ||
         String(point.AbnormalRemark || "").trim() !== "" ||
-        pointItems.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
-    const statusLabel = isAbnormal ? "ABNORMAL" : (status === "DONE" ? "NORMAL" : status);
+        pointItems.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1"));
+    const statusLabel = conditionRequired
+        ? (isAbnormal ? "ABNORMAL" : (status === "DONE" ? "NORMAL" : status))
+        : (status === "DONE" ? "SELESAI" : status);
     const statusClass = isAbnormal ? "text-bg-danger" :
         status === "DONE" ? "text-bg-success" :
         status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
@@ -3986,8 +3989,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         '<div id="inspectionApprovalPointCounters"></div>' +
         '<div class="d-flex flex-wrap gap-2 align-items-center mb-2"><div class="btn-group btn-group-sm flex-wrap" id="inspectionApprovalPointFilters" role="group" aria-label="Filter status point">' +
             '<button type="button" class="btn btn-outline-secondary active" data-approval-filter="ALL" aria-pressed="true">Semua</button>' +
-            '<button type="button" class="btn btn-outline-danger" data-approval-filter="ABNORMAL" aria-pressed="false">Abnormal</button>' +
-            '<button type="button" class="btn btn-outline-success" data-approval-filter="NORMAL" aria-pressed="false">Normal</button>' +
+            (points.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-danger" data-approval-filter="ABNORMAL" aria-pressed="false">Abnormal</button><button type="button" class="btn btn-outline-success" data-approval-filter="NORMAL" aria-pressed="false">Normal</button>' : '') +
+            (points.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-primary" data-approval-filter="DONE" aria-pressed="false">Selesai</button>' : '') +
             '<button type="button" class="btn btn-outline-warning" data-approval-filter="INCOMPLETE" aria-pressed="false">Belum lengkap</button>' +
         '</div><div class="inspection-point-list-tools flex-grow-1"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div></div>' +
         '<div id="inspectionApprovalPointList" class="border rounded overflow-hidden"></div>' +
@@ -4004,9 +4007,13 @@ async function renderInspectionApprovalBatchMap(maps, points) {
 
     const pointState = function (point) {
         const status = String(point.Status || "PENDING").toUpperCase();
+        const conditionRequired = isInspectionFlagEnabled(point && point.IsNormalAbnormalRequired, false);
         const items = Array.isArray(point.Items) ? point.Items : [];
         const abnormalItems = items.filter(item =>
             item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
+        if (!conditionRequired) {
+            return { status: status === "DONE" ? "DONE" : "INCOMPLETE", abnormalItems: [] };
+        }
         const abnormal = status === "ABNORMAL" || !!String(point.AbnormalRemark || "").trim() || abnormalItems.length > 0;
         const incomplete = !abnormal && status !== "DONE";
         return { status: abnormal ? "ABNORMAL" : (incomplete ? "INCOMPLETE" : "NORMAL"), abnormalItems: abnormalItems };
@@ -4047,16 +4054,21 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         approvalPage = Math.min(Math.max(1, approvalPage), pageCount);
         const startIndex = (approvalPage - 1) * approvalPageSize;
         const rows = filtered.slice(startIndex, startIndex + approvalPageSize);
-        const counters = { ALL: points.length, ABNORMAL: 0, NORMAL: 0, INCOMPLETE: 0 };
+        const counters = { ALL: points.length, ABNORMAL: 0, NORMAL: 0, DONE: 0, INCOMPLETE: 0 };
         points.forEach(point => counters[pointState(point).status]++);
 
         const counterHost = document.getElementById("inspectionApprovalPointCounters");
-        if (counterHost) counterHost.innerHTML =
-            '<div class="row g-2 mb-2">' +
-            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">TOTAL POINT</small><strong>' + counters.ALL + '</strong></div></div>' +
-            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">NORMAL</small><strong class="text-success">' + counters.NORMAL + '</strong></div></div>' +
-            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">ABNORMAL</small><strong class="text-danger">' + counters.ABNORMAL + '</strong></div></div>' +
-            '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">INCOMPLETE</small><strong class="text-warning">' + counters.INCOMPLETE + '</strong></div></div></div>';
+        if (counterHost) {
+            const hasNormalAbnormal = points.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
+            const hasDoneOnly = points.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
+            counterHost.innerHTML =
+                '<div class="row g-2 mb-2">' +
+                '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">TOTAL POINT</small><strong>' + counters.ALL + '</strong></div></div>' +
+                (hasNormalAbnormal ? '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">NORMAL</small><strong class="text-success">' + counters.NORMAL + '</strong></div></div>' +
+                    '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">ABNORMAL</small><strong class="text-danger">' + counters.ABNORMAL + '</strong></div></div>' : '') +
+                (hasDoneOnly ? '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">SELESAI</small><strong class="text-primary">' + counters.DONE + '</strong></div></div>' : '') +
+                '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">INCOMPLETE</small><strong class="text-warning">' + counters.INCOMPLETE + '</strong></div></div></div>';
+        }
 
         const rowsHtml = rows.map(point => {
             const id = String(point.InspectionPointTransactionID || "");
@@ -4196,10 +4208,12 @@ async function renderInspectionApprovalBatchMap(maps, points) {
             overlay.innerHTML = mapPoints.map(point => {
                 const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
                 const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
-                const pointHasAbnormalItem = Array.isArray(point.Items) && point.Items.some(item =>
+                const conditionRequired = isInspectionFlagEnabled(point && point.IsNormalAbnormalRequired, false);
+                const pointHasAbnormalItem = conditionRequired && Array.isArray(point.Items) && point.Items.some(item =>
                     item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
-                const visualStatus = String(point.Status || "").toUpperCase() === "ABNORMAL" ||
-                    String(point.AbnormalRemark || "").trim() || pointHasAbnormalItem
+                const visualStatus = conditionRequired && (
+                    String(point.Status || "").toUpperCase() === "ABNORMAL" ||
+                    String(point.AbnormalRemark || "").trim() || pointHasAbnormalItem)
                     ? "abnormal" : String(point.Status || "PENDING").toLowerCase();
                 return '<button type="button" class="inspection-map-point ' + visualStatus + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + " - " + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
             }).join("");
