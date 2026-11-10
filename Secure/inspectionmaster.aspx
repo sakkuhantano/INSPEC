@@ -9,6 +9,7 @@
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
     <asp:HiddenField ID="hidActiveTab" runat="server" ClientIDMode="Static" Value="#tab-map" />
     <asp:HiddenField ID="hidMapID" runat="server" />
+    <asp:HiddenField ID="hidMapIsDraft" runat="server" ClientIDMode="Static" Value="0" />
     <asp:HiddenField ID="hidPointID" runat="server" />
     <asp:HiddenField ID="hidElementID" runat="server" />
     <div class="d-none">
@@ -73,7 +74,7 @@
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG) <span class="text-muted small">(optional)</span></div>
                                 <div class="col-sm-8">
-                                    <asp:FileUpload ID="fuMapPdf" runat="server" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" />
+                                    <asp:FileUpload ID="fuMapPdf" runat="server" ClientIDMode="Static" CssClass="form-control form-control-sm rounded fz-custom1" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" />
                                     <asp:LinkButton ID="btnClearMapFile" runat="server" CssClass="btn btn-sm btn-outline-secondary mt-1" OnClick="btnClearMapFile_Click" CausesValidation="false"><i class="fas fa-eraser"></i> Clear Floor Plan</asp:LinkButton>
                                 </div>
                             </div>
