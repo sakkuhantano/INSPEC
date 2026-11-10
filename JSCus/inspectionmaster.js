@@ -102,6 +102,10 @@
         if (!key || !input) return Promise.resolve();
         return inspectionDraftStore('readonly', key).then(function (draft) {
             if (!draft || !draft.blob) return;
+            // The DOM is rebuilt on every WebForms postback. Preserve the
+            // rendered FileUpload name before removing it from ordinary postbacks.
+            if (!input.getAttribute('data-inspection-original-name') && input.name)
+                input.setAttribute('data-inspection-original-name', input.name);
             if (!input.files || !input.files.length) {
                 try {
                     var file = new File([draft.blob], draft.fileName || 'inspection-map.pdf', {
