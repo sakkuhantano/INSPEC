@@ -77,7 +77,7 @@ body {
 }
 
 #sidebar.collapsed {
-    transform: translateX(calc(-1 * var(--sidebar-width))) !important;
+    transform: translateX(calc(-1 * var(--sidebar-width)));
 }
 [data-bs-theme="dark"] #sidebarCollapse {
     background-color: #1f242b;
@@ -722,48 +722,6 @@ body {
     letter-spacing: .07em;
     text-transform: uppercase;
     margin-top: 3px;
-}
-.master-app-title {
-    min-width: 0;
-    line-height: 1.05;
-    flex: 1 1 auto;
-}
-@media (max-width: 575.98px) {
-    .master-app-title {
-        max-width: min(42vw, 190px);
-    }
-    .master-app-name {
-        font-size: 12px;
-    }
-    .master-app-company {
-        max-width: 100%;
-        font-size: 8px;
-        margin-top: 2px;
-    }
-}
-.master-app-name {
-    color: #123b3d;
-    font-size: 13px;
-    font-weight: 800;
-    letter-spacing: -.01em;
-}
-.master-app-company {
-    color: #819496;
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    margin-top: 3px;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.master-app-name-mobile {
-    color: #123b3d;
-    font-size: 12px;
-    font-weight: 800;
-    white-space: nowrap;
 }
 .master-footer {
     color: #879496;
