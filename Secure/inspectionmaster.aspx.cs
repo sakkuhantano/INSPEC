@@ -519,6 +519,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             BindPoints();
+            ScriptManager.RegisterStartupScript(this, GetType(), "clearInspectionMapDraft", "inspectionMasterClearDraft();", true);
             SetTab("#tab-map");
         }
 
@@ -1032,7 +1033,10 @@ WHERE IT.InspectionTypeCode=@TypeCode
                 string fileName = slash >= 0 ? normalized.Substring(slash + 1) : normalized;
 
                 Guid fileID;
-                if (!fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ||
+                string extension = Path.GetExtension(fileName);
+                if (!(extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase) ||
+                      extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                      extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)) ||
                     !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fileName), "N", out fileID))
                     return;
 
@@ -1103,6 +1107,7 @@ ORDER BY M.MapVersion DESC",
                 }
                 DataRow row = dt.Rows[0];
                 hidMapID.Value = Convert.ToString(row["MapID"]);
+                hidMapIsDraft.Value = "0";
                 txtMapCode.Text = Convert.ToString(row["MapCode"]);
                 Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
                 Master.TB_VisibleButton(ToolbarItem_2.Next, true);
