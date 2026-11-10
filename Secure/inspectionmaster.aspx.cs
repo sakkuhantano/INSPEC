@@ -18,7 +18,7 @@ namespace INSPEC.Secure
         private const string _MenuID = "10013";
         private const int _MaxPdfBytes = 50 * 1024 * 1024;
 
-        private string DraftMapFileSessionKey
+        private string DraftMapFileKey
         {
             get
             {
@@ -60,6 +60,7 @@ namespace INSPEC.Secure
             //txtMapCode.Attributes["ondblclick"] = GF.JSOpenSearchList_2(
             //    "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             btnClearMapFile.Visible = String.IsNullOrWhiteSpace(hidMapID.Value);
+            fuMapPdf.Attributes["data-inspection-draft-key"] = DraftMapFileKey;
         }
 
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
@@ -510,7 +511,6 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
 
         protected void btnNewMap_Click(object sender, EventArgs e)
         {
-            Session.Remove(DraftMapFileSessionKey);
             PrepareMap();
             PreparePoint();
             BindEditorMaps();
@@ -779,12 +779,8 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     savedPath = SaveMapFile(fuMapPdf);
                     uploadedThisRequest = true;
                 }
-                else if (String.IsNullOrWhiteSpace(hidMapID.Value))
-                {
-                    // The FileUpload was consumed by the Add Point postback.
-                    // Reuse its session draft when the user saves the new Map.
-                    savedPath = Convert.ToString(Session[DraftMapFileSessionKey]);
-                }
+                // A selected draft file is restored into fuMapPdf from browser IndexedDB
+                // before postback. No temporary server-side file or Session path is used.
 
                 using (var br = new WAL.BR.CF())
                 {
@@ -890,7 +886,6 @@ VALUES
                 }
 
                 databaseSaved = true;
-                Session.Remove(DraftMapFileSessionKey);
 
                 // After the first successful save of a new Map Code, the
                 // Previous/Next toolbar becomes available for this Map.
@@ -1144,11 +1139,7 @@ ORDER BY M.MapVersion DESC",
 
         protected void btnClearMapFile_Click(object sender, EventArgs e)
         {
-            // This clears the unsaved floor-plan attachment for a new Map.
-            // Existing registered Map files are kept intact.
-            if (String.IsNullOrWhiteSpace(hidMapID.Value))
-                Session.Remove(DraftMapFileSessionKey);
-
+            // The browser-side draft is cleared by inspectionmaster.js.
             litEditorPdfBackground.Text = "";
             lnkEditorPdf.Visible = false;
             pnlEditor.Visible = false;
@@ -1190,21 +1181,8 @@ ORDER BY M.MapVersion DESC",
 
             long currentMapID;
             bool hasSavedMap = Int64.TryParse(hidMapID.Value, out currentMapID) && currentMapID > 0;
-            if (!hasSavedMap && fuMapPdf.HasFile)
-            {
-                // Persist a newly selected floor plan before the postback loses
-                // the FileUpload value. The URL is scoped to this user's draft.
-                try
-                {
-                    Session[DraftMapFileSessionKey] = SaveMapFile(fuMapPdf);
-                }
-                catch (Exception uploadError)
-                {
-                    GF.MsgBox(this, "Gagal menyiapkan file denah: " + uploadError.Message, "BS-5.3.0");
-                    SetTab("#tab-map");
-                    return;
-                }
-            }
+            // The selected PDF/JPG remains in browser IndexedDB across this
+            // WebForms postback. It is uploaded only when Save Map is submitted.
 
             PreparePoint();
             BindEditorMaps();
@@ -1501,7 +1479,7 @@ VALUES
             string name = txtMapName.Text.Trim();
             string typeCode = ddlInspectionType.SelectedValue;
             string detailCode = ddlInspectionDetail.SelectedValue;
-            string imagePath = Convert.ToString(Session[DraftMapFileSessionKey]);
+            string imagePath = "";
 
             if (String.IsNullOrWhiteSpace(code) || String.IsNullOrWhiteSpace(name) ||
                 String.IsNullOrWhiteSpace(typeCode) || String.IsNullOrWhiteSpace(detailCode))
@@ -1553,7 +1531,6 @@ VALUES
                     });
             }
 
-            Session.Remove(DraftMapFileSessionKey);
             BindMaps();
             BindEditorMaps();
             DataTable savedMap = GetMap(newMapID);
