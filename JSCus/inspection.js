@@ -879,8 +879,7 @@ async function startNewInspection() {
         }
         if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
             map.MapUrl && (!(map.MapBlob || map.PdfBlob) || typeof (map.MapBlob || map.PdfBlob).arrayBuffer !== "function"))) {
-            showToast("File denah belum tersimpan offline. Jalankan Sync online terlebih dahulu agar denah dapat dibuka tanpa koneksi.", "warning");
-            return;
+            showToast("Denah belum tersimpan offline. Checklist tetap bisa dikerjakan melalui tampilan List; denah dapat dibuka saat online.", "warning");
         }
     }
 
