@@ -18,7 +18,6 @@
         if (isSaveMap && originalName) input.name = originalName;
         else input.removeAttribute('name');
     }
-    }
     function inspectionOpenDraftDb() {
         if (inspectionDraftDbPromise) return inspectionDraftDbPromise;
         inspectionDraftDbPromise = new Promise(function (resolve, reject) {
