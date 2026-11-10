@@ -77,7 +77,7 @@ body {
 }
 
 #sidebar.collapsed {
-    transform: translateX(calc(-1 * var(--sidebar-width)));
+    transform: translateX(calc(-1 * var(--sidebar-width))) !important;
 }
 [data-bs-theme="dark"] #sidebarCollapse {
     background-color: #1f242b;
