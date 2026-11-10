@@ -206,10 +206,10 @@ type="button">
 <i class="bi bi-list fs-4"></i>
 </button>
 
-<div class="master-app-title">
-<div class="master-app-name">Mobile Inspection</div>
-<div class="master-app-company"><span id="lblCompany"></span></div>
-</div>
+<h2 class="h5 mb-0 fw-bold text-primary text-truncate"
+style="letter-spacing: -0.02em; max-width: 150px;">
+<span id="lblCompany"></span>
+</h2>
 <div id="connectionStatus">
 <%--<div class="vr d-none d-md-block mx-2" style="height: 16px;"></div>--%>
 
