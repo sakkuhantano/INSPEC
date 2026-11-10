@@ -720,14 +720,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
             }
             else
             {
-                // A new Map has no MapID yet. Use the uploaded draft file so
-                // PDF.js can render the floor plan before the Map is inserted.
-                string draftUrl = Convert.ToString(Session[DraftMapFileSessionKey]);
-                if (!String.IsNullOrWhiteSpace(draftUrl))
-                {
-                    url = ResolveMapPdfUrl(draftUrl);
-                    mapLabel = "New Map (not saved)";
-                }
+                // A new Map's floor-plan draft stays in browser IndexedDB.
+                // inspectionmaster.js restores the Blob and supplies its object URL.
+                mapLabel = "New Map (not saved)";
             }
 
             if (String.IsNullOrWhiteSpace(url))
