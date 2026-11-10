@@ -123,37 +123,20 @@ function hasAuthorizedMenu(menuId) { var menus=(getLoginData()||{}).menus||[]; r
 window.appFeatures = getAuthorizedAppFeatures();
 
 function toggleSidebar() {
-    if (!sidebar || !content) return;
     if (window.innerWidth >= 992) {
         sidebar.classList.toggle('collapsed');
         content.classList.toggle('expanded');
     } else {
         sidebar.classList.toggle('active');
-        if (overlay) overlay.classList.toggle('active');
+        overlay.classList.toggle('active');
     }
 }
-function bindSidebarControls() {
-    var button = document.getElementById('sidebarCollapse');
-    var currentOverlay = document.getElementById('overlay');
-    if (button && !button.dataset.sidebarBound) {
-        button.dataset.sidebarBound = '1';
-        button.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleSidebar();
-        });
-    }
-    if (currentOverlay && !currentOverlay.dataset.sidebarBound) {
-        currentOverlay.dataset.sidebarBound = '1';
-        currentOverlay.addEventListener('click', function () {
-            if (window.innerWidth < 992 && sidebar) {
-                sidebar.classList.remove('active');
-                currentOverlay.classList.remove('active');
-            }
-        });
-    }
+if(sidebarCollapse) {
+    sidebarCollapse.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleSidebar();
+    });
 }
-bindSidebarControls();
 if(overlay) {
     overlay.addEventListener('click', function() {
         if (window.innerWidth < 992) {
@@ -185,14 +168,12 @@ document.addEventListener(
         /* skip login page */
         if (page.indexOf("login.aspx") >= 0)
             return;
-        // Initialize sidebar independently from login/dashboard startup tasks.
-        initSidebarState();
-        bindSidebarControls();
         if (!await checkLogin()) return;
         // Show browser connectivity immediately; server ping will refine the status.
         setConnectionStatus(navigator.onLine);
         updateConnectionStatus();
         loadSidebarMenu();
+        initSidebarState();
         // INIT DB
         await initIndexedDB();
         await window.updateGlobalInspectionConflictBadge();
