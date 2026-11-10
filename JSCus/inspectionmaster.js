@@ -315,10 +315,10 @@
             var isPostback = /__doPostBack|WebForm_DoPostBackWithOptions/.test(href + ' ' + clickCode) ||
                 control.type === 'submit' || control.getAttribute('type') === 'submit';
             if (!isPostback) return;
-            inspectionSetUploadPostbackMode(control);
             event.preventDefault();
             event.stopImmediatePropagation();
             Promise.all([inspectionDraftWritePromise, inspectionDraftRestorePromise]).then(function () {
+                inspectionSetUploadPostbackMode(control);
                 control.setAttribute('data-inspection-click-ready', '1');
                 control.click();
                 control.removeAttribute('data-inspection-click-ready');
