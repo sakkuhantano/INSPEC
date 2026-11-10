@@ -8,7 +8,7 @@ BEGIN
     INSERT INTO dbo.PIP_M_InspectionMap
     (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
      MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
-    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B1',N'Car Parking Basement 1',N'Car-Parking-Basement-1.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B1',0,1,1,
+    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B1',N'Car Parking Basement 1',N'http://192.168.23.128:80/ToolsLib/PIP/PIP_M_InspectionMap/I00024012_R02/Car-Parking-Basement-1.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B1',0,1,1,
            N'MCDP presentation seed',@UserID,@UserID
     FROM dbo.PIP_M_InspectionMap WITH (TABLOCKX,HOLDLOCK);
 END
@@ -17,7 +17,7 @@ BEGIN
     INSERT INTO dbo.PIP_M_InspectionMap
     (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
      MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
-    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B2',N'Car Parking Basement 2',N'Car-Parking-Basement-2.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B2',0,1,1,
+    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B2',N'Car Parking Basement 2',N'http://192.168.23.128:80/ToolsLib/PIP/PIP_M_InspectionMap/I00024012_R02/Car-Parking-Basement-2.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B2',0,1,1,
            N'MCDP presentation seed',@UserID,@UserID
     FROM dbo.PIP_M_InspectionMap WITH (TABLOCKX,HOLDLOCK);
 END
@@ -26,7 +26,7 @@ BEGIN
     INSERT INTO dbo.PIP_M_InspectionMap
     (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
      MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
-    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B3',N'Car Parking Basement 3',N'Car-Parking-Basement-3.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B3',0,1,1,
+    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-B3',N'Car Parking Basement 3',N'http://192.168.23.128:80/ToolsLib/PIP/PIP_M_InspectionMap/I00024012_R02/Car-Parking-Basement-3.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-B3',0,1,1,
            N'MCDP presentation seed',@UserID,@UserID
     FROM dbo.PIP_M_InspectionMap WITH (TABLOCKX,HOLDLOCK);
 END
@@ -35,7 +35,7 @@ BEGIN
     INSERT INTO dbo.PIP_M_InspectionMap
     (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
      MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
-    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-MT',N'Motorcycle Parking',N'Motorcycle-Parking-Perimeter-Area.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-MT',0,1,1,
+    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-CAR-MT',N'Motorcycle Parking',N'http://192.168.23.128:80/ToolsLib/PIP/PIP_M_InspectionMap/I00024012_R02/Motorcycle-Parking-Perimeter-Area.pdf',0,0,100,100,1,N'CP',N'MCDP-CP-MT',0,1,1,
            N'MCDP presentation seed',@UserID,@UserID
     FROM dbo.PIP_M_InspectionMap WITH (TABLOCKX,HOLDLOCK);
 END
@@ -44,7 +44,7 @@ BEGIN
     INSERT INTO dbo.PIP_M_InspectionMap
     (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
      MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
-    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-LT',N'Lighting & Signboard',N'Lighting_Inspection_Combined_Map(1).pdf',0,0,100,100,1,N'LT',N'MCDP-LT',0,1,1,
+    SELECT ISNULL(MAX(MapID),0)+1,N'I00024012',N'R02',N'MCDP-LT',N'Lighting & Signboard',N'http://192.168.23.128:80/ToolsLib/PIP/PIP_M_InspectionMap/I00024012_R02/Lighting_Inspection_Combined_Map(1).pdf',0,0,100,100,1,N'LT',N'MCDP-LT',0,1,1,
            N'MCDP presentation seed',@UserID,@UserID
     FROM dbo.PIP_M_InspectionMap WITH (TABLOCKX,HOLDLOCK);
 END
