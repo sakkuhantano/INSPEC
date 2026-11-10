@@ -746,6 +746,9 @@
                 </div>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
+                <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
+                    <i class="bi bi-trash me-1"></i>Delete Draft Batch
+                </button>
             </div>
         </div>
         <div class="inspection-map-summary" aria-label="Ringkasan status semua titik">
