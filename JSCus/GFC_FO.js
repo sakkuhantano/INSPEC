@@ -711,42 +711,46 @@ async function getInspectionData() {
         if (!login) return;
         const companyLocation = (login.curcompany || "").split(";");
 
-        const masterResponse = await fetch("dashboard.aspx/getInspectionMasters", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                section: login.section || "",
-                employeeId: login.employeeid || "",
-                companyId: companyLocation[0] || "",
-                locationId: companyLocation[1] || ""
+        // These two independent master requests do not need to block each other.
+        const [masterResponse, templateResponse] = await Promise.all([
+            fetch("dashboard.aspx/getInspectionMasters", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    section: login.section || "",
+                    employeeId: login.employeeid || "",
+                    companyId: companyLocation[0] || "",
+                    locationId: companyLocation[1] || ""
+                })
+            }),
+            fetch("dashboard.aspx/getCheckList", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    section: login.section || "",
+                    templateNo: "",
+                    version: "",
+                    modelcode: "",
+                    companyId: companyLocation[0] || "",
+                    locationId: companyLocation[1] || "",
+                    templateType: "I",
+                    employeeId: login.employeeid || ""
+                })
             })
-        });
-        const masterResult = await masterResponse.json();
+        ]);
+        const [masterResult, templateResult] = await Promise.all([
+            masterResponse.json(),
+            templateResponse.json()
+        ]);
         if (!masterResponse.ok) {
             const serverMessage = masterResult && (masterResult.Message || masterResult.ExceptionMessage);
             throw new Error(serverMessage || ("Download Inspection Type failed (HTTP " + masterResponse.status + ")"));
         }
-        const masters = masterResult.d || { types: [], details: [] };
-
-        const templateResponse = await fetch("dashboard.aspx/getCheckList", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                section: login.section || "",
-                templateNo: "",
-                version: "",
-                modelcode: "",
-                companyId: companyLocation[0] || "",
-                locationId: companyLocation[1] || "",
-                templateType: "I",
-                employeeId: login.employeeid || ""
-            })
-        });
-        const templateResult = await templateResponse.json();
         if (!templateResponse.ok) {
             const serverMessage = templateResult && (templateResult.Message || templateResult.ExceptionMessage);
             throw new Error(serverMessage || ("Download Inspection templates failed (HTTP " + templateResponse.status + ")"));
         }
+        const masters = masterResult.d || { types: [], details: [] };
         const templates = (templateResult.d || []).map(function (template) {
             // Persist the version-level photo rule alongside the exact template version.
             const photoRequirement = String(template.PhotoRequirement || template.photoRequirement || "BOTH").toUpperCase();
@@ -786,55 +790,87 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
-        // Pre-cache BATCH map metadata, master points, and PDF bytes with the scoped Inspection Type.
-        // This keeps new batch inspections usable offline after the global Sync completes.
+        // Cache all BATCH map metadata and PDF files with bounded concurrency.
+        // The old nested await loops serialized every detail lookup and every PDF download.
         const batchTypes = (masters.types || []).filter(type =>
             String(type.InspectionMode || "STANDARD").toUpperCase() === "BATCH");
         const cachedInspectionPdfBlobs = new Map();
-        for (const type of batchTypes) {
-            type.BatchMapSetups = type.BatchMapSetups || {};
-            const typeDetails = details.filter(detail =>
-                String(detail.InspectionTypeCode || "") === String(type.InspectionTypeCode || ""));
-            for (const detail of typeDetails) {
-                try {
-                    const mapResponse = await fetch("inspection.aspx/GetBatchInspectionMap", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json; charset=utf-8" },
-                        body: JSON.stringify({
-                            inspectionTypeCode: type.InspectionTypeCode,
-                            inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
-                            employeeId: login.employeeid || "",
-                            companyId: companyLocation[0] || "",
-                            locationId: companyLocation[1] || ""
-                        })
-                    });
-                    const mapPayload = await mapResponse.json();
-                    if (!mapResponse.ok) throw new Error((mapPayload && mapPayload.Message) || "Map lookup failed");
-                    const mapSetup = mapPayload && Object.prototype.hasOwnProperty.call(mapPayload, "d") ? mapPayload.d : mapPayload;
-                    if (!mapSetup || mapSetup.success !== true) continue;
-                    for (const map of (mapSetup.maps || [])) {
-                        if (!map.MapUrl) continue;
-                        if (cachedInspectionPdfBlobs.has(String(map.MapID))) {
-                            map.PdfBlob = cachedInspectionPdfBlobs.get(String(map.MapID));
-                            continue;
-                        }
-                        try {
-                            const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
-                            if (pdfResponse.ok) {
-                                map.PdfBlob = await pdfResponse.blob();
-                                cachedInspectionPdfBlobs.set(String(map.MapID), map.PdfBlob);
-                            }
-                        } catch (pdfError) {
-                            console.warn("Inspection PDF could not be cached:", map.MapCode, pdfError);
-                        }
-                    }
-                    type.BatchMapSetups[String(detail.InspectionTypeDetailCode).toUpperCase()] = mapSetup;
-                } catch (mapError) {
-                    console.warn("BATCH Inspection map cache failed:", type.InspectionTypeCode,
-                        detail.InspectionTypeDetailCode, mapError);
+        const mapTasks = [];
+        const runInspectionTasks = async (items, concurrency, worker) => {
+            let nextIndex = 0;
+            const workers = Array.from({ length: Math.min(concurrency, items.length) }, async function () {
+                while (nextIndex < items.length) {
+                    const index = nextIndex++;
+                    await worker(items[index], index);
                 }
+            });
+            await Promise.all(workers);
+        };
+        batchTypes.forEach(type => {
+            type.BatchMapSetups = type.BatchMapSetups || {};
+            details.filter(detail =>
+                String(detail.InspectionTypeCode || "") === String(type.InspectionTypeCode || "")
+            ).forEach(detail => mapTasks.push({ type: type, detail: detail }));
+        });
+
+        const resolvedMapSetups = [];
+        await runInspectionTasks(mapTasks, 3, async function (task) {
+            const type = task.type;
+            const detail = task.detail;
+            try {
+                const mapResponse = await fetch("inspection.aspx/GetBatchInspectionMap", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({
+                        inspectionTypeCode: type.InspectionTypeCode,
+                        inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+                        employeeId: login.employeeid || "",
+                        companyId: companyLocation[0] || "",
+                        locationId: companyLocation[1] || ""
+                    })
+                });
+                const mapPayload = await mapResponse.json();
+                if (!mapResponse.ok) throw new Error((mapPayload && mapPayload.Message) || "Map lookup failed");
+                const mapSetup = mapPayload && Object.prototype.hasOwnProperty.call(mapPayload, "d") ? mapPayload.d : mapPayload;
+                if (mapSetup && mapSetup.success === true) {
+                    type.BatchMapSetups[String(detail.InspectionTypeDetailCode).toUpperCase()] = mapSetup;
+                    (mapSetup.maps || []).forEach(map => {
+                        if (map.MapUrl) resolvedMapSetups.push(map);
+                    });
+                }
+            } catch (mapError) {
+                console.warn("BATCH Inspection map cache failed:", type.InspectionTypeCode,
+                    detail.InspectionTypeDetailCode, mapError);
             }
-        }
+        });
+
+        // Download each unique map file once, concurrently but gently enough for phones.
+        const uniqueMaps = new Map();
+        resolvedMapSetups.forEach(map => {
+            const key = String(map.MapID || map.MapUrl);
+            if (!uniqueMaps.has(key)) uniqueMaps.set(key, map);
+        });
+        const uniqueMapEntries = Array.from(uniqueMaps.entries());
+        await runInspectionTasks(uniqueMapEntries, 3, async function (entry) {
+            const key = entry[0];
+            const map = entry[1];
+            try {
+                const pdfResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
+                if (pdfResponse.ok) {
+                    const blob = await pdfResponse.blob();
+                    cachedInspectionPdfBlobs.set(key, blob);
+                } else {
+                    console.warn("Inspection PDF cache returned HTTP", pdfResponse.status, map.MapCode);
+                }
+            } catch (pdfError) {
+                console.warn("Inspection PDF could not be cached:", map.MapCode, pdfError);
+            }
+        });
+        resolvedMapSetups.forEach(map => {
+            const key = String(map.MapID || map.MapUrl);
+            if (cachedInspectionPdfBlobs.has(key))
+                map.PdfBlob = cachedInspectionPdfBlobs.get(key);
+        });
 
         // Reconcile only the logged-in company/location and sections.
         // Offline inspection records and photos are deliberately untouched.
