@@ -62,7 +62,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             // Approval uses the exact same cached, versioned checklist template as technician entry.
             if (typeof db === "undefined" || !db) await initIndexedDB();
             if (db.objectStoreNames.contains("inspection_templates")) await loadInspectionCache(true);
-            document.getElementById("inspectionNotice").classList.add("d-none");
+            const inspectionNoticePanel = document.getElementById("inspectionNotice");
+            if (inspectionNoticePanel) inspectionNoticePanel.classList.add("d-none");
             ["inspectionStartPanel", "inspectionFormPanel"].forEach(id => document.getElementById(id).classList.add("d-none"));
             document.querySelectorAll(".inspection-card").forEach(el => {
                 if (el.id !== "inspectionApprovalPanel") el.classList.add("d-none");
