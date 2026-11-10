@@ -550,11 +550,31 @@ function populateInspectionScheduleTimeOptions(detail) {
     const select = document.getElementById("selInspectionScheduleTime");
     if (!select) return;
     const times = getInspectionScheduleTimes(detail);
-    select.innerHTML = '<option value="">Pilih jam...</option>' +
-        times.map(time => '<option value="' + escInspection(time) + '">' +
-            escInspection(time) + '</option>').join("");
-    select.value = "";
-    select.disabled = !detail || times.length === 0;
+    if (!detail) {
+        select.innerHTML = '<option value="">Pilih detail terlebih dahulu...</option>';
+        select.value = "";
+        select.disabled = true;
+    } else if (!times.length) {
+        // A detail without configured ScheduleTime is a valid unscheduled inspection.
+        // Keep the field visibly explicit while storing an empty ScheduledTime value.
+        select.innerHTML = '<option value="">Inspeksi Tanpa Jadwal</option>';
+        select.value = "";
+        select.disabled = true;
+    } else {
+        select.innerHTML = '<option value="">Pilih jam...</option>' +
+            times.map(time => '<option value="' + escInspection(time) + '">' +
+                escInspection(time) + '</option>').join("");
+        select.value = "";
+        select.disabled = false;
+    }
+    const hint = document.getElementById("inspectionScheduleHint");
+    if (hint) {
+        hint.textContent = !detail
+            ? "Pilih Inspection Detail terlebih dahulu."
+            : !times.length
+                ? "Detail ini tidak memiliki Schedule Time. Inspeksi akan dicatat sebagai Tanpa Jadwal."
+                : "Pilih salah satu jam sesuai jadwal inspeksi.";
+    }
 }
 
 function refreshInspectionScheduleOptions() {
@@ -650,10 +670,17 @@ function refreshInspectionScheduleOptions() {
     }
 
     const hint = document.getElementById("inspectionScheduleHint");
-    if (hint && detailCode && templateId && selectedDate === today) {
+    const selectedDetail = inspectionDetails.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || "") &&
+        String(x.InspectionTypeDetailCode || "") === String(detailCode || "")
+    );
+    const hasScheduledTimes = getInspectionScheduleTimes(selectedDetail).length > 0;
+    if (hint && detailCode && !hasScheduledTimes) {
+        hint.textContent = "Detail ini tidak memiliki Schedule Time. Inspeksi akan dicatat sebagai Tanpa Jadwal.";
+    } else if (hint && detailCode && templateId && selectedDate === today) {
         hint.textContent = slotCount
             ? emptyCount + " jam tersedia, " + occupiedCount + " sudah terisi/diinspeksi dari " + slotCount + " jadwal."
-            : "Tidak ada jadwal waktu terkonfigurasi untuk detail ini.";
+            : "Tidak ada slot jadwal yang tersedia untuk kombinasi ini.";
     }
     updateStartButton();
 }
