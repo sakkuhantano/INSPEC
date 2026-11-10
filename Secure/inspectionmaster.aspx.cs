@@ -733,7 +733,15 @@ ORDER BY P.DisplayOrder, P.PointCode",
             {
                 // Floor plan is optional. Keep the point editor usable without
                 // a background map; MapX/MapY remain optional as well.
-                litEditorPdfBackground.Text = "";
+                if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
+                {
+                    // New Map draft: the browser restores its IndexedDB Blob here.
+                    litEditorPdfBackground.Text = "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='' aria-label='Inspection floor plan'></canvas><div id='inspectionPdfStatus' class='inspection-pdf-status'>Pilih PDF/JPG denah untuk menampilkan background.</div>";
+                }
+                else
+                {
+                    litEditorPdfBackground.Text = "";
+                }
                 lnkEditorPdf.Visible = false;
                 lblPointMapCode.Text = "· " + mapLabel + " (tanpa denah)";
                 return;
@@ -916,6 +924,7 @@ VALUES
                 lblMapVersion.Text = "Map tersimpan. PDF dan versi map sudah tercatat.";
                 //ShowMessage("Map berhasil disimpan.", false);
                 GF.MsgBox(this, "Map berhasil disimpan.", "BS-5.3.0");
+                ScriptManager.RegisterStartupScript(this, GetType(), "clearInspectionMapDraft", "inspectionMasterClearDraft();", true);
             }
             catch (Exception ex)
             {
@@ -1158,6 +1167,7 @@ ORDER BY M.MapVersion DESC",
             lnkEditorPdf.Visible = false;
             pnlEditor.Visible = false;
             pnlPointEditor.Visible = false;
+            ScriptManager.RegisterStartupScript(this, GetType(), "clearInspectionMapDraft", "inspectionMasterClearDraft();", true);
             GF.MsgBox(this, "Floor Plan draft dikosongkan. Silakan attach file baru bila diperlukan.", "BS-5.3.0");
             SetTab("#tab-map");
         }
@@ -1204,7 +1214,7 @@ ORDER BY M.MapVersion DESC",
             {
                 LoadEditorMapPdf();
                 BindMapElements();
-                pnlEditor.Visible = !String.IsNullOrWhiteSpace(GetCurrentMapImagePath());
+                pnlEditor.Visible = true;
             }
             catch (Exception ex)
             {
