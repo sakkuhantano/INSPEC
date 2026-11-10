@@ -1,4 +1,117 @@
 (function () {
+    var inspectionDraftDbPromise = null;
+    var inspectionDraftWritePromise = Promise.resolve();
+    var inspectionDraftRestorePromise = Promise.resolve();
+    var inspectionDraftObjectUrl = null;
+
+    function inspectionDraftKey() {
+        var input = document.getElementById('fuMapPdf');
+        return input ? input.getAttribute('data-inspection-draft-key') : null;
+    }
+    function inspectionOpenDraftDb() {
+        if (inspectionDraftDbPromise) return inspectionDraftDbPromise;
+        inspectionDraftDbPromise = new Promise(function (resolve, reject) {
+            if (!window.indexedDB) { reject(new Error('Browser tidak mendukung IndexedDB.')); return; }
+            var request = indexedDB.open('INSPEC_InspectionMapDraft', 1);
+            request.onupgradeneeded = function () {
+                var db = request.result;
+                if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts');
+            };
+            request.onsuccess = function () { resolve(request.result); };
+            request.onerror = function () { reject(request.error || new Error('Gagal membuka IndexedDB.')); };
+        });
+        return inspectionDraftDbPromise;
+    }
+    function inspectionDraftStore(mode, key, value) {
+        return inspectionOpenDraftDb().then(function (db) {
+            return new Promise(function (resolve, reject) {
+                var tx = db.transaction('drafts', mode);
+                var store = tx.objectStore('drafts');
+                var request = mode === 'readwrite'
+                    ? (value === null ? store.delete(key) : store.put(value, key))
+                    : store.get(key);
+                request.onsuccess = function () { resolve(request.result); };
+                request.onerror = function () { reject(request.error || new Error('IndexedDB request failed.')); };
+                tx.onabort = function () { reject(tx.error || new Error('IndexedDB transaction aborted.')); };
+            });
+        });
+    }
+    function inspectionShowDraftPreview(blob, fileName) {
+        var board = document.getElementById('inspectionCoordinateBoard');
+        var content = document.getElementById('inspectionCoordinateContent');
+        if (!board || !content) return;
+        var extension = (fileName || '').toLowerCase().split('.').pop();
+        if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
+        inspectionDraftObjectUrl = URL.createObjectURL(blob);
+        var old = document.getElementById('inspectionPdfCanvas');
+        if (extension === 'jpg' || extension === 'jpeg' || (blob.type || '').toLowerCase() === 'image/jpeg') {
+            var img = old && old.tagName === 'IMG' ? old : document.createElement('img');
+            img.id = 'inspectionPdfCanvas';
+            img.className = 'inspection-coordinate-pdf';
+            img.alt = 'Inspection floor plan';
+            img.onload = function () {
+                board.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+                var status = document.getElementById('inspectionPdfStatus');
+                if (status) status.style.display = 'none';
+            };
+            if (old && old !== img && old.parentNode) old.parentNode.replaceChild(img, old);
+            else if (!old) content.insertBefore(img, content.firstChild);
+            img.src = inspectionDraftObjectUrl;
+        } else {
+            var canvas = old && old.tagName === 'CANVAS' ? old : document.createElement('canvas');
+            canvas.id = 'inspectionPdfCanvas';
+            canvas.className = 'inspection-coordinate-pdf';
+            canvas.setAttribute('data-map-url', inspectionDraftObjectUrl);
+            if (old && old !== canvas && old.parentNode) old.parentNode.replaceChild(canvas, old);
+            else if (!old) content.insertBefore(canvas, content.firstChild);
+            var status = document.getElementById('inspectionPdfStatus');
+            if (!status) {
+                status = document.createElement('div');
+                status.id = 'inspectionPdfStatus';
+                status.className = 'inspection-pdf-status';
+                content.insertBefore(status, canvas.nextSibling);
+            }
+            status.textContent = 'Memuat denah draft...';
+            status.style.display = 'flex';
+            window.requestAnimationFrame(renderInspectionPdf);
+        }
+    }
+    function inspectionRestoreDraft() {
+        var key = inspectionDraftKey();
+        var input = document.getElementById('fuMapPdf');
+        if (!key || !input) return Promise.resolve();
+        return inspectionDraftStore('readonly', key).then(function (draft) {
+            if (!draft || !draft.blob) return;
+            if (!input.files || !input.files.length) {
+                try {
+                    var file = new File([draft.blob], draft.fileName || 'inspection-map.pdf', {
+                        type: draft.fileType || draft.blob.type || 'application/pdf',
+                        lastModified: draft.lastModified || Date.now()
+                    });
+                    var transfer = new DataTransfer();
+                    transfer.items.add(file);
+                    input.files = transfer.files;
+                } catch (error) {
+                    console.error('Cannot restore inspection map draft to FileUpload:', error);
+                }
+            }
+            inspectionShowDraftPreview(draft.blob, draft.fileName);
+        }).catch(function (error) {
+            console.error('Inspection map draft restore failed:', error);
+        });
+    }
+    window.inspectionMasterClearDraft = function () {
+        var key = inspectionDraftKey();
+        var input = document.getElementById('fuMapPdf');
+        if (input) input.value = '';
+        inspectionDraftWritePromise = inspectionDraftWritePromise.then(function () {
+            return key ? inspectionDraftStore('readwrite', key, null) : null;
+        }).then(function () {
+            if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
+            inspectionDraftObjectUrl = null;
+        }).catch(function (error) { console.error('Inspection map draft clear failed:', error); });
+        return true;
+    };
     function restoreTab() {
         var hidden = document.getElementById('hidActiveTab');
         var target = hidden && hidden.value ? hidden.value : '#tab-map';
@@ -160,6 +273,32 @@
         });
     }
     document.addEventListener('DOMContentLoaded', function () {
+        var draftInput = document.getElementById('fuMapPdf');
+        if (draftInput) {
+            draftInput.addEventListener('change', function () {
+                var file = draftInput.files && draftInput.files[0];
+                var key = inspectionDraftKey();
+                if (!file || !key) return;
+                inspectionDraftWritePromise = inspectionDraftWritePromise.then(function () {
+                    return inspectionDraftStore('readwrite', key, {
+                        blob: file, fileName: file.name, fileType: file.type,
+                        lastModified: file.lastModified
+                    });
+                }).then(function () { inspectionShowDraftPreview(file, file.name); });
+            });
+            inspectionDraftRestorePromise = inspectionRestoreDraft();
+        }
+        if (document.forms && document.forms.length) {
+            document.forms[0].addEventListener('submit', function (event) {
+                if (document.forms[0].getAttribute('data-inspection-draft-ready') === '1') return;
+                event.preventDefault();
+                Promise.all([inspectionDraftWritePromise, inspectionDraftRestorePromise]).then(function () {
+                    document.forms[0].setAttribute('data-inspection-draft-ready', '1');
+                    if (document.forms[0].requestSubmit) document.forms[0].requestSubmit(event.submitter || undefined);
+                    else document.forms[0].submit();
+                });
+            }, true);
+        }
         restoreTab();
         if (window.bootstrap && window.bootstrap.Tooltip) {
             document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
