@@ -675,7 +675,6 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
-    <div id="inspectionNotice" class="alert alert-info py-2 small mb-3 d-none"></div>
     <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
