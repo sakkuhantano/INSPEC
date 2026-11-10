@@ -30,8 +30,11 @@
                 var request = mode === 'readwrite'
                     ? (value === null ? store.delete(key) : store.put(value, key))
                     : store.get(key);
-                request.onsuccess = function () { resolve(request.result); };
+                var result;
+                request.onsuccess = function () { result = request.result; };
                 request.onerror = function () { reject(request.error || new Error('IndexedDB request failed.')); };
+                tx.oncomplete = function () { resolve(result); };
+                tx.onerror = function () { reject(tx.error || new Error('IndexedDB transaction failed.')); };
                 tx.onabort = function () { reject(tx.error || new Error('IndexedDB transaction aborted.')); };
             });
         });
@@ -293,7 +296,8 @@
                 ? event.target.closest('a,button,input[type="submit"]') : null;
             if (!control || control.id === 'fuMapPdf' || control.getAttribute('data-inspection-click-ready') === '1') return;
             var href = control.getAttribute('href') || '';
-            var isPostback = /__doPostBack|WebForm_DoPostBackWithOptions/.test(href) ||
+            var clickCode = control.getAttribute('onclick') || '';
+            var isPostback = /__doPostBack|WebForm_DoPostBackWithOptions/.test(href + ' ' + clickCode) ||
                 control.type === 'submit' || control.getAttribute('type') === 'submit';
             if (!isPostback) return;
             event.preventDefault();
