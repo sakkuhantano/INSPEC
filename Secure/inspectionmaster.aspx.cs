@@ -1438,6 +1438,50 @@ ORDER BY PointCode",
                 }
             }
 
+            // A newly-created Map is still a draft until Save Map. If its
+            // floor plan is selected, persist it now with the first Save Point.
+            // This makes the Map usable even if the browser draft is later cleared.
+            if (hidMapIsDraft.Value == "1" && fuMapPdf.HasFile)
+            {
+                string uploadedMapPath = SaveMapFile(fuMapPdf);
+                try
+                {
+                    DataTable currentDraftMap = GetMap(mapID);
+                    if (currentDraftMap == null || currentDraftMap.Rows.Count == 0)
+                        throw new Exception("Draft Map tidak ditemukan saat menyimpan denah.");
+
+                    string previousImagePath = Convert.ToString(currentDraftMap.Rows[0]["ImagePath"]);
+                    using (var mapWriter = new WAL.BR.CF())
+                    {
+                        mapWriter.EQueryP(@"
+UPDATE dbo.PIP_M_InspectionMap
+SET ImagePath=@ImagePath, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+                            new SqlParameter[] {
+                                new SqlParameter("@ImagePath", uploadedMapPath),
+                                new SqlParameter("@UpdateUser", Master.Mn_EmployeeID),
+                                new SqlParameter("@MapID", mapID),
+                                new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                                new SqlParameter("@LocationID", Master.Mn_LocationID)
+                            });
+                    }
+
+                    if (!String.IsNullOrWhiteSpace(previousImagePath) &&
+                        !String.Equals(previousImagePath, uploadedMapPath, StringComparison.OrdinalIgnoreCase))
+                        TryDeleteFile(previousImagePath);
+
+                    // The file is now stored on the server. Remove the browser
+                    // IndexedDB copy so later Save Point clicks do not upload it again.
+                    ScriptManager.RegisterStartupScript(this, GetType(),
+                        "clearUploadedInspectionMapDraft", "inspectionMasterClearDraft();", true);
+                }
+                catch
+                {
+                    TryDeleteFile(uploadedMapPath);
+                    throw;
+                }
+            }
+
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -1479,6 +1523,10 @@ VALUES
 
                 pnlPointEditor.Visible = false;
                 BindPoints();
+                BindEditorMaps();
+                if (ddlEditorMap.Items.FindByValue(mapID.ToString(CultureInfo.InvariantCulture)) != null)
+                    ddlEditorMap.SelectedValue = mapID.ToString(CultureInfo.InvariantCulture);
+                LoadEditorMapPdf();
                 BindMapElements();
                 DataTable refreshedMap = GetMap(mapID);
                 if (refreshedMap != null && refreshedMap.Rows.Count > 0)
