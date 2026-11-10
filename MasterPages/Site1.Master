@@ -13,7 +13,7 @@
 <link rel="Stylesheet" type="text/css" href="../../WebFolder/Css/styles_2.css" />
 <script type="text/javascript" src="../../WebFolder/jquery/jquery-3.7.0.min.js"></script>
 <script type="text/javascript" src="../../WebFolder/bootstrap-5.3.0-dist/js/bootstrap.bundle.min.js"></script>
-<link rel="Stylesheet" type="text/css" href="../CSSCus/Site1.Master.css" />
+<link rel="Stylesheet" type="text/css" href="../CSSCus/Site1.Master.css?v=20261110-sidebar-css-fix-2" />
 <asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
 </head>
 
