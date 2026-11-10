@@ -1405,7 +1405,8 @@ function renderInspectionSections(template, savedItems, readOnly, idPrefix) {
             navHost.innerHTML = navHtml;
             navHost.classList.toggle("d-none", isApproval
                 ? !document.getElementById("inspectionApprovalChecklistTab").classList.contains("active")
-                : document.getElementById("btnInspectionParamTab").classList.contains("active"));
+                : (document.getElementById("btnInspectionMapTab").classList.contains("active") ||
+                   document.getElementById("btnInspectionParamTab").classList.contains("active")));
         }
         return sectionsHtml;
     }
