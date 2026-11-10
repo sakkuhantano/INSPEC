@@ -524,9 +524,9 @@
         var selectedMap = currentMaps.find(function (map) {
             return Number(map.MapID) === Number(currentMapId);
         }) || null;
-        renderPdf(selectedMap);
 
         if (activate) {
+            // Make the map viewport measurable before PDF.js calculates its canvas size.
             workspace.classList.remove("d-none");
             var paramPane = document.getElementById("inspectionParamsPane");
             var checklistPane = document.getElementById("inspectionChecklistPane");
@@ -541,8 +541,13 @@
             setInspectionSectionNavForTab("map");
             closePoint();
             switchMapList(false);
+            window.requestAnimationFrame(function () {
+                renderPdf(selectedMap);
+            });
             if (typeof window.updateInspectionParameterTabGate === "function")
                 window.updateInspectionParameterTabGate();
+        } else {
+            renderPdf(selectedMap);
         }
     };
 
