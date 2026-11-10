@@ -131,7 +131,14 @@
         var key = inspectionDraftKey();
         var input = document.getElementById('fuMapPdf');
         if (input) input.value = '';
-        inspectionDraftWritePromise = inspectionDraftWritePromise.then(function () {
+        inspectionDraftWritePromise = Promise.all([
+            inspectionDraftWritePromise,
+            inspectionDraftRestorePromise
+        ]).then(function () {
+            if (input) {
+                input.value = '';
+                input.removeAttribute('name');
+            }
             return key ? inspectionDraftStore('readwrite', key, null) : null;
         }).then(function () {
             if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
