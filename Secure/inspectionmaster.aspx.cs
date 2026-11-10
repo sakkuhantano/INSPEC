@@ -631,18 +631,26 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             string path = (storedPath ?? "").Trim();
             if (path == "") return "";
 
-            Uri absoluteUrl;
-            if (Uri.TryCreate(path, UriKind.Absolute, out absoluteUrl) &&
-                (absoluteUrl.Scheme == Uri.UriSchemeHttp || absoluteUrl.Scheme == Uri.UriSchemeHttps))
-                return path;
+            // New records store only the generated filename. Older records may
+            // still contain an absolute URL or a relative path, so normalize
+            // all formats to the same environment-specific ToolsLib location.
+            Uri oldUrl;
+            if (Uri.TryCreate(path, UriKind.Absolute, out oldUrl) &&
+                (oldUrl.Scheme == Uri.UriSchemeHttp || oldUrl.Scheme == Uri.UriSchemeHttps))
+                path = oldUrl.AbsolutePath;
 
-            if (path.StartsWith("~/", StringComparison.Ordinal))
-                return ResolveUrl(path);
+            path = path.Replace("\\", "/");
+            int slash = path.LastIndexOf('/');
+            string fileName = slash >= 0 ? path.Substring(slash + 1) : path;
+            fileName = fileName.Split('?')[0].Split('#')[0];
+            if (fileName == "") return "";
 
-            if (path.StartsWith("/", StringComparison.Ordinal))
-                return path;
-
-            return ResolveUrl("~/" + path.TrimStart('/'));
+            string companyLocation = SafePathPart(Master.Mn_CompanyID) + "_" +
+                SafePathPart(Master.Mn_LocationID);
+            string relativeUrl = "/ToolsLib/" + GetInspectionMapRoot() +
+                "/PIP_M_InspectionMap/" + companyLocation + "/" +
+                HttpUtility.UrlPathEncode(fileName);
+            return Request.Url.GetLeftPart(UriPartial.Authority) + relativeUrl;
         }
 
         private void ShowMapPreview(DataRow row)
@@ -993,18 +1001,16 @@ WHERE IT.InspectionTypeCode=@TypeCode
             string fileName = Guid.NewGuid().ToString("N") + extension;
             upload.PostedFile.InputStream.Position = 0;
             upload.SaveAs(Path.Combine(physicalFolder, fileName));
-            return (PB.Url_WebFolder1 ?? "").TrimEnd('/') + "/" + relativeFolder.Replace("\\", "/") + "/" + fileName;
+            // ImagePath is deliberately environment-independent. The URL is
+            // reconstructed from the current request when the map is displayed.
+            return fileName;
         }
         private string GetInspectionMapRoot()
         {
-            string appPath = System.Web.HttpContext.Current.Request.ApplicationPath ?? "";
-            string appId = PB.AppID ?? "";
-
-            string root = appPath.Replace("/", "");
-            if (!String.IsNullOrEmpty(appId))
-                root = root.Replace(appId, "PIP");
-
-            return root;
+            string appPath = Request.ApplicationPath ?? "";
+            string root = appPath.Trim('/').ToUpperInvariant();
+            root = root.Replace("INSPEC", "PIP");
+            return String.IsNullOrEmpty(root) ? "PIP" : root;
         }
 
         private string SafePathPart(string value)
@@ -1021,7 +1027,7 @@ WHERE IT.InspectionTypeCode=@TypeCode
             {
                 if (String.IsNullOrWhiteSpace(storedPath)) return;
 
-                // ImagePath stores the URL returned by SavePdfFile.
+                // ImagePath stores a filename (legacy full URLs are also accepted).
                 // Only delete GUID-named PDF/JPG files from this map's configured folder.
                 string normalized = storedPath.Replace("\\", "/");
                 int slash = normalized.LastIndexOf('/');
