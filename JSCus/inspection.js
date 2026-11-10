@@ -2538,11 +2538,8 @@ function resetInspectionSelection() {
     restoreInspectionMasterDropdowns();
     showInspectionInputScreen(true);
     const notice = document.getElementById("inspectionNotice");
-    if (notice) {
-        notice.className = "alert alert-info py-2 small mb-3";
-        notice.classList.remove("d-none");
-        notice.textContent = "Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.";
-    }
+    if (notice) notice.classList.add("d-none");
+    showToast("Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
@@ -3239,9 +3236,9 @@ function showInspectionInputScreen(showNotice) {
     document.getElementById("inspectionInputPanel").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.remove("d-none");
     document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
-    inspectionNoticeEnabled = showNotice === true;
+    inspectionNoticeEnabled = false;
     const notice = document.getElementById("inspectionNotice");
-    if (notice) notice.classList.toggle("d-none", !inspectionNoticeEnabled);
+    if (notice) notice.classList.add("d-none");
 }
 
 function showInspectionRecordsScreen() {
@@ -3271,13 +3268,12 @@ async function queueConflictInspectionDelete(localId) {
 }
 
 function showInspectionNotice(message, type) {
-    // Inspection guidance and validation notices stay in the page panel.
-    // Submit-specific feedback uses explicit showToast() calls in saveInspection().
-    const notice = document.getElementById("inspectionNotice");
-    if (!notice) return;
-    notice.className = "alert alert-" + (type || "info") + " py-2 small mb-3";
-    notice.classList.remove("d-none");
-    notice.textContent = message;
+    // Backward-compatible alias: all Inspection feedback is shown as a toast.
+    if (typeof showToast === "function") {
+        showToast(message, type || "info");
+        return;
+    }
+    console.warn(message);
 }
 
 function newInspectionId() {
