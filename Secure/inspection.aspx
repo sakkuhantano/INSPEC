@@ -548,6 +548,7 @@
         .inspection-option-choice { min-height:42px; }
         .inspection-photo-item { width:88px; height:88px; }
     }
+.inspection-point-list-row.active{border-color:var(--bs-primary)!important;background:var(--bs-primary-bg-subtle)!important;box-shadow:inset 3px 0 0 var(--bs-primary)}
 </style>
 </asp:Content>
 
@@ -954,5 +955,5 @@
 <script type="text/javascript" src="../JSCus/inspection.js?v=20261110-batch-offline-list-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261110-batch-mobile-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261110-point-direct-open-1"></script>
 </asp:Content>
