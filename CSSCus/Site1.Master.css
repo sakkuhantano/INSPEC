@@ -726,6 +726,20 @@ body {
 .master-app-title {
     min-width: 0;
     line-height: 1.05;
+    flex: 1 1 auto;
+}
+@media (max-width: 575.98px) {
+    .master-app-title {
+        max-width: min(42vw, 190px);
+    }
+    .master-app-name {
+        font-size: 12px;
+    }
+    .master-app-company {
+        max-width: 100%;
+        font-size: 8px;
+        margin-top: 2px;
+    }
 }
 .master-app-name {
     color: #123b3d;
