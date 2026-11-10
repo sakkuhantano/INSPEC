@@ -712,7 +712,7 @@
         </div>
         <div class="inspection-step mb-3">
             <div class="fw-bold">4. Schedule Time</div>
-            <div class="inspection-muted">Pilih jam sesuai jadwal detail. Jika tidak ada jadwal, bagian ini boleh kosong.</div>
+            <div class="inspection-muted">Pilih jam sesuai jadwal detail. Jika detail tidak memiliki jadwal, inspeksi akan dicatat sebagai Tanpa Jadwal.</div>
         </div>
         <div class="mb-3">
             <label for="selInspectionScheduleTime" class="form-label small fw-semibold">Schedule Time</label>
@@ -871,7 +871,7 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261110-toast-cleanup-2"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261110-unscheduled-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261110-toast-cleanup-2"></script>
