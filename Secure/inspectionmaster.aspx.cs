@@ -1451,7 +1451,7 @@ SET PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     ObjectReferenceCode=@ReferenceCode, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
     IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
-  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=dbo.PIP_M_InspectionPoint.MapID
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=@MapID
               AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)",
                             PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
                     }
