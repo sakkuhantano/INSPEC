@@ -200,8 +200,8 @@
         if (nextPending) nextPending.addEventListener("click", function () {
             var point = findNextPendingPoint();
             if (!point) {
-                if (typeof showInspectionNotice === "function")
-                    showInspectionNotice("Tidak ada titik wajib atau checklist yang masih perlu diselesaikan.", "success");
+                if (typeof showToast === "function")
+                    showToast("Tidak ada titik wajib atau checklist yang masih perlu diselesaikan.", "success");
                 return;
             }
             openPoint(point.InspectionPointID);
@@ -584,8 +584,8 @@
         if (checklistTab) checklistTab.addEventListener("click", function () {
             if (currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
                 !Number(currentMapRecord.ActiveInspectionPointID || 0)) {
-                if (typeof showInspectionNotice === "function")
-                    showInspectionNotice("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
+                if (typeof showToast === "function")
+                    showToast("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
                 return;
             }
             setInspectionSectionNavForTab("checklist");
@@ -633,16 +633,16 @@
             if (typeof window.openBatchInspectionPointChecklist === "function") {
                 window.openBatchInspectionPointChecklist(point);
             } else {
-                if (typeof showInspectionNotice === "function")
-                    showInspectionNotice("Modul checklist per titik belum siap dibuka.", "warning");
+                if (typeof showToast === "function")
+                    showToast("Modul checklist per titik belum siap dibuka.", "warning");
             }
         });
 
         var submit = document.getElementById("btnSubmitInspectionBatch");
         if (submit) submit.addEventListener("click", function () {
             if (typeof window.submitInspectionBatch === "function") window.submitInspectionBatch();
-            else if (typeof showInspectionNotice === "function")
-                showInspectionNotice("Submit batch belum tersedia.", "warning");
+            else if (typeof showToast === "function")
+                showToast("Submit batch belum tersedia.", "warning");
         });
     };
 
