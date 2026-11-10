@@ -892,6 +892,11 @@ VALUES
                 databaseSaved = true;
                 Session.Remove(DraftMapFileSessionKey);
 
+                // After the first successful save of a new Map Code, the
+                // Previous/Next toolbar becomes available for this Map.
+                Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+                Master.TB_VisibleButton(ToolbarItem_2.Next, true);
+
                 BindMaps();
                 BindEditorMaps();
                 PointPageIndex = 0;
@@ -1464,6 +1469,12 @@ VALUES
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
+
+                // Saving a Point can also create the Map when the Map Code
+                // was new. Once that save succeeds, enable Map navigation.
+                Master.TB_VisibleButton(ToolbarItem_2.Previous, true);
+                Master.TB_VisibleButton(ToolbarItem_2.Next, true);
+
                 pnlPointEditor.Visible = false;
                 BindPoints();
                 BindMapElements();
