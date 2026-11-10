@@ -1450,7 +1450,9 @@ SET PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
     ObjectReferenceCode=@ReferenceCode, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
     IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND CompanyID=@CompanyID AND LocationID=@LocationID AND MapID=@MapID AND IsActive=1",
+WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=dbo.PIP_M_InspectionPoint.MapID
+              AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)",
                             PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
                     }
                     else
@@ -1691,12 +1693,10 @@ BEGIN
 END;
 UPDATE dbo.PIP_M_InspectionPoint
 SET MapX=@OtherX,MapY=@OtherY,UpdateUser=@UserID,UpdateDate=GETDATE()
-WHERE InspectionPointID=@PointID AND MapID=@MapID
-  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+WHERE InspectionPointID=@PointID AND MapID=@MapID;
 UPDATE dbo.PIP_M_InspectionPoint
 SET MapX=@CurrentX,MapY=@CurrentY,UpdateUser=@UserID,UpdateDate=GETDATE()
-WHERE InspectionPointID=@OtherPointID AND MapID=@MapID
-  AND CompanyID=@CompanyID AND LocationID=@LocationID;
+WHERE InspectionPointID=@OtherPointID AND MapID=@MapID;
 COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
