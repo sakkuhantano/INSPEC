@@ -861,15 +861,9 @@ async function startNewInspection() {
                 batchMapSetup = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
                 if (!batchMapSetup || batchMapSetup.success !== true)
                     throw new Error("Data map Inspection tidak valid.");
-                for (const map of (batchMapSetup.maps || [])) {
-                    if (!map.MapUrl) continue;
-                    try {
-                        const mapResponse = await fetch(map.MapUrl, { credentials: "same-origin" });
-                        if (mapResponse.ok) map.MapBlob = await mapResponse.blob();
-                    } catch (pdfError) {
-                        console.warn("Inspection map could not be cached for this batch:", map.MapCode, pdfError);
-                    }
-                }
+                // Do not download every floor plan before opening the batch.
+                // Point data is enough to enter the workspace; renderPdf loads only
+                // the selected map asynchronously after the workspace becomes visible.
             } catch (mapError) {
                 showToast("Tidak dapat memuat denah dan Inspection Point: " + (mapError.message || mapError), "danger");
                 return;
