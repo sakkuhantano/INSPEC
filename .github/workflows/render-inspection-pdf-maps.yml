@@ -18,7 +18,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-      - name: Render PDFs from docs
+      - name: Render PDFs and extract text positions
         shell: bash
         run: |
           set -euo pipefail
@@ -26,12 +26,13 @@ jobs:
           shopt -s nullglob
           for pdf in docs/*.pdf; do
             base="$(basename "${pdf%.pdf}" | tr ' ()' '___' | tr -cd '[:alnum:]_.-')"
-            echo "Rendering: $pdf"
+            echo "Processing: $pdf"
             pdfinfo "$pdf" > "rendered/${base}_info.txt"
+            pdftotext -bbox-layout "$pdf" "rendered/${base}_bbox.html"
             pdftoppm -png -r 110 "$pdf" "rendered/${base}"
           done
           find rendered -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
-      - name: Upload rendered map pages
+      - name: Upload rendered map pages and text positions
         uses: actions/upload-artifact@v4
         with:
           name: inspection-map-rendered-pages
