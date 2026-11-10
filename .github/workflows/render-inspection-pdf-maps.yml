@@ -1,0 +1,40 @@
+name: Render inspection source PDFs
+on:
+  push:
+    branches:
+      - temp/render-inspection-pdf-maps
+    paths:
+      - '.github/workflows/render-inspection-pdf-maps.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+      - name: Install PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+      - name: Render PDFs from docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          shopt -s nullglob
+          for pdf in docs/*.pdf; do
+            base="$(basename "${pdf%.pdf}" | tr ' ()' '___' | tr -cd '[:alnum:]_.-')"
+            echo "Rendering: $pdf"
+            pdfinfo "$pdf" > "rendered/${base}_info.txt"
+            pdftoppm -png -r 110 "$pdf" "rendered/${base}"
+          done
+          find rendered -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+      - name: Upload rendered map pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspection-map-rendered-pages
+          path: rendered/
+          if-no-files-found: error
+          retention-days: 3
