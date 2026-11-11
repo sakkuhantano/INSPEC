@@ -97,6 +97,8 @@
         if (!optionItems.length) return "";
         var transaction = getPointTransaction(point);
         var savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
+        var blockReason = typeof window.getBatchPointQuickOptionBlockReason === "function"
+            ? window.getBatchPointQuickOptionBlockReason(point) : "";
         return '<div class="inspection-point-option-controls mt-2 d-flex flex-column gap-2">' +
             optionItems.map(function (item) {
                 var saved = savedItems.find(function (answer) { return Number(answer.IDItem) === Number(item.idItem); });
@@ -109,11 +111,16 @@
                         var active = selected === option;
                         return '<button type="button" class="btn btn-sm ' +
                             (active ? 'btn-primary' : 'btn-outline-primary') +
-                            ' inspection-point-option-choice" data-point-option-item="' + esc(item.idItem) +
+                            ' inspection-point-option-choice" ' + (blockReason ? 'disabled aria-disabled="true" title="' + esc(blockReason) + '" ' : '') +
+                            'data-point-option-item="' + esc(item.idItem) +
                             '" data-point-option-value="' + esc(option) + '" data-point-id="' +
                             esc(point.InspectionPointID) + '">' + esc(option) + '</button>';
                     }).join("") + '</div></div>';
-            }).join("") + '</div>';
+            }).join("") +
+            (blockReason ? '<div class="small text-warning"><i class="bi bi-lock-fill me-1"></i>' + esc(blockReason) +
+                '</div><button type="button" class="btn btn-sm btn-outline-primary align-self-start" data-open-point-checklist="' +
+                esc(point.InspectionPointID) + '">Buka checklist lengkap</button>' : '') +
+            '</div>';
     }
 
     function pointRequiresInspection(point) {
