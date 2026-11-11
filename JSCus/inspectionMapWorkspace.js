@@ -112,18 +112,29 @@
                 var options = String(item.optionList || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
                 if (!options.length) return "";
                 var snapshot = currentMapRecord && currentMapRecord.TemplateSnapshot;
+                var versionInfo = snapshot && (snapshot.VersionInfo || snapshot.versionInfo || snapshot);
                 var versionRemark1 = flagEnabled(item.versionIsRemark1Required) ||
-                    flagEnabled(item.VersionIsRemark1Required) || flagEnabled(snapshot && snapshot.IsRemark1Required);
+                    flagEnabled(item.VersionIsRemark1Required) || flagEnabled(versionInfo && versionInfo.VersionIsRemark1Required) ||
+                    flagEnabled(versionInfo && versionInfo.IsRemark1Required);
                 var versionRemark2 = flagEnabled(item.versionIsRemark2Required) ||
-                    flagEnabled(item.VersionIsRemark2Required) || flagEnabled(snapshot && snapshot.IsRemark2Required);
-                var remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(function (x) { return String(x).trim(); }) : [];
+                    flagEnabled(item.VersionIsRemark2Required) || flagEnabled(versionInfo && versionInfo.VersionIsRemark2Required) ||
+                    flagEnabled(versionInfo && versionInfo.IsRemark2Required);
+                var rawRemarkOptions = item.remarkRequiredOptions || item.RemarkRequiredOptions || [];
+                var remarkOptions = Array.isArray(rawRemarkOptions) ? rawRemarkOptions.map(function (x) { return String(x).trim(); }) :
+                    String(rawRemarkOptions || "").split(";").map(function (x) { return x.trim(); }).filter(Boolean);
                 var optionRequiresRemark = remarkOptions.indexOf(selected.trim()) >= 0;
                 var remarkHtml = "";
                 [1, 2].forEach(function (number) {
                     var versionEnabled = number === 1 ? versionRemark1 : versionRemark2;
-                    var itemRequired = flagEnabled(number === 1 ? item.isRemark1Required : item.isRemark2Required);
-                    var mandatory = flagEnabled(number === 1 ? item.isRemark1Mandatory : item.isRemark2Mandatory);
-                    var text = number === 1 ? item.remark1Text : item.remark2Text;
+                    var itemRequired = number === 1
+                        ? (flagEnabled(item.isRemark1Required) || flagEnabled(item.IsRemark1Required))
+                        : (flagEnabled(item.isRemark2Required) || flagEnabled(item.IsRemark2Required));
+                    var mandatory = number === 1
+                        ? (flagEnabled(item.isRemark1Mandatory) || flagEnabled(item.IsRemark1Mandatory))
+                        : (flagEnabled(item.isRemark2Mandatory) || flagEnabled(item.IsRemark2Mandatory));
+                    var text = number === 1
+                        ? (item.remark1Text || item.Remark1Text)
+                        : (item.remark2Text || item.Remark2Text);
                     var field = number === 1 ? "Remark1" : "Remark2";
                     if (!(itemRequired || (versionEnabled && remarkOptions.length))) return;
                     var visible = itemRequired || (versionEnabled && optionRequiresRemark);
@@ -765,6 +776,13 @@
         var points = document.getElementById("inspectionMapPoints");
         if (points) points.innerHTML = "";
         var summary = document.getElementById("inspectionMapSummaryHost");
+        var checklistPane = document.getElementById("inspectionChecklistPane");
+        if (checklistPane) {
+            ["inspectionFollowUpPanel", "inspectionSummaryPanel", "inspectionReasonVoidPanel"].forEach(function (id) {
+                var panel = document.getElementById(id);
+                if (panel) checklistPane.appendChild(panel);
+            });
+        }
         if (summary) summary.innerHTML = "";
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
