@@ -1,5 +1,5 @@
 ﻿// App version is also published in /app-version.txt. Bump both values for each deployment.
-const APP_BUILD_VERSION = "20261111.1";
+const APP_BUILD_VERSION = "20261111.2";
 
 (function () {
     const masterScript = document.querySelector('script[src*="Site1.Master.js"]');
