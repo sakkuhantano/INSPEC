@@ -939,7 +939,7 @@ async function renderChecklist(template, isEntryMode) {
                            ${opt.trim() === V_Value ? "checked" : ""}
                            ${!isEntryMode ? "disabled" : ""}
                            type="radio">
-                    <label class="btn btn-outline-primary" 
+                    <label class="btn btn-outline-primary wo-option-choice" 
                            for="opt_${item.idItem}_${i}">
                         ${opt.trim()}
                     </label>
@@ -3203,6 +3203,16 @@ function applyValidationUI(container, error, highlightContainer = true) {
 // fungsi2 foto
 // ------------------------------------------
 document.addEventListener("click", function (e) {
+    const optionLabel = e.target && e.target.closest("label.wo-option-choice");
+    if (optionLabel) {
+        const optionInput = document.getElementById(optionLabel.getAttribute("for"));
+        if (optionInput && !optionInput.disabled && optionInput.checked) {
+            e.preventDefault();
+            optionInput.checked = false;
+            optionInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        return;
+    }
     let container = e.target.closest(".photo-upload");
     if (!container) return;
 
