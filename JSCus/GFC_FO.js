@@ -963,18 +963,47 @@ async function getInspectionData() {
                 return;
             }
 
-            // Templates are still merged by IDTemplate because this endpoint may
-            // return only templates visible to the current employee.
+            // A template row is a complete server snapshot, not a patch.
+            // Use one read/write transaction: remove templates no longer returned
+            // for this login scope, then put each incoming object in full. IDB put()
+            // replaces the whole structured-clone value, including nested sections/items
+            // and fields added in later master-template revisions.
+            if (name === "inspection_templates") {
+                const companyId = companyLocation[0] || "";
+                const locationId = companyLocation[1] || "";
+                const sections = (login.section || "").split(";").map(s => s.trim()).filter(Boolean);
+                const incoming = rows || [];
+                const incomingIds = new Set(incoming.map(row => String(row.IDTemplate)));
+                const tx = db.transaction(name, "readwrite");
+                const store = tx.objectStore(name);
+                const readReq = store.getAll();
+                readReq.onsuccess = () => {
+                    (readReq.result || []).forEach(row => {
+                        const inCurrentScope =
+                            String(row.CompanyID || "") === companyId &&
+                            String(row.LocationID || "") === locationId &&
+                            row.TemplateType === "I" &&
+                            sections.includes(String(row.SectionID || ""));
+                        if (inCurrentScope && !incomingIds.has(String(row.IDTemplate))) {
+                            store.delete(row.IDTemplate);
+                        }
+                    });
+                    incoming.forEach(row => store.put(row));
+                };
+                readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error || new Error("Inspection template snapshot update failed"));
+                tx.onabort = () => reject(tx.error || new Error("Inspection template snapshot update aborted"));
+                return;
+            }
+
+            // Other inspection master stores keep their existing merge behavior.
             const readTx = db.transaction(name, "readonly");
             const readReq = readTx.objectStore(name).getAll();
             readReq.onsuccess = () => {
-                const existing = readReq.result || [];
                 const merged = new Map();
-                const keyOf = row => name === "inspection_templates"
-                    ? String(row.IDTemplate)
-                    : String(row.InspectionTypeCode);
-                existing.forEach(row => merged.set(keyOf(row), row));
-                (rows || []).forEach(row => merged.set(keyOf(row), row));
+                (readReq.result || []).forEach(row => merged.set(String(row.InspectionTypeCode), row));
+                (rows || []).forEach(row => merged.set(String(row.InspectionTypeCode), row));
                 const writeTx = db.transaction(name, "readwrite");
                 const store = writeTx.objectStore(name);
                 merged.forEach(row => store.put(row));
