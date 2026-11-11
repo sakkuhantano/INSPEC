@@ -64,7 +64,55 @@
     function getPointVisualStatus(point) {
         var transaction = getPointTransaction(point);
         if (transaction && String(transaction.AbnormalRemark || "").trim()) return "ABNORMAL";
+        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        var templateItems = [];
+        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
+            (section.items || []).forEach(function (item) { templateItems.push(item); });
+        });
+        if (templateItems.length === 1 && String(templateItems[0].type || "").toUpperCase() === "OPTION") {
+            var answer = transaction && (transaction.Items || []).find(function (item) {
+                return Number(item.IDItem) === Number(templateItems[0].idItem);
+            });
+            var value = String(answer && answer.Value || "").trim().toUpperCase();
+            if (/^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(value)) return "ABNORMAL";
+            if (value) return "DONE";
+        }
         return getPointStatus(point);
+    }
+
+    function getTemplateOptionItems() {
+        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        var result = [];
+        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
+            (section.items || []).forEach(function (item) {
+                if (String(item.type || "").toUpperCase() === "OPTION") result.push(item);
+            });
+        });
+        return result;
+    }
+
+    function renderPointOptionControls(point) {
+        var optionItems = getTemplateOptionItems();
+        if (!optionItems.length) return "";
+        var transaction = getPointTransaction(point);
+        var savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
+        return '<div class="inspection-point-option-controls mt-2 d-flex flex-column gap-2">' +
+            optionItems.map(function (item) {
+                var saved = savedItems.find(function (answer) { return Number(answer.IDItem) === Number(item.idItem); });
+                var selected = String(saved && saved.Value || "");
+                var options = String(item.optionList || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
+                if (!options.length) return "";
+                return '<div class="inspection-point-option-group">' +
+                    '<div class="small text-muted mb-1">' + esc(item.label || "Checklist") + '</div>' +
+                    '<div class="d-flex flex-wrap gap-1">' + options.map(function (option) {
+                        var active = selected === option;
+                        return '<button type="button" class="btn btn-sm ' +
+                            (active ? 'btn-primary' : 'btn-outline-primary') +
+                            ' inspection-point-option-choice" data-point-option-item="' + esc(item.idItem) +
+                            '" data-point-option-value="' + esc(option) + '" data-point-id="' +
+                            esc(point.InspectionPointID) + '">' + esc(option) + '</button>';
+                    }).join("") + '</div></div>';
+            }).join("") + '</div>';
     }
 
     function pointRequiresInspection(point) {
@@ -161,7 +209,8 @@
             '</div>' +
             (rows.length ? rows.map(function (point) {
                 var status = getPointVisualStatus(point);
-                return '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
+                return '<div class="inspection-point-list-entry mb-2">' +
+                    '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
@@ -169,14 +218,52 @@
                     '<span class="badge ' + (status === "ABNORMAL" ? "text-bg-danger" :
                     status === "DONE" ? "text-bg-success" :
                     status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
-                    statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>';
+                    statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>' +
+                    renderPointOptionControls(point) +
+                    '<div class="text-end mt-1"><button type="button" class="btn btn-link btn-sm p-0" data-open-point-checklist="' +
+                    esc(point.InspectionPointID) + '">Buka checklist lengkap</button></div></div>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
 
-        host.querySelectorAll("[data-point-id]").forEach(function (button) {
+        host.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (button) {
             button.classList.toggle("active", !!selectedPoint &&
                 button.getAttribute("data-point-id") === String(selectedPoint.InspectionPointID));
             button.addEventListener("click", function () {
                 openPoint(button.getAttribute("data-point-id"));
+            });
+        });
+        host.querySelectorAll(".inspection-point-option-choice").forEach(function (button) {
+            button.addEventListener("click", async function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (typeof window.setBatchInspectionPointOption !== "function") {
+                    if (typeof showToast === "function") showToast("Penyimpanan pilihan checklist belum tersedia.", "warning");
+                    return;
+                }
+                button.disabled = true;
+                try {
+                    await window.setBatchInspectionPointOption(
+                        button.getAttribute("data-point-id"),
+                        button.getAttribute("data-point-option-item"),
+                        button.getAttribute("data-point-option-value")
+                    );
+                    renderList();
+                    renderPoints();
+                    updateSummary();
+                } catch (error) {
+                    console.error("Unable to save batch point option:", error);
+                    if (typeof showToast === "function") showToast(error.message || "Pilihan point gagal disimpan.", "warning");
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
+        host.querySelectorAll("[data-open-point-checklist]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                var point = currentPoints.find(function (item) {
+                    return String(item.InspectionPointID) === button.getAttribute("data-open-point-checklist");
+                });
+                if (point && typeof window.openBatchInspectionPointChecklist === "function")
+                    window.openBatchInspectionPointChecklist(point);
             });
         });
         var search = document.getElementById("inspectionPointSearch");
@@ -207,9 +294,6 @@
                 return;
             }
             openPoint(point.InspectionPointID);
-            if (typeof window.openBatchInspectionPointChecklist === "function") {
-                window.openBatchInspectionPointChecklist(point);
-            }
         });
     }
 
@@ -313,14 +397,18 @@
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
 
-        // Selecting a point opens its existing template checklist directly.
-        if (typeof window.openBatchInspectionPointChecklist === "function") {
-            Promise.resolve(window.openBatchInspectionPointChecklist(selectedPoint)).catch(function (error) {
-                console.error("Unable to open inspection point checklist:", error);
-                if (typeof showToast === "function")
-                    showToast(error && error.message ? error.message : "Checklist point gagal dibuka.", "warning");
-            });
-        }
+        // A map marker selects and scrolls to its matching list row.
+        // Checklist navigation remains an explicit action from that row.
+        listKeyword = "";
+        var pointIndex = currentPoints.findIndex(function (point) {
+            return String(point.InspectionPointID) === String(id);
+        });
+        if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
+        switchMapList(true);
+        renderList();
+        var row = document.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
+        if (row && typeof row.scrollIntoView === "function")
+            row.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     function closePoint() {
