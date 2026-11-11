@@ -2058,7 +2058,8 @@ async function saveBatchInspectionPoint(status) {
             return;
         }
         point.Status = String(point.PointCondition || "").toUpperCase() === "ABNORMAL" ||
-            items.some(item => /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()))
+            items.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1" ||
+                /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()))
             ? "ABNORMAL" : "DONE";
     } else {
         point.Status = items.some(item => String(item.Value || "").trim() ||
