@@ -1804,7 +1804,8 @@ async function downloadWorkOrder() {
                 lastSync: data.lastsyncw,
                 isApprovalMode: false,
                 status: "",
-                keyhd: 0
+                keyhd: 0,
+                unused: null
             })
         });
 
