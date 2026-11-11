@@ -3112,7 +3112,7 @@ function showVersionProperties(version, isNewTemplate)
                         value="${version.EffectiveDate || ''}"
                         ${isReadonlyMode ? 'disabled' : ''}>
                 </div>
-                <div class="mb-3">
+                <div class="mb-3" id="versionGroupEquipmentField">
                     <label class="form-label text-xs fw-bold mb-1">
                         <i class="bi bi-diagram-3 me-1 text-primary"></i>
                         Equipment Group
@@ -3231,7 +3231,8 @@ function showVersionProperties(version, isNewTemplate)
     showVersionPropertiesEvent(version);
     bindGroupEquipmentDropdown(
         version.GroupEquipment || ""
-    );    
+    );
+    refreshTemplateTypeDependentFields(currentTemplate);
 }
 
 async function loadTemplateVersions(idTemplate)
@@ -6512,6 +6513,7 @@ async function showTemplateRootProperties(template, version)
 
     if (rightPanelSub != "") {
         showVersionPropertiesEvent(version);
+        refreshTemplateTypeDependentFields(template);
     }
 }
 async function appendTemplateMetadataControls(template)
@@ -6637,6 +6639,15 @@ async function appendTemplateMetadataControls(template)
 
     await appendTemplateMetadataRefresh(template);
 }
+function refreshTemplateTypeDependentFields(template)
+{
+    const type = String(template && template.TemplateType || "W").trim().toUpperCase();
+    const isPMWO = type === "W" || type === "P";
+    const groupField = document.getElementById("versionGroupEquipmentField");
+    if (groupField)
+        groupField.style.display = isPMWO ? "" : "none";
+}
+
 async function appendTemplateMetadataRefresh(template)
 {
     const isInspection = template.TemplateType === 'I';
@@ -6645,6 +6656,7 @@ async function appendTemplateMetadataRefresh(template)
     const employeeTab = document.getElementById('tplEmployeeTabItem');
     if (inspectionField) inspectionField.style.display = isInspection ? '' : 'none';
     if (inspectionDetailField) inspectionDetailField.style.display = isInspection ? '' : 'none';
+    refreshTemplateTypeDependentFields(template);
     if (employeeTab) employeeTab.style.display = isInspection ? '' : 'none';
     const activePane = document.querySelector('#tplEmployeePane.show.active');
     if (!isInspection && activePane) {
