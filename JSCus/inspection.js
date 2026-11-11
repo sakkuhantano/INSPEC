@@ -1038,8 +1038,9 @@ async function startNewInspection() {
     await renderInspectionForm(currentInspectionRecord, false, "param");
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
     if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function") {
-        showInspectionMapWorkspace(currentInspectionRecord, false);
-        if (mapWorkspace) mapWorkspace.classList.add("d-none");
+        // BATCH starts directly in the MAP workspace so the denah and point list
+        // are immediately visible after the parameters are applied.
+        showInspectionMapWorkspace(currentInspectionRecord, true);
     } else if (mapWorkspace) {
         mapWorkspace.classList.add("d-none");
     }
@@ -1157,8 +1158,10 @@ function getBatchPointQuickOptionBlockReason(point) {
 window.getBatchPointQuickOptionBlockReason = getBatchPointQuickOptionBlockReason;
 
 function normalizeInspectionPhotoRequirement(value) {
-    const requirement = String(value || "BOTH").toUpperCase();
-    return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
+    const requirement = String(value == null ? "" : value).trim().toUpperCase();
+    // Empty/null means the version has no photo requirement. The master must
+    // explicitly store BEFORE/AFTER/BOTH when one of those is required.
+    return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "NONE";
 }
 
 function getInspectionPhotoRequirement(source) {
