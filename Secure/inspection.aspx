@@ -549,6 +549,17 @@
         .inspection-photo-item { width:88px; height:88px; }
     }
 .inspection-point-list-row.active{border-color:var(--bs-primary)!important;background:var(--bs-primary-bg-subtle)!important;box-shadow:inset 3px 0 0 var(--bs-primary)}
+
+    .inspection-map-content{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.9fr);align-items:stretch;min-width:0}
+    .inspection-map-content>.inspection-map-canvas{height:min(72vh,760px);min-height:520px}
+    .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+    .inspection-map-content>.inspection-map-canvas.d-none{display:none!important}
+    .inspection-map-content.no-map{grid-template-columns:minmax(0,1fr)}
+    @media(max-width:767.98px){
+        .inspection-map-content{grid-template-columns:minmax(0,1fr)}
+        .inspection-map-content>.inspection-map-canvas{height:52vh;min-height:360px}
+        .inspection-map-content>.inspection-point-list{height:48vh;min-height:320px;max-height:48vh}
+    }
 </style>
 </asp:Content>
 
@@ -818,10 +829,7 @@
                 <div id="inspectionMapSubtitle" class="inspection-map-subtitle">Warna titik menunjukkan status inspeksi</div>
             </div>
             <div class="inspection-map-actions">
-                <div class="btn-group btn-group-sm" role="group">
-                    <button type="button" id="btnInspectionMapView" class="btn btn-primary"><i class="bi bi-map me-1"></i>Map</button>
-                    <button type="button" id="btnInspectionPointListView" class="btn btn-outline-primary"><i class="bi bi-list-ul me-1"></i>List</button>
-                </div>
+
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
@@ -840,6 +848,7 @@
             <label for="inspectionMapSelect" class="form-label small fw-semibold mb-1">Floor Plan</label>
             <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
         </div>
+        <div class="inspection-map-content">
         <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
             <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
                 <button type="button" id="btnInspectionMapZoomOut" class="btn btn-sm btn-light border" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
@@ -853,9 +862,10 @@
                 <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
             </div>
             <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist · Car park: inspeksi tiap slot yang ada kendaraan; slot kosong tidak perlu di-action.</div>
+            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk menyorot point di daftar · Car park: inspeksi tiap slot yang ada kendaraan; slot kosong tidak perlu di-action.</div>
         </div>
-        <div id="inspectionPointList" class="inspection-point-list d-none"></div>
+        <div id="inspectionPointList" class="inspection-point-list"></div>
+        </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
         <div class="d-flex justify-content-end gap-2 p-2 border-top">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
@@ -952,8 +962,8 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261111-option-toggle-1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261111-map-list-2"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261111-option-toggle-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261111-map-list-2"></script>
 </asp:Content>
