@@ -1969,10 +1969,11 @@ async function goToNextBatchValidationIssue() {
             return;
         }
     }
+    if (typeof window.showInspectionMapWorkspace === "function")
+        window.showInspectionMapWorkspace(currentInspectionRecord, true);
     const target = nextError.target === "summary" ? document.getElementById("txtInspectionSummary") :
         nextError.target === "followup-section" ? document.getElementById("inspectionFollowUpSection") :
         nextError.target === "followup-remark" ? document.getElementById("txtInspectionFollowUpRemark") : null;
-    showInspectionEditorTab("checklist");
     if (target) { target.scrollIntoView({ behavior: "smooth", block: "center" }); target.focus(); }
 }
 
@@ -2184,7 +2185,7 @@ async function saveBatchInspectionPoint(status) {
             photos.length ? "INCOMPLETE" : "PENDING";
     }
     point.Items = items;
-    point.ValidationIssueCount = errors.length;
+    point.ValidationIssueCount = status === "DONE" ? errors.length : validateInspectionItemsAll(items).length;
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
     record.Items = [];
@@ -2308,11 +2309,12 @@ function showInspectionBatchValidationReport(errors) {
             if (masterPoint) window.setTimeout(() => openBatchInspectionPointChecklist(masterPoint, error), 180);
         } else {
             window.setTimeout(() => {
+                if (typeof window.showInspectionMapWorkspace === "function")
+                    window.showInspectionMapWorkspace(currentInspectionRecord, true);
                 const target = error.target === "summary" ? document.getElementById("txtInspectionSummary") :
                     error.target === "followup-section" ? document.getElementById("inspectionFollowUpSection") :
                     error.target === "followup-remark" ? document.getElementById("txtInspectionFollowUpRemark") : null;
                 if (target) {
-                    showInspectionEditorTab("checklist");
                     target.scrollIntoView({ behavior: "smooth", block: "center" });
                     target.focus();
                     target.classList.add("is-invalid");
