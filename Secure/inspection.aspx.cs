@@ -756,6 +756,12 @@ SELECT ID FROM @AutoNumResult;",
                     {
                         userMessage = "Jadwal inspeksi ini sudah memiliki data di server. Silakan periksa data inspeksi yang sudah tersimpan.";
                     }
+                    else if (syncStage == "validate batch checklist version rules" ||
+                             syncStage == "validate batch map coverage")
+                    {
+                        // These are business-rule failures with Point Code context, not technical diagnostics.
+                        userMessage = ex.Message;
+                    }
                     else
                     {
                         // Keep technical details in the server log; do not expose them to technicians.
