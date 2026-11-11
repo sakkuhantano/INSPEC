@@ -1,4 +1,4 @@
-﻿using OfficeOpenXml;
+using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System;
 using System.Collections.Generic;
@@ -14,6 +14,15 @@ using WAL;
 
 namespace INSPEC.Secure
 {
+	public class ReportFileResult
+	{
+		public bool Success { get; set; }
+		public string Status { get; set; }
+		public string FileName { get; set; }
+		public string StoragePath { get; set; }
+		public string Message { get; set; }
+	}
+
     public partial class R_Report : WAL.PB, WAL.I_ToolBar_2
     {
         protected void Page_Load(object sender, EventArgs e)
@@ -21,6 +30,79 @@ namespace INSPEC.Secure
 
         }
 
+		public static ReportFileResult GenerateInspectionXlsx(DataTable dt, string p_UserID)
+		{
+			try
+			{
+				string tempFolder = HttpContext.Current.Server.MapPath(
+					"~/App_Data/InspectionReports/Temp/");
+
+				if (!Directory.Exists(tempFolder))
+				{
+					Directory.CreateDirectory(tempFolder);
+				}
+
+				string fileName =
+					"Inspection_Report_" +
+					DateTime.Now.ToString("yyyyMMdd_HHmmss") +
+					"_" +
+					Guid.NewGuid().ToString("N").Substring(0, 8) +
+					".xlsx";
+
+				string physicalPath = Path.Combine(tempFolder, fileName);
+
+				using (ExcelPackage package = new ExcelPackage())
+				{
+					ExcelWorksheet ws =
+						package.Workbook.Worksheets.Add("Inspection Report");
+
+					for (int col = 0; col < dt.Columns.Count; col++)
+					{
+						ws.Cells[1, col + 1].Value =
+							dt.Columns[col].ColumnName;
+
+						ws.Cells[1, col + 1].Style.Font.Bold = true;
+					}
+
+					for (int row = 0; row < dt.Rows.Count; row++)
+					{
+						for (int col = 0; col < dt.Columns.Count; col++)
+						{
+							ws.Cells[row + 2, col + 1].Value =
+								dt.Rows[row][col];
+						}
+					}
+
+					if (ws.Dimension != null)
+					{
+						ws.Cells[ws.Dimension.Address].AutoFitColumns();
+					}
+
+					package.SaveAs(new FileInfo(physicalPath));
+				}
+
+				return new ReportFileResult
+				{
+					Success = true,
+					Status = "SUCCESS",
+					FileName = fileName,
+					StoragePath = physicalPath,
+					Message = "Report berhasil dibuat."
+				};
+			}
+			catch (Exception ex)
+			{
+				return new ReportFileResult
+				{
+					Success = false,
+					Status = "FAILED",
+					FileName = "",
+					StoragePath = "",
+					Message = ex.Message
+				};
+			}
+		}		
+		
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
         {
             switch (e.ToolbarItem)
