@@ -1720,6 +1720,12 @@ function validateInspectionItemsAll(items) {
     const templateItems = [];
     (template && Array.isArray(template.sections) ? template.sections : []).forEach(section =>
         (section.items || []).forEach(item => templateItems.push(item)));
+    if (!templateItems.length) {
+        sourceItems.forEach(answer => {
+            const templateItem = findInspectionTemplateItem(answer.IDItem);
+            if (templateItem) templateItems.push(templateItem);
+        });
+    }
     const errors = [];
     const answers = new Map(sourceItems.map(item => [Number(item.IDItem), item]));
     templateItems.forEach(templateItem => {
