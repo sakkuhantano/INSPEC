@@ -220,7 +220,7 @@
                 var transaction = getPointTransaction(point);
                 var issueCount = Number(transaction && transaction.ValidationIssueCount || point.ValidationIssueCount || 0);
                 return '<div class="inspection-point-list-entry mb-2">' +
-                    '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
+                    '<button type="button" class="inspection-point-list-row w-100 text-start ' + (issueCount ? "validation-has-issues" : "") + '" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
