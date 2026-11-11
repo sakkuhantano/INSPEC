@@ -1730,8 +1730,8 @@ function findInspectionTemplateItem(itemId) {
 function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     const key = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
     const pascalKey = remarkNumber === 1 ? "VersionIsRemark1Required" : "VersionIsRemark2Required";
-    if (item && item[key] != null) return isInspectionFlagEnabled(item[key], false);
-    if (item && item[pascalKey] != null) return isInspectionFlagEnabled(item[pascalKey], false);
+    if (item && (item[key] != null || item[pascalKey] != null))
+        return isInspectionFlagEnabled(item[key], false) || isInspectionFlagEnabled(item[pascalKey], false);
     const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
     const versionInfo = snapshot && (snapshot.VersionInfo || snapshot.versionInfo || snapshot);
     const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
