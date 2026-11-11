@@ -97,29 +97,52 @@
         if (!optionItems.length) return "";
         var transaction = getPointTransaction(point);
         var savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
-        var blockReason = typeof window.getBatchPointQuickOptionBlockReason === "function"
-            ? window.getBatchPointQuickOptionBlockReason(point) : "";
+        var readOnly = String(currentMapRecord && currentMapRecord.Status || "").toUpperCase() === "DONE";
         return '<div class="inspection-point-option-controls mt-1 d-flex flex-column gap-1">' +
             optionItems.map(function (item) {
                 var saved = savedItems.find(function (answer) { return Number(answer.IDItem) === Number(item.idItem); });
                 var selected = String(saved && saved.Value || "");
                 var options = String(item.optionList || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
                 if (!options.length) return "";
+                var versionRemark1 = item.versionIsRemark1Required !== undefined ? item.versionIsRemark1Required :
+                    (item.VersionIsRemark1Required !== undefined ? item.VersionIsRemark1Required :
+                    (currentMapRecord && currentMapRecord.TemplateSnapshot && currentMapRecord.TemplateSnapshot.IsRemark1Required));
+                var versionRemark2 = item.versionIsRemark2Required !== undefined ? item.versionIsRemark2Required :
+                    (item.VersionIsRemark2Required !== undefined ? item.VersionIsRemark2Required :
+                    (currentMapRecord && currentMapRecord.TemplateSnapshot && currentMapRecord.TemplateSnapshot.IsRemark2Required));
+                var remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(function (x) { return String(x).trim(); }) : [];
+                var optionRequiresRemark = remarkOptions.indexOf(selected.trim()) >= 0;
+                var remarkHtml = "";
+                [1, 2].forEach(function (number) {
+                    var versionEnabled = number === 1 ? versionRemark1 : versionRemark2;
+                    var itemRequired = number === 1 ? item.isRemark1Required : item.isRemark2Required;
+                    var mandatory = number === 1 ? item.isRemark1Mandatory : item.isRemark2Mandatory;
+                    var text = number === 1 ? item.remark1Text : item.remark2Text;
+                    var field = number === 1 ? "Remark1" : "Remark2";
+                    if (!versionEnabled || !(itemRequired || remarkOptions.length)) return;
+                    var visible = !!itemRequired || optionRequiresRemark;
+                    var inputRequired = visible && (!!mandatory || optionRequiresRemark);
+                    var value = saved && saved[field] != null ? saved[field] : "";
+                    remarkHtml += '<div class="inspection-point-remark' + (visible ? "" : " d-none") + '">' +
+                        '<label class="small text-muted mb-1">' + esc(text || "Remark" + number) +
+                        (inputRequired ? ' (wajib)' : '') + '</label>' +
+                        '<input type="text" maxlength="500" class="form-control form-control-sm" ' +
+                        'data-point-remark-item="' + esc(item.idItem) + '" data-point-remark-field="' + number +
+                        '" data-point-id="' + esc(point.InspectionPointID) + '" value="' + esc(value) + '"' +
+                        (readOnly ? " disabled" : "") + (inputRequired ? " required" : "") + '></div>';
+                });
                 return '<div class="inspection-point-option-group">' +
                     '<div class="small text-muted mb-1">' + esc(item.label || "Checklist") + '</div>' +
                     '<div class="d-flex flex-wrap gap-1">' + options.map(function (option) {
                         var active = selected === option;
                         return '<button type="button" class="btn btn-sm ' +
                             (active ? 'btn-primary' : 'btn-outline-primary') +
-                            ' inspection-point-option-choice" ' + (blockReason ? 'disabled aria-disabled="true" title="' + esc(blockReason) + '" ' : '') +
+                            ' inspection-point-option-choice" ' + (readOnly ? 'disabled aria-disabled="true" ' : '') +
                             'data-point-option-item="' + esc(item.idItem) +
                             '" data-point-option-value="' + esc(option) + '" data-point-id="' +
                             esc(point.InspectionPointID) + '">' + esc(option) + '</button>';
-                    }).join("") + '</div></div>';
-            }).join("") +
-            (blockReason ? '<button type="button" class="btn btn-sm btn-link p-0 align-self-start" data-open-point-checklist="' +
-                esc(point.InspectionPointID) + '"><i class="bi bi-lock-fill me-1"></i>Buka checklist lengkap</button>' : '') +
-            '</div>';
+                    }).join("") + '</div>' + remarkHtml + '</div>';
+            }).join("") + '</div>';
     }
 
     function pointRequiresInspection(point) {
@@ -241,8 +264,8 @@
                     status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
                     (issueCount ? issueCount + " temuan" : statusLabel(status, point)) + '</span><i class="bi bi-chevron-right text-muted"></i></div>' +
                     renderPointOptionControls(point) +
-                    (quickOptionBlockReason ? '' : '<div class="text-end mt-1"><button type="button" class="btn btn-link btn-sm p-0" data-open-point-checklist="' +
-                    esc(point.InspectionPointID) + '">Buka checklist lengkap</button></div>') + '</div>';
+                    '<div class="text-end mt-1"><button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" data-open-point-checklist="' +
+                    esc(point.InspectionPointID) + '"><i class="bi bi-list-check me-1"></i>Checklist</button></div>' + '</div>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
 
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -295,6 +318,27 @@
                     if (typeof showToast === "function") showToast(error.message || "Pilihan point gagal disimpan.", "warning");
                 } finally {
                     button.disabled = false;
+                }
+            });
+        });
+        host.querySelectorAll("[data-point-remark-item]").forEach(function (input) {
+            input.addEventListener("change", async function () {
+                if (typeof window.setBatchInspectionPointRemark !== "function") return;
+                input.disabled = true;
+                try {
+                    await window.setBatchInspectionPointRemark(
+                        input.getAttribute("data-point-id"),
+                        input.getAttribute("data-point-remark-item"),
+                        input.getAttribute("data-point-remark-field"),
+                        input.value
+                    );
+                    renderList();
+                    renderPoints();
+                    updateSummary();
+                } catch (error) {
+                    console.error("Unable to save batch point remark:", error);
+                    if (typeof showToast === "function") showToast(error.message || "Remark point gagal disimpan.", "warning");
+                    input.disabled = false;
                 }
             });
         });
