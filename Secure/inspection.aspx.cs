@@ -1957,7 +1957,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
 object approvalTemplateSnapshot = null;
                 DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
-   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM T
 JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
 WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
@@ -2364,6 +2364,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                             TemplateNo = m["TemplateNo"].ToString(),
                             TemplateName = m["TemplateName"].ToString(),
                             StatusOption = m["StatusOption"].ToString(),
+                            PhotoRequirement = GF.GetString(m["PhotoRequirement"]),
                             SummarySampleText = GF.GetString(m["SummarySampleText"]),
                         IsSummaryRequired = m["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsSummaryRequired"]),
                             IsFollowUpRequired = m["VersionIsFollowUpRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsFollowUpRequired"]),
