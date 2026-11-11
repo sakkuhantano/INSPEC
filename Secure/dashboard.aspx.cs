@@ -259,6 +259,8 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     isRemark2Required = Convert.ToBoolean(row["VersionIsRemark2Required"]) && (Convert.ToBoolean(item["IsUseDefaultRemark2"]) || Convert.ToBoolean(item["IsRemark2Required"])),
                                     isRemark1Mandatory = Convert.ToBoolean(item["IsRemark1Mandatory"]),
                                     isRemark2Mandatory = Convert.ToBoolean(item["IsRemark2Mandatory"]),
+                                    isUseDefaultRemark1 = Convert.ToBoolean(item["IsUseDefaultRemark1"]),
+                                    isUseDefaultRemark2 = Convert.ToBoolean(item["IsUseDefaultRemark2"]),
                                     // Default OPTION list inherits the version-level rule.
                                     // Custom OPTION list uses the item's own selected required options.
                                     remarkRequiredOptions = !(Convert.ToBoolean(row["VersionIsRemark1Required"]) || Convert.ToBoolean(row["VersionIsRemark2Required"]))
