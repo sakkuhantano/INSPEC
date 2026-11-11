@@ -555,6 +555,23 @@
     .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
     .inspection-map-content>.inspection-map-canvas.d-none{display:none!important}
     .inspection-map-content.no-map{grid-template-columns:minmax(0,1fr)}
+    .inspection-validation-stat{border:1px solid var(--bs-border-color);border-radius:.75rem;padding:.65rem .5rem;text-align:center;min-height:70px;display:flex;flex-direction:column;justify-content:center}
+    .inspection-validation-stat strong{font-size:1.35rem;line-height:1.25;color:var(--bs-emphasis-color)}
+    .inspection-validation-stat span{font-size:.72rem;color:var(--bs-secondary-color)}
+    .inspection-validation-category{border:1px solid var(--bs-border-color);border-radius:.65rem;overflow:hidden}
+    .inspection-validation-category>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .85rem;font-weight:600}
+    .inspection-validation-category>summary::-webkit-details-marker{display:none}
+    .inspection-validation-category>summary:after{content:"+";font-size:1.1rem;color:var(--bs-secondary-color)}
+    .inspection-validation-category[open]>summary:after{content:"−"}
+    .inspection-validation-category-items{border-top:1px solid var(--bs-border-color)}
+    .inspection-validation-issue{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .85rem;border-bottom:1px solid var(--bs-border-color)}
+    .inspection-validation-issue:last-child{border-bottom:0}
+    .inspection-validation-issue-text{min-width:0;display:flex;flex-direction:column;gap:.15rem;font-size:.85rem}
+    .inspection-validation-issue-text strong{overflow-wrap:anywhere}
+    .inspection-validation-issue-text span{color:var(--bs-secondary-color);overflow-wrap:anywhere}
+    #inspectionChecklistHost .inspection-validation-error{border:1px solid var(--bs-danger)!important;background:var(--bs-danger-bg-subtle);box-shadow:0 0 0 .15rem rgba(var(--bs-danger-rgb),.08)}
+    #inspectionBatchValidationNavigator{border-left:4px solid var(--bs-warning)}
+    .inspection-point-list-row:has(.badge.text-bg-danger){border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
         .inspection-map-content{grid-template-columns:minmax(0,1fr)}
         .inspection-map-content>.inspection-map-canvas{height:52vh;min-height:360px}
@@ -962,8 +979,8 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261111-checklist-4"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261111-validation-nav-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261111-checklist-4"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261111-validation-nav-1"></script>
 </asp:Content>
