@@ -318,6 +318,184 @@ WHERE T.IDTemplate=@IDTemplate
 
                         if (isBatchInspection)
                         {
+                            syncStage = "validate batch checklist version rules";
+                            DataTable versionRules = br.EQueryP(@"
+SELECT ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement,
+       ISNULL(V.IsSummaryRequired,1) IsSummaryRequired,
+       ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired,
+       ISNULL(V.IsRemark1Required,0) IsRemark1Required,
+       ISNULL(V.IsRemark2Required,0) IsRemark2Required,
+       ISNULL(V.RemarkRequiredOptions,'') RemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM_Version V
+WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
+                                new SqlParameter[] {
+                                    new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
+                                    new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
+                                });
+                            if (versionRules == null || versionRules.Rows.Count != 1)
+                                throw new Exception("Master Checklist Version tidak ditemukan untuk validasi BATCH.");
+
+                            DataRow versionRule = versionRules.Rows[0];
+                            string photoRequirement = Convert.ToString(versionRule["PhotoRequirement"]).Trim().ToUpperInvariant();
+                            if (photoRequirement != "NONE" && photoRequirement != "BEFORE" &&
+                                photoRequirement != "AFTER" && photoRequirement != "BOTH")
+                                throw new Exception("Photo Requirement pada Master Checklist Version tidak valid.");
+
+                            if (Convert.ToBoolean(versionRule["IsSummaryRequired"]) &&
+                                String.IsNullOrWhiteSpace(TokenString(record, "Summary")))
+                                throw new Exception("Final Inspection Summary wajib diisi sesuai Master Checklist Version.");
+
+                            if (Convert.ToBoolean(versionRule["IsFollowUpRequired"]) &&
+                                String.Equals(TokenString(record, "FollowUp"), "Recommend Follow Up", StringComparison.OrdinalIgnoreCase) &&
+                                (String.IsNullOrWhiteSpace(TokenString(record, "FollowUpSection")) ||
+                                 String.IsNullOrWhiteSpace(TokenString(record, "FollowUpRemark"))))
+                                throw new Exception("Responsible Section dan Follow Up Remark wajib diisi sesuai Master Checklist Version.");
+
+                            DataTable versionItems = br.EQueryP(@"
+SELECT I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       ISNULL(I.IsValueRequired,0) IsValueRequired,
+       ISNULL(I.IsRemark1Required,0) IsRemark1Required,
+       ISNULL(I.IsRemark2Required,0) IsRemark2Required,
+       ISNULL(I.IsRemark1Mandatory,0) IsRemark1Mandatory,
+       ISNULL(I.IsRemark2Mandatory,0) IsRemark2Mandatory,
+       ISNULL(I.IsUseDefaultRemark1,0) IsUseDefaultRemark1,
+       ISNULL(I.IsUseDefaultRemark2,0) IsUseDefaultRemark2,
+       ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM_Item I
+INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder, I.DisplayOrder",
+                                new SqlParameter[] {
+                                    new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
+                                });
+                            DataTable versionGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+INNER JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                                new SqlParameter[] {
+                                    new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
+                                });
+
+                            string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
+                            JArray versionPointArray = record["Points"] as JArray ?? new JArray();
+                            foreach (JObject versionPoint in versionPointArray.OfType<JObject>())
+                            {
+                                string pointCode = TokenString(versionPoint, "PointCode");
+                                if (String.IsNullOrWhiteSpace(pointCode))
+                                    pointCode = "Inspection Point " + TokenLong(versionPoint, "InspectionPointID").ToString(CultureInfo.InvariantCulture);
+                                string pointPrefix = pointCode + ": ";
+                                JArray submittedItems = versionPoint["Items"] as JArray ?? new JArray();
+                                var submittedItemsById = new Dictionary<int, JObject>();
+                                foreach (JObject submittedItem in submittedItems.OfType<JObject>())
+                                {
+                                    int submittedItemId = TokenInt(submittedItem, "IDItem");
+                                    if (submittedItemId <= 0 || submittedItemsById.ContainsKey(submittedItemId))
+                                        throw new Exception(pointPrefix + "Checklist item identity is invalid or duplicated.");
+                                    submittedItemsById.Add(submittedItemId, submittedItem);
+                                }
+
+                                foreach (JObject submittedItem in submittedItems.OfType<JObject>())
+                                {
+                                    int submittedItemId = TokenInt(submittedItem, "IDItem");
+                                    if (versionItems.Select("IDItem=" + submittedItemId.ToString(CultureInfo.InvariantCulture)).Length == 0)
+                                        throw new Exception(pointPrefix + "Checklist item " + submittedItemId.ToString(CultureInfo.InvariantCulture) +
+                                            " tidak termasuk Master Checklist Version yang dipilih.");
+                                }
+
+                                foreach (DataRow templateItem in versionItems.Rows)
+                                {
+                                    int itemId = Convert.ToInt32(templateItem["IDItem"]);
+                                    string itemLabel = Convert.ToString(templateItem["ItemLabel"]);
+                                    string itemType = Convert.ToString(templateItem["ItemType"]).ToUpperInvariant();
+                                    JObject answer;
+                                    submittedItemsById.TryGetValue(itemId, out answer);
+                                    string value = answer == null ? "" : TokenString(answer, "Value");
+                                    JObject values = answer == null ? null : answer["Values"] as JObject;
+                                    string remark1 = answer == null ? "" : TokenString(answer, "Remark1");
+                                    string remark2 = answer == null ? "" : TokenString(answer, "Remark2");
+
+                                    if (Convert.ToBoolean(templateItem["IsValueRequired"]))
+                                    {
+                                        if (itemType == "GROUP")
+                                        {
+                                            DataRow[] groups = versionGroups.Select("IDItem=" + itemId.ToString(CultureInfo.InvariantCulture));
+                                            if (groups.Length == 0)
+                                                throw new Exception(pointPrefix + "GROUP " + itemLabel + " tidak memiliki konfigurasi kolom.");
+                                            foreach (DataRow group in groups)
+                                            {
+                                                string[] fields = Convert.ToString(group["FieldList"]).Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                                    .Select(x => x.Trim()).Where(x => x.Length > 0).ToArray();
+                                                if (fields.Length > 3 || fields.Length < 2)
+                                                    throw new Exception(pointPrefix + "Konfigurasi GROUP " + Convert.ToString(group["GroupName"]) + " pada " + itemLabel + " tidak valid.");
+                                                int filled = 0;
+                                                foreach (string field in fields)
+                                                {
+                                                    JToken fieldValue = values == null ? null : values[field];
+                                                    if (fieldValue != null && fieldValue.Type != JTokenType.Null &&
+                                                        !String.IsNullOrWhiteSpace(fieldValue.ToString())) filled++;
+                                                }
+                                                if (filled < 2)
+                                                    throw new Exception(pointPrefix + "Minimal 2 kolom GROUP " + Convert.ToString(group["GroupName"]) +
+                                                        " pada " + itemLabel + " wajib diisi.");
+                                            }
+                                        }
+                                        else if (String.IsNullOrWhiteSpace(value))
+                                        {
+                                            throw new Exception(pointPrefix + "Checklist " + itemLabel + " wajib diisi.");
+                                        }
+                                    }
+
+                                    if (itemType == "OPTION" && !String.IsNullOrWhiteSpace(value))
+                                    {
+                                        string optionList = Convert.ToString(templateItem["OptionList"]);
+                                        if (!String.IsNullOrWhiteSpace(optionList))
+                                        {
+                                            bool validOption = optionList.Split(';').Any(option =>
+                                                String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase));
+                                            if (!validOption)
+                                                throw new Exception(pointPrefix + "Option '" + value + "' pada " + itemLabel + " tidak tersedia di Master Version.");
+                                        }
+                                    }
+
+                                    string itemRemarkOptions = Convert.ToString(templateItem["RemarkRequiredOptions"]);
+                                    bool selectedOptionRequiresRemark =
+                                        (!String.IsNullOrWhiteSpace(itemRemarkOptions) &&
+                                            itemRemarkOptions.Split(';').Any(option => String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase))) ||
+                                        (!String.IsNullOrWhiteSpace(versionRemarkOptions) &&
+                                            versionRemarkOptions.Split(';').Any(option => String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase)));
+                                    bool versionRemark1Enabled = Convert.ToBoolean(versionRule["IsRemark1Required"]);
+                                    bool versionRemark2Enabled = Convert.ToBoolean(versionRule["IsRemark2Required"]);
+                                    bool remark1Required = versionRemark1Enabled &&
+                                        ((Convert.ToBoolean(templateItem["IsRemark1Mandatory"]) &&
+                                          (Convert.ToBoolean(templateItem["IsUseDefaultRemark1"]) || Convert.ToBoolean(templateItem["IsRemark1Required"]))) ||
+                                         selectedOptionRequiresRemark);
+                                    bool remark2Required = versionRemark2Enabled &&
+                                        ((Convert.ToBoolean(templateItem["IsRemark2Mandatory"]) &&
+                                          (Convert.ToBoolean(templateItem["IsUseDefaultRemark2"]) || Convert.ToBoolean(templateItem["IsRemark2Required"]))) ||
+                                         selectedOptionRequiresRemark);
+                                    if (remark1Required && String.IsNullOrWhiteSpace(remark1))
+                                        throw new Exception(pointPrefix + "Remark 1 wajib diisi pada " + itemLabel + ".");
+                                    if (remark2Required && String.IsNullOrWhiteSpace(remark2))
+                                        throw new Exception(pointPrefix + "Remark 2 wajib diisi pada " + itemLabel + ".");
+                                }
+
+                                JArray submittedPhotos = versionPoint["Photos"] as JArray ?? new JArray();
+                                bool hasBefore = submittedPhotos.OfType<JObject>().Any(photo =>
+                                    String.Equals(TokenString(photo, "Type"), "BEFORE", StringComparison.OrdinalIgnoreCase));
+                                bool hasAfter = submittedPhotos.OfType<JObject>().Any(photo =>
+                                    String.Equals(TokenString(photo, "Type"), "AFTER", StringComparison.OrdinalIgnoreCase));
+                                if ((photoRequirement == "BEFORE" || photoRequirement == "BOTH") && !hasBefore)
+                                    throw new Exception(pointPrefix + "Foto BEFORE wajib dilampirkan sesuai Master Checklist Version.");
+                                if ((photoRequirement == "AFTER" || photoRequirement == "BOTH") && !hasAfter)
+                                    throw new Exception(pointPrefix + "Foto AFTER wajib dilampirkan sesuai Master Checklist Version.");
+                            }
+                        }
+
+                        if (isBatchInspection)
+                        {
                             syncStage = "validate batch map coverage";
                             JArray submittedPointArray = record["Points"] as JArray ?? new JArray();
                             var submittedPointIDs = new HashSet<long>();
@@ -326,7 +504,7 @@ WHERE T.IDTemplate=@IDTemplate
 
                             DataTable coveragePoints = br.EQueryP(@"
 SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
-       P.PointCode
+       ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
@@ -347,6 +525,20 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                                 if (Convert.ToBoolean(masterPoint["RequireAllPoints"]) && !submittedPointIDs.Contains(masterPointID))
                                     throw new Exception("Titik " + Convert.ToString(masterPoint["PointCode"]) +
                                         " wajib diinspeksi sesuai pengaturan master map.");
+
+                                JObject submittedPoint = (submittedPointArray.OfType<JObject>()).FirstOrDefault(point =>
+                                    TokenLong(point, "InspectionPointID") == masterPointID);
+                                if (submittedPoint != null && Convert.ToBoolean(masterPoint["IsNormalAbnormalRequired"]))
+                                {
+                                    string condition = TokenString(submittedPoint, "PointCondition").ToUpperInvariant();
+                                    string abnormalRemark = TokenString(submittedPoint, "AbnormalRemark").Trim();
+                                    if (condition != "NORMAL" && condition != "ABNORMAL")
+                                        throw new Exception("Titik " + Convert.ToString(masterPoint["PointCode"]) +
+                                            " wajib memilih kondisi NORMAL atau ABNORMAL.");
+                                    if (condition == "ABNORMAL" && String.IsNullOrWhiteSpace(abnormalRemark))
+                                        throw new Exception("Titik " + Convert.ToString(masterPoint["PointCode"]) +
+                                            " wajib mengisi Abnormal Remark.");
+                                }
                             }
                             foreach (long submittedPointID in submittedPointIDs)
                                 if (!validMasterPointIDs.Contains(submittedPointID))
