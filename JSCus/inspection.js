@@ -357,9 +357,11 @@ function wireInspectionEvents() {
     document.getElementById("inspectionFollowUpPanel").addEventListener("change", function (event) {
         if (event.target.matches('input[name="inspectionFollowUp"]')) updateInspectionFollowUpPanel();
     });
-    document.getElementById("txtInspectionSummary").addEventListener("input", function () {
+    const summaryInput = document.getElementById("txtInspectionSummary");
+    if (summaryInput) summaryInput.addEventListener("input", function () {
         this.classList.remove("is-invalid");
-        document.getElementById("inspectionSummaryCounter").textContent = this.value.length + " / 500";
+        const counter = document.getElementById("inspectionSummaryCounter");
+        if (counter) counter.textContent = this.value.length + " / 500";
     });
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", function () {
         this.classList.remove("is-invalid");
@@ -382,7 +384,7 @@ function wireInspectionEvents() {
         scheduleInspectionAutosave();
         updateInspectionChecklistGate();
     });
-    document.getElementById("txtInspectionSummary").addEventListener("input", scheduleInspectionAutosave);
+    if (summaryInput) summaryInput.addEventListener("input", scheduleInspectionAutosave);
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => input.addEventListener("change", function () {
         updateInspectionFollowUpPanel();
         scheduleInspectionAutosave();
@@ -1186,7 +1188,8 @@ window.mountInspectionBatchSummary = function (record) {
         document.getElementById("inspectionFollowUpSection").disabled = readOnly;
         document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(el => { el.disabled = readOnly; });
         document.getElementById("txtInspectionFollowUpRemark").disabled = readOnly;
-        document.getElementById("txtInspectionSummary").disabled = readOnly;
+        const summaryInput = document.getElementById("txtInspectionSummary");
+        if (summaryInput) summaryInput.disabled = readOnly;
     } else {
         checklistPane.appendChild(followUp);
         checklistPane.appendChild(summary);
@@ -1245,7 +1248,8 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || "-"),
         startTime + " - " + endTime
     ]);
-    document.getElementById("txtInspectionSummary").value = record.Summary || "";
+    const summaryInput = document.getElementById("txtInspectionSummary");
+    if (summaryInput) summaryInput.value = record.Summary || "";
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
     const existingFollowUpWONo = String(record.FollowUpWONo || "").trim();
     let followUpWONoPanel = document.getElementById("inspectionFollowUpWONoPanel");
@@ -1299,7 +1303,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     const summarySampleText = template.SummarySampleText || template.summarySampleText ||
         (template.VersionInfo && template.VersionInfo.SummarySampleText) ||
         summaryTemplate.SummarySampleText || summaryTemplate.summarySampleText || "";
-    document.getElementById("txtInspectionSummary").placeholder = summarySampleText;
+    if (summaryInput) summaryInput.placeholder = summarySampleText;
     const savedItems = record.Items || [];
     const host = document.getElementById("inspectionChecklistHost");
     const reasonVoidPanel = String(record.ReasonVoid || "").trim()
@@ -1610,16 +1614,18 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             (item.unit ? '<span class="input-group-text">' + escInspection(item.unit) + '</span>' : "") + '</div>';
     }
 
-    const remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(x => String(x).trim()) : [];
+    const rawRemarkOptions = item.remarkRequiredOptions || item.RemarkRequiredOptions || [];
+    const remarkOptions = Array.isArray(rawRemarkOptions) ? rawRemarkOptions.map(x => String(x).trim()) :
+        String(rawRemarkOptions || "").split(";").map(x => x.trim()).filter(Boolean);
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || "").trim());
     const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
     const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
-    const itemRemark1Required = isInspectionFlagEnabled(item.isRemark1Required, false);
-    const itemRemark2Required = isInspectionFlagEnabled(item.isRemark2Required, false);
-    const itemRemark1Mandatory = isInspectionFlagEnabled(item.isRemark1Mandatory, false);
-    const itemRemark2Mandatory = isInspectionFlagEnabled(item.isRemark2Mandatory, false);
-    const itemRemark1Text = itemRemark1Required ? (item.remark1Text || "Remark") : "";
-    const itemRemark2Text = itemRemark2Required ? (item.remark2Text || "Remark") : "";
+    const itemRemark1Required = isInspectionFlagEnabled(item.isRemark1Required != null ? item.isRemark1Required : item.IsRemark1Required, false);
+    const itemRemark2Required = isInspectionFlagEnabled(item.isRemark2Required != null ? item.isRemark2Required : item.IsRemark2Required, false);
+    const itemRemark1Mandatory = isInspectionFlagEnabled(item.isRemark1Mandatory != null ? item.isRemark1Mandatory : item.IsRemark1Mandatory, false);
+    const itemRemark2Mandatory = isInspectionFlagEnabled(item.isRemark2Mandatory != null ? item.isRemark2Mandatory : item.IsRemark2Mandatory, false);
+    const itemRemark1Text = itemRemark1Required ? (item.remark1Text || item.Remark1Text || "Remark") : "";
+    const itemRemark2Text = itemRemark2Required ? (item.remark2Text || item.Remark2Text || "Remark") : "";
     const versionRemark1Text = versionRemark1Enabled ? (item.versionRemark1Text || item.VersionRemark1Text || "Remark") : "";
     const versionRemark2Text = versionRemark2Enabled ? (item.versionRemark2Text || item.VersionRemark2Text || "Remark") : "";
     const remark1Text = selectedOptionRequiresRemark && !itemRemark1Required ? versionRemark1Text : itemRemark1Text;
@@ -1650,10 +1656,10 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
         '" data-min="' + escInspection(item.min == null ? "" : item.min) +
         '" data-max="' + escInspection(item.max == null ? "" : item.max) +
         '" data-required="' + (item.isValueRequired ? "1" : "0") +
-        '" data-remark1-base-required="' + (item.isRemark1Required ? "1" : "0") +
-        '" data-remark2-base-required="' + (item.isRemark2Required ? "1" : "0") +
-        '" data-remark1-mandatory="' + (item.isRemark1Mandatory ? "1" : "0") +
-        '" data-remark2-mandatory="' + (item.isRemark2Mandatory ? "1" : "0") +
+        '" data-remark1-base-required="' + (itemRemark1Required ? "1" : "0") +
+        '" data-remark2-base-required="' + (itemRemark2Required ? "1" : "0") +
+        '" data-remark1-mandatory="' + (itemRemark1Mandatory ? "1" : "0") +
+        '" data-remark2-mandatory="' + (itemRemark2Mandatory ? "1" : "0") +
         '" data-remark1-version-enabled="' + (versionRemark1Enabled ? "1" : "0") +
         '" data-remark2-version-enabled="' + (versionRemark2Enabled ? "1" : "0") +
         '" data-remark-options="' + escInspection(remarkOptions.join(";")) +
@@ -1747,7 +1753,13 @@ function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
     const versionInfo = snapshot && (snapshot.VersionInfo || snapshot.versionInfo || snapshot);
     const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
+    const versionKey = remarkNumber === 1 ? "VersionIsRemark1Required" : "VersionIsRemark2Required";
     const camelKey = snapshotKey.charAt(0).toLowerCase() + snapshotKey.slice(1);
+    const camelVersionKey = versionKey.charAt(0).toLowerCase() + versionKey.slice(1);
+    if (versionInfo && versionInfo[versionKey] !== undefined)
+        return isInspectionFlagEnabled(versionInfo[versionKey], false);
+    if (versionInfo && versionInfo[camelVersionKey] !== undefined)
+        return isInspectionFlagEnabled(versionInfo[camelVersionKey], false);
     return isInspectionFlagEnabled(versionInfo && (versionInfo[snapshotKey] !== undefined
         ? versionInfo[snapshotKey] : versionInfo[camelKey]), false);
 }
