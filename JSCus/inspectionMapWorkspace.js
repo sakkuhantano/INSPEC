@@ -26,6 +26,11 @@
         });
     }
 
+    function flagEnabled(value) {
+        return value === true || value === 1 || value === "1" ||
+            String(value == null ? "" : value).toLowerCase() === "true";
+    }
+
     function normalizedStatus(status) {
         status = String(status || "PENDING").toUpperCase();
         if (status === "DONE" || status === "INSPECTED" || status === "ABNORMAL") return "DONE";
@@ -107,17 +112,17 @@
                 var options = String(item.optionList || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
                 if (!options.length) return "";
                 var snapshot = currentMapRecord && currentMapRecord.TemplateSnapshot;
-                var versionRemark1 = item.versionIsRemark1Required === true || item.VersionIsRemark1Required === true ||
-                    !!(snapshot && snapshot.IsRemark1Required);
-                var versionRemark2 = item.versionIsRemark2Required === true || item.VersionIsRemark2Required === true ||
-                    !!(snapshot && snapshot.IsRemark2Required);
+                var versionRemark1 = flagEnabled(item.versionIsRemark1Required) ||
+                    flagEnabled(item.VersionIsRemark1Required) || flagEnabled(snapshot && snapshot.IsRemark1Required);
+                var versionRemark2 = flagEnabled(item.versionIsRemark2Required) ||
+                    flagEnabled(item.VersionIsRemark2Required) || flagEnabled(snapshot && snapshot.IsRemark2Required);
                 var remarkOptions = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions.map(function (x) { return String(x).trim(); }) : [];
                 var optionRequiresRemark = remarkOptions.indexOf(selected.trim()) >= 0;
                 var remarkHtml = "";
                 [1, 2].forEach(function (number) {
                     var versionEnabled = number === 1 ? versionRemark1 : versionRemark2;
-                    var itemRequired = number === 1 ? item.isRemark1Required : item.isRemark2Required;
-                    var mandatory = number === 1 ? item.isRemark1Mandatory : item.isRemark2Mandatory;
+                    var itemRequired = flagEnabled(number === 1 ? item.isRemark1Required : item.isRemark2Required);
+                    var mandatory = flagEnabled(number === 1 ? item.isRemark1Mandatory : item.isRemark2Mandatory);
                     var text = number === 1 ? item.remark1Text : item.remark2Text;
                     var field = number === 1 ? "Remark1" : "Remark2";
                     if (!versionEnabled || !(itemRequired || remarkOptions.length)) return;
