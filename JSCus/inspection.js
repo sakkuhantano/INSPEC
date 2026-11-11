@@ -14,6 +14,7 @@ let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
+let inspectionBatchValidationState = { errors: [], index: -1 };
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";")
@@ -1875,7 +1876,104 @@ async function getCurrentInspectionPhotos() {
             ? getActiveInspectionPointPhotoID() : null);
 }
 
-async function openBatchInspectionPointChecklist(masterPoint) {
+function focusBatchValidationTarget(error) {
+    if (!error) return;
+    if (error.itemId) {
+        focusInvalidInspectionItem(error);
+        return;
+    }
+    const targetMap = {
+        "photo-before": "#btnAddInspectionBeforePhoto",
+        "photo-after": "#btnAddInspectionAfterPhoto",
+        "condition": "#inspectionPointConditionPanel",
+        "abnormal-remark": "#inspectionPointConditionPanel textarea",
+        "summary": "#txtInspectionSummary",
+        "followup-section": "#inspectionFollowUpSection",
+        "followup-remark": "#txtInspectionFollowUpRemark"
+    };
+    const selector = targetMap[error.target];
+    const target = selector && document.querySelector(selector);
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (target.focus && !target.matches("button")) {
+            window.setTimeout(() => { try { target.focus({ preventScroll: true }); } catch (_) { target.focus(); } }, 250);
+        }
+        if (target.matches("textarea,input,select")) target.classList.add("is-invalid");
+        else target.classList.add("inspection-validation-error", "border", "border-danger", "rounded", "p-2");
+    }
+}
+
+function mountBatchValidationNavigator() {
+    const host = document.getElementById("inspectionChecklistHost");
+    if (!host || !inspectionBatchValidationState.errors.length || currentInspectionReadOnly) return;
+    let nav = document.getElementById("inspectionBatchValidationNavigator");
+    if (nav) nav.remove();
+    nav = document.createElement("div");
+    nav.id = "inspectionBatchValidationNavigator";
+    nav.className = "alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 mb-3";
+    nav.innerHTML = '<div class="small"><strong>Mode perbaikan validasi</strong><div class="text-muted" id="inspectionBatchValidationPosition"></div></div>' +
+        '<button type="button" class="btn btn-sm btn-outline-primary" id="btnNextBatchValidationIssue"><i class="bi bi-arrow-right-circle me-1"></i>Temuan berikutnya</button>';
+    host.insertBefore(nav, host.firstChild);
+    const updatePosition = function () {
+        const label = document.getElementById("inspectionBatchValidationPosition");
+        if (label) label.textContent = (inspectionBatchValidationState.index + 1) + " dari " +
+            inspectionBatchValidationState.errors.length + " temuan awal";
+    };
+    updatePosition();
+    document.getElementById("btnNextBatchValidationIssue").addEventListener("click", async function () {
+        await goToNextBatchValidationIssue();
+    });
+}
+
+async function goToNextBatchValidationIssue() {
+    const errors = inspectionBatchValidationState.errors || [];
+    if (!errors.length) return;
+    const currentPoint = getActiveInspectionPoint();
+    if (currentPoint) {
+        currentPoint.Items = collectInspectionItems();
+        const liveErrors = validateInspectionItemsAll(currentPoint.Items);
+        errors.forEach(error => {
+            if (Number(error.pointId) === Number(currentPoint.InspectionPointID) && error.itemId) {
+                error._resolved = !liveErrors.some(item => Number(item.itemId) === Number(error.itemId) &&
+                    String(item.role || "") === String(error.role || ""));
+            }
+        });
+    }
+    let nextIndex = inspectionBatchValidationState.index + 1;
+    while (nextIndex < errors.length && errors[nextIndex]._resolved) nextIndex++;
+    if (nextIndex >= errors.length) {
+        showToast("Semua temuan checklist yang sedang dinavigasi sudah diperbaiki. Jalankan validasi ulang untuk memastikan.", "success");
+        const nav = document.getElementById("inspectionBatchValidationNavigator");
+        if (nav) nav.remove();
+        return;
+    }
+    const nextError = errors[nextIndex];
+    const activeId = Number(currentInspectionRecord && currentInspectionRecord.ActiveInspectionPointID || 0);
+    if (nextError.pointId && activeId === Number(nextError.pointId)) {
+        inspectionBatchValidationState.index = nextIndex;
+        focusBatchValidationTarget(nextError);
+        const position = document.getElementById("inspectionBatchValidationPosition");
+        if (position) position.textContent = (nextIndex + 1) + " dari " + errors.length + " temuan awal";
+        return;
+    }
+    if (currentPoint) await saveBatchInspectionPoint("DRAFT");
+    inspectionBatchValidationState.index = nextIndex;
+    if (nextError.pointId) {
+        const masterPoint = (currentInspectionRecord.BatchMapSetup && currentInspectionRecord.BatchMapSetup.points || [])
+            .find(point => Number(point.InspectionPointID) === Number(nextError.pointId));
+        if (masterPoint) {
+            await openBatchInspectionPointChecklist(masterPoint, nextError);
+            return;
+        }
+    }
+    const target = nextError.target === "summary" ? document.getElementById("txtInspectionSummary") :
+        nextError.target === "followup-section" ? document.getElementById("inspectionFollowUpSection") :
+        nextError.target === "followup-remark" ? document.getElementById("txtInspectionFollowUpRemark") : null;
+    showInspectionEditorTab("checklist");
+    if (target) { target.scrollIntoView({ behavior: "smooth", block: "center" }); target.focus(); }
+}
+
+async function openBatchInspectionPointChecklist(masterPoint, validationError) {
     if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
         return;
     if (!masterPoint || !masterPoint.InspectionPointID) return;
@@ -1941,6 +2039,8 @@ async function openBatchInspectionPointChecklist(masterPoint) {
     showInspectionEditorTab("checklist");
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
+    mountBatchValidationNavigator();
+    if (validationError) window.setTimeout(() => focusBatchValidationTarget(validationError), 180);
     // Opening a map point is navigation only. The point and its parent batch
     // remain in memory until the user explicitly presses Save Point / Save Draft.
 }
@@ -2081,6 +2181,7 @@ async function saveBatchInspectionPoint(status) {
             photos.length ? "INCOMPLETE" : "PENDING";
     }
     point.Items = items;
+    point.ValidationIssueCount = errors.length;
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
     record.Items = [];
@@ -2104,44 +2205,85 @@ async function saveBatchInspectionPoint(status) {
 }
 
 
+function getBatchValidationCategory(error) {
+    const message = String(error && error.message || "").toLowerCase();
+    if (/remark/.test(message)) return "Remark belum lengkap";
+    if (/foto|photo/.test(message)) return "Dokumentasi foto";
+    if (/summary/.test(message)) return "Final Inspection Summary";
+    if (/follow up|responsible section/.test(message)) return "Follow Up";
+    if (/normal|abnormal/.test(message)) return "Kondisi point";
+    if (/point belum|belum diinspeksi|master map/.test(message)) return "Status Inspection Point";
+    return "Checklist belum lengkap";
+}
+
 function showInspectionBatchValidationReport(errors) {
     const list = Array.isArray(errors) ? errors : [];
-    const root = document.createElement("div");
-    root.className = "modal fade";
-    root.tabIndex = -1;
-    root.innerHTML = '<div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">' +
-        '<div class="modal-header"><h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Inspection Batch belum lengkap</h5>' +
-        '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>' +
-        '<div class="modal-body"><p class="text-muted small mb-3">Periksa seluruh kewajiban berikut sebelum Submit Batch.</p><div class="inspection-batch-validation-list"></div></div>' +
-        '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div></div></div>';
-    const host = root.querySelector(".inspection-batch-validation-list");
-    const groups = new Map();
-    list.forEach(error => {
-        const key = error.pointCode || "Kelengkapan Batch";
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push(error);
+    const record = currentInspectionRecord;
+    const masterPoints = record && record.BatchMapSetup && record.BatchMapSetup.points || [];
+    const affected = new Set(list.map(error => Number(error.pointId)).filter(Boolean));
+    const totalPoints = masterPoints.length;
+    const completedPoints = Math.max(0, totalPoints - affected.size);
+    inspectionBatchValidationState = { errors: list.map(error => Object.assign({}, error)), index: -1 };
+    (record && record.Points || []).forEach(point => {
+        const count = list.filter(error => Number(error.pointId) === Number(point.InspectionPointID)).length;
+        point.ValidationIssueCount = count;
+        if (count && !["ABNORMAL"].includes(String(point.Status || "").toUpperCase())) point.Status = "INCOMPLETE";
+        if (!count) point.ValidationIssueCount = 0;
     });
-    groups.forEach((items, key) => {
-        const section = document.createElement("div");
-        section.className = "border rounded-3 p-3 mb-2";
-        const heading = document.createElement("div");
-        heading.className = "fw-semibold mb-2";
-        heading.textContent = key;
-        section.appendChild(heading);
-        const ul = document.createElement("ul");
-        ul.className = "small mb-2";
-        items.forEach(error => { const li = document.createElement("li"); li.textContent = error.message; ul.appendChild(li); });
-        section.appendChild(ul);
-        const pointId = items.find(error => error.pointId)?.pointId;
-        if (pointId) {
+    if (typeof window.refreshInspectionMapPointStatuses === "function")
+        window.refreshInspectionMapPointStatuses();
+
+    const categories = new Map();
+    list.forEach((error, index) => {
+        const key = getBatchValidationCategory(error);
+        if (!categories.has(key)) categories.set(key, []);
+        categories.get(key).push({ error, index });
+    });
+    const root = document.createElement("div");
+    root.className = "modal fade inspection-batch-validation-modal";
+    root.tabIndex = -1;
+    const progress = totalPoints ? Math.round(completedPoints / totalPoints * 100) : 0;
+    root.innerHTML = '<div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">' +
+        '<div class="modal-header"><div><h5 class="modal-title mb-1"><i class="bi bi-clipboard2-check text-warning me-2"></i>Validasi Inspection Batch</h5>' +
+        '<div class="small text-muted">Ada input yang perlu dilengkapi sebelum batch dapat disubmit.</div></div>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>' +
+        '<div class="modal-body"><div class="row g-2 mb-3">' +
+        '<div class="col-4"><div class="inspection-validation-stat"><strong>' + affected.size + '</strong><span>Point bermasalah</span></div></div>' +
+        '<div class="col-4"><div class="inspection-validation-stat"><strong>' + list.length + '</strong><span>Input kurang</span></div></div>' +
+        '<div class="col-4"><div class="inspection-validation-stat"><strong>' + completedPoints + '</strong><span>Point tanpa temuan</span></div></div></div>' +
+        '<div class="d-flex justify-content-between small text-muted mb-1"><span>Progres point</span><strong>' + progress + '%</strong></div>' +
+        '<div class="progress mb-3" style="height:8px"><div class="progress-bar bg-success" role="progressbar" style="width:' + progress + '%"></div></div>' +
+        '<div class="small text-muted mb-2">Pilih kategori, lalu tekan <strong>Perbaiki</strong> pada temuan. Sistem akan membuka point dan mengarahkan langsung ke input yang bermasalah.</div>' +
+        '<div class="inspection-batch-validation-categories"></div></div>' +
+        '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div></div></div>';
+    const host = root.querySelector(".inspection-batch-validation-categories");
+    categories.forEach((items, category) => {
+        const details = document.createElement("details");
+        details.className = "inspection-validation-category mb-2";
+        const summary = document.createElement("summary");
+        summary.innerHTML = '<span>' + escInspection(category) + '</span><span class="badge text-bg-warning">' + items.length + '</span>';
+        details.appendChild(summary);
+        const listHost = document.createElement("div");
+        listHost.className = "inspection-validation-category-items";
+        items.forEach(entry => {
+            const error = entry.error;
+            const row = document.createElement("div");
+            row.className = "inspection-validation-issue";
+            const detail = document.createElement("div");
+            detail.className = "inspection-validation-issue-text";
+            const pointLabel = error.pointCode || "Kelengkapan Batch";
+            detail.innerHTML = '<strong>' + escInspection(pointLabel) + '</strong><span>' + escInspection(error.message) + '</span>';
             const button = document.createElement("button");
             button.type = "button";
-            button.className = "btn btn-sm btn-outline-primary";
-            button.textContent = "Buka checklist " + key;
-            button.setAttribute("data-open-validation-point", String(pointId));
-            section.appendChild(button);
-        }
-        host.appendChild(section);
+            button.className = "btn btn-sm btn-outline-primary flex-shrink-0";
+            button.textContent = "Perbaiki";
+            button.setAttribute("data-validation-index", String(entry.index));
+            row.appendChild(detail);
+            row.appendChild(button);
+            listHost.appendChild(row);
+        });
+        details.appendChild(listHost);
+        host.appendChild(details);
     });
     document.body.appendChild(root);
     if (!window.bootstrap || !window.bootstrap.Modal) {
@@ -2151,13 +2293,29 @@ function showInspectionBatchValidationReport(errors) {
     }
     const modal = new window.bootstrap.Modal(root);
     root.addEventListener("click", event => {
-        const button = event.target.closest("[data-open-validation-point]");
+        const button = event.target.closest("[data-validation-index]");
         if (!button) return;
-        const id = Number(button.getAttribute("data-open-validation-point"));
-        const masterPoint = (currentInspectionRecord && currentInspectionRecord.BatchMapSetup &&
-            currentInspectionRecord.BatchMapSetup.points || []).find(point => Number(point.InspectionPointID) === id);
+        const index = Number(button.getAttribute("data-validation-index"));
+        const error = inspectionBatchValidationState.errors[index];
+        if (!error) return;
+        inspectionBatchValidationState.index = index;
         modal.hide();
-        if (masterPoint) window.setTimeout(() => openBatchInspectionPointChecklist(masterPoint), 180);
+        if (error.pointId) {
+            const masterPoint = masterPoints.find(point => Number(point.InspectionPointID) === Number(error.pointId));
+            if (masterPoint) window.setTimeout(() => openBatchInspectionPointChecklist(masterPoint, error), 180);
+        } else {
+            window.setTimeout(() => {
+                const target = error.target === "summary" ? document.getElementById("txtInspectionSummary") :
+                    error.target === "followup-section" ? document.getElementById("inspectionFollowUpSection") :
+                    error.target === "followup-remark" ? document.getElementById("txtInspectionFollowUpRemark") : null;
+                if (target) {
+                    showInspectionEditorTab("checklist");
+                    target.scrollIntoView({ behavior: "smooth", block: "center" });
+                    target.focus();
+                    target.classList.add("is-invalid");
+                }
+            }, 180);
+        }
     });
     root.addEventListener("hidden.bs.modal", () => root.remove(), { once: true });
     modal.show();
@@ -2188,19 +2346,19 @@ window.submitInspectionBatch = async function () {
         const touched = items.length > 0 || photos.length > 0 || String(point.PointCondition || "").trim() !== "" ||
             String(point.AbnormalRemark || "").trim() !== "" || !["", "PENDING"].includes(String(point.Status || "").toUpperCase());
         if (!requireAll && !touched) continue;
-        validateInspectionItemsAll(items).forEach(error => errors.push({ pointCode, pointId, message: error.message }));
+        validateInspectionItemsAll(items).forEach(error => errors.push({ pointCode, pointId, message: error.message, itemId: error.itemId, role: error.role }));
         const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
         const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
         if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
-            errors.push({ pointCode, pointId, message: "Foto BEFORE belum dilampirkan." });
+            errors.push({ pointCode, pointId, message: "Foto BEFORE belum dilampirkan.", target: "photo-before" });
         if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter)
-            errors.push({ pointCode, pointId, message: "Foto AFTER belum dilampirkan." });
+            errors.push({ pointCode, pointId, message: "Foto AFTER belum dilampirkan.", target: "photo-after" });
         if (isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false)) {
             const condition = String(point.PointCondition || "").toUpperCase();
             if (condition !== "NORMAL" && condition !== "ABNORMAL")
-                errors.push({ pointCode, pointId, message: "Kondisi NORMAL/ABNORMAL belum dipilih." });
+                errors.push({ pointCode, pointId, message: "Kondisi NORMAL/ABNORMAL belum dipilih.", target: "condition" });
             if (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim())
-                errors.push({ pointCode, pointId, message: "Abnormal Remark belum diisi." });
+                errors.push({ pointCode, pointId, message: "Abnormal Remark belum diisi.", target: "abnormal-remark" });
         }
         if (!["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
             errors.push({ pointCode, pointId, message: "Point belum diselesaikan melalui Complete Point." });
@@ -2217,11 +2375,11 @@ window.submitInspectionBatch = async function () {
         errors.push({ pointCode: "Kelengkapan Batch", message: "Minimal satu Inspection Point harus diinspeksi." });
     const summary = String(document.getElementById("txtInspectionSummary")?.value || record.Summary || "").trim();
     if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) && !summary)
-        errors.push({ pointCode: "Kelengkapan Batch", message: "Final Inspection Summary wajib diisi." });
+        errors.push({ pointCode: "Kelengkapan Batch", message: "Final Inspection Summary wajib diisi.", target: "summary" });
     const followUp = collectInspectionFollowUp();
     if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && followUp.FollowUp === "Recommend Follow Up" &&
         (!followUp.FollowUpSection || !followUp.FollowUpRemark))
-        errors.push({ pointCode: "Kelengkapan Batch", message: "Responsible Section dan Follow Up Remark wajib diisi." });
+        errors.push({ pointCode: "Kelengkapan Batch", message: "Responsible Section dan Follow Up Remark wajib diisi.", target: !followUp.FollowUpSection ? "followup-section" : "followup-remark" });
     if (errors.length) { showInspectionBatchValidationReport(errors); return; }
     const confirmed = await showConfirmation({
         title: "Submit Inspection Batch",
