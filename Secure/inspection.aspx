@@ -550,9 +550,23 @@
     }
 .inspection-point-list-row.active{border-color:var(--bs-primary)!important;background:var(--bs-primary-bg-subtle)!important;box-shadow:inset 3px 0 0 var(--bs-primary)}
 
-    .inspection-map-content{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.9fr);align-items:stretch;min-width:0}
-    .inspection-map-content>.inspection-map-canvas{height:min(72vh,760px);min-height:520px}
-    .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+    .inspection-map-content{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);align-items:stretch;min-width:0;gap:.65rem}
+    .inspection-map-content>.inspection-map-canvas{height:min(72vh,760px);min-height:520px;min-width:0}
+    .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+    .inspection-point-list-row{gap:.45rem;padding:.45rem .55rem;margin-bottom:.25rem;border-radius:.55rem;min-height:46px}
+    .inspection-point-list-row .inspection-map-point-dot{flex:0 0 24px;width:24px;height:24px;font-size:.58rem}
+    .inspection-point-list-row .point-main{min-width:0;flex:1;line-height:1.15}
+    .inspection-point-list-row .point-code{font-size:.64rem;line-height:1.1}
+    .inspection-point-list-row .point-name-line{display:flex;align-items:center;gap:.25rem;min-width:0}
+    .inspection-point-list-row .point-name{font-size:.76rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .inspection-point-list-row .badge{font-size:.6rem;white-space:nowrap;padding:.3em .45em}
+    .inspection-point-list-row>.bi-chevron-right{font-size:.72rem;flex:0 0 auto}
+    .point-info-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--bs-info-text-emphasis);font-size:.9rem;padding:0}
+    .point-info-button:focus-visible{outline:2px solid var(--bs-primary);outline-offset:1px}
+    .inspection-point-option-controls{margin-left:2rem!important}
+    .inspection-point-option-controls .small{font-size:.68rem!important}
+    .inspection-point-option-choice{padding:.2rem .45rem;font-size:.7rem}
+    .tooltip .tooltip-inner{max-width:min(280px,calc(100vw - 32px));font-size:.78rem;text-align:left}
     .inspection-map-content>.inspection-map-canvas.d-none{display:none!important}
     .inspection-map-content.no-map{grid-template-columns:minmax(0,1fr)}
     .inspection-validation-stat{border:1px solid var(--bs-border-color);border-radius:.75rem;padding:.65rem .5rem;text-align:center;min-height:70px;display:flex;flex-direction:column;justify-content:center}
@@ -573,9 +587,13 @@
     #inspectionBatchValidationNavigator{border-left:4px solid var(--bs-warning)}
     .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
-        .inspection-map-content{grid-template-columns:minmax(0,1fr)}
-        .inspection-map-content>.inspection-map-canvas{height:52vh;min-height:360px}
-        .inspection-map-content>.inspection-point-list{height:48vh;min-height:320px;max-height:48vh}
+        .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}
+        .inspection-map-content>.inspection-map-canvas{height:44dvh;min-height:280px;max-height:480px}
+        .inspection-map-content>.inspection-point-list{height:42dvh;min-height:260px;max-height:440px;padding:.4rem}
+        .inspection-point-list-row{min-height:44px;padding:.4rem .45rem}
+        .inspection-point-list-row .point-name{font-size:.74rem}
+        .point-info-button{width:30px;height:30px;flex-basis:30px}
+        .inspection-point-option-controls{margin-left:1.8rem!important}
     }
 </style>
 </asp:Content>
