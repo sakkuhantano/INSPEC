@@ -571,7 +571,7 @@
     .inspection-validation-issue-text span{color:var(--bs-secondary-color);overflow-wrap:anywhere}
     #inspectionChecklistHost .inspection-validation-error{border:1px solid var(--bs-danger)!important;background:var(--bs-danger-bg-subtle);box-shadow:0 0 0 .15rem rgba(var(--bs-danger-rgb),.08)}
     #inspectionBatchValidationNavigator{border-left:4px solid var(--bs-warning)}
-    .inspection-point-list-row:has(.badge.text-bg-danger){border-color:rgba(var(--bs-danger-rgb),.45)}
+    .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
         .inspection-map-content{grid-template-columns:minmax(0,1fr)}
         .inspection-map-content>.inspection-map-canvas{height:52vh;min-height:360px}
