@@ -78,24 +78,24 @@ window.updateGlobalInspectionConflictBadge = async function () {
 
         const count = await new Promise((resolve, reject) => {
             const tx = db.transaction(["inspection_records"], "readonly");
-            const request = tx.objectStore("inspection_records").getAll();
-            request.onsuccess = function () {
-                resolve((request.result || []).filter(record =>
-                    !record.ServerOnly &&
-                    record.SyncStatus === "CONFLICT" &&
-                    record.OwnerEmployeeID === login.employeeid &&
-                    record.CompanyID === companyLocation[0] &&
-                    record.LocationID === companyLocation[1]
-                ).length);
-            };
-            request.onerror = () => reject(request.error);
-        });
+        const request = tx.objectStore("inspection_records").getAll();
+        request.onsuccess = function () {
+            resolve((request.result || []).filter(record =>
+                !record.ServerOnly &&
+                record.SyncStatus === "CONFLICT" &&
+                record.OwnerEmployeeID === login.employeeid &&
+                record.CompanyID === companyLocation[0] &&
+                record.LocationID === companyLocation[1]
+            ).length);
+        };
+        request.onerror = () => reject(request.error);
+    });
 
-        badge.textContent = count ? String(count) : "!";
-        badge.classList.toggle("d-none", count === 0);
-    } catch (error) {
-        console.warn("Unable to refresh global inspection conflict badge:", error);
-    }
+    badge.textContent = count ? String(count) : "!";
+    badge.classList.toggle("d-none", count === 0);
+} catch (error) {
+    console.warn("Unable to refresh global inspection conflict badge:", error);
+}
 };
 
 window.addEventListener("inspectionConflict", function () {
@@ -146,7 +146,7 @@ if(overlay) {
     });
 }
 function initSidebarState() {
-if (window.innerWidth >= 992) {
+    if (window.innerWidth >= 992) {
         // Desktop → collapse default
         sidebar.classList.add('collapsed');
         content.classList.add('expanded');
@@ -198,11 +198,11 @@ document.addEventListener(
         // } 
         // else 
         // {
-            document.querySelector('#connectionStatus div').classList.remove("d-none");            
-            const summary =
-                await getMeterDashboardSummary();
+        document.querySelector('#connectionStatus div').classList.remove("d-none");            
+        const summary =
+            await getMeterDashboardSummary();
 
-            if (page.indexOf("dashboard.aspx") >= 0) {
+        if (page.indexOf("dashboard.aspx") >= 0) {
             const features = getAuthorizedAppFeatures();
             const inspectionShortcut = document.getElementById("btnDashboardInspection");
             if (inspectionShortcut && !features.canInputInspection && !features.canApproveInspection) {
@@ -223,30 +223,30 @@ document.addEventListener(
         }
     });
 
-        document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
-            const resolve = confirmResolve;
-            if (!resolve) return;
-            hideConfirmation();
-            confirmResolve = null;
-            resolve(true);
-        });
+document.getElementById("btnConfirmYes")?.addEventListener("click", function () {
+    const resolve = confirmResolve;
+    if (!resolve) return;
+    hideConfirmation();
+    confirmResolve = null;
+    resolve(true);
+});
 
-        document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
-            const resolve = confirmResolve;
-            if (!resolve) return;
-            hideConfirmation();
-            confirmResolve = null;
-            resolve(false);
-        });
+document.getElementById("btnConfirmCancel")?.addEventListener("click", function () {
+    const resolve = confirmResolve;
+    if (!resolve) return;
+    hideConfirmation();
+    confirmResolve = null;
+    resolve(false);
+});
 
-        document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
-            if (e.target.id === "globalConfirmOverlay") {
-                document.getElementById("btnConfirmCancel")?.click();
-            }
-        });
+document.getElementById("globalConfirmOverlay")?.addEventListener("click", function (e) {
+    if (e.target.id === "globalConfirmOverlay") {
+        document.getElementById("btnConfirmCancel")?.click();
+    }
+});
 
 
-    // Stray duplicate closure removed; event listeners above are already registered.
+// Stray duplicate closure removed; event listeners above are already registered.
 
 window.addEventListener('resize', function() {
     if (window.innerWidth >= 992) {
@@ -666,69 +666,69 @@ async function countPendingSyncMeter(type) {
 async function countApproval() {
     var data=getLoginData();
     try {
-         const res = await fetch("workorder.aspx/getApprovalCounters", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json; charset=utf-8"
-                },
-                body: JSON.stringify({
-                    companyLocation: data.curcompany,
-                    section: data.section
-                })
-            });
+        const res = await fetch("workorder.aspx/getApprovalCounters", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8"
+            },
+            body: JSON.stringify({
+                companyLocation: data.curcompany,
+                section: data.section
+            })
+        });
         if (!res.ok) {
             throw new Error(`Server error: ${res.status}`);
-        }         
-        const result = await res.json();
-        let pending = result.d.pending || 0;
-        let rejected = result.d.rejected || 0;
-        let approved = result.d.approved || 0;
+    }         
+    const result = await res.json();
+    let pending = result.d.pending || 0;
+    let rejected = result.d.rejected || 0;
+    let approved = result.d.approved || 0;
 
-        const localStores = await new Promise((resolve, reject) => {
+    const localStores = await new Promise((resolve, reject) => {
 
         // Ganti "namaStoreKamu" dengan nama object store yang kamu gunakan
         const transaction = db.transaction("workorder", "readonly");
-        const store = transaction.objectStore("workorder");
-        const getAllRequest = store.getAll();
+    const store = transaction.objectStore("workorder");
+    const getAllRequest = store.getAll();
 
-        getAllRequest.onsuccess = () => resolve(getAllRequest.result || []);
-        getAllRequest.onerror = () => reject(getAllRequest.error);
-        });
+    getAllRequest.onsuccess = () => resolve(getAllRequest.result || []);
+    getAllRequest.onerror = () => reject(getAllRequest.error);
+});
 
-        // Only reconcile local approval actions belonging to this exact company/location
-        // and an authorized section. IndexedDB is shared by all logins on this device.
-        const companyLocation = (data.curcompany || "").split(";");
-        const companyId = companyLocation[0] || "";
-        const locationId = companyLocation[1] || "";
-        const allowedSections = (data.section || "").split(";").filter(Boolean);
-        const scopedLocalStores = localStores.filter(item =>
-            item.CompanyID === companyId &&
-            item.LocationID === locationId &&
-            allowedSections.includes(item.SectionID)
-        );
+// Only reconcile local approval actions belonging to this exact company/location
+// and an authorized section. IndexedDB is shared by all logins on this device.
+const companyLocation = (data.curcompany || "").split(";");
+const companyId = companyLocation[0] || "";
+const locationId = companyLocation[1] || "";
+const allowedSections = (data.section || "").split(";").filter(Boolean);
+const scopedLocalStores = localStores.filter(item =>
+    item.CompanyID === companyId &&
+    item.LocationID === locationId &&
+    allowedSections.includes(item.SectionID)
+);
 
-        const jmlPendingLokal = scopedLocalStores.filter(
-            item => item.StatusSPV === "PENDING"
-        ).length;
-        const jmlRejectedLokal = scopedLocalStores.filter(
-            item => item.StatusSPV === "PENDING" && item.ActionSPV === "VOID"
-        ).length;
-        const jmlApprovedLokal = scopedLocalStores.filter(
-            item => item.StatusSPV === "PENDING" && item.ActionSPV === "APPROVED"
-        ).length;
+const jmlPendingLokal = scopedLocalStores.filter(
+    item => item.StatusSPV === "PENDING"
+).length;
+const jmlRejectedLokal = scopedLocalStores.filter(
+    item => item.StatusSPV === "PENDING" && item.ActionSPV === "VOID"
+).length;
+const jmlApprovedLokal = scopedLocalStores.filter(
+    item => item.StatusSPV === "PENDING" && item.ActionSPV === "APPROVED"
+).length;
 
-        // 3. Modifikasi nilai counter berdasarkan logika bisnis kamu
-        pending = Number(pending) - jmlPendingLokal;
-        rejected = Number(rejected) + jmlRejectedLokal;
-        approved = Number(approved) + jmlApprovedLokal;
+// 3. Modifikasi nilai counter berdasarkan logika bisnis kamu
+pending = Number(pending) - jmlPendingLokal;
+rejected = Number(rejected) + jmlRejectedLokal;
+approved = Number(approved) + jmlApprovedLokal;
 
-        // Pastikan angka tidak minus jika terjadi anomali data
-        if (pending < 0) pending = 0;
+// Pastikan angka tidak minus jika terjadi anomali data
+if (pending < 0) pending = 0;
 
-        document.getElementById("lblPendingApproval").innerText = `${pending}`;
-        document.getElementById("lblApprovedToday").innerText = `${approved}`;
-        document.getElementById("lblVoid").innerText = `${rejected}`;
-    }
+document.getElementById("lblPendingApproval").innerText = `${pending}`;
+document.getElementById("lblApprovedToday").innerText = `${approved}`;
+document.getElementById("lblVoid").innerText = `${rejected}`;
+}
     catch(ex) {
         alert(ex.message);        
     }
@@ -783,32 +783,32 @@ async function countPendingSyncWO() {
     return new Promise((resolve, reject) => {
 
         let tx = db.transaction("workorder", "readonly");
-        let store = tx.objectStore("workorder");
+    let store = tx.objectStore("workorder");
 
-        let req = store.getAll();
+    let req = store.getAll();
 
-        req.onsuccess = function () {
+    req.onsuccess = function () {
 
-            let data = req.result || [];
+        let data = req.result || [];
 
-            const login = getLoginData();
-            const companyLocation = (login.curcompany || "").split(";");
-            // Count pending records from every section on this shared device.
-            // Upload still filters strictly by the recorded owner.
-            let pending = data.filter(x =>
-                (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
-                x.CompanyID === (companyLocation[0] || "") &&
-                x.LocationID === (companyLocation[1] || "")
-            );
+        const login = getLoginData();
+        const companyLocation = (login.curcompany || "").split(";");
+        // Count pending records from every section on this shared device.
+        // Upload still filters strictly by the recorded owner.
+        let pending = data.filter(x =>
+            (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
+            x.CompanyID === (companyLocation[0] || "") &&
+            x.LocationID === (companyLocation[1] || "")
+        );
 
-            resolve(pending.length);
-        };
+        resolve(pending.length);
+    };
 
-        req.onerror = function () {
-            reject(req.error);
-        };
+    req.onerror = function () {
+        reject(req.error);
+    };
 
-    });
+});
 }
 // async function getTotalPendingSync() {
 //     var total = 0;
@@ -879,46 +879,46 @@ async function countMeterStatus(type) {
     return new Promise((resolve) => {
 
         let tx = db.transaction("meter", "readonly");
-        let store = tx.objectStore("meter");
+    let store = tx.objectStore("meter");
 
-        let cursor = store.openCursor();
+    let cursor = store.openCursor();
 
-        cursor.onsuccess = function(e){
+    cursor.onsuccess = function(e){
 
-            let cur = e.target.result;
+        let cur = e.target.result;
 
-            if(cur){
+        if(cur){
 
-                let item = cur.value;
+            let item = cur.value;
 
-                if(item.Type==type){
+            if(item.Type==type){
 
-                    switch(item.Status){
+                switch(item.Status){
 
-                        case "DRAFT":
-                            meterSyncStatistics.draft++;
-                            break;
+                    case "DRAFT":
+                        meterSyncStatistics.draft++;
+                        break;
 
-                        case "ERROR":
-                            meterSyncStatistics.error++;
-                            break;
+                    case "ERROR":
+                        meterSyncStatistics.error++;
+                        break;
 
-                        case "SYNCED":
-                            meterSyncStatistics.synced++;
-                            break;
-                    }
-
+                    case "SYNCED":
+                        meterSyncStatistics.synced++;
+                        break;
                 }
 
-                cur.continue();
-            }
-            else{
-                resolve();
             }
 
-        };
+            cur.continue();
+        }
+        else{
+            resolve();
+        }
 
-    });
+    };
+
+});
 
 }
 // async function calculatePendingSync() {
@@ -1047,659 +1047,659 @@ async function refreshDashboardCounts(summary = null) {
     }
 
 }
-function normalizeMeter(m){
-    if(!m.Status)
-        m.Status="NEW";
+    function normalizeMeter(m){
+        if(!m.Status)
+            m.Status="NEW";
 
-    if(!m.Ending1)
-        m.Ending1="";
+        if(!m.Ending1)
+            m.Ending1="";
 
-    if(!m.Ending2)
-        m.Ending2="";
+        if(!m.Ending2)
+            m.Ending2="";
 
-    if(!m.Remark)
-        m.Remark="";
+        if(!m.Remark)
+            m.Remark="";
 
-    if(!m.Blob)
-        m.Blob=null;
+        if(!m.Blob)
+            m.Blob=null;
 
-    if(!m.FileName)
-        m.FileName="";
+        if(!m.FileName)
+            m.FileName="";
 
-    if(!m.SyncErrorCode)
-        m.SyncErrorCode="";
+        if(!m.SyncErrorCode)
+            m.SyncErrorCode="";
 
-    if(!m.SyncErrorMessage)
-        m.SyncErrorMessage="";
+        if(!m.SyncErrorMessage)
+            m.SyncErrorMessage="";
 
-    return m;
-}
-
-/* ======================= */
-/* SHOW SYNC DETAIL */
-/* ======================= */
-//function showSyncDetail() {
-//    countPendingSync();
-//    var modal = new bootstrap.Modal(document.getElementById("syncDetailModal"));
-//    modal.show();
-//}
-function showSyncToast() {
-    let toastEl =
-        document.getElementById("syncToast");
-    window.syncToastInstance =
-        new bootstrap.Toast(
-            toastEl,
-            {
-                autohide: false
-            }
-        );
-    window.syncToastInstance.show();
-}
-function hideSyncToast() {
-    if (window.syncToastInstance)
-        window.syncToastInstance.hide();
-}
-function updateSyncProgress(current,total,text) {
-    let percent = 0;
-    if (total > 0) {
-        percent =
-            Math.floor(
-                (current / total) * 100
-            );
+        return m;
     }
 
-    document.getElementById("syncText").innerText =
-        text +
-        " (" +
-        current +
-        "/" +
-        total +
-        ")";
-
-    document.getElementById("syncPercentText").innerText = percent + "%";
-
-    let bar = document.getElementById("syncProgressBar");
-    bar.style.width = percent + "%";
-    bar.setAttribute("aria-valuenow",percent);
-}
-function setSyncCompleted() {
-    document.getElementById("syncSpinner").style.display = "none";
-    updateSyncProgress(1,1,"Sync Completed ✔");
-}
-// function setSyncError() {
-//     document.getElementById("syncSpinner").style.display = "none";
-//     updateSyncProgress(0,1,"Sync Failed ❌");
-// }
-function resetSyncToast() {
-    document.getElementById("syncSpinner").style.display = "inline-block";
-    updateSyncProgress(0,1,"Preparing sync...");
-}
-
-async function syncAllData() {
-    if (syncRunning)
-        return;
-
-    syncRunning = true;    
-    try {
-        resetSyncToast();
-        showSyncToast();
-        meterSyncCache = null;
-        //await updateTotalPendingSync();
-        let login = getLoginData();
-        if (!login) return;
-        if (!navigator.onLine) {
-            throw new Error("Sync membutuhkan koneksi internet. Data offline tetap tersimpan dan belum dihapus.");
-        }
-
-        let role = appFeatures;
-        let totalSteps = 0;
-        const hasMeterRole = role.ELC || role.WTR || role.GAS;
-
-        if (hasMeterRole) totalSteps++; // upload meter
-        if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps++; // upload WO / SPV actions
-        if (role.canApproveInspection) totalSteps++; // sync SPV inspection approvals and prepare offline cache
-        if (role.ELC) totalSteps++;
-        if (role.WTR) totalSteps++;
-        if (role.GAS) totalSteps++;
-        if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps += 2; // download WO and WO checklist
-        if (role.canInputInspection) totalSteps += 2; // upload pending inspections and download inspection data
-
-        let step = 0;
-
-        // UPLOAD METER
-        if (role.ELC || role.WTR || role.GAS) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Uploading meter");
-            await uploadPendingMeter();
-            await updateTotalPendingSync();
-        }
-        if (role.canMyWorkOrder || role.canApproveWorkOrder) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Uploading workorder");
-            await uploadPendingWO();
-        }
-        if (role.canInputInspection) {
-            step++;
-            updateSyncProgress(step, totalSteps, "Uploading inspections");
-            await uploadPendingInspections();
-        }
-        if (role.canApproveInspection) {
-            step++;
-            updateSyncProgress(step, totalSteps, "Syncing SPV inspection approvals");
-            if (typeof window.syncInspectionApprovalOffline !== "function")
-                throw new Error("Modul global sync approval inspeksi belum dimuat.");
-            const approvalSync = await window.syncInspectionApprovalOffline(login);
-            if (approvalSync.conflicts)
-                showToast(approvalSync.conflicts + " approval inspeksi konflik; aksi tetap tersimpan untuk diperiksa.", "warning");
-        }
-
-        // DOWNLOAD METER
-        if (role.ELC) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Downloading meter ELC");
-            await downloadMeter("ELC");
-        }
-        if (role.WTR) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Downloading meter WTR");
-            await downloadMeter("AIR");
-        }
-        if (role.GAS) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Downloading meter GAS");
-            await downloadMeter("GAS");
-        }
-        // DOWNLOAD WO
-        if (role.canMyWorkOrder || role.canApproveWorkOrder) {
-            step++;
-            updateSyncProgress(step,totalSteps,"Downloading workorder");
-            await downloadWorkOrder();
-            // step++;
-            // updateSyncProgress(step,totalSteps,"Downloading employee");
-            // await getEmployees();
-            step++;
-            updateSyncProgress(step,totalSteps,"Downloading checklist");
-            await getCheckList();
-        }
-        if (role.canInputInspection) {
-            step++;
-            updateSyncProgress(step, totalSteps, "Downloading inspection templates");
-            await getInspectionData();
-        }
-        window.dispatchEvent(new CustomEvent("syncCompleted"));
-
-        // FINISH
-        updateSyncProgress(totalSteps,totalSteps,"Sync Completed ✔");
-        //await updateTotalPendingSync();
-        var page = window.location.pathname.toLowerCase();
-        const summary =
-            await getMeterDashboardSummary();
-
-        if (page.indexOf("dashboard.aspx") >= 0) {
-            await refreshDashboardCounts(summary);
-        }
-        await updateTotalPendingSync(summary);
-
-        hideSyncToast();
-    }
-    catch (err) {
-        const message = err && err.message ? err.message : String(err || "Unknown error");
-        console.error("Sync All Data failed:", err);
-        updateSyncProgress(0, 1, "Sync Failed: " + message);
-        showToast("Sync gagal: " + message, "warning");
-    }
-    finally {
-        syncRunning = false;
-    }    
-}
-
-async function uploadPendingMeter() {
-    //------------------------------------------
-    // LOGIN
-    //------------------------------------------
-    const login = getLoginData();
-    const [companyId, locationId] =
-        login.curcompany.split(";");
-    const userId =
-        login.employeeid;
-    //------------------------------------------
-    // LOAD DRAFT
-    //------------------------------------------
-    let pendingList =
-        await new Promise(function(resolve,reject){
-            const tx =
-                db.transaction(
-                    "meter",
-                    "readonly"
-                );
-            const req =
-                tx.objectStore("meter")
-                  .index("by_company_location_status")
-                  .getAll(
-                    IDBKeyRange.only([
-                        companyId,
-                        locationId,
-                        "DRAFT"
-                    ])
-                  );
-            req.onsuccess=function(){
-                resolve(req.result||[]);
-            };
-            req.onerror=function(){
-                reject(req.error);
-            };
-        });
-    if(!pendingList.length)
-        return;
-    //------------------------------------------
-    // UPLOAD
-    //------------------------------------------
-    const batchSize = 50;
-    const successMeterNos = [];
-    let uploadedCount = 0;
-    for(
-        let i=0;
-        i<pendingList.length;
-        i+=batchSize
-    ){
-        const batch =
-            pendingList.slice(
-                i,
-                i+batchSize
-            );
-        //--------------------------------------
-        // PHOTO
-        //--------------------------------------
-        const photoList =
-            batch
-            .filter(m =>
-                m.Blob &&
-                m.FileName
-            )
-            .map(m => ({
-                FileName:
-                    m.FileName,
-                OrderNo:
-                    m.MeterNo,
-                Blob:
-                    m.Blob
-            }));
-        const photos =
-            await convertPhotosToBase64(
-                photoList
-            );
-        const photoMap = {};
-        photos.forEach(function(p){
-            photoMap[p.OrderNo]=
-                p.Base64;
-        });
-        //--------------------------------------
-        // BUILD REQUEST
-        //--------------------------------------
-        const uploadBatch =
-            batch.map(function(m){
-                const item={...m};
-                delete item.Blob;
-                item.Base64 =
-                    photoMap[m.MeterNo] || "";
-                return item;
-            });
-        //--------------------------------------
-        // API
-        //--------------------------------------
-        let response =
-            await fetch(
-                "meterreading.aspx/uploadMeter",
+    /* ======================= */
+    /* SHOW SYNC DETAIL */
+    /* ======================= */
+    //function showSyncDetail() {
+    //    countPendingSync();
+    //    var modal = new bootstrap.Modal(document.getElementById("syncDetailModal"));
+    //    modal.show();
+    //}
+    function showSyncToast() {
+        let toastEl =
+            document.getElementById("syncToast");
+        window.syncToastInstance =
+            new bootstrap.Toast(
+                toastEl,
                 {
-                    method:"POST",
-                    headers:{
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body:JSON.stringify({
-                        meterList:
-                            uploadBatch,
-                        companyId:
-                            companyId,
-                        locationId:
-                            locationId,
-                        userId:
-                            userId
-                    })
-                });
-        let json =
-            await response.json();
-        let result =
-            json.d;
-        //--------------------------------------
-        // FAILED
-        //--------------------------------------
-        const failed =
-            new Set(
-                (result.FailedItems||[])
-                .map(x=>x.MeterNo)
-            );
-        //--------------------------------------
-        // UPDATE INDEXEDDB
-        //--------------------------------------
-        await new Promise(function(resolve,reject){
-            const tx =
-                db.transaction(
-                    "meter",
-                    "readwrite"
-                );
-            const store =
-                tx.objectStore("meter");
-            batch.forEach(function(m){
-                if(failed.has(m.MeterNo))
-                    return;
-                m.Status="SYNCED";
-                m.SyncErrorCode="";
-                m.SyncErrorMessage="";
-                store.put(m);
-                successMeterNos.push(
-                    m.MeterNo
-                );
-            });
-            tx.oncomplete=function(){
-                resolve();
-            };
-            tx.onerror=function(){
-                reject(tx.error);
-            };
-        });
-        //--------------------------------------
-        // PROGRESS
-        //--------------------------------------
-        uploadedCount += batch.length;
-        updateSyncProgress(
-            uploadedCount,
-            pendingList.length,
-            "Upload Meter"
-        );
-    }
-    //------------------------------------------
-    // REFRESH UI
-    //------------------------------------------
-    document.dispatchEvent(
-        new CustomEvent(
-            "meterSyncCompleted",
-            {
-                detail:{
-                    companyId,
-                    locationId,
-                    syncedMeterNos:
-                        successMeterNos
+                    autohide: false
                 }
+            );
+        window.syncToastInstance.show();
+    }
+    function hideSyncToast() {
+        if (window.syncToastInstance)
+            window.syncToastInstance.hide();
+    }
+    function updateSyncProgress(current,total,text) {
+        let percent = 0;
+        if (total > 0) {
+            percent =
+                Math.floor(
+                    (current / total) * 100
+                );
+        }
+
+        document.getElementById("syncText").innerText =
+            text +
+            " (" +
+            current +
+            "/" +
+            total +
+            ")";
+
+        document.getElementById("syncPercentText").innerText = percent + "%";
+
+        let bar = document.getElementById("syncProgressBar");
+        bar.style.width = percent + "%";
+        bar.setAttribute("aria-valuenow",percent);
+    }
+    function setSyncCompleted() {
+        document.getElementById("syncSpinner").style.display = "none";
+        updateSyncProgress(1,1,"Sync Completed ✔");
+    }
+    // function setSyncError() {
+    //     document.getElementById("syncSpinner").style.display = "none";
+    //     updateSyncProgress(0,1,"Sync Failed ❌");
+    // }
+    function resetSyncToast() {
+        document.getElementById("syncSpinner").style.display = "inline-block";
+        updateSyncProgress(0,1,"Preparing sync...");
+    }
+
+    async function syncAllData() {
+        if (syncRunning)
+            return;
+
+        syncRunning = true;    
+        try {
+            resetSyncToast();
+            showSyncToast();
+            meterSyncCache = null;
+            //await updateTotalPendingSync();
+            let login = getLoginData();
+            if (!login) return;
+            if (!navigator.onLine) {
+                throw new Error("Sync membutuhkan koneksi internet. Data offline tetap tersimpan dan belum dihapus.");
             }
-        )
-    );
-}
-async function downloadMeter(type) {
-    const login = getLoginData();
-    const [companyId, locationId] = login.curcompany.split(";");
 
-    try {
+            let role = appFeatures;
+            let totalSteps = 0;
+            const hasMeterRole = role.ELC || role.WTR || role.GAS;
 
-        // ===============================
-        // Ambil dari server hanya sekali
-        // ===============================
-        if (meterSyncCache == null) {
+            if (hasMeterRole) totalSteps++; // upload meter
+            if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps++; // upload WO / SPV actions
+            if (role.canApproveInspection) totalSteps++; // sync SPV inspection approvals and prepare offline cache
+            if (role.ELC) totalSteps++;
+            if (role.WTR) totalSteps++;
+            if (role.GAS) totalSteps++;
+            if (role.canMyWorkOrder || role.canApproveWorkOrder) totalSteps += 2; // download WO and WO checklist
+            if (role.canInputInspection) totalSteps += 2; // upload pending inspections and download inspection data
 
-            const response = await fetch("meterreading.aspx/getMeter", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    companyId: companyId,
-                    locationId: locationId,
-                    lastSync: login.lastMeterSync || "",
-                    lastPeriod: login.lastMeterPeriod || "",
-                    isELC: appFeatures.ELC,
-                    isWTR: appFeatures.WTR,
-                    isGAS: appFeatures.GAS
-                })
+            let step = 0;
+
+            // UPLOAD METER
+            if (role.ELC || role.WTR || role.GAS) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Uploading meter");
+                await uploadPendingMeter();
+                await updateTotalPendingSync();
+            }
+            if (role.canMyWorkOrder || role.canApproveWorkOrder) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Uploading workorder");
+                await uploadPendingWO();
+            }
+            if (role.canInputInspection) {
+                step++;
+                updateSyncProgress(step, totalSteps, "Uploading inspections");
+                await uploadPendingInspections();
+            }
+            if (role.canApproveInspection) {
+                step++;
+                updateSyncProgress(step, totalSteps, "Syncing SPV inspection approvals");
+                if (typeof window.syncInspectionApprovalOffline !== "function")
+                    throw new Error("Modul global sync approval inspeksi belum dimuat.");
+                const approvalSync = await window.syncInspectionApprovalOffline(login);
+                if (approvalSync.conflicts)
+                    showToast(approvalSync.conflicts + " approval inspeksi konflik; aksi tetap tersimpan untuk diperiksa.", "warning");
+            }
+
+            // DOWNLOAD METER
+            if (role.ELC) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Downloading meter ELC");
+                await downloadMeter("ELC");
+            }
+            if (role.WTR) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Downloading meter WTR");
+                await downloadMeter("AIR");
+            }
+            if (role.GAS) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Downloading meter GAS");
+                await downloadMeter("GAS");
+            }
+            // DOWNLOAD WO
+            if (role.canMyWorkOrder || role.canApproveWorkOrder) {
+                step++;
+                updateSyncProgress(step,totalSteps,"Downloading workorder");
+                await downloadWorkOrder();
+                // step++;
+                // updateSyncProgress(step,totalSteps,"Downloading employee");
+                // await getEmployees();
+                step++;
+                updateSyncProgress(step,totalSteps,"Downloading checklist");
+                await getCheckList();
+            }
+            if (role.canInputInspection) {
+                step++;
+                updateSyncProgress(step, totalSteps, "Downloading inspection templates");
+                await getInspectionData();
+            }
+            window.dispatchEvent(new CustomEvent("syncCompleted"));
+
+            // FINISH
+            updateSyncProgress(totalSteps,totalSteps,"Sync Completed ✔");
+            //await updateTotalPendingSync();
+            var page = window.location.pathname.toLowerCase();
+            const summary =
+                await getMeterDashboardSummary();
+
+            if (page.indexOf("dashboard.aspx") >= 0) {
+                await refreshDashboardCounts(summary);
+            }
+            await updateTotalPendingSync(summary);
+
+            hideSyncToast();
+        }
+        catch (err) {
+            const message = err && err.message ? err.message : String(err || "Unknown error");
+            console.error("Sync All Data failed:", err);
+            updateSyncProgress(0, 1, "Sync Failed: " + message);
+            showToast("Sync gagal: " + message, "warning");
+        }
+        finally {
+            syncRunning = false;
+        }    
+    }
+
+    async function uploadPendingMeter() {
+        //------------------------------------------
+        // LOGIN
+        //------------------------------------------
+        const login = getLoginData();
+        const [companyId, locationId] =
+            login.curcompany.split(";");
+        const userId =
+            login.employeeid;
+        //------------------------------------------
+        // LOAD DRAFT
+        //------------------------------------------
+        let pendingList =
+            await new Promise(function(resolve,reject){
+                const tx =
+                    db.transaction(
+                        "meter",
+                        "readonly"
+                    );
+                const req =
+                    tx.objectStore("meter")
+                      .index("by_company_location_status")
+                      .getAll(
+                        IDBKeyRange.only([
+                            companyId,
+                            locationId,
+                            "DRAFT"
+                        ])
+                      );
+                req.onsuccess=function(){
+                    resolve(req.result||[]);
+                };
+                req.onerror=function(){
+                    reject(req.error);
+                };
             });
-
-            if (!response.ok) {
-                const text = await response.text();
-                console.log(text);
-                throw new Error("Download meter failed, Status=" + response.status);
-            }
-
-            meterSyncCache = await response.json();
-            meterSyncCache = meterSyncCache.d; // hasil WebMethod ASP.NET
+        if(!pendingList.length)
+            return;
+        //------------------------------------------
+        // UPLOAD
+        //------------------------------------------
+        const batchSize = 50;
+        const successMeterNos = [];
+        let uploadedCount = 0;
+        for(
+            let i=0;
+            i<pendingList.length;
+            i+=batchSize
+        ){
+            const batch =
+                pendingList.slice(
+                    i,
+                    i+batchSize
+                );
+            //--------------------------------------
+            // PHOTO
+            //--------------------------------------
+            const photoList =
+                batch
+                .filter(m =>
+                    m.Blob &&
+                    m.FileName
+                )
+                .map(m => ({
+                    FileName:
+                        m.FileName,
+                    OrderNo:
+                        m.MeterNo,
+                    Blob:
+                        m.Blob
+                }));
+            const photos =
+                await convertPhotosToBase64(
+                    photoList
+                );
+            const photoMap = {};
+            photos.forEach(function(p){
+                photoMap[p.OrderNo]=
+                    p.Base64;
+            });
+            //--------------------------------------
+            // BUILD REQUEST
+            //--------------------------------------
+            const uploadBatch =
+                batch.map(function(m){
+                    const item={...m};
+                    delete item.Blob;
+                    item.Base64 =
+                        photoMap[m.MeterNo] || "";
+                    return item;
+                });
+            //--------------------------------------
+            // API
+            //--------------------------------------
+            let response =
+                await fetch(
+                    "meterreading.aspx/uploadMeter",
+                    {
+                        method:"POST",
+                        headers:{
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body:JSON.stringify({
+                            meterList:
+                                uploadBatch,
+                            companyId:
+                                companyId,
+                            locationId:
+                                locationId,
+                            userId:
+                                userId
+                        })
+                    });
+            let json =
+                await response.json();
+            let result =
+                json.d;
+            //--------------------------------------
+            // FAILED
+            //--------------------------------------
+            const failed =
+                new Set(
+                    (result.FailedItems||[])
+                    .map(x=>x.MeterNo)
+                );
+            //--------------------------------------
+            // UPDATE INDEXEDDB
+            //--------------------------------------
+            await new Promise(function(resolve,reject){
+                const tx =
+                    db.transaction(
+                        "meter",
+                        "readwrite"
+                    );
+                const store =
+                    tx.objectStore("meter");
+                batch.forEach(function(m){
+                    if(failed.has(m.MeterNo))
+                        return;
+                    m.Status="SYNCED";
+                    m.SyncErrorCode="";
+                    m.SyncErrorMessage="";
+                    store.put(m);
+                    successMeterNos.push(
+                        m.MeterNo
+                    );
+                });
+                tx.oncomplete=function(){
+                    resolve();
+                };
+                tx.onerror=function(){
+                    reject(tx.error);
+                };
+            });
+            //--------------------------------------
+            // PROGRESS
+            //--------------------------------------
+            uploadedCount += batch.length;
+            updateSyncProgress(
+                uploadedCount,
+                pendingList.length,
+                "Upload Meter"
+            );
         }
-
-        // ===============================
-        // Apply data sesuai type
-        // ===============================
-        await applyMeterType(type, meterSyncCache);
-
-        // ===============================
-        // Simpan info sync (cukup sekali)
-        // ===============================
-        if(type=="GAS" ||
-           (!appFeatures.GAS && type=="AIR") ||
-           (!appFeatures.GAS && !appFeatures.WTR && type=="ELC")){
-
-            login.lastMeterSync=meterSyncCache.ServerTime;
-            if (meterSyncCache.FullDownload && meterSyncCache.Insert.length > 0)
-                login.lastMeterPeriod=meterSyncCache.ActivePeriod;
-
-            setLoginData(login);
-
-        }
+        //------------------------------------------
+        // REFRESH UI
+        //------------------------------------------
         document.dispatchEvent(
             new CustomEvent(
-                "meterDownloadCompleted",
+                "meterSyncCompleted",
                 {
-                    detail: {
+                    detail:{
                         companyId,
-                        locationId
+                        locationId,
+                        syncedMeterNos:
+                            successMeterNos
                     }
                 }
             )
         );
-
     }
-    catch (err) {
-        console.error("downloadMeter error", err);
-        throw err; // supaya syncAllData masuk ke catch utama
+    async function downloadMeter(type) {
+        const login = getLoginData();
+        const [companyId, locationId] = login.curcompany.split(";");
+
+        try {
+
+            // ===============================
+            // Ambil dari server hanya sekali
+            // ===============================
+            if (meterSyncCache == null) {
+
+                const response = await fetch("meterreading.aspx/getMeter", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        companyId: companyId,
+                        locationId: locationId,
+                        lastSync: login.lastMeterSync || "",
+                        lastPeriod: login.lastMeterPeriod || "",
+                        isELC: appFeatures.ELC,
+                        isWTR: appFeatures.WTR,
+                        isGAS: appFeatures.GAS
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.log(text);
+                    throw new Error("Download meter failed, Status=" + response.status);
+                }
+
+                meterSyncCache = await response.json();
+                meterSyncCache = meterSyncCache.d; // hasil WebMethod ASP.NET
+            }
+
+            // ===============================
+            // Apply data sesuai type
+            // ===============================
+            await applyMeterType(type, meterSyncCache);
+
+            // ===============================
+            // Simpan info sync (cukup sekali)
+            // ===============================
+            if(type=="GAS" ||
+               (!appFeatures.GAS && type=="AIR") ||
+               (!appFeatures.GAS && !appFeatures.WTR && type=="ELC")){
+
+                login.lastMeterSync=meterSyncCache.ServerTime;
+                if (meterSyncCache.FullDownload && meterSyncCache.Insert.length > 0)
+                    login.lastMeterPeriod=meterSyncCache.ActivePeriod;
+
+                setLoginData(login);
+
+            }
+            document.dispatchEvent(
+                new CustomEvent(
+                    "meterDownloadCompleted",
+                    {
+                        detail: {
+                            companyId,
+                            locationId
+                            }
+                    }
+                )
+            );
+
+        }
+        catch (err) {
+            console.error("downloadMeter error", err);
+            throw err; // supaya syncAllData masuk ke catch utama
+        }
     }
-}
-async function applyMeterType(type, result) {
-    const inserts = (result.Insert || []).filter(x => x.Type == type);
-    const updates = (result.Update || []).filter(x => x.Type == type);
-    const deletes = (result.Delete || []).filter(x => x.Type == type);
+    async function applyMeterType(type, result) {
+        const inserts = (result.Insert || []).filter(x => x.Type == type);
+        const updates = (result.Update || []).filter(x => x.Type == type);
+        const deletes = (result.Delete || []).filter(x => x.Type == type);
 
-    // ===============================
-    // FULL DOWNLOAD
-    // ===============================
-    if (result.FullDownload) {
+        // ===============================
+        // FULL DOWNLOAD
+        // ===============================
+        if (result.FullDownload) {
 
-        await deleteAllMeterByType(type, true);
+            await deleteAllMeterByType(type, true);
 
-        await new Promise((resolve,reject)=>{
+            await new Promise((resolve,reject)=>{
 
-        const tx = db.transaction(["meter"], "readwrite");
-        const store = tx.objectStore("meter");
+                const tx = db.transaction(["meter"], "readwrite");
+            const store = tx.objectStore("meter");
 
-        inserts.forEach(m => {
-            // m.Status = "NEW";
-            m.BarcodeNo = getBarcodeNo(m.MeterNo);
+            inserts.forEach(m => {
+                // m.Status = "NEW";
+                m.BarcodeNo = getBarcodeNo(m.MeterNo);
             store.put(m);
         });
 
         tx.oncomplete=resolve;
         tx.onerror=reject;
 
-        });
+    });
 
-    }
-    else {
-        // ===============================
-        // DELTA - INSERT
-        // ===============================
+}
+else {
+// ===============================
+// DELTA - INSERT
+// ===============================
         for (let m of inserts) {
-            // m.Status = "NEW";
+// m.Status = "NEW";
             m.BarcodeNo = getBarcodeNo(m.MeterNo);
-            await putMeter(normalizeMeter(m));
-        }
+await putMeter(normalizeMeter(m));
+}
 
-        // ===============================
-        // DELTA - UPDATE
-        // ===============================
+// ===============================
+// DELTA - UPDATE
+// ===============================
 
-        for (const m of updates) {
+for (const m of updates) {
 
-            const local = await getMeterByKey(
-                m.CompanyID,
-                m.LocationID,
-                m.Type,
-                m.MeterNo
-            );
-            m.BarcodeNo = getBarcodeNo(m.MeterNo);
-            //----------------------------------
-            // belum ada
-            //----------------------------------
+    const local = await getMeterByKey(
+        m.CompanyID,
+        m.LocationID,
+        m.Type,
+        m.MeterNo
+    );
+    m.BarcodeNo = getBarcodeNo(m.MeterNo);
+    //----------------------------------
+    // belum ada
+    //----------------------------------
 
-            if (!local) {
+    if (!local) {
 
-                // m.Status = "NEW";
+    // m.Status = "NEW";
 
-                await putMeter(
-                    normalizeMeter(m)
-                );
+        await putMeter(
+            normalizeMeter(m)
+        );
 
-                continue;
+        continue;
 
-            }
+}
 
-            if (m.Status === "REOPENED") {
-                await putMeter(m);
-                continue;
-            }
+    if (m.Status === "REOPENED") {
+        await putMeter(m);
+        continue;
+}
 
-            //----------------------------------
-            // master berubah
-            //----------------------------------
+    //----------------------------------
+    // master berubah
+    //----------------------------------
 
-            Object.assign(local, m);
+    Object.assign(local, m);
 
-            //----------------------------------
-            // reset data hasil input teknisi
-            //----------------------------------
-            resetMeterReading(local);
+    //----------------------------------
+    // reset data hasil input teknisi
+    //----------------------------------
+    resetMeterReading(local);
 
-            await putMeter(
-                normalizeMeter(local)
-            );
+    await putMeter(
+        normalizeMeter(local)
+    );
 
-        }
+}
 
-        // ===============================
-        // DELTA - DELETE
-        // ===============================
+    // ===============================
+    // DELTA - DELETE
+    // ===============================
 
-        for (const d of deletes) {
+for (const d of deletes) {
 
-            const local = await getMeterByKey(
-                d.CompanyID,
-                d.LocationID,
-                d.Type,
-                d.MeterNo
-            );
+    const local = await getMeterByKey(
+        d.CompanyID,
+        d.LocationID,
+        d.Type,
+        d.MeterNo
+    );
 
-            if (!local)
-                continue;
+    if (!local)
+        continue;
 
-            //----------------------------------
-            // draft jangan dihapus
-            //----------------------------------
+    //----------------------------------
+    // draft jangan dihapus
+    //----------------------------------
 
-            if (local.Status == "DRAFT") {
-                markMeterTerminated(local);
-                await putMeter(local);
-                continue;
-            }
+    if (local.Status == "DRAFT") {
+        markMeterTerminated(local);
+        await putMeter(local);
+        continue;
+}
 
-            //----------------------------------
-            // selain draft boleh delete
-            //----------------------------------
+    //----------------------------------
+    // selain draft boleh delete
+    //----------------------------------
 
-            await deleteMeterByKey(
-                d.CompanyID,
-                d.LocationID,
-                d.Type,
-                d.MeterNo,
-                d.Period
-            );
+    await deleteMeterByKey(
+        d.CompanyID,
+        d.LocationID,
+        d.Type,
+        d.MeterNo,
+        d.Period
+    );
 
-        }
+}
 
-    }
+}
 
-    await refreshMeterUI();
+await refreshMeterUI();
 
 }
 function markMeterTerminated(m){
-    m.Status="ERROR";
-    m.Terminated=true;
-    m.SyncErrorCode="TERMINATED";
-    m.SyncErrorMessage=
-        "Meter has been terminated.";
-    return m;
+m.Status="ERROR";
+m.Terminated=true;
+m.SyncErrorCode="TERMINATED";
+m.SyncErrorMessage=
+"Meter has been terminated.";
+return m;
 }
 async function deleteAllMeterByType(type, keepDraft){
 
-    const login=getLoginData();
+const login=getLoginData();
 
-    const [companyId,locationId]=login.curcompany.split(";");
+const [companyId,locationId]=login.curcompany.split(";");
 
-    return new Promise((resolve,reject)=>{
+return new Promise((resolve,reject)=>{
 
-        const tx=db.transaction("meter","readwrite");
-        const store=tx.objectStore("meter");
+const tx=db.transaction("meter","readwrite");
+const store=tx.objectStore("meter");
 
-        const index=store.index("by_company_location");
+const index=store.index("by_company_location");
 
-        const req=index.openCursor(
-            IDBKeyRange.only([companyId,locationId])
-        );
+const req=index.openCursor(
+    IDBKeyRange.only([companyId,locationId])
+);
 
-        req.onsuccess=function(e){
+req.onsuccess=function(e){
 
-            const cursor=e.target.result;
+    const cursor=e.target.result;
 
-            if(!cursor){
-                return;
-            }
+    if(!cursor){
+        return;
+}
 
-            if(cursor.value.Type!=type){
-                cursor.continue();
-                return;
-            }
+    if(cursor.value.Type!=type){
+        cursor.continue();
+        return;
+}
 
-            if(
-                keepDraft &&
-                cursor.value.Status=="DRAFT"
-            ){
-                cursor.continue();
-                return;
-            }
+    if(
+        keepDraft &&
+        cursor.value.Status=="DRAFT"
+    ){
+        cursor.continue();
+        return;
+}
 
-            cursor.delete();
-            cursor.continue();
+    cursor.delete();
+    cursor.continue();
 
-        };
+};
 
-        tx.oncomplete=()=>resolve();
+tx.oncomplete=()=>resolve();
 
-        tx.onerror=e=>reject(e.target.error);
+tx.onerror=e=>reject(e.target.error);
 
-    });
+});
 
 }
 function resetMeterReading(m){
@@ -1755,36 +1755,36 @@ function resetMeterReading(m){
 function putMeter(data) {
     return new Promise((resolve, reject) => {
         const tx = db.transaction(["meter"], "readwrite");
-        const store = tx.objectStore("meter");
-        const req = store.put(data);
+    const store = tx.objectStore("meter");
+    const req = store.put(data);
 
-        req.onsuccess = () => resolve();
-        req.onerror = e => reject(e.target.error);
-    });
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+});
 }
 
 function getMeterByKey(companyId, locationId, type, meterNo) {
     return new Promise((resolve, reject) => {
         const tx = db.transaction(["meter"], "readonly");
-        const store = tx.objectStore("meter");
+    const store = tx.objectStore("meter");
 
-        const req = store.get([companyId, locationId, type, meterNo]);
+    const req = store.get([companyId, locationId, type, meterNo]);
 
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = e => reject(e.target.error);
-    });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+});
 }
 
 function deleteMeterByKey(companyId, locationId, type, meterNo, period) {
     return new Promise((resolve, reject) => {
         const tx = db.transaction(["meter"], "readwrite");
-        const store = tx.objectStore("meter");
+    const store = tx.objectStore("meter");
 
-        const req = store.delete([companyId, locationId, type, meterNo, period]);
+    const req = store.delete([companyId, locationId, type, meterNo, period]);
 
-        req.onsuccess = () => resolve();
-        req.onerror = e => reject(e.target.error);
-    });
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+});
 }
 async function downloadWorkOrder() {
     let data = getLoginData();
@@ -1830,255 +1830,255 @@ async function downloadWorkOrder() {
                 let getRequest = storeWO.get(wo.KeyHD);
                 getRequest.onsuccess = function(event) {
                     let existingData = event.target.result;
-                    // if (existingData && existingData.Status != "SYNCED" && 
-                    //                      wo.Status === "PENDING") {
+            // if (existingData && existingData.Status != "SYNCED" && 
+            //                      wo.Status === "PENDING") {
                     if (existingData && (
                         wo.Status === "PENDING" ||
                         existingData.Status === "DRAFT" ||
                         existingData.Status === "DONE"
                     )) {
-                        // Never overwrite an unsynced local draft/completion with server refresh data.
+            // Never overwrite an unsynced local draft/completion with server refresh data.
                         resolve();
                         return;
-                    }
-                    // if (existingData && wo.StatusSPV != "" && 
-                    //     existingData.StatusSPV != "") {
-                    //     resolve();
-                    //     return;
-                    // }
-                    // if (existingData && existingData.Status === "" && wo.Status != "" && existingData.StatusSPV != "") {
-                    //     resolve();
-                    //     return;
-                    // }
+        }
+            // if (existingData && wo.StatusSPV != "" && 
+            //     existingData.StatusSPV != "") {
+            //     resolve();
+            //     return;
+            // }
+            // if (existingData && existingData.Status === "" && wo.Status != "" && existingData.StatusSPV != "") {
+            //     resolve();
+            //     return;
+            // }
 
 
                     let putRequest = storeWO.put({
-                        KeyHD: wo.KeyHD,
-                        CompanyID: wo.CompanyID,
-                        LocationID: wo.LocationID,
-                        WONo: wo.WONo,
-                        WODate: wo.WODate,
-                        EquipmentCode: wo.EquipmentCode,
-                        LocationNo: wo.LocationNo,
-                        Description: wo.Description,
-                        Status: wo.Status,
-                        TemplateWOPM: wo.TemplateWOPM,
-                        ReasonVoid: wo.ReasonVoid, 
-                        IsCompleteDC: wo.IsCompleteDC,
-                        IsSampling: wo.IsSampling,
-                        TemplateJSON: wo.TemplateJSON,
-                        DataCheckListJSON: wo.DataCheckListJSON,
-                        DataPhotoJSON: wo.DataPhotoJSON,
-                        EmployeeJSON: wo.EmployeeJSON,
-                        SectionID: wo.SectionID,
-                        LastUpdated: wo.LastUpdated,
-                        StatusSPV: "",
-                        ActionSPV: "",
-                        // Preserve offline ownership when refreshing server WO data.
-                        InspectionOwnerID: (existingData && existingData.InspectionOwnerID) || "",
-                        SupervisorActionOwnerID: (existingData && existingData.SupervisorActionOwnerID) || "",
-                        ModelCode: wo.ModelCode
-                    });
+            KeyHD: wo.KeyHD,
+            CompanyID: wo.CompanyID,
+            LocationID: wo.LocationID,
+            WONo: wo.WONo,
+            WODate: wo.WODate,
+            EquipmentCode: wo.EquipmentCode,
+            LocationNo: wo.LocationNo,
+            Description: wo.Description,
+            Status: wo.Status,
+            TemplateWOPM: wo.TemplateWOPM,
+            ReasonVoid: wo.ReasonVoid, 
+            IsCompleteDC: wo.IsCompleteDC,
+            IsSampling: wo.IsSampling,
+            TemplateJSON: wo.TemplateJSON,
+            DataCheckListJSON: wo.DataCheckListJSON,
+            DataPhotoJSON: wo.DataPhotoJSON,
+            EmployeeJSON: wo.EmployeeJSON,
+            SectionID: wo.SectionID,
+            LastUpdated: wo.LastUpdated,
+            StatusSPV: "",
+            ActionSPV: "",
+            // Preserve offline ownership when refreshing server WO data.
+            InspectionOwnerID: (existingData && existingData.InspectionOwnerID) || "",
+            SupervisorActionOwnerID: (existingData && existingData.SupervisorActionOwnerID) || "",
+            ModelCode: wo.ModelCode
+        });
 
                     putRequest.onsuccess = () => resolve();
                     putRequest.onerror = (e) => reject(e.target.error);
-                };
+        };
                 getRequest.onerror = (e) => reject(e.target.error);
-            });
-        }
+    });
+}
 
-        // Protect locally edited/completed WOs from all server-side cache refreshes.
-        // The header may already be protected above, but checklist and photo stores
-        // must be protected separately because uploadPendingWO reads those stores.
-        const protectedLocalKeys = await new Promise((resolve, reject) => {
-            const tx = db.transaction("workorder", "readonly");
-            const req = tx.objectStore("workorder").getAll();
-            req.onsuccess = () => resolve(new Set((req.result || [])
-                .filter(localWO => localWO.Status === "DRAFT" || localWO.Status === "DONE")
-                .map(localWO => Number(localWO.KeyHD))));
-            req.onerror = () => reject(req.error);
-        });
+// Protect locally edited/completed WOs from all server-side cache refreshes.
+// The header may already be protected above, but checklist and photo stores
+// must be protected separately because uploadPendingWO reads those stores.
+const protectedLocalKeys = await new Promise((resolve, reject) => {
+    const tx = db.transaction("workorder", "readonly");
+const req = tx.objectStore("workorder").getAll();
+req.onsuccess = () => resolve(new Set((req.result || [])
+    .filter(localWO => localWO.Status === "DRAFT" || localWO.Status === "DONE")
+    .map(localWO => Number(localWO.KeyHD))));
+req.onerror = () => reject(req.error);
+});
 
-        // =================================================================
-        // PROSES 2: PROSES FOTO (KHUSUS SPV)
-        // =================================================================
-        if (appFeatures.canApproveWorkOrder || appFeatures.canMyWorkOrder) {
-            for (let wo of workorders) {
-                let photoData = wo.DataPhotoJSON; 
-                if (!photoData) continue;
+// =================================================================
+// PROSES 2: PROSES FOTO (KHUSUS SPV)
+// =================================================================
+if (appFeatures.canApproveWorkOrder || appFeatures.canMyWorkOrder) {
+    for (let wo of workorders) {
+        let photoData = wo.DataPhotoJSON; 
+        if (!photoData) continue;
 
-                let keyHD = photoData.KeyHD;
-                if (protectedLocalKeys.has(Number(keyHD))) continue;
-                let tasks = [];
-                if (photoData.PhotoBefore) {
-                    photoData.PhotoBefore.forEach(p => tasks.push({ item: p, type: "BEFORE" }));
-                }
-                if (photoData.PhotoAfter) {
-                    photoData.PhotoAfter.forEach(p => tasks.push({ item: p, type: "AFTER" }));
-                }
+        let keyHD = photoData.KeyHD;
+        if (protectedLocalKeys.has(Number(keyHD))) continue;
+        let tasks = [];
+        if (photoData.PhotoBefore) {
+            photoData.PhotoBefore.forEach(p => tasks.push({ item: p, type: "BEFORE" }));
+}
+if (photoData.PhotoAfter) {
+    photoData.PhotoAfter.forEach(p => tasks.push({ item: p, type: "AFTER" }));
+}
 
-                for (let task of tasks) {
-                    let item = task.item;
-                    let type = task.type;
+for (let task of tasks) {
+    let item = task.item;
+    let type = task.type;
 
-                    // Cek duplikasi dengan transaksi jangka pendek
-                    // let isDuplicate = await new Promise((resolve) => {
-                    //     let txCheck = db.transaction(["wo_photos"], "readonly");
-                    //     let storeCheck = txCheck.objectStore("wo_photos");
-                    //     let index = storeCheck.index("compositeKey");
-                    //     let req = index.get([keyHD, type, item.SeqNo]);
-                    //     req.onsuccess = () => resolve(req.result !== undefined);
-                    //     req.onerror = () => resolve(false);
-                    // });
-                    let isDuplicate = await new Promise((resolve) => {
-                        let txCheck = db.transaction(["wo_photos"], "readonly");
-                        let storeCheck = txCheck.objectStore("wo_photos");
+    // Cek duplikasi dengan transaksi jangka pendek
+    // let isDuplicate = await new Promise((resolve) => {
+    //     let txCheck = db.transaction(["wo_photos"], "readonly");
+    //     let storeCheck = txCheck.objectStore("wo_photos");
+    //     let index = storeCheck.index("compositeKey");
+    //     let req = index.get([keyHD, type, item.SeqNo]);
+    //     req.onsuccess = () => resolve(req.result !== undefined);
+    //     req.onerror = () => resolve(false);
+    // });
+    let isDuplicate = await new Promise((resolve) => {
+        let txCheck = db.transaction(["wo_photos"], "readonly");
+        let storeCheck = txCheck.objectStore("wo_photos");
                         
-                        // Asumsi Anda punya index biasa bernama "KeyHD"
-                        let index = storeCheck.index("KeyHD"); 
-                        let request = index.openCursor(IDBKeyRange.only(keyHD));
+    // Asumsi Anda punya index biasa bernama "KeyHD"
+        let index = storeCheck.index("KeyHD"); 
+        let request = index.openCursor(IDBKeyRange.only(keyHD));
 
-                        let found = false;
-                        request.onsuccess = function(event) {
-                            let cursor = event.target.result;
-                            if (cursor) {
-                                let data = cursor.value;
-                                // Cocokkan manual di JavaScript
-                                if (data.Type === type && data.OrderNo === item.SeqNo) {
-                                    found = true;
-                                    resolve(true); // Ketemu duplikat, stop pencarian
-                                    return;
-                                }
-                                cursor.continue();
-                            } else {
-                                if (!found) resolve(false); // Sampai data habis tidak ketemu
-                            }
-                        };
-                        request.onerror = () => resolve(false);
-                    });
+        let found = false;
+        request.onsuccess = function(event) {
+            let cursor = event.target.result;
+            if (cursor) {
+                let data = cursor.value;
+    // Cocokkan manual di JavaScript
+                if (data.Type === type && data.OrderNo === item.SeqNo) {
+                    found = true;
+                    resolve(true); // Ketemu duplikat, stop pencarian
+                    return;
+}
+                cursor.continue();
+} else {
+                if (!found) resolve(false); // Sampai data habis tidak ketemu
+}
+};
+        request.onerror = () => resolve(false);
+});
 
-                    if (isDuplicate) continue;
+if (isDuplicate) continue;
 
-                    // Download di luar transaksi agar aman
-                    let blob = await urlToBlob(item.imgSrc);
-                    if (!blob) continue; 
+// Download di luar transaksi agar aman
+let blob = await urlToBlob(item.imgSrc);
+if (!blob) continue; 
 
-                    // Simpan dengan transaksi baru yang segar
-                    try {
-                        await new Promise((resolve, reject) => {
-                            let txWrite = db.transaction(["wo_photos"], "readwrite");
-                            let storeWrite = txWrite.objectStore("wo_photos");
-                            let req = storeWrite.put({
-                                KeyHD: keyHD,
-                                Type: type,         
-                                Blob: blob,         
-                                OrderNo: item.SeqNo,
-                                FileName: item.FileName || "" 
-                            });
-                            req.onsuccess = () => resolve();
-                            req.onerror = (e) => reject(e.target.error);
-                        });
-                    } catch (err) {
-                        console.error("Gagal simpan foto:", err);
-                    }
-                }
-            }
+// Simpan dengan transaksi baru yang segar
+try {
+    await new Promise((resolve, reject) => {
+        let txWrite = db.transaction(["wo_photos"], "readwrite");
+    let storeWrite = txWrite.objectStore("wo_photos");
+    let req = storeWrite.put({
+        KeyHD: keyHD,
+        Type: type,         
+        Blob: blob,         
+        OrderNo: item.SeqNo,
+        FileName: item.FileName || "" 
+    });
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.target.error);
+});
+} catch (err) {
+    console.error("Gagal simpan foto:", err);
+}
+}
+}
 
-            // =================================================================
-            // PROSES 3: TIMPA DATA CHECKLIST
-            // =================================================================
-            for (let wo of workorders) {
-                let checkListData = wo.DataCheckListJSON; 
-                if (!checkListData) continue;
-                if (protectedLocalKeys.has(Number(checkListData.KeyHD))) continue;
+// =================================================================
+// PROSES 3: TIMPA DATA CHECKLIST
+// =================================================================
+for (let wo of workorders) {
+    let checkListData = wo.DataCheckListJSON; 
+    if (!checkListData) continue;
+    if (protectedLocalKeys.has(Number(checkListData.KeyHD))) continue;
 
-                try {
-                    await new Promise((resolve, reject) => {
-                        let txChk = db.transaction(["wo_checklist"], "readwrite");
-                        let storeChk = txChk.objectStore("wo_checklist");
-                        let req = storeChk.put({
-                            KeyHD: checkListData.KeyHD,
-                            FollowUp: checkListData.FollowUp,
-                            FollowUpSection: checkListData.FollowUpSection,
-                            FollowUpRemark: checkListData.FollowUpRemark,
-                            Summary: checkListData.Summary,
-                            Items: checkListData.Items,
-                            RemarkSPV: checkListData.RemarkSPV,
-                            StartTime: checkListData.StartTime ?? "",
-                            EndTime: checkListData.EndTime ?? ""
-                        });
-                        req.onsuccess = () => resolve();
-                        req.onerror = (e) => reject(e.target.error);
-                    });
-                } catch (err) {
-                    console.error("Gagal simpan checklist:", err);
-                }
-            }
-        }
-
-        // =================================================================
-        // PROSES 4: CLEANUP / DELETE LOCAL YANG TIDAK ADA DI SERVER
-        // =================================================================
+    try {
         await new Promise((resolve, reject) => {
-            // Buka transaksi untuk ketiga store sekaligus agar bisa didelete bersamaan
-            let txClean = db.transaction(["workorder", "wo_checklist", "wo_photos"], "readwrite");
+            let txChk = db.transaction(["wo_checklist"], "readwrite");
+            let storeChk = txChk.objectStore("wo_checklist");
+            let req = storeChk.put({
+    KeyHD: checkListData.KeyHD,
+    FollowUp: checkListData.FollowUp,
+    FollowUpSection: checkListData.FollowUpSection,
+    FollowUpRemark: checkListData.FollowUpRemark,
+    Summary: checkListData.Summary,
+    Items: checkListData.Items,
+    RemarkSPV: checkListData.RemarkSPV,
+    StartTime: checkListData.StartTime ?? "",
+    EndTime: checkListData.EndTime ?? ""
+});
+            req.onsuccess = () => resolve();
+            req.onerror = (e) => reject(e.target.error);
+});
+} catch (err) {
+        console.error("Gagal simpan checklist:", err);
+}
+}
+}
+
+    // =================================================================
+    // PROSES 4: CLEANUP / DELETE LOCAL YANG TIDAK ADA DI SERVER
+    // =================================================================
+await new Promise((resolve, reject) => {
+    // Buka transaksi untuk ketiga store sekaligus agar bisa didelete bersamaan
+let txClean = db.transaction(["workorder", "wo_checklist", "wo_photos"], "readwrite");
             
-            let storeWO = txClean.objectStore("workorder");
-            let storeChk = txClean.objectStore("wo_checklist");
-            let storePhoto = txClean.objectStore("wo_photos");
+let storeWO = txClean.objectStore("workorder");
+let storeChk = txClean.objectStore("wo_checklist");
+let storePhoto = txClean.objectStore("wo_photos");
 
-            let requestAll = storeWO.getAll();
+let requestAll = storeWO.getAll();
 
-            requestAll.onsuccess = function () {
-                let cutoff = new Date();
-                cutoff.setDate(cutoff.getDate() - 7);           
-                let localList = requestAll.result;
-                let keysToDelete = [];
+requestAll.onsuccess = function () {
+    let cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);           
+    let localList = requestAll.result;
+    let keysToDelete = [];
 
-                // 1. Filter KeyHD mana saja yang memenuhi syarat hapus
-                localList.forEach(localWO => {
-                    let key = localWO.KeyHD;
-                    let lastDate = new Date(localWO.LastUpdated);
-                    if (!serverKeys.has(key) && localWO.Status === 'SYNCED' && lastDate < cutoff) {
-                        keysToDelete.push(key);
-                    }
-                });
+    // 1. Filter KeyHD mana saja yang memenuhi syarat hapus
+    localList.forEach(localWO => {
+        let key = localWO.KeyHD;
+        let lastDate = new Date(localWO.LastUpdated);
+        if (!serverKeys.has(key) && localWO.Status === 'SYNCED' && lastDate < cutoff) {
+            keysToDelete.push(key);
+}
+});
 
-                // 2. Eksekusi penghapusan di semua store terkait
-                keysToDelete.forEach(key => {
-                    // Hapus dari store utama
-                    storeWO.delete(key);
+// 2. Eksekusi penghapusan di semua store terkait
+keysToDelete.forEach(key => {
+    // Hapus dari store utama
+    storeWO.delete(key);
                     
-                    // Hapus dari store checklist (berdasarkan Primary Key: KeyHD)
-                    storeChk.delete(key);
+// Hapus dari store checklist (berdasarkan Primary Key: KeyHD)
+storeChk.delete(key);
 
-                    let indexKeyHD = storePhoto.index("KeyHD"); 
-                    indexKeyHD.openCursor(IDBKeyRange.only(key)).onsuccess = function(event) {
-                        let cursor = event.target.result;
-                        if (cursor) {
-                            cursor.delete();
-                            cursor.continue();
-                        }
-                    };
-                    
-                    console.log(`Cleanup berhasil untuk KeyHD: ${key} (WorkOrder, Checklist, & Photos)`);
-                });
-            };
-
-            txClean.oncomplete = () => resolve();
-            txClean.onerror = (event) => reject(event.target.error);
-        });
-
-        // =================================================================
-        // PROSES Selesai
-        // =================================================================
-        updateSyncProgress(1, 1, "Download WorkOrder Done");
-        data.lastsyncw = newLastSync;
-        setLoginData(data);
-
-    } catch (err) {
-        console.error("downloadWorkOrders error:", err);
+let indexKeyHD = storePhoto.index("KeyHD"); 
+indexKeyHD.openCursor(IDBKeyRange.only(key)).onsuccess = function(event) {
+    let cursor = event.target.result;
+    if (cursor) {
+        cursor.delete();
+        cursor.continue();
     }
+};
+                    
+console.log(`Cleanup berhasil untuk KeyHD: ${key} (WorkOrder, Checklist, & Photos)`);
+});
+};
+
+txClean.oncomplete = () => resolve();
+txClean.onerror = (event) => reject(event.target.error);
+});
+
+// =================================================================
+// PROSES Selesai
+// =================================================================
+updateSyncProgress(1, 1, "Download WorkOrder Done");
+data.lastsyncw = newLastSync;
+setLoginData(data);
+
+} catch (err) {
+    console.error("downloadWorkOrders error:", err);
+}
 }
 async function uploadPendingWO() {
     const login = getLoginData();
@@ -2092,48 +2092,48 @@ async function uploadPendingWO() {
     // Retry cleanup for server-confirmed WO uploads left behind by a prior local cleanup interruption.
     const previouslySynced = await new Promise((resolve, reject) => {
         const tx = db.transaction("workorder", "readonly");
-        const req = tx.objectStore("workorder").getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-    });
-    for (const item of previouslySynced.filter(x => x.SyncStatus === "SYNCED" &&
-        x.CompanyID === companyId && x.LocationID === locationId && allowedSections.includes(x.SectionID))) {
-        await cleanupConfirmedSyncedWO(item);
-    }
+    const req = tx.objectStore("workorder").getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+});
+for (const item of previouslySynced.filter(x => x.SyncStatus === "SYNCED" &&
+    x.CompanyID === companyId && x.LocationID === locationId && allowedSections.includes(x.SectionID))) {
+    await cleanupConfirmedSyncedWO(item);
+}
 
-    const allLocal = await new Promise((resolve, reject) => {
-        const tx = db.transaction("workorder", "readonly");
-        const req = tx.objectStore("workorder").getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-    });
+const allLocal = await new Promise((resolve, reject) => {
+    const tx = db.transaction("workorder", "readonly");
+    const req = tx.objectStore("workorder").getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+});
 
-    const pendingInCompany = allLocal.filter(x =>
-        (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
-        x.SyncStatus !== "SYNCED" &&
-        x.CompanyID === companyId &&
-        x.LocationID === locationId
-    );
-    const pending = pendingInCompany.filter(x => allowedSections.includes(x.SectionID));
+const pendingInCompany = allLocal.filter(x =>
+    (x.Status === "DONE" || x.StatusSPV === "PENDING") &&
+    x.SyncStatus !== "SYNCED" &&
+    x.CompanyID === companyId &&
+    x.LocationID === locationId
+);
+const pending = pendingInCompany.filter(x => allowedSections.includes(x.SectionID));
 
-    if (pendingInCompany.length > pending.length) {
-        showToast("Ada WO offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
-    }
+if (pendingInCompany.length > pending.length) {
+    showToast("Ada WO offline dari section lain di perangkat ini. Data tersebut tetap disimpan dan tidak dikirim oleh login ini.", "warning");
+}
 
-    const eligible = pending.filter(x => {
-        if (x.Status === "DONE") {
-            return !!login.employeeid && x.InspectionOwnerID === login.employeeid;
-        }
-        if (x.StatusSPV === "PENDING") {
-            return !!login.employeeid && x.SupervisorActionOwnerID === login.employeeid;
-        }
-        return false;
-    });
+const eligible = pending.filter(x => {
+    if (x.Status === "DONE") {
+        return !!login.employeeid && x.InspectionOwnerID === login.employeeid;
+}
+    if (x.StatusSPV === "PENDING") {
+        return !!login.employeeid && x.SupervisorActionOwnerID === login.employeeid;
+}
+    return false;
+});
 
-    if (pending.length > eligible.length) {
-        showToast("Ada WO offline milik teknisi lain atau belum memiliki pemilik. Data tersebut tidak dikirim; login dengan akun pemilik untuk sync.", "warning");
-    }
-    if (!eligible.length) return;
+if (pending.length > eligible.length) {
+    showToast("Ada WO offline milik teknisi lain atau belum memiliki pemilik. Data tersebut tidak dikirim; login dengan akun pemilik untuk sync.", "warning");
+}
+if (!eligible.length) return;
 
     /*
      * spUTL_WO_CheckList determines its mode for the WHOLE request:
@@ -2141,228 +2141,228 @@ async function uploadPendingWO() {
      * Never mix these two categories in one request, or a combined-role login could
      * accidentally submit an SPV action through the technician branch (or vice versa).
      */
-    const technicianWOs = eligible.filter(x => x.Status === "DONE");
-    const supervisorWOs = eligible.filter(x => x.Status !== "DONE" && x.StatusSPV === "PENDING");
+const technicianWOs = eligible.filter(x => x.Status === "DONE");
+const supervisorWOs = eligible.filter(x => x.Status !== "DONE" && x.StatusSPV === "PENDING");
 
-    if (technicianWOs.length) {
-        await uploadWOGroup(technicianWOs, "TECHNICIAN");
-    }
-    if (supervisorWOs.length) {
-        await uploadWOGroup(supervisorWOs, "SUPERVISOR");
-    }
+if (technicianWOs.length) {
+    await uploadWOGroup(technicianWOs, "TECHNICIAN");
+}
+if (supervisorWOs.length) {
+    await uploadWOGroup(supervisorWOs, "SUPERVISOR");
+}
 }
 
 async function uploadWOGroup(workOrders, mode) {
-    const login = getLoginData();
-    if (!login || !workOrders || !workOrders.length) return;
+const login = getLoginData();
+if (!login || !workOrders || !workOrders.length) return;
 
-    const rawItems = [];
-    for (const wo of workOrders) {
-        const checklist = await new Promise((resolve, reject) => {
-            const tx = db.transaction("wo_checklist", "readonly");
-            const req = tx.objectStore("wo_checklist").get(wo.KeyHD);
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
+const rawItems = [];
+for (const wo of workOrders) {
+    const checklist = await new Promise((resolve, reject) => {
+        const tx = db.transaction("wo_checklist", "readonly");
+        const req = tx.objectStore("wo_checklist").get(wo.KeyHD);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+});
 
-        if (!checklist || !Array.isArray(checklist.Items)) {
-            showToast("WO " + (wo.WONo || wo.KeyHD) + " belum memiliki data checklist lokal. Data tetap tersimpan dan tidak di-upload.", "warning");
-            continue;
-        }
-        if (mode === "TECHNICIAN" && checklist.Items.length === 0) {
-            // The stored procedure infers SPV mode when the entire checklist table is empty.
-            // Do not let an empty technician payload be misinterpreted as an SPV action.
-            showToast("WO " + (wo.WONo || wo.KeyHD) + " tidak memiliki item checklist. Data tetap pending untuk diperiksa.", "warning");
-            continue;
-        }
-        rawItems.push({ wo, checklist });
-    }
-    if (!rawItems.length) return;
+if (!checklist || !Array.isArray(checklist.Items)) {
+    showToast("WO " + (wo.WONo || wo.KeyHD) + " belum memiliki data checklist lokal. Data tetap tersimpan dan tidak di-upload.", "warning");
+    continue;
+}
+if (mode === "TECHNICIAN" && checklist.Items.length === 0) {
+    // The stored procedure infers SPV mode when the entire checklist table is empty.
+    // Do not let an empty technician payload be misinterpreted as an SPV action.
+    showToast("WO " + (wo.WONo || wo.KeyHD) + " tidak memiliki item checklist. Data tetap pending untuk diperiksa.", "warning");
+    continue;
+}
+rawItems.push({ wo, checklist });
+}
+if (!rawItems.length) return;
 
-    const prepared = [];
-    for (const itemData of rawItems) {
-        const wo = itemData.wo;
-        const data = itemData.checklist;
-        const itemPayload = {
-            wo,
-            checklists: [],
-            checklistgroups: [],
-            checklistsummarys: [{
-                KeyHD: wo.KeyHD,
-                Summary: data.Summary || "",
-                FollowUp: data.FollowUp || "",
-                RemarkSPV: data.RemarkSPV || "",
-                // Only supervisor batches may carry an SPV action; a stale field on a technician WO must not change server authorization mode.
-                ActionSPV: mode === "SUPERVISOR" ? (wo.ActionSPV || "") : "",
-                Reason: wo.ReasonVoid || "",
-                FollowUpSection: data.FollowUpSection || "",
-                FollowUpRemark: data.FollowUpRemark || "",
-                StartTime: data.StartTime || "",
-                EndTime: data.EndTime || ""
-            }],
-            photos: []
-        };
+const prepared = [];
+for (const itemData of rawItems) {
+    const wo = itemData.wo;
+    const data = itemData.checklist;
+    const itemPayload = {
+        wo,
+    checklists: [],
+    checklistgroups: [],
+    checklistsummarys: [{
+    KeyHD: wo.KeyHD,
+    Summary: data.Summary || "",
+    FollowUp: data.FollowUp || "",
+    RemarkSPV: data.RemarkSPV || "",
+    // Only supervisor batches may carry an SPV action; a stale field on a technician WO must not change server authorization mode.
+    ActionSPV: mode === "SUPERVISOR" ? (wo.ActionSPV || "") : "",
+    Reason: wo.ReasonVoid || "",
+    FollowUpSection: data.FollowUpSection || "",
+    FollowUpRemark: data.FollowUpRemark || "",
+    StartTime: data.StartTime || "",
+    EndTime: data.EndTime || ""
+}],
+    photos: []
+};
 
-        if (mode === "TECHNICIAN") {
-            for (const item of (data.Items || [])) {
-                itemPayload.checklists.push({
-                    KeyHD: data.KeyHD,
-                    IDItem: item.IDItem,
-                    Value: item.Value || "",
-                    Remark: item.Remark || item.Remark1 || "",
-                    Remark1: item.Remark1 == null ? (item.Remark || "") : item.Remark1,
-                    Remark2: item.Remark2 || "",
-                    IsAnomali: item.IsAnomali || false
-                });
-                if (item.Type === "GROUP" && item.Values) {
-                    for (const key in item.Values) {
-                        itemPayload.checklistgroups.push({
-                            KeyHD: data.KeyHD,
-                            IDItem: item.IDItem,
-                            FieldName: key,
-                            Value: item.Values[key]
-                        });
-                    }
-                }
-            }
+    if (mode === "TECHNICIAN") {
+        for (const item of (data.Items || [])) {
+            itemPayload.checklists.push({
+    KeyHD: data.KeyHD,
+    IDItem: item.IDItem,
+    Value: item.Value || "",
+    Remark: item.Remark || item.Remark1 || "",
+    Remark1: item.Remark1 == null ? (item.Remark || "") : item.Remark1,
+    Remark2: item.Remark2 || "",
+    IsAnomali: item.IsAnomali || false
+});
+            if (item.Type === "GROUP" && item.Values) {
+                for (const key in item.Values) {
+                    itemPayload.checklistgroups.push({
+    KeyHD: data.KeyHD,
+    IDItem: item.IDItem,
+    FieldName: key,
+    Value: item.Values[key]
+});
+}
+}
+}
 
-            const requirementValue = String((wo.TemplateJSON && wo.TemplateJSON.PhotoRequirement) || "BOTH").toUpperCase();
-            const photoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
-            let before = photoRequirement === "BEFORE" || photoRequirement === "BOTH"
-                ? await getPhotosByWO(wo.KeyHD, "BEFORE") : [];
-            let after = photoRequirement === "AFTER" || photoRequirement === "BOTH"
-                ? await getPhotosByWO(wo.KeyHD, "AFTER") : [];
-            before = await convertPhotosToBase64(before);
-            after = await convertPhotosToBase64(after);
-            before.forEach(photo => itemPayload.photos.push({
-                KeyHD: wo.KeyHD, Type: "WO1", FileName: photo.FileName,
-                OrderNo: photo.OrderNo, Base64: photo.Base64
-            }));
-            after.forEach(photo => itemPayload.photos.push({
-                KeyHD: wo.KeyHD, Type: "WO2", FileName: photo.FileName,
-                OrderNo: photo.OrderNo, Base64: photo.Base64
-            }));
-        } else {
-            let sampling = await getPhotosByWO(wo.KeyHD, "SAMPLING");
-            sampling = await convertPhotosToBase64(sampling);
-            sampling.forEach(photo => itemPayload.photos.push({
-                KeyHD: wo.KeyHD, Type: "WO3", FileName: photo.FileName,
-                OrderNo: photo.OrderNo, Base64: photo.Base64
-            }));
-        }
-        prepared.push(itemPayload);
-    }
-    if (!prepared.length) return;
+        const requirementValue = String((wo.TemplateJSON && wo.TemplateJSON.PhotoRequirement) || "BOTH").toUpperCase();
+        const photoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
+        let before = photoRequirement === "BEFORE" || photoRequirement === "BOTH"
+            ? await getPhotosByWO(wo.KeyHD, "BEFORE") : [];
+        let after = photoRequirement === "AFTER" || photoRequirement === "BOTH"
+            ? await getPhotosByWO(wo.KeyHD, "AFTER") : [];
+        before = await convertPhotosToBase64(before);
+        after = await convertPhotosToBase64(after);
+        before.forEach(photo => itemPayload.photos.push({
+    KeyHD: wo.KeyHD, Type: "WO1", FileName: photo.FileName,
+    OrderNo: photo.OrderNo, Base64: photo.Base64
+}));
+        after.forEach(photo => itemPayload.photos.push({
+    KeyHD: wo.KeyHD, Type: "WO2", FileName: photo.FileName,
+    OrderNo: photo.OrderNo, Base64: photo.Base64
+}));
+} else {
+        let sampling = await getPhotosByWO(wo.KeyHD, "SAMPLING");
+        sampling = await convertPhotosToBase64(sampling);
+        sampling.forEach(photo => itemPayload.photos.push({
+    KeyHD: wo.KeyHD, Type: "WO3", FileName: photo.FileName,
+    OrderNo: photo.OrderNo, Base64: photo.Base64
+}));
+}
+    prepared.push(itemPayload);
+}
+if (!prepared.length) return;
 
     // Keep requests conservatively below common IIS/ASP.NET request-size limits.
     // Each batch contains whole WOs, so checklist/photo/summary rows never split across requests.
-    const maxRequestChars = 1800000;
-    const batches = [];
-    let batch = [];
-    const payloadFor = items => ({
-        checklists: items.flatMap(x => x.checklists),
-        checklistgroups: items.flatMap(x => x.checklistgroups),
-        photos: items.flatMap(x => x.photos),
-        userid: login.employeeid,
-        companyLocation: login.curcompany || "",
-        checklistsummarys: items.flatMap(x => x.checklistsummarys)
-    });
+const maxRequestChars = 1800000;
+const batches = [];
+let batch = [];
+const payloadFor = items => ({
+    checklists: items.flatMap(x => x.checklists),
+    checklistgroups: items.flatMap(x => x.checklistgroups),
+    photos: items.flatMap(x => x.photos),
+    userid: login.employeeid,
+    companyLocation: login.curcompany || "",
+    checklistsummarys: items.flatMap(x => x.checklistsummarys)
+});
 
-    for (const item of prepared) {
-        const candidate = batch.concat([item]);
-        const candidateSize = JSON.stringify(payloadFor(candidate)).length;
-        if (batch.length && candidateSize > maxRequestChars) {
-            batches.push(batch);
-            batch = [item];
-        } else {
-            batch = candidate;
-        }
-    }
-    if (batch.length) batches.push(batch);
+for (const item of prepared) {
+    const candidate = batch.concat([item]);
+    const candidateSize = JSON.stringify(payloadFor(candidate)).length;
+    if (batch.length && candidateSize > maxRequestChars) {
+        batches.push(batch);
+        batch = [item];
+} else {
+        batch = candidate;
+}
+}
+if (batch.length) batches.push(batch);
 
-    let failedBatchCount = 0;
-    for (const batchItems of batches) {
-        const body = payloadFor(batchItems);
-        const bodyText = JSON.stringify(body);
-        if (bodyText.length > maxRequestChars) {
-            const labels = batchItems.map(x => x.wo.WONo || x.wo.KeyHD).join(", ");
-            failedBatchCount++;
-            showToast("Upload WO ditunda karena ukuran foto/data terlalu besar (" + labels + "). Data lokal tetap pending; kecilkan foto atau tinjau batas request server.", "warning");
-            continue;
-        }
+let failedBatchCount = 0;
+for (const batchItems of batches) {
+    const body = payloadFor(batchItems);
+    const bodyText = JSON.stringify(body);
+    if (bodyText.length > maxRequestChars) {
+        const labels = batchItems.map(x => x.wo.WONo || x.wo.KeyHD).join(", ");
+        failedBatchCount++;
+        showToast("Upload WO ditunda karena ukuran foto/data terlalu besar (" + labels + "). Data lokal tetap pending; kecilkan foto atau tinjau batas request server.", "warning");
+        continue;
+}
 
+    try {
+        const response = await fetch("workorder.aspx/SyncWO", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: bodyText
+});
+        const responseText = await response.text();
+        let envelope;
         try {
-            const response = await fetch("workorder.aspx/SyncWO", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: bodyText
-            });
-            const responseText = await response.text();
-            let envelope;
-            try {
-                envelope = JSON.parse(responseText);
-            } catch (_) {
-                throw new Error("Respons server bukan JSON (HTTP " + response.status + ").");
-            }
-            const result = envelope && envelope.d ? envelope.d : envelope;
-            if (!response.ok || !result || result.success !== true) {
-                throw new Error((result && result.message) || ("HTTP " + response.status));
-            }
+            envelope = JSON.parse(responseText);
+} catch (_) {
+            throw new Error("Respons server bukan JSON (HTTP " + response.status + ").");
+}
+        const result = envelope && envelope.d ? envelope.d : envelope;
+        if (!response.ok || !result || result.success !== true) {
+            throw new Error((result && result.message) || ("HTTP " + response.status));
+}
 
-            // Mark only the WOs in this confirmed-success batch. Failed batches remain retryable.
-            // Pass the upload mode so a concurrent company/owner change cannot mark another
-            // local record as synced merely because its server KeyHD matches.
-            for (const item of batchItems) {
-                await markWOSynced(item.wo, result.serverTime, mode);
-            }
-        } catch (ex) {
-            failedBatchCount++;
-            console.error("WO sync failed; this batch remains pending:", mode, batchItems.map(x => x.wo.KeyHD), ex);
-            showToast("Sync WO " + mode + " gagal. Data lokal tetap pending dan akan dicoba lagi. " + ex.message, "warning");
-        }
-    }
-    if (failedBatchCount) {
-        throw new Error(failedBatchCount + " batch WO gagal sync; data tersebut tetap tersimpan untuk dicoba lagi.");
-    }
+    // Mark only the WOs in this confirmed-success batch. Failed batches remain retryable.
+    // Pass the upload mode so a concurrent company/owner change cannot mark another
+    // local record as synced merely because its server KeyHD matches.
+        for (const item of batchItems) {
+            await markWOSynced(item.wo, result.serverTime, mode);
+}
+} catch (ex) {
+        failedBatchCount++;
+        console.error("WO sync failed; this batch remains pending:", mode, batchItems.map(x => x.wo.KeyHD), ex);
+        showToast("Sync WO " + mode + " gagal. Data lokal tetap pending dan akan dicoba lagi. " + ex.message, "warning");
+}
+}
+if (failedBatchCount) {
+    throw new Error(failedBatchCount + " batch WO gagal sync; data tersebut tetap tersimpan untuk dicoba lagi.");
+}
 }
 async function markWOSynced(wo, lastUpdate, mode) {
     // First persist the server-confirmed state. If local cleanup is interrupted,
     // the next Sync can clean this confirmed record without uploading it again.
-    await new Promise((resolve, reject) => {
-        const tx = db.transaction("workorder", "readwrite");
-        const store = tx.objectStore("workorder");
-        const getReq = store.get(wo.KeyHD);
-        getReq.onsuccess = function () {
-            const data = getReq.result;
-            if (!data) {
-                reject(new Error("WO lokal tidak ditemukan saat konfirmasi sync; status tidak diubah."));
-                return;
-            }
-            const sameScope = data.CompanyID === wo.CompanyID &&
-                data.LocationID === wo.LocationID && data.SectionID === wo.SectionID;
-            const sameOwner = mode === "TECHNICIAN"
-                ? data.InspectionOwnerID === wo.InspectionOwnerID
-                : data.SupervisorActionOwnerID === wo.SupervisorActionOwnerID;
-            const stillSameStage = mode === "TECHNICIAN"
-                ? data.Status === "DONE"
-                : data.StatusSPV === "PENDING";
-            if (!sameScope || !sameOwner || !stillSameStage) {
-                reject(new Error("Scope, pemilik, atau status WO berubah selama sync. Status lokal tidak diubah; periksa dan sync ulang."));
-                return;
-            }
-            data.SyncStatus = "SYNCED";
-            data.LastSyncAt = new Date().toISOString();
-            if (lastUpdate) data.LastUpdated = lastUpdate;
-            const putReq = store.put(data);
-            putReq.onerror = () => reject(putReq.error);
-        };
-        getReq.onerror = () => reject(getReq.error);
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan status sync WO."));
-        tx.onabort = () => reject(tx.error || new Error("Penyimpanan status sync WO dibatalkan."));
-    });
+await new Promise((resolve, reject) => {
+    const tx = db.transaction("workorder", "readwrite");
+    const store = tx.objectStore("workorder");
+    const getReq = store.get(wo.KeyHD);
+    getReq.onsuccess = function () {
+        const data = getReq.result;
+        if (!data) {
+            reject(new Error("WO lokal tidak ditemukan saat konfirmasi sync; status tidak diubah."));
+            return;
+}
+        const sameScope = data.CompanyID === wo.CompanyID &&
+            data.LocationID === wo.LocationID && data.SectionID === wo.SectionID;
+        const sameOwner = mode === "TECHNICIAN"
+            ? data.InspectionOwnerID === wo.InspectionOwnerID
+            : data.SupervisorActionOwnerID === wo.SupervisorActionOwnerID;
+        const stillSameStage = mode === "TECHNICIAN"
+            ? data.Status === "DONE"
+            : data.StatusSPV === "PENDING";
+        if (!sameScope || !sameOwner || !stillSameStage) {
+            reject(new Error("Scope, pemilik, atau status WO berubah selama sync. Status lokal tidak diubah; periksa dan sync ulang."));
+            return;
+}
+        data.SyncStatus = "SYNCED";
+        data.LastSyncAt = new Date().toISOString();
+        if (lastUpdate) data.LastUpdated = lastUpdate;
+        const putReq = store.put(data);
+        putReq.onerror = () => reject(putReq.error);
+};
+    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan status sync WO."));
+    tx.onabort = () => reject(tx.error || new Error("Penyimpanan status sync WO dibatalkan."));
+});
 
-    await cleanupConfirmedSyncedWO(wo);
+await cleanupConfirmedSyncedWO(wo);
 }
 
 async function cleanupConfirmedSyncedWO(wo) {
@@ -2371,29 +2371,29 @@ async function cleanupConfirmedSyncedWO(wo) {
     // server work-order data. Keep other owners/companies/sections untouched.
     return new Promise((resolve, reject) => {
         const tx = db.transaction(["workorder", "wo_checklist", "wo_photos"], "readwrite");
-        const woStore = tx.objectStore("workorder");
-        const getReq = woStore.get(wo.KeyHD);
-        getReq.onsuccess = function () {
-            const current = getReq.result;
-            if (!current || current.SyncStatus !== "SYNCED" ||
-                current.CompanyID !== wo.CompanyID || current.LocationID !== wo.LocationID ||
-                current.SectionID !== wo.SectionID) return;
-            woStore.delete(wo.KeyHD);
-            tx.objectStore("wo_checklist").delete(wo.KeyHD);
-            const photoStore = tx.objectStore("wo_photos");
-            const photoReq = photoStore.index("KeyHD").openCursor(IDBKeyRange.only(wo.KeyHD));
-            photoReq.onsuccess = function () {
-                const cursor = photoReq.result;
-                if (!cursor) return;
-                cursor.delete();
-                cursor.continue();
-            };
+    const woStore = tx.objectStore("workorder");
+    const getReq = woStore.get(wo.KeyHD);
+    getReq.onsuccess = function () {
+        const current = getReq.result;
+        if (!current || current.SyncStatus !== "SYNCED" ||
+            current.CompanyID !== wo.CompanyID || current.LocationID !== wo.LocationID ||
+            current.SectionID !== wo.SectionID) return;
+        woStore.delete(wo.KeyHD);
+        tx.objectStore("wo_checklist").delete(wo.KeyHD);
+        const photoStore = tx.objectStore("wo_photos");
+        const photoReq = photoStore.index("KeyHD").openCursor(IDBKeyRange.only(wo.KeyHD));
+        photoReq.onsuccess = function () {
+            const cursor = photoReq.result;
+            if (!cursor) return;
+            cursor.delete();
+            cursor.continue();
         };
-        getReq.onerror = () => reject(getReq.error);
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error || new Error("Gagal menghapus cache WO yang sudah sync."));
-        tx.onabort = () => reject(tx.error || new Error("Pembersihan cache WO dibatalkan."));
-    });
+    };
+    getReq.onerror = () => reject(getReq.error);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error || new Error("Gagal menghapus cache WO yang sudah sync."));
+    tx.onabort = () => reject(tx.error || new Error("Pembersihan cache WO dibatalkan."));
+});
 }
 // async function cleanupOldWorkOrders() {
 //     return new Promise((resolve, reject) => {
@@ -2464,14 +2464,14 @@ function getMeterSyncSummary() {
 async function getWOSyncSummary() {
     return {
         pending: await countPendingSyncWO()
-    };
+};
 }
 async function getSyncSummary() {
     await calculateMeterSyncStatistics();
     return {
         meter: getMeterSyncSummary(),
         wo: await getWOSyncSummary()
-    };
+};
 
 }
 
@@ -2479,9 +2479,9 @@ async function getSyncSummary() {
 /* AUTO UPDATE BADGE */
 /* ======================= */
 // window.addEventListener("load", function() {
-    // loadCompanyName();
-    // setInterval(checkLogin, 60000);
-    // setInterval(updateTotalPendingSync,15000);    
+// loadCompanyName();
+// setInterval(checkLogin, 60000);
+// setInterval(updateTotalPendingSync,15000);    
 // });
 
 //window.addEventListener("storage",function () {
@@ -2643,7 +2643,7 @@ async function logoutRoutine() {
 
 window.addEventListener("online", async () => {
     let status = await checkConnectionStatus();
-    setConnectionStatus(status);
+setConnectionStatus(status);
 });
 
 window.addEventListener("offline", () => {
@@ -2732,67 +2732,67 @@ async function getMeterDashboardSummary() {
 
         };
 
-        const tx = db.transaction("meter", "readonly");
-        const store = tx.objectStore("meter");
+    const tx = db.transaction("meter", "readonly");
+    const store = tx.objectStore("meter");
 
-        const req = store.openCursor();
+    const req = store.openCursor();
 
-        req.onsuccess = function (e) {
+    req.onsuccess = function (e) {
 
-            const cursor = e.target.result;
+        const cursor = e.target.result;
 
-            if (!cursor) {
-                resolve(summary);
-                return;
-            }
+        if (!cursor) {
+            resolve(summary);
+            return;
+        }
 
-            const m = cursor.value;
+        const m = cursor.value;
 
-            //---------------------------------
-            // Pending Entry
-            //---------------------------------
+        //---------------------------------
+        // Pending Entry
+        //---------------------------------
 
-            let pendingEntry = false;
+        let pendingEntry = false;
 
-            if (m.Flag == "Y") {
+        if (m.Flag == "Y") {
 
-                pendingEntry =
-                    !m.Ending1 ||
-                    !m.Ending2;
+            pendingEntry =
+                !m.Ending1 ||
+                !m.Ending2;
 
-            }
-            else {
+        }
+        else {
 
-                pendingEntry =
-                    !m.Ending1;
+            pendingEntry =
+                !m.Ending1;
 
-            }
+        }
 
-            if (pendingEntry) {
+        if (pendingEntry) {
 
-                if (summary.entry[m.Type] != null)
-                    summary.entry[m.Type]++;
+            if (summary.entry[m.Type] != null)
+                summary.entry[m.Type]++;
 
-            }
+        }
 
-            //---------------------------------
-            // Pending Sync
-            //---------------------------------
+        //---------------------------------
+        // Pending Sync
+        //---------------------------------
 
-            if (m.Status == "DRAFT") {
+        if (m.Status == "DRAFT") {
 
-                if (summary.sync[m.Type] != null)
-                    summary.sync[m.Type]++;
+            if (summary.sync[m.Type] != null)
+                summary.sync[m.Type]++;
 
-            }
+        }
 
-            cursor.continue();
+        cursor.continue();
 
-        };
+    };
 
-        req.onerror = e => reject(e.target.error);
+    req.onerror = e => reject(e.target.error);
 
-    });
+});
 
 }
 function setConnectionStatus(isOnline) {
