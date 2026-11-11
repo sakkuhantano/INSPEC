@@ -107,7 +107,7 @@ namespace INSPEC.Secure
                     section = String.Join(";", requestedSections);
                 }
                 DataTable dt = br.EQuery(
-@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, ISNULL(a.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) VersionIsFollowUpRequired, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'BOTH') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, ISNULL(B.CompanyScope,'S') CompanyScope, ISNULL(B.CompanyLocationList,'') CompanyLocationList, ISNULL(B.EmployeeList,'') EmployeeList, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, ISNULL(a.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) VersionIsFollowUpRequired, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'BOTH') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
 JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
 WHERE b.IsActive=1
 AND ISNULL(b.TemplateType,'W')=@TemplateType
@@ -146,6 +146,10 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                     dict["TemplateType"] = row["TemplateType"].ToString();
                     dict["InspectionTypeCode"] = row["InspectionTypeCode"].ToString();
                     dict["InspectionTypeDetailCode"] = row["InspectionTypeDetailCode"].ToString();
+                    // Keep the current master assignment fields in the offline template row too.
+                    dict["CompanyScope"] = row["CompanyScope"].ToString();
+                    dict["CompanyLocationList"] = row["CompanyLocationList"].ToString();
+                    dict["EmployeeList"] = row["EmployeeList"].ToString();
                     dict["TemplateNo"] = row["TemplateNo"].ToString();
                     dict["TemplateName"] = row["TemplateName"].ToString();
                     dict["StatusOption"] = row["StatusOption"].ToString();
