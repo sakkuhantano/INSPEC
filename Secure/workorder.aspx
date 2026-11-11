@@ -681,7 +681,7 @@
         </svg>
     </a>
 </div>
-<script type="text/javascript" src="../JSCus/workorder.js"></script>
+<script type="text/javascript" src="../JSCus/workorder.js?v=20261111-option-toggle-1"></script>
 <script type="text/javascript" src="../JSCus/sortable.js"></script>
     <script type="text/javascript" src="../JSCus/html5-qrcode.min.js"></script>
 </asp:Content>
