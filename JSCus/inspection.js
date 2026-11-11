@@ -911,9 +911,7 @@ async function startNewInspection() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
-        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement ||
-            (template.VersionInfo && template.VersionInfo.PhotoRequirement) ||
-            (template.versionInfo && template.versionInfo.photoRequirement)),
+        PhotoRequirement: getInspectionPhotoRequirement(template),
         InspectionDate: inspectionDate,
         StartDateTime: localDateTimeString(new Date()),
         EndDateTime: "",
@@ -1029,8 +1027,7 @@ function getBatchPointQuickOptionBlockReason(point) {
     const record = currentInspectionRecord;
     if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
         return "Batch inspection tidak sedang aktif.";
-    const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
-        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    const requirement = getInspectionPhotoRequirement(record);
     if (requirement !== "NONE") {
         const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : requirement;
         return "Template Version mewajibkan foto " + photoText + ". Buka checklist lengkap untuk melanjutkan.";
@@ -1066,6 +1063,19 @@ window.getBatchPointQuickOptionBlockReason = getBatchPointQuickOptionBlockReason
 function normalizeInspectionPhotoRequirement(value) {
     const requirement = String(value || "BOTH").toUpperCase();
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
+}
+
+function getInspectionPhotoRequirement(source) {
+    const record = source || {};
+    const template = record.TemplateSnapshot || record;
+    const versionInfo = template.VersionInfo || template.versionInfo || template;
+    const value = versionInfo.PhotoRequirement !== undefined && versionInfo.PhotoRequirement !== null
+        ? versionInfo.PhotoRequirement
+        : (versionInfo.photoRequirement !== undefined && versionInfo.photoRequirement !== null
+            ? versionInfo.photoRequirement
+            : (template.PhotoRequirement !== undefined && template.PhotoRequirement !== null
+                ? template.PhotoRequirement : record.PhotoRequirement));
+    return normalizeInspectionPhotoRequirement(value);
 }
 
 function isInspectionFlagEnabled(value, defaultValue) {
@@ -1143,12 +1153,7 @@ function renderBatchPointCondition(masterPoint, point, readOnly) {
 
 
 function applyInspectionPhotoRequirement(record) {
-    const requirement = normalizeInspectionPhotoRequirement(
-        record && (record.PhotoRequirement || (record.TemplateSnapshot &&
-            (record.TemplateSnapshot.PhotoRequirement ||
-             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
-             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement))))
-    );
+    const requirement = getInspectionPhotoRequirement(record);
     const beforePanel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
     const afterPanel = document.getElementById("inspectionAfterPhotoPanel") ||
         document.getElementById("btnAddInspectionAfterPhoto")?.closest(".inspection-photo-panel");
@@ -2156,8 +2161,7 @@ window.submitInspectionBatch = async function () {
     if (!masterPoints.length) { showToast("Master Inspection Point batch ini tidak tersedia.", "danger"); return; }
     const errors = [];
     const knownPointIDs = new Set();
-    const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
-        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    const requirement = getInspectionPhotoRequirement(record);
     for (const masterPoint of masterPoints) {
         const pointId = Number(masterPoint.InspectionPointID);
         const point = points.find(item => Number(item.InspectionPointID) === pointId);
@@ -2282,10 +2286,7 @@ async function saveInspection(status) {
             showToast("Pilih Responsible Section dan isi deskripsi pekerjaan untuk Follow Up.", "warning");
             return;
         }
-        const requirement = normalizeInspectionPhotoRequirement(
-            currentInspectionRecord.PhotoRequirement ||
-            (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement)
-        );
+        const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
         const hasBefore = photos.some(p => String(p.Type || "").toUpperCase() === "BEFORE");
         const hasAfter = photos.some(p => String(p.Type || "").toUpperCase() === "AFTER");
         const missingBefore = (requirement === "BEFORE" || requirement === "BOTH") && !hasBefore;
@@ -2300,10 +2301,7 @@ async function saveInspection(status) {
             return;
         }
     } else {
-        const draftRequirement = normalizeInspectionPhotoRequirement(
-            currentInspectionRecord.PhotoRequirement ||
-            (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement)
-        );
+        const draftRequirement = getInspectionPhotoRequirement(currentInspectionRecord);
         if ((draftRequirement === "BEFORE" || draftRequirement === "BOTH") &&
             !photos.some(p => String(p.Type || "").toUpperCase() === "BEFORE")) {
             showToast("Foto BEFORE wajib diambil sebelum checklist dapat disimpan.", "warning");
@@ -3131,10 +3129,7 @@ async function applyInspectionParameters() {
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
         Number(record.IDTemplate) !== Number(template.IDTemplate) ||
         Number(record.IDVersion) !== Number(template.IDVersion) ||
-        normalizeInspectionPhotoRequirement(record.PhotoRequirement || (record.TemplateSnapshot &&
-            (record.TemplateSnapshot.PhotoRequirement ||
-             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
-             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement)))) !== normalizeInspectionPhotoRequirement(template.PhotoRequirement);
+        getInspectionPhotoRequirement(record) !== getInspectionPhotoRequirement(template);
     if (!changed) return true;
 
     const photos = await getInspectionPhotos(record.LocalInspectionID);
@@ -3171,9 +3166,7 @@ async function applyInspectionParameters() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
-        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement ||
-            (template.VersionInfo && template.VersionInfo.PhotoRequirement) ||
-            (template.versionInfo && template.versionInfo.photoRequirement)),
+        PhotoRequirement: getInspectionPhotoRequirement(template),
         SyncStatus: "PENDING",
         UpdatedAt: new Date().toISOString()
     });
@@ -3348,38 +3341,41 @@ async function getInspectionPhotos(localId, pointId){return new Promise((resolve
 async function renderInspectionPhotos() {
     if (!currentInspectionRecord) return;
     const photos = await getCurrentInspectionPhotos();
-    const hasBeforePhoto = photos.some(p => p.Type === "BEFORE");
+    const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
+    const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
+    const afterRequired = requirement === "AFTER" || requirement === "BOTH";
+    const hasBeforePhoto = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
     for (const type of ["BEFORE", "AFTER"]) {
         const host = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeList" : "inspectionPhotoAfterList");
         host.innerHTML = "";
-        photos.filter(p => p.Type === type).forEach(p => {
-            const w = document.createElement("div");
-            w.className = "inspection-photo-item";
-            w.dataset.photoId = p.ID;
-            w.dataset.photoType = type;
-            w.setAttribute("role", "button");
-            w.setAttribute("tabindex", "0");
-            w.setAttribute("aria-label", "Lihat foto " + type + " nomor " + (p.SeqNo || p.OrderNo || ""));
-            const img = document.createElement("img");
-            img.src = URL.createObjectURL(p.Blob);
-            img.alt = "Inspection " + type;
-            img.loading = "lazy";
-            w.appendChild(img);
+        photos.filter(photo => String(photo.Type || "").toUpperCase() === type).forEach(photo => {
+            const wrapper = document.createElement("div");
+            wrapper.className = "inspection-photo-item";
+            wrapper.dataset.photoId = photo.ID;
+            wrapper.dataset.photoType = type;
+            wrapper.setAttribute("role", "button");
+            wrapper.setAttribute("tabindex", "0");
+            wrapper.setAttribute("aria-label", "Lihat foto " + type + " nomor " + (photo.SeqNo || photo.OrderNo || ""));
+            const image = document.createElement("img");
+            image.src = URL.createObjectURL(photo.Blob);
+            image.alt = "Inspection " + type;
+            image.loading = "lazy";
+            wrapper.appendChild(image);
             if (!currentInspectionReadOnly) {
-                const b = document.createElement("button");
-                b.type = "button";
-                b.className = "btn btn-sm btn-danger inspection-photo-delete";
-                b.dataset.deleteInspectionPhoto = p.ID;
-                b.disabled = currentInspectionReadOnly || (type === "AFTER" && !hasBeforePhoto);
-                b.setAttribute("aria-label", "Hapus foto");
-                b.textContent = "×";
-                w.appendChild(b);
+                const removeButton = document.createElement("button");
+                removeButton.type = "button";
+                removeButton.className = "btn btn-sm btn-danger inspection-photo-delete";
+                removeButton.dataset.deleteInspectionPhoto = photo.ID;
+                removeButton.setAttribute("aria-label", "Hapus foto");
+                removeButton.textContent = "×";
+                wrapper.appendChild(removeButton);
             }
-            host.appendChild(w);
+            host.appendChild(wrapper);
         });
-        const count = photos.filter(p => p.Type === type).length;
+        const count = photos.filter(photo => String(photo.Type || "").toUpperCase() === type).length;
         const input = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
-        input.disabled = currentInspectionReadOnly || (type === "AFTER" && !photos.some(p => p.Type === "BEFORE"));
+        const enabled = type === "BEFORE" ? beforeRequired : (afterRequired && (!beforeRequired || hasBeforePhoto));
+        input.disabled = currentInspectionReadOnly || !enabled;
         document.getElementById(type === "BEFORE" ? "btnAddInspectionBeforePhoto" : "btnAddInspectionAfterPhoto").disabled = input.disabled;
         document.getElementById(type === "BEFORE" ? "inspectionBeforePhotoCount" : "inspectionAfterPhotoCount").textContent = count + " foto";
     }
@@ -3466,40 +3462,103 @@ function handleInspectionPhotoViewerKeydown(event) {
     }
 }
 
-async function handleInspectionPhotoInput(event,type){const input=event.target,files=Array.from(input.files||[]);input.value="";if(!currentInspectionRecord||currentInspectionReadOnly||!files.length)return;const requirement=normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement||(currentInspectionRecord.TemplateSnapshot&&currentInspectionRecord.TemplateSnapshot.PhotoRequirement));if((type==="BEFORE"&&!(requirement==="BEFORE"||requirement==="BOTH"))||(type==="AFTER"&&!(requirement==="AFTER"||requirement==="BOTH"))){showToast("Foto "+type+" tidak diaktifkan pada Template Version ini.","warning");return;}const existing=await getCurrentInspectionPhotos();let nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);let added=0;for(const file of files){if(!file.type.startsWith("image/")){showToast("File harus berupa gambar.","warning");continue;}try{if(typeof compressImage!=="function")throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");const blob=await compressImage(file,{maxWidth:640,maxHeight:640,maxSize:100*1024,quality:.70,minQuality:.25});const baseName=(file.name||("inspection-"+type.toLowerCase())).replace(/\\.[^.]+$/,"");await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").add({LocalInspectionID:currentInspectionRecord.LocalInspectionID,PointID:getActiveInspectionPointPhotoID(),Type:type,FileName:baseName+".jpg",Blob:blob,SeqNo:nextSeq,CreatedAt:new Date().toISOString()});tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Gagal menyimpan foto."));});nextSeq++;added++;}catch(err){console.error(err);showToast("Foto gagal disimpan: "+(err.message||err),"danger");}}if(added){currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();}await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
+async function handleInspectionPhotoInput(event, type) {
+    const input = event.target;
+    const files = Array.from(input.files || []);
+    input.value = "";
+    if (!currentInspectionRecord || currentInspectionReadOnly || !files.length) return;
+    const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
+    const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
+    const afterRequired = requirement === "AFTER" || requirement === "BOTH";
+    if ((type === "BEFORE" && !beforeRequired) || (type === "AFTER" && !afterRequired)) {
+        showToast("Foto " + type + " tidak diaktifkan pada Template Version ini.", "warning");
+        return;
+    }
+    const existing = await getCurrentInspectionPhotos();
+    const hasBeforePhoto = existing.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+    if (type === "AFTER" && beforeRequired && !hasBeforePhoto) {
+        showToast("Ambil minimal satu foto BEFORE terlebih dahulu.", "warning");
+        return;
+    }
+    let nextSeq = Math.max(Number(currentInspectionRecord.NextPhotoSeqNo || 1),
+        existing.reduce((max, photo) => Math.max(max, Number(photo.SeqNo || photo.OrderNo || 0)), 0) + 1);
+    let added = 0;
+    for (const file of files) {
+        if (!file.type.startsWith("image/")) {
+            showToast("File harus berupa gambar.", "warning");
+            continue;
+        }
+        try {
+            if (typeof compressImage !== "function")
+                throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");
+            const blob = await compressImage(file, {
+                maxWidth: 640, maxHeight: 640, maxSize: 100 * 1024, quality: .70, minQuality: .25
+            });
+            const baseName = (file.name || ("inspection-" + type.toLowerCase())).replace(/\\.[^.]+$/, "");
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_photos", "readwrite");
+                tx.objectStore("inspection_photos").add({
+                    LocalInspectionID: currentInspectionRecord.LocalInspectionID,
+                    PointID: getActiveInspectionPointPhotoID(),
+                    Type: type,
+                    FileName: baseName + ".jpg",
+                    Blob: blob,
+                    SeqNo: nextSeq,
+                    CreatedAt: new Date().toISOString()
+                });
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error || new Error("Gagal menyimpan foto."));
+            });
+            nextSeq++;
+            added++;
+        } catch (error) {
+            console.error(error);
+            showToast("Foto gagal disimpan: " + (error.message || error), "danger");
+        }
+    }
+    if (added) {
+        currentInspectionRecord.NextPhotoSeqNo = nextSeq;
+        currentInspectionRecord.SyncStatus = "PENDING";
+        currentInspectionRecord.UpdatedAt = new Date().toISOString();
+    }
+    await renderInspectionPhotos();
+    await updateInspectionChecklistGate();
+    scheduleInspectionAutosave();
+}
+
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getCurrentInspectionPhotos();const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
     updateInspectionParameterTabGate();
     if (!currentInspectionRecord) return;
     const photos = await getCurrentInspectionPhotos();
-    const requirement = normalizeInspectionPhotoRequirement(currentInspectionRecord.PhotoRequirement ||
-        (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.PhotoRequirement));
+    const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
     const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
     const afterRequired = requirement === "AFTER" || requirement === "BOTH";
     const before = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
     const checklistLocked = beforeRequired && !before;
     document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
-        .forEach(el => { el.disabled = currentInspectionReadOnly || checklistLocked; });
+        .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
     document.querySelectorAll("#inspectionPointConditionPanel input, #inspectionPointConditionPanel textarea")
-        .forEach(el => { el.disabled = currentInspectionReadOnly || checklistLocked; });
+        .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
     document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || checklistLocked;
     document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || checklistLocked;
     document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || checklistLocked;
-    document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(el => {
-        el.disabled = currentInspectionReadOnly || checklistLocked;
+    document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(element => {
+        element.disabled = currentInspectionReadOnly || checklistLocked;
     });
-    document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(el => {
-        el.disabled = currentInspectionReadOnly || checklistLocked;
+    document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(element => {
+        element.disabled = currentInspectionReadOnly || checklistLocked;
     });
     const afterInput = document.getElementById("inspectionPhotoAfterInput");
-    afterInput.disabled = currentInspectionReadOnly || !afterRequired;
+    const afterEnabled = afterRequired && (!beforeRequired || before);
+    afterInput.disabled = currentInspectionReadOnly || !afterEnabled;
     document.getElementById("btnAddInspectionAfterPhoto").disabled = afterInput.disabled;
     document.getElementById("inspectionChecklistGateMessage").textContent = checklistLocked
         ? "Ambil minimal satu foto BEFORE untuk membuka checklist."
         : afterRequired
             ? "Foto yang diwajibkan Template Version harus tersedia sebelum point dapat diselesaikan."
             : "Lengkapi item checklist sesuai konfigurasi Template Version.";
-
 }
 
 function showInspectionInputScreen() {
