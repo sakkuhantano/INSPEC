@@ -2646,7 +2646,11 @@ function restoreInspectionMasterDropdowns() {
     resetDetailAndTemplateOptions();
 }
 
-function resetInspectionSelection() {
+async function resetInspectionSelection() {
+    const mapWorkspace = document.getElementById("inspectionMapWorkspace");
+    if (mapWorkspace) mapWorkspace.classList.add("d-none");
+    if (typeof window.resetInspectionMapWorkspace === "function")
+        await window.resetInspectionMapWorkspace();
     restoreInspectionMasterDropdowns();
     showInspectionInputScreen();
     showToast("Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
