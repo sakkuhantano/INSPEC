@@ -325,6 +325,7 @@ SELECT ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement,
        ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired,
        ISNULL(V.IsRemark1Required,0) IsRemark1Required,
        ISNULL(V.IsRemark2Required,0) IsRemark2Required,
+       ISNULL(V.StatusOption,'') StatusOption,
        ISNULL(V.RemarkRequiredOptions,'') RemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM_Version V
 WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
@@ -454,6 +455,8 @@ ORDER BY G.DisplayOrder",
                                     if (itemType == "OPTION" && !String.IsNullOrWhiteSpace(value))
                                     {
                                         string optionList = Convert.ToString(templateItem["OptionList"]);
+                                        if (String.IsNullOrWhiteSpace(optionList))
+                                            optionList = Convert.ToString(versionRule["StatusOption"]);
                                         if (!String.IsNullOrWhiteSpace(optionList))
                                         {
                                             bool validOption = optionList.Split(';').Any(option =>
