@@ -2208,6 +2208,7 @@ async function saveBatchInspectionPoint(status) {
         }
     }
     point.ValidationIssueCount = validationIssueCount;
+    if (masterPoint) masterPoint.ValidationIssueCount = validationIssueCount;
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
     record.Items = [];
@@ -2255,6 +2256,9 @@ function showInspectionBatchValidationReport(errors) {
         point.ValidationIssueCount = count;
         if (count && !["ABNORMAL"].includes(String(point.Status || "").toUpperCase())) point.Status = "INCOMPLETE";
         if (!count) point.ValidationIssueCount = 0;
+    });
+    masterPoints.forEach(point => {
+        point.ValidationIssueCount = list.filter(error => Number(error.pointId) === Number(point.InspectionPointID)).length;
     });
     if (typeof window.refreshInspectionMapPointStatuses === "function")
         window.refreshInspectionMapPointStatuses();
