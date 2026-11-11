@@ -537,7 +537,7 @@
         .inspection-map-point-dot { width:19px; height:19px; font-size:.5rem; }
         .inspection-map-point-label { top:30px; font-size:.56rem; }
         .inspection-map-legend { left:6px; right:6px; bottom:6px; max-width:none; gap:.35rem .55rem; padding:.4rem .5rem; font-size:.68rem; }
-        .inspection-map-hint { display:none; }
+        .inspection-map-hint { display:block; }
         .inspection-point-list { min-height:36dvh; max-height:52dvh; padding:.5rem; }
         .inspection-point-list-row { min-height:56px; padding:.65rem; }
         .inspection-map-point-sheet { left:8px; right:8px; bottom:max(.5rem,env(safe-area-inset-bottom)); width:auto; transform:none; padding:.85rem; }
@@ -889,13 +889,6 @@
             <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
         </div>
         <div class="inspection-map-content">
-        <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
-            <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
-                <button type="button" id="btnInspectionMapZoomOut" class="btn btn-sm btn-light border" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
-                <span id="inspectionMapZoomLabel" class="inspection-map-zoom-label">100%</span>
-                <button type="button" id="btnInspectionMapZoomIn" class="btn btn-sm btn-light border" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
-                <button type="button" id="btnInspectionMapZoomReset" class="btn btn-sm btn-light border" title="Reset zoom" aria-label="Reset zoom"><i class="bi bi-arrows-fullscreen"></i></button>
-            </div>
             <div class="inspection-map-panel">
                 <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
                     <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
