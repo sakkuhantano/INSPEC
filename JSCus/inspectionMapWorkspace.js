@@ -217,16 +217,18 @@
             '</div>' +
             (rows.length ? rows.map(function (point) {
                 var status = getPointVisualStatus(point);
+                var transaction = getPointTransaction(point);
+                var issueCount = Number(transaction && transaction.ValidationIssueCount || point.ValidationIssueCount || 0);
                 return '<div class="inspection-point-list-entry mb-2">' +
                     '<button type="button" class="inspection-point-list-row w-100 text-start" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
                     '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
-                    '<span class="badge ' + (status === "ABNORMAL" ? "text-bg-danger" :
+                    '<span class="badge ' + (issueCount ? "text-bg-danger" : status === "ABNORMAL" ? "text-bg-danger" :
                     status === "DONE" ? "text-bg-success" :
-                    status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
-                    statusLabel(status, point) + '</span><i class="bi bi-chevron-right text-muted"></i></button>' +
+                    status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '>' +
+                    (issueCount ? issueCount + " temuan" : statusLabel(status, point)) + '</span><i class="bi bi-chevron-right text-muted"></i></button>' +
                     renderPointOptionControls(point) +
                     '<div class="text-end mt-1"><button type="button" class="btn btn-link btn-sm p-0" data-open-point-checklist="' +
                     esc(point.InspectionPointID) + '">Buka checklist lengkap</button></div></div>';
