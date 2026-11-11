@@ -362,6 +362,15 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", function () {
         document.getElementById("inspectionFollowUpRemarkCounter").textContent = this.value.length + " / 300";
     });
+    document.getElementById("inspectionChecklistHost").addEventListener("click", function (event) {
+        const label = event.target && event.target.closest(".inspection-option-choice");
+        if (!label || currentInspectionReadOnly) return;
+        const input = document.getElementById(label.getAttribute("for"));
+        if (!input || input.disabled || !input.checked) return;
+        event.preventDefault();
+        input.checked = false;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, true);
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
         if (event.target && event.target.matches('[data-role="value"][type="radio"]')) updateInspectionRemarkPanels();
         scheduleInspectionAutosave();
@@ -1826,6 +1835,87 @@ async function openBatchInspectionPointChecklist(masterPoint) {
 }
 
 window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
+
+window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
+    const record = currentInspectionRecord;
+    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
+        throw new Error("Batch inspection tidak sedang aktif.");
+    if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
+        throw new Error("Batch yang sudah disubmit bersifat read-only.");
+
+    const templateItems = [];
+    (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
+        .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
+    const templateItem = templateItems.find(item =>
+        String(item.type || "").toUpperCase() === "OPTION" && Number(item.idItem) === Number(itemId));
+    if (!templateItem) throw new Error("Checklist OPTION tidak ditemukan pada template batch.");
+
+    record.Points = Array.isArray(record.Points) ? record.Points : [];
+    let point = record.Points.find(item => Number(item.InspectionPointID) === Number(pointId));
+    if (!point) {
+        const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+            Number(item.InspectionPointID) === Number(pointId));
+        if (!masterPoint) throw new Error("Inspection Point tidak ditemukan.");
+        point = {
+            ClientPointID: newInspectionId(),
+            InspectionPointID: Number(masterPoint.InspectionPointID),
+            PointCode: String(masterPoint.PointCode || ""),
+            PointName: String(masterPoint.PointName || ""),
+            InspectionDateTime: localDateTimeString(new Date()),
+            Status: "PENDING",
+            PointCondition: "",
+            AbnormalRemark: "",
+            Items: [],
+            NextPhotoSeqNo: 1
+        };
+        record.Points.push(point);
+    }
+
+    point.Items = Array.isArray(point.Items) ? point.Items : [];
+    let answer = point.Items.find(item => Number(item.IDItem) === Number(itemId));
+    const selectedValue = String(value == null ? "" : value);
+    if (!answer) {
+        answer = {
+            IDItem: Number(itemId),
+            ItemLabel: templateItem.label || ("Item " + itemId),
+            Type: "OPTION",
+            Value: "",
+            Remark1: "",
+            Remark2: "",
+            IsAnomali: false,
+            DisplayOrder: templateItems.indexOf(templateItem) + 1,
+            Values: null
+        };
+        point.Items.push(answer);
+    }
+    answer.Value = String(answer.Value || "") === selectedValue ? "" : selectedValue;
+    point.UpdatedAt = new Date().toISOString();
+    point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
+
+    const isSingleOption = templateItems.length === 1 &&
+        String(templateItems[0].type || "").toUpperCase() === "OPTION";
+    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+        Number(item.InspectionPointID) === Number(pointId));
+    const photoRequirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
+        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    const hasExtraRequirement = photoRequirement !== "NONE" ||
+        isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
+    const optionValue = String(answer.Value || "").trim().toUpperCase();
+
+    if (!optionValue) point.Status = "PENDING";
+    else if (isSingleOption && !hasExtraRequirement) {
+        point.Status = /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(optionValue) ? "ABNORMAL" : "DONE";
+    } else {
+        point.Status = "INCOMPLETE";
+    }
+
+    record.Items = [];
+    record.ActiveInspectionPointID = 0;
+    record.SyncStatus = "PENDING";
+    record.UpdatedAt = new Date().toISOString();
+    await persistInspectionRecord(record);
+    return true;
+};
 
 async function saveBatchInspectionPoint(status) {
     const record = currentInspectionRecord;
