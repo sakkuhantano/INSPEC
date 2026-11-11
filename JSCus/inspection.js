@@ -1023,6 +1023,41 @@ async function cleanupInspectionPhotosByRequirement(localInspectionId, requireme
         tx.onabort = () => reject(tx.error || new Error("Pembersihan foto inspeksi dibatalkan."));
     });
 }
+function getBatchPointQuickOptionBlockReason(point) {
+    const record = currentInspectionRecord;
+    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
+        return "Batch inspection tidak sedang aktif.";
+    const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
+        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    if (requirement !== "NONE") {
+        const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : requirement;
+        return "Template Version mewajibkan foto " + photoText + ". Buka checklist lengkap untuk melanjutkan.";
+    }
+    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+        Number(item.InspectionPointID) === Number(point && point.InspectionPointID));
+    if (isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false))
+        return "Point ini mewajibkan kondisi NORMAL/ABNORMAL dan mungkin Abnormal Remark. Buka checklist lengkap.";
+    const templateItems = [];
+    (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
+        .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
+    if (!templateItems.length || templateItems.some(item =>
+        String(item.type || "").toUpperCase() !== "OPTION" &&
+        isInspectionFlagEnabled(item.isValueRequired, false)))
+        return "Template memiliki checklist wajib selain OPTION. Buka checklist lengkap.";
+    for (const item of templateItems) {
+        const r1 = isInspectionVersionRemarkEnabled(item, 1);
+        const r2 = isInspectionVersionRemarkEnabled(item, 2);
+        const mandatoryRemark =
+            (r1 && isInspectionFlagEnabled(item.isRemark1Required, false) && isInspectionFlagEnabled(item.isRemark1Mandatory, false)) ||
+            (r2 && isInspectionFlagEnabled(item.isRemark2Required, false) && isInspectionFlagEnabled(item.isRemark2Mandatory, false));
+        const optionRemarks = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions : [];
+        if (mandatoryRemark || (optionRemarks.length && (r1 || r2)))
+            return "Template Version mewajibkan Remark untuk checklist ini. Buka checklist lengkap.";
+    }
+    return "";
+}
+window.getBatchPointQuickOptionBlockReason = getBatchPointQuickOptionBlockReason;
+
 function normalizeInspectionPhotoRequirement(value) {
     const requirement = String(value || "BOTH").toUpperCase();
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
@@ -1679,38 +1714,71 @@ function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     return !!(snapshot && snapshot[snapshotKey]);
 }
 
-function validateInspectionItems(items) {
-    for (const item of items) {
-        const templateItem = findInspectionTemplateItem(item.IDItem);
-        if (!templateItem) continue;
-        const invalid = (message, role) => ({ message, itemId: Number(item.IDItem), role: role || "value" });
-        // IsValueRequired controls whether an answer is mandatory for every item type, including OPTION.
-        if (templateItem.isValueRequired) {
-            if (item.Type === "GROUP") {
+function validateInspectionItemsAll(items) {
+    const sourceItems = Array.isArray(items) ? items : [];
+    const template = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
+    const templateItems = [];
+    (template && Array.isArray(template.sections) ? template.sections : []).forEach(section =>
+        (section.items || []).forEach(item => templateItems.push(item)));
+    const errors = [];
+    const answers = new Map(sourceItems.map(item => [Number(item.IDItem), item]));
+    templateItems.forEach(templateItem => {
+        const itemId = Number(templateItem.idItem || templateItem.IDItem);
+        if (!itemId) return;
+        const answer = answers.get(itemId) || {
+            IDItem: itemId, ItemLabel: templateItem.label || ("Item " + itemId),
+            Type: String(templateItem.type || "").toUpperCase(), Value: "", Remark1: "", Remark2: "", Values: {}
+        };
+        const itemType = String(templateItem.type || answer.Type || "").toUpperCase();
+        const label = answer.ItemLabel || templateItem.label || ("Item " + itemId);
+        const invalid = (message, role) => errors.push({ message, itemId, role: role || "value" });
+        if (isInspectionFlagEnabled(templateItem.isValueRequired, false)) {
+            if (itemType === "GROUP") {
                 const groups = templateItem.groups || [];
-                if (!groups.length) return invalid("GROUP tidak memiliki kolom input: " + item.ItemLabel, "group-value");
-                for (const group of groups) {
+                if (!groups.length) invalid("GROUP tidak memiliki kolom input: " + label, "group-value");
+                groups.forEach(group => {
                     const fields = String(group.fieldList || "").split(";").map(field => field.trim()).filter(Boolean);
-                    const filledCount = fields.filter(field => item.Values && item.Values[field] != null && String(item.Values[field]).trim() !== "").length;
-                    if (fields.length > 3) return invalid("Maksimal 3 kolom untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel, "group-value");
-                    if (fields.length < 2 || filledCount < 2) return invalid("Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + item.ItemLabel, "group-value");
-                }
-            } else if (item.Value == null || String(item.Value).trim() === "") {
-                return invalid((item.Type === "OPTION" ? "Pilih salah satu option: " : "Nilai wajib diisi: ") + item.ItemLabel, "value");
+                    const filledCount = fields.filter(field => answer.Values && answer.Values[field] != null &&
+                        String(answer.Values[field]).trim() !== "").length;
+                    if (fields.length > 3)
+                        invalid("Maksimal 3 kolom untuk GROUP " + (group.groupName || "") + " pada " + label, "group-value");
+                    else if (fields.length < 2 || filledCount < 2)
+                        invalid("Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + label, "group-value");
+                });
+            } else if (answer.Value == null || String(answer.Value).trim() === "") {
+                invalid((itemType === "OPTION" ? "Pilih salah satu option: " : "Nilai wajib diisi: ") + label, "value");
             }
         }
-        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions.map(x => String(x).trim()) : [];
-        const selectedOptionRequiresRemark = String(templateItem.type || "").toUpperCase() === "OPTION" && requiredOptionRemarks.includes(String(item.Value || "").trim());
+        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions)
+            ? templateItem.remarkRequiredOptions.map(value => String(value).trim()) : [];
+        const selectedOptionRequiresRemark = itemType === "OPTION" &&
+            requiredOptionRemarks.includes(String(answer.Value || "").trim());
         const versionRemark1Enabled = isInspectionVersionRemarkEnabled(templateItem, 1);
         const versionRemark2Enabled = isInspectionVersionRemarkEnabled(templateItem, 2);
-        const selectedOptionRequiresRemark1 = selectedOptionRequiresRemark && versionRemark1Enabled;
-        const selectedOptionRequiresRemark2 = selectedOptionRequiresRemark && versionRemark2Enabled;
-        const remark1Title = selectedOptionRequiresRemark && !templateItem.isRemark1Required ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark") : (templateItem.remark1Text || "Remark");
-        const remark2Title = selectedOptionRequiresRemark && !templateItem.isRemark2Required ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark") : (templateItem.remark2Text || "Remark");
-        if (versionRemark1Enabled && ((templateItem.isRemark1Required && templateItem.isRemark1Mandatory) || selectedOptionRequiresRemark1) && (!item.Remark1 || !item.Remark1.trim())) return invalid(remark1Title + " wajib diisi: " + item.ItemLabel, "remark1");
-        if (versionRemark2Enabled && ((templateItem.isRemark2Required && templateItem.isRemark2Mandatory) || selectedOptionRequiresRemark2) && (!item.Remark2 || !item.Remark2.trim())) return invalid(remark2Title + " wajib diisi: " + item.ItemLabel, "remark2");
-    }
-    return null;
+        const remark1Required = versionRemark1Enabled &&
+            ((isInspectionFlagEnabled(templateItem.isRemark1Required, false) &&
+              isInspectionFlagEnabled(templateItem.isRemark1Mandatory, false)) ||
+             selectedOptionRequiresRemark);
+        const remark2Required = versionRemark2Enabled &&
+            ((isInspectionFlagEnabled(templateItem.isRemark2Required, false) &&
+              isInspectionFlagEnabled(templateItem.isRemark2Mandatory, false)) ||
+             selectedOptionRequiresRemark);
+        const remark1Title = selectedOptionRequiresRemark && !isInspectionFlagEnabled(templateItem.isRemark1Required, false)
+            ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark")
+            : (templateItem.remark1Text || "Remark");
+        const remark2Title = selectedOptionRequiresRemark && !isInspectionFlagEnabled(templateItem.isRemark2Required, false)
+            ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
+            : (templateItem.remark2Text || "Remark");
+        if (remark1Required && !String(answer.Remark1 || "").trim())
+            invalid(remark1Title + " wajib diisi: " + label, "remark1");
+        if (remark2Required && !String(answer.Remark2 || "").trim())
+            invalid(remark2Title + " wajib diisi: " + label, "remark2");
+    });
+    return errors;
+}
+function validateInspectionItems(items) {
+    const errors = validateInspectionItemsAll(items);
+    return errors.length ? errors[0] : null;
 }
 
 function focusInvalidInspectionItem(error) {
@@ -1847,6 +1915,9 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
         throw new Error("Batch yang sudah disubmit bersifat read-only.");
 
+    const quickOptionBlockReason = getBatchPointQuickOptionBlockReason({ InspectionPointID: pointId });
+    if (quickOptionBlockReason) throw new Error(quickOptionBlockReason);
+
     const templateItems = [];
     (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
         .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
@@ -1896,21 +1967,18 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
 
-    const isSingleOption = templateItems.length === 1 &&
-        String(templateItems[0].type || "").toUpperCase() === "OPTION";
-    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
-        Number(item.InspectionPointID) === Number(pointId));
-    const photoRequirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
-        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
-    const hasExtraRequirement = photoRequirement !== "NONE" ||
-        isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
-    const optionValue = String(answer.Value || "").trim().toUpperCase();
-
-    if (!optionValue) point.Status = "PENDING";
-    else if (isSingleOption && !hasExtraRequirement) {
-        point.Status = /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(optionValue) ? "ABNORMAL" : "DONE";
-    } else {
-        point.Status = "INCOMPLETE";
+    const validationErrors = validateInspectionItemsAll(point.Items || []);
+    const hasAnyAnswer = (point.Items || []).some(item =>
+        String(item.Value || "").trim() !== "" ||
+        Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim() !== "")
+    );
+    if (!hasAnyAnswer) point.Status = "PENDING";
+    else if (validationErrors.length) point.Status = "INCOMPLETE";
+    else {
+        const abnormal = (point.Items || []).some(item =>
+            /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase())
+        );
+        point.Status = abnormal ? "ABNORMAL" : "DONE";
     }
 
     record.Items = [];
@@ -1924,62 +1992,55 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
 async function saveBatchInspectionPoint(status) {
     const record = currentInspectionRecord;
     const point = getActiveInspectionPoint();
-    if (!record || !point) {
-        showToast("Pilih Inspection Point terlebih dahulu.", "warning");
-        return;
-    }
-
+    if (!record || !point) { showToast("Pilih Inspection Point terlebih dahulu.", "warning"); return; }
     const items = collectInspectionItems();
     const photos = await getCurrentInspectionPhotos();
     const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
         Number(item.InspectionPointID) === Number(point.InspectionPointID));
     const conditionRequired = isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
+    const errors = [];
     if (status === "DONE" && conditionRequired) {
-        const selectedCondition = document.querySelector('input[name="inspectionPointCondition"]:checked')?.value ||
+        const condition = document.querySelector('input[name="inspectionPointCondition"]:checked')?.value ||
             String(point.PointCondition || "").toUpperCase();
-        const abnormalRemark = String(document.getElementById("inspectionPointConditionPanel")?.querySelector("textarea")?.value ||
+        const abnormalRemark = String(document.querySelector("#inspectionPointConditionPanel textarea")?.value ||
             point.AbnormalRemark || "").trim();
-        if (selectedCondition !== "NORMAL" && selectedCondition !== "ABNORMAL") {
-            showToast("Pilih kondisi NORMAL atau ABNORMAL untuk " + point.PointCode + ".", "warning");
-            const conditionPanel = document.getElementById("inspectionPointConditionPanel");
-            if (conditionPanel) conditionPanel.scrollIntoView({ behavior: "smooth", block: "center" });
-            return;
-        }
-        if (selectedCondition === "ABNORMAL" && !abnormalRemark) {
-            showToast("Abnormal Remark wajib diisi untuk " + point.PointCode + ".", "warning");
-            const field = document.querySelector("#inspectionPointConditionPanel textarea");
-            if (field) field.focus();
-            return;
-        }
-        point.PointCondition = selectedCondition;
-        point.AbnormalRemark = selectedCondition === "ABNORMAL" ? abnormalRemark : "";
+        if (condition !== "NORMAL" && condition !== "ABNORMAL") errors.push({ message: "Pilih kondisi NORMAL atau ABNORMAL." });
+        else if (condition === "ABNORMAL" && !abnormalRemark) errors.push({ message: "Abnormal Remark wajib diisi." });
+        else { point.PointCondition = condition; point.AbnormalRemark = condition === "ABNORMAL" ? abnormalRemark : ""; }
     }
     if (status === "DONE") {
-        const error = validateInspectionItems(items);
-        if (error) {
-            point.Status = "INCOMPLETE";
-            showToast(error.message + ". Periksa kembali checklist point ini.", "warning");
-            focusInvalidInspectionItem(error);
-            return;
-        }
+        validateInspectionItemsAll(items).forEach(error => errors.push(error));
         const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
             (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
         const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
         const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
-        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore) {
-            showToast("Foto BEFORE wajib diisi untuk " + point.PointCode + ".", "warning");
+        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
+            errors.push({ message: "Foto BEFORE wajib diambil (minimal 1 foto)." });
+        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter)
+            errors.push({ message: "Foto AFTER wajib diambil (minimal 1 foto)." });
+        if (errors.length) {
+            point.Status = "INCOMPLETE";
+            showToast(point.PointCode + ": " + errors.slice(0, 3).map(error => error.message).join(" · ") +
+                (errors.length > 3 ? " · +" + (errors.length - 3) + " kewajiban lainnya." : ""), "warning");
+            const firstItemError = errors.find(error => error.itemId);
+            if (firstItemError) focusInvalidInspectionItem(firstItemError);
+            else if (errors.some(error => /Foto BEFORE/.test(error.message))) {
+                const panel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
+                if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+            } else if (errors.some(error => /Foto AFTER/.test(error.message))) {
+                const panel = document.getElementById("inspectionAfterPhotoPanel");
+                if (panel) panel.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
             return;
         }
-        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter) {
-            showToast("Foto AFTER wajib diisi untuk " + point.PointCode + ".", "warning");
-            return;
-        }
-        point.Status = "DONE";
+        point.Status = String(point.PointCondition || "").toUpperCase() === "ABNORMAL" ||
+            items.some(item => /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()))
+            ? "ABNORMAL" : "DONE";
     } else {
-        point.Status = items.some(item => item.Value || Object.keys(item.Values || {}).some(key => item.Values[key]))
-            ? "INCOMPLETE" : "PENDING";
+        point.Status = items.some(item => String(item.Value || "").trim() ||
+            Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim())) ||
+            photos.length ? "INCOMPLETE" : "PENDING";
     }
-
     point.Items = items;
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
@@ -1998,77 +2059,141 @@ async function saveBatchInspectionPoint(status) {
     if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Draft';
     if (completeButton) completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Submit';
     document.getElementById("inspectionChecklistPane").classList.add("d-none");
-    if (typeof showInspectionMapWorkspace === "function")
-        showInspectionMapWorkspace(record, true);
-    if (typeof refreshInspectionMapPointStatuses === "function")
-        refreshInspectionMapPointStatuses();
+    if (typeof showInspectionMapWorkspace === "function") showInspectionMapWorkspace(record, true);
+    if (typeof refreshInspectionMapPointStatuses === "function") refreshInspectionMapPointStatuses();
     showToast(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
 }
-window.saveBatchInspectionPoint = saveBatchInspectionPoint;
+
+
+function showInspectionBatchValidationReport(errors) {
+    const list = Array.isArray(errors) ? errors : [];
+    const root = document.createElement("div");
+    root.className = "modal fade";
+    root.tabIndex = -1;
+    root.innerHTML = '<div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">' +
+        '<div class="modal-header"><h5 class="modal-title"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Inspection Batch belum lengkap</h5>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>' +
+        '<div class="modal-body"><p class="text-muted small mb-3">Periksa seluruh kewajiban berikut sebelum Submit Batch.</p><div class="inspection-batch-validation-list"></div></div>' +
+        '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div></div></div>';
+    const host = root.querySelector(".inspection-batch-validation-list");
+    const groups = new Map();
+    list.forEach(error => {
+        const key = error.pointCode || "Kelengkapan Batch";
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(error);
+    });
+    groups.forEach((items, key) => {
+        const section = document.createElement("div");
+        section.className = "border rounded-3 p-3 mb-2";
+        const heading = document.createElement("div");
+        heading.className = "fw-semibold mb-2";
+        heading.textContent = key;
+        section.appendChild(heading);
+        const ul = document.createElement("ul");
+        ul.className = "small mb-2";
+        items.forEach(error => { const li = document.createElement("li"); li.textContent = error.message; ul.appendChild(li); });
+        section.appendChild(ul);
+        const pointId = items.find(error => error.pointId)?.pointId;
+        if (pointId) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn btn-sm btn-outline-primary";
+            button.textContent = "Buka checklist " + key;
+            button.setAttribute("data-open-validation-point", String(pointId));
+            section.appendChild(button);
+        }
+        host.appendChild(section);
+    });
+    document.body.appendChild(root);
+    if (!window.bootstrap || !window.bootstrap.Modal) {
+        window.alert(list.map(error => (error.pointCode ? error.pointCode + ": " : "") + error.message).join("\n"));
+        root.remove();
+        return;
+    }
+    const modal = new window.bootstrap.Modal(root);
+    root.addEventListener("click", event => {
+        const button = event.target.closest("[data-open-validation-point]");
+        if (!button) return;
+        const id = Number(button.getAttribute("data-open-validation-point"));
+        const masterPoint = (currentInspectionRecord && currentInspectionRecord.BatchMapSetup &&
+            currentInspectionRecord.BatchMapSetup.points || []).find(point => Number(point.InspectionPointID) === id);
+        modal.hide();
+        if (masterPoint) window.setTimeout(() => openBatchInspectionPointChecklist(masterPoint), 180);
+    });
+    root.addEventListener("hidden.bs.modal", () => root.remove(), { once: true });
+    modal.show();
+}
 
 window.submitInspectionBatch = async function () {
     const record = currentInspectionRecord;
     if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH") return;
-    if (record.Status === "DONE") {
-        showToast("Batch ini sudah disubmit dan tidak dapat diubah.", "warning");
-        return;
-    }
-    const points = record.Points || [];
+    if (String(record.Status || "").toUpperCase() === "DONE") { showToast("Batch ini sudah disubmit dan tidak dapat diubah.", "warning"); return; }
+    const points = Array.isArray(record.Points) ? record.Points : [];
     const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
-    if (!masterPoints.length) {
-        showToast("Master Inspection Point batch ini tidak tersedia.", "danger");
-        return;
+    if (!masterPoints.length) { showToast("Master Inspection Point batch ini tidak tersedia.", "danger"); return; }
+    const errors = [];
+    const knownPointIDs = new Set();
+    const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
+        (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+    for (const masterPoint of masterPoints) {
+        const pointId = Number(masterPoint.InspectionPointID);
+        const point = points.find(item => Number(item.InspectionPointID) === pointId);
+        const requireAll = masterPoint.RequireAllPoints == null ? true : isInspectionFlagEnabled(masterPoint.RequireAllPoints, true);
+        const pointCode = String(masterPoint.PointCode || ("Point " + pointId));
+        if (!point) {
+            if (requireAll) errors.push({ pointCode, pointId, message: "Belum diinspeksi (wajib berdasarkan Master Map)." });
+            continue;
+        }
+        knownPointIDs.add(pointId);
+        const photos = await getInspectionPhotos(record.LocalInspectionID, String(point.ClientPointID || ""));
+        const items = Array.isArray(point.Items) ? point.Items : [];
+        const touched = items.length > 0 || photos.length > 0 || String(point.PointCondition || "").trim() !== "" ||
+            String(point.AbnormalRemark || "").trim() !== "" || !["", "PENDING"].includes(String(point.Status || "").toUpperCase());
+        if (!requireAll && !touched) continue;
+        validateInspectionItemsAll(items).forEach(error => errors.push({ pointCode, pointId, message: error.message }));
+        const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+        const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
+        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
+            errors.push({ pointCode, pointId, message: "Foto BEFORE belum dilampirkan." });
+        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter)
+            errors.push({ pointCode, pointId, message: "Foto AFTER belum dilampirkan." });
+        if (isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false)) {
+            const condition = String(point.PointCondition || "").toUpperCase();
+            if (condition !== "NORMAL" && condition !== "ABNORMAL")
+                errors.push({ pointCode, pointId, message: "Kondisi NORMAL/ABNORMAL belum dipilih." });
+            if (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim())
+                errors.push({ pointCode, pointId, message: "Abnormal Remark belum diisi." });
+        }
+        if (!["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
+            errors.push({ pointCode, pointId, message: "Point belum diselesaikan melalui Complete Point." });
     }
-    const incompleteMaster = masterPoints.find(masterPoint => {
-        const point = points.find(item => Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
-        const completed = point && ["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase());
-        const conditionRequired = isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false);
-        const condition = point && (String(point.PointCondition || "").toUpperCase() ||
-            (String(point.AbnormalRemark || "").trim() ? "ABNORMAL" :
-                (Number(point.InspectionPointTransactionID || 0) > 0 || record.SyncStatus === "SYNCED" ? "NORMAL" : "")));
-        const conditionMissing = !!point && conditionRequired &&
-            (!condition || (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()));
-        const requireAll = masterPoint.RequireAllPoints === undefined || masterPoint.RequireAllPoints === null
-            ? true : !(masterPoint.RequireAllPoints === false || masterPoint.RequireAllPoints === 0 ||
-                String(masterPoint.RequireAllPoints).toLowerCase() === "false" || String(masterPoint.RequireAllPoints) === "0");
-        return conditionMissing || (point && !completed) || (requireAll && !completed);
+    points.forEach(point => {
+        if (!masterPoints.some(master => Number(master.InspectionPointID) === Number(point.InspectionPointID)))
+            errors.push({
+                pointCode: String(point.PointCode || ("Point " + point.InspectionPointID)),
+                pointId: Number(point.InspectionPointID),
+                message: "Point tidak termasuk Master Map aktif untuk batch ini."
+            });
     });
-    if (incompleteMaster) {
-        await openBatchInspectionPointChecklist(incompleteMaster);
-        showToast("Masih ada titik yang wajib diselesaikan. " +
-            (incompleteMaster.PointCode || incompleteMaster.InspectionPointID) + " masih Pending / Incomplete.", "warning");
-        return;
-    }
-
-    const summaryElement = document.getElementById("txtInspectionSummary");
-    if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) &&
-        (!summaryElement || !summaryElement.value.trim())) {
-        showToast("Final Summary wajib diisi sebelum Submit Batch.", "warning");
-        const summaryPanel = document.getElementById("inspectionSummaryPanel");
-        if (summaryPanel) { summaryPanel.classList.remove("d-none"); summaryPanel.scrollIntoView({ behavior: "smooth", block: "center" }); }
-        if (summaryElement) summaryElement.focus();
-        return;
-    }
-
-    const batchFollowUp = collectInspectionFollowUp();
-    if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && batchFollowUp.FollowUp === "Recommend Follow Up" &&
-        (!batchFollowUp.FollowUpSection || !batchFollowUp.FollowUpRemark)) {
-        showToast("Pilih Responsible Section dan isi deskripsi Follow Up sebelum Submit Batch.", "warning");
-        const followUpPanel = document.getElementById("inspectionFollowUpPanel");
-        if (followUpPanel) followUpPanel.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-    }
-
+    if (!points.length || !knownPointIDs.size)
+        errors.push({ pointCode: "Kelengkapan Batch", message: "Minimal satu Inspection Point harus diinspeksi." });
+    const summary = String(document.getElementById("txtInspectionSummary")?.value || record.Summary || "").trim();
+    if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) && !summary)
+        errors.push({ pointCode: "Kelengkapan Batch", message: "Final Inspection Summary wajib diisi." });
+    const followUp = collectInspectionFollowUp();
+    if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && followUp.FollowUp === "Recommend Follow Up" &&
+        (!followUp.FollowUpSection || !followUp.FollowUpRemark))
+        errors.push({ pointCode: "Kelengkapan Batch", message: "Responsible Section dan Follow Up Remark wajib diisi." });
+    if (errors.length) { showInspectionBatchValidationReport(errors); return; }
     const confirmed = await showConfirmation({
         title: "Submit Inspection Batch",
-        message: "Submit " + points.length + " titik yang sudah diinspeksi? Pastikan semua titik yang diwajibkan oleh pengaturan master map sudah memiliki hasil lengkap.",
+        message: "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi.",
         yesText: "Submit Batch"
     });
     if (!confirmed) return;
-
     record.Items = [];
-    record.Summary = document.getElementById("txtInspectionSummary").value.trim();
-    Object.assign(record, batchFollowUp);
+    record.Summary = summary;
+    Object.assign(record, followUp);
     record.ActiveInspectionPointID = 0;
     record.Status = "DONE";
     record.EndDateTime = localDateTimeString(new Date());
