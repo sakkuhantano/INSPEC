@@ -266,7 +266,9 @@
             });
         });
         host.querySelectorAll("[data-open-point-checklist]").forEach(function (button) {
-            button.addEventListener("click", function () {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
                 var point = currentPoints.find(function (item) {
                     return String(item.InspectionPointID) === button.getAttribute("data-open-point-checklist");
                 });
