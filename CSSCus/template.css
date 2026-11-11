@@ -944,3 +944,62 @@ body {
 [data-bs-theme="dark"] .template-version-item.active-version-draggable {
     border-left-color: #75d7a8;
 }
+
+/* Keep long section/category and item labels from expanding the Builder column. */
+@media (min-width: 992px) {
+    .module-body {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .module-body > .panel {
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .panel-explorer {
+        flex: 0 0 280px;
+    }
+
+    .panel-builder {
+        flex: 1 1 0;
+        min-width: 260px;
+        width: 0;
+        overflow: hidden;
+    }
+
+    .panel-properties {
+        flex: 0 0 285px;
+        min-width: 0;
+    }
+
+    .panel-builder > .panel-content,
+    #sectionsContainer,
+    #sectionsContainer .section-box,
+    #sectionsContainer .items-container,
+    #sectionsContainer .item-row,
+    #sectionsContainer .section-box-header,
+    #sectionsContainer .subsection-box,
+    #sectionsContainer .subsection-header {
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    #sectionsContainer .section-title-text,
+    #sectionsContainer .item-label-text {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 1199.98px) and (min-width: 992px) {
+    .panel-explorer {
+        flex-basis: 235px;
+    }
+
+    .panel-properties {
+        flex-basis: 265px;
+    }
+}
