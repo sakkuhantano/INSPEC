@@ -1375,10 +1375,15 @@ function updateInspectionRemarkPanels() {
         const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value).trim());
         const versionRemark1Enabled = container.dataset.remark1VersionEnabled === "1";
         const versionRemark2Enabled = container.dataset.remark2VersionEnabled === "1";
-        const showRemark1 = versionRemark1Enabled &&
-            (container.dataset.remark1BaseRequired === "1" || optionRequires);
-        const showRemark2 = versionRemark2Enabled &&
-            (container.dataset.remark2BaseRequired === "1" || optionRequires);
+        const isBatchRemarkMode = String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        const baseRemark1Required = container.dataset.remark1BaseRequired === "1";
+        const baseRemark2Required = container.dataset.remark2BaseRequired === "1";
+        // Batch snapshot item flags are already ANDed with the template-version flag by the server.
+        // Do not gate those required item flags a second time; standard inspections keep legacy gating.
+        const showRemark1 = (isBatchRemarkMode && baseRemark1Required) ||
+            (versionRemark1Enabled && (baseRemark1Required || optionRequires));
+        const showRemark2 = (isBatchRemarkMode && baseRemark2Required) ||
+            (versionRemark2Enabled && (baseRemark2Required || optionRequires));
         const wrap = container.querySelector('[data-role="remark1-wrap"]');
         const input = container.querySelector('[data-role="remark1"]');
         const wrap2 = container.querySelector('[data-role="remark2-wrap"]');
@@ -1619,10 +1624,17 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
     const versionRemark2Text = versionRemark2Enabled ? (item.versionRemark2Text || item.VersionRemark2Text || "Remark") : "";
     const remark1Text = selectedOptionRequiresRemark && !itemRemark1Required ? versionRemark1Text : itemRemark1Text;
     const remark2Text = selectedOptionRequiresRemark && !itemRemark2Required ? versionRemark2Text : itemRemark2Text;
-    const showRemark1 = versionRemark1Enabled && (itemRemark1Required || selectedOptionRequiresRemark);
-    const showRemark2 = versionRemark2Enabled && (itemRemark2Required || selectedOptionRequiresRemark);
-    const renderRemark1 = versionRemark1Enabled && (itemRemark1Required || (type === "OPTION" && remarkOptions.length > 0));
-    const renderRemark2 = versionRemark2Enabled && (itemRemark2Required || (type === "OPTION" && remarkOptions.length > 0));
+    const isBatchRemarkMode = String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+    // Batch item-level required flags are already version-aware in the server snapshot.
+    // Preserve the existing version gate for standard inspections.
+    const showRemark1 = (isBatchRemarkMode && itemRemark1Required) ||
+        (versionRemark1Enabled && (itemRemark1Required || selectedOptionRequiresRemark));
+    const showRemark2 = (isBatchRemarkMode && itemRemark2Required) ||
+        (versionRemark2Enabled && (itemRemark2Required || selectedOptionRequiresRemark));
+    const renderRemark1 = (isBatchRemarkMode && itemRemark1Required) ||
+        (versionRemark1Enabled && (itemRemark1Required || (type === "OPTION" && remarkOptions.length > 0)));
+    const renderRemark2 = (isBatchRemarkMode && itemRemark2Required) ||
+        (versionRemark2Enabled && (itemRemark2Required || (type === "OPTION" && remarkOptions.length > 0)));
     const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
           (showRemark1 && (itemRemark1Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
