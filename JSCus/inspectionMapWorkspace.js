@@ -99,7 +99,7 @@
         var savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
         var blockReason = typeof window.getBatchPointQuickOptionBlockReason === "function"
             ? window.getBatchPointQuickOptionBlockReason(point) : "";
-        return '<div class="inspection-point-option-controls mt-2 d-flex flex-column gap-2">' +
+        return '<div class="inspection-point-option-controls mt-1 d-flex flex-column gap-1">' +
             optionItems.map(function (item) {
                 var saved = savedItems.find(function (answer) { return Number(answer.IDItem) === Number(item.idItem); });
                 var selected = String(saved && saved.Value || "");
@@ -117,9 +117,8 @@
                             esc(point.InspectionPointID) + '">' + esc(option) + '</button>';
                     }).join("") + '</div></div>';
             }).join("") +
-            (blockReason ? '<div class="small text-warning"><i class="bi bi-lock-fill me-1"></i>' + esc(blockReason) +
-                '</div><button type="button" class="btn btn-sm btn-outline-primary align-self-start" data-open-point-checklist="' +
-                esc(point.InspectionPointID) + '">Buka checklist lengkap</button>' : '') +
+            (blockReason ? '<button type="button" class="btn btn-sm btn-link p-0 align-self-start" data-open-point-checklist="' +
+                esc(point.InspectionPointID) + '"><i class="bi bi-lock-fill me-1"></i>Buka checklist lengkap</button>' : '') +
             '</div>';
     }
 
@@ -194,6 +193,13 @@
         var start = (listPage - 1) * listPageSize;
         var rows = filtered.slice(start, start + listPageSize);
 
+        if (window.bootstrap && bootstrap.Tooltip) {
+            host.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
+                var oldTooltip = bootstrap.Tooltip.getInstance(element);
+                if (oldTooltip) oldTooltip.dispose();
+            });
+        }
+
         host.innerHTML =
             '<div class="inspection-point-list-tools">' +
                 '<div class="d-flex gap-2 align-items-center mb-2">' +
@@ -219,26 +225,51 @@
                 var status = getPointVisualStatus(point);
                 var transaction = getPointTransaction(point);
                 var issueCount = Number(transaction && transaction.ValidationIssueCount || point.ValidationIssueCount || 0);
-                return '<div class="inspection-point-list-entry mb-2">' +
-                    '<button type="button" class="inspection-point-list-row w-100 text-start ' + (issueCount ? "validation-has-issues" : "") + '" data-point-id="' +
+                var quickOptionBlockReason = typeof window.getBatchPointQuickOptionBlockReason === "function"
+                    ? window.getBatchPointQuickOptionBlockReason(point) : "";
+                return '<div class="inspection-point-list-entry mb-1">' +
+                    '<div role="button" tabindex="0" class="inspection-point-list-row w-100 text-start ' + (issueCount ? "validation-has-issues" : "") + '" data-point-id="' +
                     esc(point.InspectionPointID) + '">' +
                     '<span class="inspection-map-point-dot ' + pointClass(status) + '">' + statusSymbol(status) + '</span>' +
                     '<span class="point-main"><span class="point-code d-block">' + esc(point.PointCode) + '</span>' +
-                    '<span class="point-name d-block">' + esc(point.PointName) + '</span></span>' +
+                    '<span class="point-name-line"><span class="point-name">' + esc(point.PointName) + '</span>' +
+                    (quickOptionBlockReason ? '<button type="button" class="point-info-button" data-bs-toggle="tooltip" data-bs-trigger="click focus" data-bs-placement="top" data-bs-container="body" data-bs-title="' +
+                        esc(quickOptionBlockReason) + '" aria-label="Informasi persyaratan point ' + esc(point.PointCode) + '"><i class="bi bi-info-circle"></i></button>' : '') +
+                    '</span></span>' +
                     '<span class="badge ' + (issueCount ? "text-bg-danger" : status === "ABNORMAL" ? "text-bg-danger" :
                     status === "DONE" ? "text-bg-success" :
-                    status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '>' +
-                    (issueCount ? issueCount + " temuan" : statusLabel(status, point)) + '</span><i class="bi bi-chevron-right text-muted"></i></button>' +
+                    status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
+                    (issueCount ? issueCount + " temuan" : statusLabel(status, point)) + '</span><i class="bi bi-chevron-right text-muted"></i></div>' +
                     renderPointOptionControls(point) +
-                    '<div class="text-end mt-1"><button type="button" class="btn btn-link btn-sm p-0" data-open-point-checklist="' +
-                    esc(point.InspectionPointID) + '">Buka checklist lengkap</button></div></div>';
+                    (quickOptionBlockReason ? '' : '<div class="text-end mt-1"><button type="button" class="btn btn-link btn-sm p-0" data-open-point-checklist="' +
+                    esc(point.InspectionPointID) + '">Buka checklist lengkap</button></div>') + '</div>';
             }).join("") : '<div class="text-muted small text-center py-4">Tidak ada Inspection Point yang cocok.</div>');
 
-        host.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (button) {
-            button.classList.toggle("active", !!selectedPoint &&
-                button.getAttribute("data-point-id") === String(selectedPoint.InspectionPointID));
-            button.addEventListener("click", function () {
-                openPoint(button.getAttribute("data-point-id"));
+        if (window.bootstrap && bootstrap.Tooltip) {
+            host.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
+                bootstrap.Tooltip.getOrCreateInstance(element, {
+                    trigger: "click focus",
+                    container: "body",
+                    placement: "top",
+                    boundary: "viewport"
+                });
+                element.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+            });
+        }
+        host.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (row) {
+            row.classList.toggle("active", !!selectedPoint &&
+                row.getAttribute("data-point-id") === String(selectedPoint.InspectionPointID));
+            row.addEventListener("click", function () {
+                openPoint(row.getAttribute("data-point-id"));
+            });
+            row.addEventListener("keydown", function (event) {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openPoint(row.getAttribute("data-point-id"));
+                }
             });
         });
         host.querySelectorAll(".inspection-point-option-choice").forEach(function (button) {
