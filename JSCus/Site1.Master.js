@@ -1795,7 +1795,7 @@ async function downloadWorkOrder() {
         if (!navigator.onLine) return;
         updateSyncProgress(0, 1, "Download WorkOrder");
 
-        let response = await fetch("workorder.aspx/getWorkOrders", {
+        let response = await fetch("workorder.aspx/getWorkOrders?type=entry", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
