@@ -403,6 +403,47 @@ async function loadInspectionCache(includeAllTemplates) {
     inspectionDetails = await readInspectionStore("inspection_type_details");
     inspectionTemplates = await readInspectionStore("inspection_templates");
 
+    // Reconcile cached BATCH template remark flags at read time as well as during Sync.
+    // This protects a newly started transaction from a legacy IndexedDB row whose
+    // nested item flags were saved as false even though the version-level switch is on.
+    const batchTypeCodes = new Set(inspectionTypes
+        .filter(type => String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH")
+        .map(type => String(type.InspectionTypeCode || "").trim().toUpperCase()));
+    const cachedFlag = value => value !== undefined && value !== null && value !== "" &&
+        !(value === false || value === 0 || value === "0" || String(value).toLowerCase() === "false");
+    inspectionTemplates = inspectionTemplates.map(template => {
+        if (!batchTypeCodes.has(String(template.InspectionTypeCode || "").trim().toUpperCase()))
+            return template;
+        const versionRemark1 = cachedFlag(template.IsRemark1Required !== undefined
+            ? template.IsRemark1Required : template.isRemark1Required);
+        const versionRemark2 = cachedFlag(template.IsRemark2Required !== undefined
+            ? template.IsRemark2Required : template.isRemark2Required);
+        const remark1Text = template.Remark1Text || template.remark1Text || "";
+        const remark2Text = template.Remark2Text || template.remark2Text || "";
+        return Object.assign({}, template, {
+            sections: (template.sections || template.Sections || []).map(section => Object.assign({}, section, {
+                items: (section.items || section.Items || []).map(item => {
+                    const useDefault1 = cachedFlag(item.isUseDefaultRemark1 !== undefined
+                        ? item.isUseDefaultRemark1 : item.IsUseDefaultRemark1);
+                    const useDefault2 = cachedFlag(item.isUseDefaultRemark2 !== undefined
+                        ? item.isUseDefaultRemark2 : item.IsUseDefaultRemark2);
+                    const itemRemark1 = cachedFlag(item.isRemark1Required !== undefined
+                        ? item.isRemark1Required : item.IsRemark1Required);
+                    const itemRemark2 = cachedFlag(item.isRemark2Required !== undefined
+                        ? item.isRemark2Required : item.IsRemark2Required);
+                    return Object.assign({}, item, {
+                        versionIsRemark1Required: versionRemark1,
+                        versionIsRemark2Required: versionRemark2,
+                        isRemark1Required: versionRemark1 && (useDefault1 || itemRemark1),
+                        isRemark2Required: versionRemark2 && (useDefault2 || itemRemark2),
+                        remark1Text: useDefault1 ? remark1Text : (item.remark1Text || item.Remark1Text || "Remark"),
+                        remark2Text: useDefault2 ? remark2Text : (item.remark2Text || item.Remark2Text || "Remark")
+                    });
+                })
+            }))
+        });
+    });
+
     const sections = (inspectionLogin.section || "").split(";").filter(Boolean);
     inspectionTypes = inspectionTypes.filter(x =>
         sections.includes(String(x.SectionID || "")) &&
