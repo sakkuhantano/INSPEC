@@ -550,18 +550,18 @@
     }
 .inspection-point-list-row.active{border-color:var(--bs-primary)!important;background:var(--bs-primary-bg-subtle)!important;box-shadow:inset 3px 0 0 var(--bs-primary)}
 
-    .inspection-map-content{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(300px,1fr);align-items:stretch;min-width:0;gap:.65rem}
+    .inspection-map-content{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(260px,.8fr);align-items:stretch;min-width:0;gap:.65rem}
     .inspection-map-content>.inspection-map-canvas{height:min(72vh,760px);min-height:520px;min-width:0}
     .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
-    .inspection-point-list-row{gap:.45rem;padding:.45rem .55rem;margin-bottom:.25rem;border-radius:.55rem;min-height:46px}
+    .inspection-point-list-row{gap:.4rem;padding:.38rem .48rem;margin-bottom:.2rem;border-radius:.5rem;min-height:42px}
     .inspection-point-list-row .inspection-map-point-dot{flex:0 0 24px;width:24px;height:24px;font-size:.58rem}
     .inspection-point-list-row .point-main{min-width:0;flex:1;line-height:1.15}
-    .inspection-point-list-row .point-code{font-size:.64rem;line-height:1.1}
+    .inspection-point-list-row .point-code{font-size:.62rem;line-height:1.08}
     .inspection-point-list-row .point-name-line{display:flex;align-items:center;gap:.25rem;min-width:0}
-    .inspection-point-list-row .point-name{font-size:.76rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .inspection-point-list-row .point-name{font-size:.72rem;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     .inspection-point-list-row .badge{font-size:.6rem;white-space:nowrap;padding:.3em .45em}
     .inspection-point-list-row>.bi-chevron-right{font-size:.72rem;flex:0 0 auto}
-    .point-info-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--bs-info-text-emphasis);font-size:.9rem;padding:0}
+    .point-info-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px;border:0;border-radius:50%;background:transparent;color:var(--bs-info-text-emphasis);font-size:.9rem;padding:0}
     .point-info-button:focus-visible{outline:2px solid var(--bs-primary);outline-offset:1px}
     .inspection-point-option-controls{margin-left:2rem!important}
     .inspection-point-option-controls .small{font-size:.68rem!important}
@@ -588,12 +588,12 @@
     .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
         .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}
-        .inspection-map-content>.inspection-map-canvas{height:44dvh;min-height:280px;max-height:480px}
-        .inspection-map-content>.inspection-point-list{height:42dvh;min-height:260px;max-height:440px;padding:.4rem}
-        .inspection-point-list-row{min-height:44px;padding:.4rem .45rem}
-        .inspection-point-list-row .point-name{font-size:.74rem}
-        .point-info-button{width:30px;height:30px;flex-basis:30px}
-        .inspection-point-option-controls{margin-left:1.8rem!important}
+        .inspection-map-content>.inspection-map-canvas{height:42dvh;min-height:270px;max-height:440px}
+        .inspection-map-content>.inspection-point-list{height:auto;min-height:240px;max-height:48dvh;padding:.4rem;overflow-y:auto}
+        .inspection-point-list-row{min-height:42px;padding:.38rem .42rem}
+        .inspection-point-list-row .point-name{font-size:.72rem}
+        .point-info-button{width:28px;height:28px;flex-basis:28px}
+        .inspection-point-option-controls{margin-left:1.6rem!important}
     }
 </style>
 </asp:Content>
