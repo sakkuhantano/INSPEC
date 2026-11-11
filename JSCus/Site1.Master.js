@@ -2098,6 +2098,7 @@ setLoginData(data);
 
 } catch (err) {
     console.error("downloadWorkOrders error:", err);
+    throw err;
 }
 }
 async function uploadPendingWO() {
