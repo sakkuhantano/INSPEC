@@ -911,7 +911,9 @@ async function startNewInspection() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
-        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement),
+        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement ||
+            (template.VersionInfo && template.VersionInfo.PhotoRequirement) ||
+            (template.versionInfo && template.versionInfo.photoRequirement)),
         InspectionDate: inspectionDate,
         StartDateTime: localDateTimeString(new Date()),
         EndDateTime: "",
@@ -1050,7 +1052,10 @@ function getBatchPointQuickOptionBlockReason(point) {
         const mandatoryRemark =
             (r1 && isInspectionFlagEnabled(item.isRemark1Required, false) && isInspectionFlagEnabled(item.isRemark1Mandatory, false)) ||
             (r2 && isInspectionFlagEnabled(item.isRemark2Required, false) && isInspectionFlagEnabled(item.isRemark2Mandatory, false));
-        const optionRemarks = Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions : [];
+        const versionInfo = record.TemplateSnapshot &&
+            (record.TemplateSnapshot.VersionInfo || record.TemplateSnapshot.versionInfo || record.TemplateSnapshot);
+        const optionRemarks = (Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions : [])
+            .concat(Array.isArray(versionInfo && versionInfo.RemarkRequiredOptions) ? versionInfo.RemarkRequiredOptions : []);
         if (mandatoryRemark || (optionRemarks.length && (r1 || r2)))
             return "Template Version mewajibkan Remark untuk checklist ini. Buka checklist lengkap.";
     }
@@ -1139,7 +1144,10 @@ function renderBatchPointCondition(masterPoint, point, readOnly) {
 
 function applyInspectionPhotoRequirement(record) {
     const requirement = normalizeInspectionPhotoRequirement(
-        record && (record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement))
+        record && (record.PhotoRequirement || (record.TemplateSnapshot &&
+            (record.TemplateSnapshot.PhotoRequirement ||
+             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
+             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement))))
     );
     const beforePanel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
     const afterPanel = document.getElementById("inspectionAfterPhotoPanel") ||
@@ -1184,7 +1192,10 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     currentInspectionRecord = record;
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
         await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
-            record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+            record.PhotoRequirement || (record.TemplateSnapshot &&
+            (record.TemplateSnapshot.PhotoRequirement ||
+             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
+             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement))));
     }
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
@@ -1710,8 +1721,11 @@ function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     const key = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
     if (item && item[key] != null) return isInspectionFlagEnabled(item[key], false);
     const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
+    const versionInfo = snapshot && (snapshot.VersionInfo || snapshot.versionInfo || snapshot);
     const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
-    return isInspectionFlagEnabled(snapshot && snapshot[snapshotKey], false);
+    const camelKey = snapshotKey.charAt(0).toLowerCase() + snapshotKey.slice(1);
+    return isInspectionFlagEnabled(versionInfo && (versionInfo[snapshotKey] !== undefined
+        ? versionInfo[snapshotKey] : versionInfo[camelKey]), false);
 }
 
 function validateInspectionItemsAll(items) {
@@ -1755,8 +1769,11 @@ function validateInspectionItemsAll(items) {
                 invalid((itemType === "OPTION" ? "Pilih salah satu option: " : "Nilai wajib diisi: ") + label, "value");
             }
         }
-        const requiredOptionRemarks = Array.isArray(templateItem.remarkRequiredOptions)
-            ? templateItem.remarkRequiredOptions.map(value => String(value).trim()) : [];
+        const versionInfo = template && (template.VersionInfo || template.versionInfo || template);
+        const requiredOptionRemarks = []
+            .concat(Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions : [])
+            .concat(Array.isArray(versionInfo && versionInfo.RemarkRequiredOptions) ? versionInfo.RemarkRequiredOptions : [])
+            .map(value => String(value).trim());
         const selectedOptionRequiresRemark = itemType === "OPTION" &&
             requiredOptionRemarks.includes(String(answer.Value || "").trim());
         const versionRemark1Enabled = isInspectionVersionRemarkEnabled(templateItem, 1);
@@ -3114,7 +3131,10 @@ async function applyInspectionParameters() {
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
         Number(record.IDTemplate) !== Number(template.IDTemplate) ||
         Number(record.IDVersion) !== Number(template.IDVersion) ||
-        normalizeInspectionPhotoRequirement(record.PhotoRequirement || (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement)) !== normalizeInspectionPhotoRequirement(template.PhotoRequirement);
+        normalizeInspectionPhotoRequirement(record.PhotoRequirement || (record.TemplateSnapshot &&
+            (record.TemplateSnapshot.PhotoRequirement ||
+             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
+             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement)))) !== normalizeInspectionPhotoRequirement(template.PhotoRequirement);
     if (!changed) return true;
 
     const photos = await getInspectionPhotos(record.LocalInspectionID);
@@ -3151,7 +3171,9 @@ async function applyInspectionParameters() {
         TemplateName: template.TemplateName,
         TemplateVersion: String(template.Version || ""),
         TemplateSnapshot: JSON.parse(JSON.stringify(template)),
-        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement),
+        PhotoRequirement: normalizeInspectionPhotoRequirement(template.PhotoRequirement ||
+            (template.VersionInfo && template.VersionInfo.PhotoRequirement) ||
+            (template.versionInfo && template.versionInfo.photoRequirement)),
         SyncStatus: "PENDING",
         UpdatedAt: new Date().toISOString()
     });
