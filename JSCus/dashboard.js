@@ -10,6 +10,18 @@ async function initializeDashboardPage() {
     }
     renderCards();
     await renderInspectionDashboardCards();
+
+    // renderCards() creates the WO counters with a temporary zero.
+    // Populate them immediately after IndexedDB is ready instead of waiting
+    // for the first 15-second polling interval (which made F5 show 0).
+    if (typeof refreshDashboardCounts === "function") {
+        try {
+            await refreshDashboardCounts();
+        } catch (err) {
+            console.warn("Unable to initialize dashboard counters:", err);
+        }
+    }
+
     setInterval(function () {
         refreshDashboardCounts();
         renderInspectionDashboardCards();
