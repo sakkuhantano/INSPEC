@@ -1055,19 +1055,8 @@ function getBatchPointQuickOptionBlockReason(point) {
         String(item.type || "").toUpperCase() !== "OPTION" &&
         isInspectionFlagEnabled(item.isValueRequired, false)))
         return "Template memiliki checklist wajib selain OPTION. Buka checklist lengkap.";
-    for (const item of templateItems) {
-        const r1 = isInspectionVersionRemarkEnabled(item, 1);
-        const r2 = isInspectionVersionRemarkEnabled(item, 2);
-        const mandatoryRemark =
-            (r1 && isInspectionFlagEnabled(item.isRemark1Required, false) && isInspectionFlagEnabled(item.isRemark1Mandatory, false)) ||
-            (r2 && isInspectionFlagEnabled(item.isRemark2Required, false) && isInspectionFlagEnabled(item.isRemark2Mandatory, false));
-        const versionInfo = record.TemplateSnapshot &&
-            (record.TemplateSnapshot.VersionInfo || record.TemplateSnapshot.versionInfo || record.TemplateSnapshot);
-        const optionRemarks = (Array.isArray(item.remarkRequiredOptions) ? item.remarkRequiredOptions : [])
-            .concat(Array.isArray(versionInfo && versionInfo.RemarkRequiredOptions) ? versionInfo.RemarkRequiredOptions : []);
-        if (mandatoryRemark || (optionRemarks.length && (r1 || r2)))
-            return "Template Version mewajibkan Remark untuk checklist ini. Buka checklist lengkap.";
-    }
+    // Remark1/Remark2 are editable directly in the point list below the OPTION controls.
+    // Their required state is validated when the point is completed; it must not block ON/OFF selection.
     return "";
 }
 window.getBatchPointQuickOptionBlockReason = getBatchPointQuickOptionBlockReason;
