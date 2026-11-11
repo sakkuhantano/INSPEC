@@ -361,6 +361,8 @@ SELECT I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
        ISNULL(I.IsRemark2Mandatory,0) IsRemark2Mandatory,
        ISNULL(I.IsUseDefaultRemark1,0) IsUseDefaultRemark1,
        ISNULL(I.IsUseDefaultRemark2,0) IsUseDefaultRemark2,
+       ISNULL(I.IsToleranceRequired,0) IsToleranceRequired,
+       I.MinValue, I.MaxValue, I.MinTolerance, I.MaxTolerance,
        ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions
 FROM dbo.PIP_M_CheckListWOPM_Item I
 INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -409,6 +411,7 @@ ORDER BY G.DisplayOrder",
                                             " tidak termasuk Master Checklist Version yang dipilih.");
                                 }
 
+                                bool hasAnomalousItem = false;
                                 foreach (DataRow templateItem in versionItems.Rows)
                                 {
                                     int itemId = Convert.ToInt32(templateItem["IDItem"]);
@@ -466,6 +469,44 @@ ORDER BY G.DisplayOrder",
                                         }
                                     }
 
+                                    bool itemIsAnomalous = false;
+                                    if (Convert.ToBoolean(templateItem["IsToleranceRequired"]) &&
+                                        !String.IsNullOrWhiteSpace(value))
+                                    {
+                                        decimal numericValue;
+                                        if (!Decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out numericValue))
+                                            throw new Exception(pointPrefix + "Nilai " + itemLabel + " harus berupa angka.");
+
+                                        bool hasLower = false;
+                                        bool hasUpper = false;
+                                        decimal lowerLimit = 0;
+                                        decimal upperLimit = 0;
+                                        if (itemType == "INPUT" &&
+                                            templateItem["MinTolerance"] != DBNull.Value &&
+                                            templateItem["MaxTolerance"] != DBNull.Value)
+                                        {
+                                            lowerLimit = Convert.ToDecimal(templateItem["MinTolerance"]);
+                                            upperLimit = Convert.ToDecimal(templateItem["MaxTolerance"]);
+                                            hasLower = hasUpper = true;
+                                        }
+                                        else if (itemType == "RANGE" &&
+                                            templateItem["MinValue"] != DBNull.Value &&
+                                            templateItem["MaxValue"] != DBNull.Value &&
+                                            templateItem["MinTolerance"] != DBNull.Value &&
+                                            templateItem["MaxTolerance"] != DBNull.Value)
+                                        {
+                                            lowerLimit = Convert.ToDecimal(templateItem["MinValue"]) -
+                                                Convert.ToDecimal(templateItem["MinTolerance"]);
+                                            upperLimit = Convert.ToDecimal(templateItem["MaxValue"]) +
+                                                Convert.ToDecimal(templateItem["MaxTolerance"]);
+                                            hasLower = hasUpper = true;
+                                        }
+                                        if (hasLower && hasUpper)
+                                            itemIsAnomalous = numericValue <= lowerLimit || numericValue >= upperLimit;
+                                        if (answer != null) answer["IsAnomali"] = itemIsAnomalous;
+                                        hasAnomalousItem = hasAnomalousItem || itemIsAnomalous;
+                                    }
+
                                     string itemRemarkOptions = Convert.ToString(templateItem["RemarkRequiredOptions"]);
                                     bool selectedOptionRequiresRemark = itemType == "OPTION" &&
                                         ((!String.IsNullOrWhiteSpace(itemRemarkOptions) &&
@@ -487,6 +528,10 @@ ORDER BY G.DisplayOrder",
                                     if (remark2Required && String.IsNullOrWhiteSpace(remark2))
                                         throw new Exception(pointPrefix + "Remark 2 wajib diisi pada " + itemLabel + ".");
                                 }
+
+                                if (hasAnomalousItem &&
+                                    String.Equals(TokenString(versionPoint, "Status"), "DONE", StringComparison.OrdinalIgnoreCase))
+                                    versionPoint["Status"] = "ABNORMAL";
 
                                 JArray submittedPhotos = versionPoint["Photos"] as JArray ?? new JArray();
                                 bool hasBefore = submittedPhotos.OfType<JObject>().Any(photo =>
