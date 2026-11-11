@@ -1802,10 +1802,9 @@ async function downloadWorkOrder() {
                 companyLocation: data.curcompany,
                 section: data.section,
                 lastSync: data.lastsyncw,
-                isSPV: false,
+                isApprovalMode: false,
                 status: "",
-                keyhd: 0,
-                dataRole: data.role
+                keyhd: 0
             })
         });
 
