@@ -373,6 +373,9 @@ function wireInspectionEvents() {
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }, true);
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
+        if (event.target) event.target.classList.remove("is-invalid", "border-danger", "text-danger");
+        const changedItem = event.target && event.target.closest(".inspection-item");
+        if (changedItem) changedItem.classList.remove("inspection-validation-error", "border", "border-danger", "rounded", "p-2");
         if (event.target && event.target.matches('[data-role="value"][type="radio"]')) updateInspectionRemarkPanels();
         scheduleInspectionAutosave();
         updateInspectionChecklistGate();
