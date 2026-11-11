@@ -1808,9 +1808,27 @@ async function downloadWorkOrder() {
             })
         });
 
-        if (!response.ok) throw new Error("Download WO failed");
+        const responseText = await response.text();
+        let result;
+        try {
+            result = JSON.parse(responseText);
+        } catch (_) {
+            if (!response.ok) {
+                console.error("Download WO HTTP error:", response.status, responseText);
+                throw new Error("Download WO gagal (HTTP " + response.status + "). Respons server: " +
+                    responseText.substring(0, 1200));
+            }
+            throw new Error("Respons download WO bukan JSON: " + responseText.substring(0, 500));
+        }
 
-        let result = await response.json();
+        if (!response.ok) {
+            const serverError = result && result.Message
+                ? result.Message
+                : (result && result.d && result.d.message ? result.d.message : responseText);
+            console.error("Download WO HTTP error:", response.status, result);
+            throw new Error("Download WO gagal (HTTP " + response.status + "): " + serverError);
+        }
+
         let workorders = result.d.data;
         newLastSync = result.d.serverTime;
         if (!workorders) return;
