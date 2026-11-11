@@ -1197,10 +1197,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     currentInspectionRecord = record;
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
         await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
-            record.PhotoRequirement || (record.TemplateSnapshot &&
-            (record.TemplateSnapshot.PhotoRequirement ||
-             (record.TemplateSnapshot.VersionInfo && record.TemplateSnapshot.VersionInfo.PhotoRequirement) ||
-             (record.TemplateSnapshot.versionInfo && record.TemplateSnapshot.versionInfo.photoRequirement))));
+            getInspectionPhotoRequirement(record));
     }
     const photosAtOpen = await getInspectionPhotos(record.LocalInspectionID);
     inspectionPhotoBaseline = photosAtOpen.map(photo => Object.assign({}, photo));
@@ -2038,8 +2035,7 @@ async function saveBatchInspectionPoint(status) {
     }
     if (status === "DONE") {
         validateInspectionItemsAll(items).forEach(error => errors.push(error));
-        const requirement = normalizeInspectionPhotoRequirement(record.PhotoRequirement ||
-            (record.TemplateSnapshot && record.TemplateSnapshot.PhotoRequirement));
+        const requirement = getInspectionPhotoRequirement(record);
         const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
         const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
         if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
