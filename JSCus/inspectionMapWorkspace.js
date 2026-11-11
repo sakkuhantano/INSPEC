@@ -8,6 +8,7 @@
     var currentPoints = [];
     var currentMapId = "";
     var currentPdfDocument = null;
+    var pdfRenderSequence = 0;
     var listPage = 1;
     var listPageSize = 20;
     var listKeyword = "";
@@ -404,11 +405,17 @@
             return String(point.InspectionPointID) === String(id);
         });
         if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
-        switchMapList(true);
+        switchMapList();
         renderList();
-        var row = document.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
-        if (row && typeof row.scrollIntoView === "function")
-            row.scrollIntoView({ behavior: "smooth", block: "center" });
+        var listHost = document.getElementById("inspectionPointList");
+        var row = listHost && listHost.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
+        if (listHost && row) {
+            var hostRect = listHost.getBoundingClientRect();
+            var rowRect = row.getBoundingClientRect();
+            var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
+                Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
+            listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+        }
     }
 
     function closePoint() {
@@ -420,26 +427,17 @@
         });
     }
 
-    function switchMapList(showList) {
+    function switchMapList() {
         var canvas = document.getElementById("inspectionMapCanvas");
         var list = document.getElementById("inspectionPointList");
-        var mapButton = document.getElementById("btnInspectionMapView");
-        var listButton = document.getElementById("btnInspectionPointListView");
         if (!canvas || !list) return;
         var hasMap = currentMaps.some(function (map) {
             return Number(map.MapID) === Number(currentMapId) && !!map.MapUrl;
         });
-        canvas.classList.toggle("d-none", showList || !hasMap);
-        list.classList.toggle("d-none", !showList && hasMap);
-        if (mapButton) {
-            mapButton.classList.toggle("btn-primary", !showList && hasMap);
-            mapButton.classList.toggle("btn-outline-primary", showList || !hasMap);
-            mapButton.disabled = !hasMap;
-        }
-        if (listButton) {
-            listButton.classList.toggle("btn-primary", showList || !hasMap);
-            listButton.classList.toggle("btn-outline-primary", !showList && hasMap);
-        }
+        canvas.classList.toggle("d-none", !hasMap);
+        list.classList.remove("d-none");
+        var content = document.querySelector(".inspection-map-content");
+        if (content) content.classList.toggle("no-map", !hasMap);
     }
 
     function getMapElements() {
@@ -554,23 +552,36 @@
     }
 
     async function renderPdf(map) {
+        var requestId = ++pdfRenderSequence;
         var message = document.getElementById('inspectionMapPdfMessage');
         var canvas = document.getElementById('inspectionMapPdfCanvas');
         var stage = document.getElementById('inspectionMapPdfStage');
         if (!canvas || !stage) return;
         resetMapView();
         if (currentPdfDocument && currentPdfDocument.destroy) { try { await currentPdfDocument.destroy(); } catch (_) { } currentPdfDocument = null; }
+        if (requestId !== pdfRenderSequence) return;
         var previousImage = stage.querySelector('img.inspection-map-image');
         if (previousImage) { if (previousImage.dataset.objectUrl) URL.revokeObjectURL(previousImage.dataset.objectUrl); previousImage.remove(); }
+        canvas.style.display = 'block';
+        var pointsHost = document.getElementById("inspectionMapPoints");
+        if (pointsHost) pointsHost.innerHTML = "";
         var context = canvas.getContext('2d'); context.clearRect(0, 0, canvas.width, canvas.height); canvas.width = 0; canvas.height = 0;
-        if (!map || !map.MapUrl) { if (message) { message.textContent = 'Denah belum tersedia. Gunakan tampilan List untuk memilih Inspection Point.'; message.classList.remove('d-none'); } stage.style.width = '100%'; stage.style.minHeight = '260px'; return; }
+        if (!map || !map.MapUrl) {
+            if (message) { message.textContent = 'Denah belum tersedia. Pilih Inspection Point dari daftar.'; message.classList.remove('d-none'); }
+            stage.style.width = '100%';
+            stage.style.minHeight = '260px';
+            return;
+        }
         try {
             if (message) { message.textContent = 'Memuat denah...'; message.classList.remove('d-none'); }
             var blob = map.MapBlob || map.PdfBlob || null;
             if (!blob || typeof blob.arrayBuffer !== 'function') {
                 var response = await fetch(map.MapUrl, { credentials: 'same-origin' });
+                if (requestId !== pdfRenderSequence) return;
                 if (!response.ok) throw new Error('HTTP ' + response.status);
-                blob = await response.blob(); map.MapBlob = blob;
+                blob = await response.blob();
+                if (requestId !== pdfRenderSequence) return;
+                map.MapBlob = blob;
             }
             var mime = String(blob.type || '').toLowerCase();
             var urlPath = String(map.MapUrl).split('?')[0].toLowerCase();
@@ -581,27 +592,42 @@
                 stage.insertBefore(image, document.getElementById('inspectionMapPoints'));
                 var objectUrl = URL.createObjectURL(blob); image.dataset.objectUrl = objectUrl;
                 image.onload = function () {
+                    if (requestId !== pdfRenderSequence) return;
                     var available = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
                     image.style.width = available + 'px'; image.style.height = 'auto'; image.style.maxWidth = 'none'; image.style.display = 'block';
                     stage.style.width = available + 'px'; stage.style.minHeight = '0';
                     if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
                 };
-                image.onerror = function () { if (message) { message.textContent = 'Gambar JPG/JPEG tidak dapat dibuka.'; message.classList.remove('d-none'); } };
+                image.onerror = function () {
+                    if (requestId !== pdfRenderSequence) return;
+                    if (message) { message.textContent = 'Gambar JPG/JPEG tidak dapat dibuka.'; message.classList.remove('d-none'); }
+                };
                 image.src = objectUrl; return;
             }
             canvas.style.display = 'block';
             if (!window.pdfjsLib) throw new Error('PDF.js belum termuat. Periksa file pdf.min.js.');
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
-            currentPdfDocument = await window.pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
-            var page = await currentPdfDocument.getPage(1); var base = page.getViewport({ scale: 1 });
+            var pdfData = new Uint8Array(await blob.arrayBuffer());
+            if (requestId !== pdfRenderSequence) return;
+            var loadedDocument = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
+            if (requestId !== pdfRenderSequence) {
+                if (loadedDocument && loadedDocument.destroy) loadedDocument.destroy();
+                return;
+            }
+            currentPdfDocument = loadedDocument;
+            var page = await currentPdfDocument.getPage(1);
+            if (requestId !== pdfRenderSequence) return;
+            var base = page.getViewport({ scale: 1 });
             var width = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
             var ratio = Math.min(window.devicePixelRatio || 1, 1.5); var viewport = page.getViewport({ scale: (width / base.width) * ratio });
             canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
             canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px';
             stage.style.width = canvas.style.width; stage.style.minHeight = '0';
             await page.render({ canvasContext: context, viewport: viewport }).promise;
+            if (requestId !== pdfRenderSequence) return;
             if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
         } catch (error) {
+            if (requestId !== pdfRenderSequence) return;
             console.error('Inspection map render failed:', error);
             if (message) { message.textContent = 'Denah gagal dimuat: ' + (error && error.message ? error.message : 'periksa file map.'); message.classList.remove('d-none'); }
         }
@@ -632,7 +658,42 @@
         navHost.classList.toggle("d-none", tabName !== "checklist");
     }
 
+    window.resetInspectionMapWorkspace = async function () {
+        currentMapRecord = null;
+        currentMaps = [];
+        currentPoints = [];
+        currentMapId = "";
+        selectedPoint = null;
+        listPage = 1;
+        listKeyword = "";
+        resetMapView();
+        closePoint();
+        var list = document.getElementById("inspectionPointList");
+        if (list) { list.scrollTop = 0; list.innerHTML = ""; }
+        var points = document.getElementById("inspectionMapPoints");
+        if (points) points.innerHTML = "";
+        var summary = document.getElementById("inspectionMapSummaryHost");
+        if (summary) summary.innerHTML = "";
+        var title = document.getElementById("inspectionMapTitle");
+        var subtitle = document.getElementById("inspectionMapSubtitle");
+        if (title) title.textContent = "Inspection Map";
+        if (subtitle) subtitle.textContent = "Warna titik menunjukkan status inspeksi";
+        await renderPdf(null);
+        var workspace = document.getElementById("inspectionMapWorkspace");
+        if (workspace) workspace.classList.add("d-none");
+    };
+
     window.showInspectionMapWorkspace = function (record, activate) {
+        var isDifferentRecord = !!record && (!currentMapRecord ||
+            String(currentMapRecord.LocalInspectionID || "") !== String(record.LocalInspectionID || ""));
+        if (isDifferentRecord) {
+            currentMapId = "";
+            selectedPoint = null;
+            listPage = 1;
+            listKeyword = "";
+            resetMapView();
+            closePoint();
+        }
         if (record) currentMapRecord = record;
         record = record || currentMapRecord;
         var workspace = document.getElementById("inspectionMapWorkspace");
@@ -644,7 +705,8 @@
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
         currentPoints = Array.isArray(setup.points) ? setup.points : [];
         if (!currentPoints.length && Array.isArray(record.PointMaster)) currentPoints = record.PointMaster;
-        if (!currentMapId && currentMaps.length) currentMapId = String(currentMaps[0].MapID);
+        if (!currentMaps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
+            currentMapId = currentMaps.length ? String(currentMaps[0].MapID) : "";
         renderMapOptions();
 
         var nextPendingButton = document.getElementById("btnInspectionNextPending");
@@ -683,13 +745,13 @@
             if (checklistTab) checklistTab.classList.remove("active");
             setInspectionSectionNavForTab("map");
             closePoint();
-            switchMapList(false);
+            switchMapList();
             window.requestAnimationFrame(function () {
                 renderPdf(selectedMap);
             });
             if (typeof window.updateInspectionParameterTabGate === "function")
                 window.updateInspectionParameterTabGate();
-        } else {
+        } else if (!workspace.classList.contains("d-none")) {
             renderPdf(selectedMap);
         }
     };
@@ -752,12 +814,12 @@
         if (close) close.addEventListener("click", closePoint);
         var mapView = document.getElementById("btnInspectionMapView");
         var listView = document.getElementById("btnInspectionPointListView");
-        if (mapView) mapView.addEventListener("click", function () { switchMapList(false); });
-        if (listView) listView.addEventListener("click", function () { switchMapList(true); closePoint(); });
+        if (mapView) mapView.addEventListener("click", function () { switchMapList(); });
+        if (listView) listView.addEventListener("click", function () { switchMapList(); closePoint(); });
 
         var reset = document.getElementById("btnInspectionMapReset");
         if (reset) reset.addEventListener("click", function () {
-            switchMapList(false);
+            switchMapList();
             closePoint();
             resetMapView();
         });
