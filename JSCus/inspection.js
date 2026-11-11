@@ -1037,8 +1037,12 @@ function getBatchPointQuickOptionBlockReason(point) {
     if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
         return "Batch inspection tidak sedang aktif.";
     const requirement = getInspectionPhotoRequirement(record);
-    if (requirement !== "NONE") {
-        const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : requirement;
+    // Quick OPTION selection is blocked only when BEFORE is mandatory,
+    // because the full checklist is also gated only by the BEFORE photo.
+    // AFTER-only templates may select the option first; completion validation
+    // still enforces the required AFTER photo before the point/batch is finished.
+    if (requirement === "BEFORE" || requirement === "BOTH") {
+        const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : "BEFORE";
         return "Template Version mewajibkan foto " + photoText + ". Buka checklist lengkap untuk melanjutkan.";
     }
     const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
