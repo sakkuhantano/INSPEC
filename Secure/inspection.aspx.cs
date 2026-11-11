@@ -368,6 +368,9 @@ ORDER BY S.DisplayOrder, I.DisplayOrder",
                                 new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
+                            if (versionItems == null || versionItems.Rows.Count == 0)
+                                throw new Exception("Master Checklist Version tidak memiliki item checklist.");
+
                             DataTable versionGroups = br.EQueryP(@"
 SELECT G.IDItem, G.GroupName, G.FieldList
 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
@@ -461,11 +464,11 @@ ORDER BY G.DisplayOrder",
                                     }
 
                                     string itemRemarkOptions = Convert.ToString(templateItem["RemarkRequiredOptions"]);
-                                    bool selectedOptionRequiresRemark =
-                                        (!String.IsNullOrWhiteSpace(itemRemarkOptions) &&
+                                    bool selectedOptionRequiresRemark = itemType == "OPTION" &&
+                                        ((!String.IsNullOrWhiteSpace(itemRemarkOptions) &&
                                             itemRemarkOptions.Split(';').Any(option => String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase))) ||
-                                        (!String.IsNullOrWhiteSpace(versionRemarkOptions) &&
-                                            versionRemarkOptions.Split(';').Any(option => String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase)));
+                                         (!String.IsNullOrWhiteSpace(versionRemarkOptions) &&
+                                            versionRemarkOptions.Split(';').Any(option => String.Equals(option.Trim(), value.Trim(), StringComparison.OrdinalIgnoreCase))));
                                     bool versionRemark1Enabled = Convert.ToBoolean(versionRule["IsRemark1Required"]);
                                     bool versionRemark2Enabled = Convert.ToBoolean(versionRule["IsRemark2Required"]);
                                     bool remark1Required = versionRemark1Enabled &&
