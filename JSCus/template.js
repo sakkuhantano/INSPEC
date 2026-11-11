@@ -4166,6 +4166,13 @@ function showItemProperties(itemData)
     const itemType =
         itemData.ItemType || 'INPUT';
 
+    // OPTION stores its selected label in Value; it does not support a
+    // separate numeric value or measurement unit.
+    if (itemType === 'OPTION') {
+        itemData.IsValueRequired = false;
+        itemData.Unit = '';
+    }
+
     panel.innerHTML =
     `
         <!-- ===================================== -->
@@ -4243,7 +4250,7 @@ function showItemProperties(itemData)
                             class="form-control form-control-compact"
                             type="text"
                             value="${escapeHtml(itemData.Unit || '')}"
-                            ${isReadonlyMode ? 'disabled' : ''} maxlength="${dbLength.Unit}"
+                            ${(isReadonlyMode || itemType === 'OPTION') ? 'disabled' : ''} maxlength="${dbLength.Unit}"
                         />
 
                     </div>
@@ -4270,7 +4277,7 @@ function showItemProperties(itemData)
                         class="form-check-input"
                         type="checkbox"
                         ${itemData.IsValueRequired ? 'checked' : ''}
-                        ${isReadonlyMode ? 'disabled' : ''}
+                        ${(isReadonlyMode || itemType === 'OPTION') ? 'disabled' : ''}
                     >
 
                     <label class="form-check-label text-xs">
@@ -4667,14 +4674,19 @@ function showItemProperties(itemData)
                     itemData.MaxTolerance = "";
                 }
 
-                if(this.value == "GROUP" || this.value == "TEXT")
+                if(this.value == "GROUP" || this.value == "TEXT" || this.value == "OPTION")
                 {
                     itemData.Unit = "";
+                }
+                if (this.value === "OPTION") {
+                    itemData.IsValueRequired = false;
                 }
                 $("#rowUnit").toggle(
                     this.value !== "GROUP" &&
                     this.value !== "TEXT"
                 );
+                $("#propUnit").prop("disabled", isReadonlyMode || this.value === "OPTION").val(itemData.Unit || "");
+                $("#propMandatoryValue").prop("disabled", isReadonlyMode || this.value === "OPTION").prop("checked", !!itemData.IsValueRequired);
 
                 if(this.value == "OPTION")
                 {
@@ -4779,6 +4791,11 @@ function showItemProperties(itemData)
     {
         txtUnit.addEventListener('input', function ()
         {
+            if (itemData.ItemType === "OPTION") {
+                itemData.Unit = "";
+                this.value = "";
+                return;
+            }
             itemData.Unit = this.value;
 
             if (currentSelectedItem)
@@ -4945,7 +4962,8 @@ function showItemProperties(itemData)
             function()
             {
                 itemData.IsValueRequired =
-                    this.checked;
+                    itemData.ItemType === "OPTION" ? false : this.checked;
+                if (itemData.ItemType === "OPTION") this.checked = false;
 
                 markCurrentVersionDirty();
             }
@@ -10825,7 +10843,10 @@ function normalizeVersionStructure(structure)
                 (item.ModelCode || "").trim();
 
             item.Unit =
-                (item.Unit || "").trim();
+                item.ItemType === "OPTION" ? "" : (item.Unit || "").trim();
+            if (item.ItemType === "OPTION") {
+                item.IsValueRequired = false;
+            }
 
             item.ItemName =
                 (item.ItemName || "").trim();
