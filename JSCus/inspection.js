@@ -1820,28 +1820,29 @@ function validateInspectionItemsAll(items) {
                 value.toUpperCase() === String(answer.Value).trim().toUpperCase()))
                 invalid("Option '" + answer.Value + "' tidak tersedia di Master Version: " + label, "value");
         }
+        const rawRequiredOptionRemarks = templateItem.remarkRequiredOptions || templateItem.RemarkRequiredOptions || [];
         const requiredOptionRemarks = []
-            .concat(Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions : [])
+            .concat(Array.isArray(rawRequiredOptionRemarks) ? rawRequiredOptionRemarks : String(rawRequiredOptionRemarks || "").split(";"))
             .concat(Array.isArray(versionInfo && versionInfo.RemarkRequiredOptions) ? versionInfo.RemarkRequiredOptions : [])
             .map(value => String(value).trim());
         const selectedOptionRequiresRemark = itemType === "OPTION" &&
             requiredOptionRemarks.includes(String(answer.Value || "").trim());
         const versionRemark1Enabled = isInspectionVersionRemarkEnabled(templateItem, 1);
         const versionRemark2Enabled = isInspectionVersionRemarkEnabled(templateItem, 2);
+        const itemRemark1Enabled = isInspectionFlagEnabled(templateItem.isRemark1Required != null ? templateItem.isRemark1Required : templateItem.IsRemark1Required, false);
+        const itemRemark2Enabled = isInspectionFlagEnabled(templateItem.isRemark2Required != null ? templateItem.isRemark2Required : templateItem.IsRemark2Required, false);
+        const itemRemark1Mandatory = isInspectionFlagEnabled(templateItem.isRemark1Mandatory != null ? templateItem.isRemark1Mandatory : templateItem.IsRemark1Mandatory, false);
+        const itemRemark2Mandatory = isInspectionFlagEnabled(templateItem.isRemark2Mandatory != null ? templateItem.isRemark2Mandatory : templateItem.IsRemark2Mandatory, false);
         const remark1Required = versionRemark1Enabled &&
-            ((isInspectionFlagEnabled(templateItem.isRemark1Required, false) &&
-              isInspectionFlagEnabled(templateItem.isRemark1Mandatory, false)) ||
-             selectedOptionRequiresRemark);
+            ((itemRemark1Enabled && itemRemark1Mandatory) || selectedOptionRequiresRemark);
         const remark2Required = versionRemark2Enabled &&
-            ((isInspectionFlagEnabled(templateItem.isRemark2Required, false) &&
-              isInspectionFlagEnabled(templateItem.isRemark2Mandatory, false)) ||
-             selectedOptionRequiresRemark);
-        const remark1Title = selectedOptionRequiresRemark && !isInspectionFlagEnabled(templateItem.isRemark1Required, false)
+            ((itemRemark2Enabled && itemRemark2Mandatory) || selectedOptionRequiresRemark);
+        const remark1Title = selectedOptionRequiresRemark && !itemRemark1Enabled
             ? (templateItem.versionRemark1Text || templateItem.VersionRemark1Text || "Remark")
-            : (templateItem.remark1Text || "Remark");
-        const remark2Title = selectedOptionRequiresRemark && !isInspectionFlagEnabled(templateItem.isRemark2Required, false)
+            : (templateItem.remark1Text || templateItem.Remark1Text || "Remark");
+        const remark2Title = selectedOptionRequiresRemark && !itemRemark2Enabled
             ? (templateItem.versionRemark2Text || templateItem.VersionRemark2Text || "Remark")
-            : (templateItem.remark2Text || "Remark");
+            : (templateItem.remark2Text || templateItem.Remark2Text || "Remark");
         if (remark1Required && !String(answer.Remark1 || "").trim())
             invalid(remark1Title + " wajib diisi: " + label, "remark1");
         if (remark2Required && !String(answer.Remark2 || "").trim())
