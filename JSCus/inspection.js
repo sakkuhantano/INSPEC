@@ -1772,6 +1772,20 @@ function validateInspectionItemsAll(items) {
             }
         }
         const versionInfo = template && (template.VersionInfo || template.versionInfo || template);
+        if (itemType === "OPTION" && String(answer.Value || "").trim()) {
+            const itemOptions = Array.isArray(templateItem.optionList)
+                ? templateItem.optionList
+                : String(templateItem.optionList || "").split(";");
+            const versionOptions = Array.isArray(versionInfo && versionInfo.StatusOption)
+                ? versionInfo.StatusOption
+                : String(versionInfo && versionInfo.StatusOption || "").split(";");
+            const allowedOptions = itemOptions.map(value => String(value).trim()).filter(Boolean);
+            if (!allowedOptions.length && isInspectionFlagEnabled(templateItem.useDefaultOption, false))
+                allowedOptions.push.apply(allowedOptions, versionOptions.map(value => String(value).trim()).filter(Boolean));
+            if (allowedOptions.length && !allowedOptions.some(value =>
+                value.toUpperCase() === String(answer.Value).trim().toUpperCase()))
+                invalid("Option '" + answer.Value + "' tidak tersedia di Master Version: " + label, "value");
+        }
         const requiredOptionRemarks = []
             .concat(Array.isArray(templateItem.remarkRequiredOptions) ? templateItem.remarkRequiredOptions : [])
             .concat(Array.isArray(versionInfo && versionInfo.RemarkRequiredOptions) ? versionInfo.RemarkRequiredOptions : [])
