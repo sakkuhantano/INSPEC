@@ -493,26 +493,72 @@ function syncLegacyMasterCompanyFields(data) {
     }, { passive: true });
 })();
 
+function getMasterCompanyList(data) {
+    if (!data) return [];
+    if (Array.isArray(data.companylist)) return data.companylist;
+    if (typeof data.companylist === "string" && data.companylist.trim()) {
+        try {
+            var parsed = JSON.parse(data.companylist);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (ex) {
+            return [];
+        }
+    }
+    return [];
+}
+
 function loadCompanyName() {
     var data = getLoginData();
     if (!data) return;
     try {
+        var list = getMasterCompanyList(data);
+        var originalCompany = String(data.curcompany || "");
+        var originalCompanyName = String(data.curcompanyname || "");
+        var current = originalCompany;
+        var selected = list.find(function (company) {
+            return String(company.companylocation || "") === current;
+        });
+
+        // Choose a default only when the login payload has no current company.
+        if (!current && list.length) {
+            selected = list[0];
+            data.curcompany = String(selected.companylocation || "");
+            current = data.curcompany;
+        }
+        if (selected && !String(data.curcompanyname || "").trim())
+            data.curcompanyname = selected.companyname || "";
+        if (!Array.isArray(data.companylist) && list.length)
+            data.companylist = list;
+        if (typeof setLoginData === "function" &&
+            (data.curcompany !== originalCompany || data.curcompanyname !== originalCompanyName ||
+             !Array.isArray(getLoginData().companylist))) {
+            setLoginData(data);
+        }
+
         syncLegacyMasterCompanyFields(data);
-        //var current = data.curcompany;
-        document.getElementById("lblCompanyLocation").innerText = data.curcompany;
-        document.getElementById("lblNIK").innerText = data.employeeid;
-        document.getElementById("lblUserName").innerText = data.username;
-        document.getElementById("lblCompany").innerText = data.curcompanyname;
-        document.getElementById("lblCompanySidebar").innerHTML = data.curcompanyname;
-        document.getElementById("lblUserID").innerHTML = data.userid;
-        btnProfileTopBar.title = data.username;
+        var locationLabel = document.getElementById("lblCompanyLocation");
+        var companyLabel = document.getElementById("lblCompany");
+        var sidebarCompanyLabel = document.getElementById("lblCompanySidebar");
+        var nikLabel = document.getElementById("lblNIK");
+        var userLabel = document.getElementById("lblUserName");
+        var userIdLabel = document.getElementById("lblUserID");
+        if (locationLabel) locationLabel.innerText = data.curcompany || "";
+        if (nikLabel) nikLabel.innerText = data.employeeid || "";
+        if (userLabel) userLabel.innerText = data.username || "";
+        if (companyLabel) companyLabel.innerText = data.curcompanyname || "";
+        if (sidebarCompanyLabel) sidebarCompanyLabel.textContent = data.curcompanyname || "";
+        if (userIdLabel) userIdLabel.textContent = data.userid || "";
+        if (typeof btnProfileTopBar !== "undefined" && btnProfileTopBar)
+            btnProfileTopBar.title = data.username || "";
         if (data.theme === "L")
             document.documentElement.setAttribute("data-bs-theme", "light");
-        else 
+        else
             document.documentElement.setAttribute("data-bs-theme", "dark");
-    } catch (ex) { }
+    } catch (ex) {
+        console.warn("Unable to render current company in master header:", ex);
+    }
 }
-    
+
 async function loadCompanyDropdown() {
     var ul = document.getElementById("companyMenu");
 
@@ -524,7 +570,10 @@ async function loadCompanyDropdown() {
         </li>`;
 
     //var list = await getCompanyList();
-    var list = getLoginData().companylist;
+    loadCompanyName();
+    var loginData = getLoginData();
+    var list = getMasterCompanyList(loginData);
+    if (!loginData || !list.length) return;
     var current = document.getElementById("lblCompanyLocation").innerText;
     var hasPending = (getTotalPendingSync() > 0);
     var offline = !navigator.onLine;
