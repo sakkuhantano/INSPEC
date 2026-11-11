@@ -40,18 +40,19 @@ namespace INSPEC.Secure
                 if (authorized == null || authorized.Rows.Count == 0)
                     throw new HttpException(400, "Tidak ada transaksi inspeksi yang dapat dibuatkan report.");
 
-                // GenerateInspectionXlsx memang menerima DataTable satu kolom:
-                // setiap row berisi InspectionNo yang dipilih.
-                DataTable inspectionNos = new DataTable();
-                inspectionNos.Columns.Add("InspectionNo", typeof(string));
+                // Gunakan InspectionID sebagai key transaksi yang unik lintas company.
+                // DataTable yang dikirim ke generator hanya memiliki satu kolom dan
+                // satu row untuk setiap transaksi yang dipilih.
+                DataTable inspectionIdsTable = new DataTable();
+                inspectionIdsTable.Columns.Add("InspectionID", typeof(long));
 
                 foreach (DataRow row in authorized.Rows)
                 {
-                    inspectionNos.Rows.Add(Convert.ToString(row["InspectionNo"]));
+                    inspectionIdsTable.Rows.Add(Convert.ToInt64(row["InspectionID"]));
                 }
 
                 INSPEC.Secure.ReportFileResult generated =
-                    INSPEC.Secure.R_Report.GenerateInspectionXlsx(inspectionNos, employeeId);
+                    INSPEC.Secure.R_Report.GenerateInspectionXlsx(inspectionIdsTable, employeeId);
 
                 if (generated == null || !generated.Success ||
                     String.IsNullOrWhiteSpace(generated.StoragePath) ||
