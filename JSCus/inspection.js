@@ -786,13 +786,65 @@ async function startNewInspection() {
     const detail = inspectionDetails.find(x =>
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
-    const template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    let template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
 
     if (!type || !detail || !template ||
         !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
         (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
         showToast("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
+    }
+
+    // Online BATCH starts must use the exact authoritative template version from
+    // the server, not a possibly stale IndexedDB snapshot. STANDARD keeps its
+    // existing cache-first flow and is deliberately not affected.
+    if (String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH" && navigator.onLine) {
+        try {
+            const templateResponse = await fetch("dashboard.aspx/getCheckList", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    section: inspectionLogin.section || "",
+                    templateNo: template.TemplateNo,
+                    version: String(template.Version || ""),
+                    modelcode: "",
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID,
+                    templateType: "I",
+                    employeeId: inspectionLogin.employeeid
+                })
+            });
+            const templatePayload = await templateResponse.json();
+            if (!templateResponse.ok)
+                throw new Error((templatePayload && (templatePayload.Message || templatePayload.ExceptionMessage)) ||
+                    "Gagal memuat ulang Master Checklist BATCH.");
+            const exactTemplates = templatePayload && Object.prototype.hasOwnProperty.call(templatePayload, "d")
+                ? templatePayload.d : templatePayload;
+            const authoritativeTemplate = (Array.isArray(exactTemplates) ? exactTemplates : []).find(item =>
+                Number(item.IDTemplate) === Number(template.IDTemplate) &&
+                Number(item.IDVersion) === Number(template.IDVersion)
+            );
+            if (!authoritativeTemplate)
+                throw new Error("Template BATCH versi " + String(template.Version || "") +
+                    " tidak ditemukan lagi di server. Jalankan Sync dan pilih template kembali.");
+
+            template = authoritativeTemplate;
+            const cachedIndex = inspectionTemplates.findIndex(item =>
+                Number(item.IDTemplate) === Number(template.IDTemplate));
+            if (cachedIndex >= 0) inspectionTemplates[cachedIndex] = template;
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_templates", "readwrite");
+                tx.objectStore("inspection_templates").put(template);
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error("Gagal memperbarui cache Master Checklist BATCH."));
+                tx.onabort = () => reject(tx.error || new Error("Pembaruan cache Master Checklist BATCH dibatalkan."));
+            });
+        } catch (templateError) {
+            console.error("Unable to refresh exact BATCH template before start:", templateError);
+            showToast("Master Checklist BATCH belum berhasil diverifikasi dari server. Inspeksi belum dimulai. " +
+                (templateError.message || templateError), "danger");
+            return;
+        }
     }
 
     const inspectionDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
