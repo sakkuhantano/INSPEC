@@ -125,8 +125,8 @@
                     var mandatory = flagEnabled(number === 1 ? item.isRemark1Mandatory : item.isRemark2Mandatory);
                     var text = number === 1 ? item.remark1Text : item.remark2Text;
                     var field = number === 1 ? "Remark1" : "Remark2";
-                    if (!versionEnabled || !(itemRequired || remarkOptions.length)) return;
-                    var visible = !!itemRequired || optionRequiresRemark;
+                    if (!(itemRequired || (versionEnabled && remarkOptions.length))) return;
+                    var visible = itemRequired || (versionEnabled && optionRequiresRemark);
                     var inputRequired = visible && (!!mandatory || optionRequiresRemark);
                     var value = saved && saved[field] != null ? saved[field] : "";
                     remarkHtml += '<div class="inspection-point-remark' + (visible ? "" : " d-none") + '">' +
