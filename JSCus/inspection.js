@@ -1141,18 +1141,12 @@ function getBatchPointQuickOptionBlockReason(point) {
         const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : "BEFORE";
         return "Template Version mewajibkan foto " + photoText + ". Buka checklist lengkap untuk melanjutkan.";
     }
-    // NORMAL/ABNORMAL is a separate point-level requirement. It must be
-    // validated when completing the point, but must not prevent selecting
-    // an OPTION value (such as ON/OFF) from the point list.
-    const templateItems = [];
-    (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
-        .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
-    if (!templateItems.length || templateItems.some(item =>
-        String(item.type || "").toUpperCase() !== "OPTION" &&
-        isInspectionFlagEnabled(item.isValueRequired, false)))
-        return "Template memiliki checklist wajib selain OPTION. Buka checklist lengkap.";
-    // Remark1/Remark2 are editable directly in the point list below the OPTION controls.
-    // Their required state is validated when the point is completed; it must not block ON/OFF selection.
+    // Other checklist requirements (NORMAL/ABNORMAL, numeric/text values,
+    // remarks, etc.) are validated when the point is completed. They must not
+    // prevent choosing an OPTION value from the point list.
+    // The quick OPTION control is intentionally gated only by a mandatory
+    // BEFORE photo because that is the only prerequisite needed before entering
+    // the point checklist.
     return "";
 }
 window.getBatchPointQuickOptionBlockReason = getBatchPointQuickOptionBlockReason;
