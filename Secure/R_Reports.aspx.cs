@@ -29,60 +29,61 @@ namespace INSPEC.Secure
         {
             try
             {
+                // Selalu gunakan NIK dari session login, bukan nilai employeeId dari browser.
                 employeeId = GFC.RequireMenuEmployee("20022");
-                DataTable data = inspection.GetAuthorizedInspectionSelection(inspectionIds, companyId, locationId);
-                if (data == null || data.Rows.Count == 0)
+
+                // Validasi otorisasi, scope company/location, jumlah transaksi,
+                // serta satu InspectionType dilakukan ulang di server.
+                DataTable authorized = inspection.GetAuthorizedInspectionSelection(
+                    inspectionIds, companyId, locationId);
+
+                if (authorized == null || authorized.Rows.Count == 0)
                     throw new HttpException(400, "Tidak ada transaksi inspeksi yang dapat dibuatkan report.");
 
-                string folder = HttpContext.Current.Server.MapPath(ReportFolder);
-                if (!Directory.Exists(folder))
-                    Directory.CreateDirectory(folder);
+                // GenerateInspectionXlsx memang menerima DataTable satu kolom:
+                // setiap row berisi InspectionNo yang dipilih.
+                DataTable inspectionNos = new DataTable();
+                inspectionNos.Columns.Add("InspectionNo", typeof(string));
 
-                CleanupOldReports(folder);
-
-                string fileName = "Inspection_Report_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") +
-                    "_" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".xlsx";
-                string physicalPath = Path.Combine(folder, fileName);
-
-                using (ExcelPackage package = new ExcelPackage())
+                foreach (DataRow row in authorized.Rows)
                 {
-                    ExcelWorksheet sheet = package.Workbook.Worksheets.Add("Inspection Report");
-                    sheet.Cells["A1"].Value = "INSPECTION REPORT";
-                    sheet.Cells["A1"].Style.Font.Bold = true;
-                    sheet.Cells["A1"].Style.Font.Size = 14;
-                    DataTable export = data.DefaultView.ToTable(false,
-                        "InspectionNo", "InspectionTypeCode", "InspectionTypeName",
-                        "InspectionTypeDetailCode", "InspectionTypeDetailName",
-                        "InspectionDate", "TemplateNo", "TemplateName",
-                        "OwnerEmployeeID", "Status", "IsApprove");
-                    sheet.Cells["A3"].LoadFromDataTable(export, true);
-                    var header = sheet.Cells[3, 1, 3, export.Columns.Count];
-                    header.Style.Font.Bold = true;
-                    header.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                    header.Style.Fill.BackgroundColor.SetColor(Color.LightSteelBlue);
-                    header.Style.WrapText = true;
-                    sheet.View.FreezePanes(4, 1);
-                    sheet.Cells[sheet.Dimension.Address].AutoFitColumns();
-                    package.SaveAs(new FileInfo(physicalPath));
+                    inspectionNos.Rows.Add(Convert.ToString(row["InspectionNo"]));
+                }
+
+                INSPEC.Secure.ReportFileResult generated =
+                    INSPEC.Secure.R_Report.GenerateInspectionXlsx(inspectionNos, employeeId);
+
+                if (generated == null || !generated.Success ||
+                    String.IsNullOrWhiteSpace(generated.StoragePath) ||
+                    !File.Exists(generated.StoragePath))
+                {
+                    throw new InvalidOperationException(
+                        generated != null && !String.IsNullOrWhiteSpace(generated.Message)
+                            ? generated.Message
+                            : "Gagal membuat file Excel preview.");
                 }
 
                 string token = Guid.NewGuid().ToString("N");
-                HttpContext.Current.Session["InspectionReportFile_" + token] = physicalPath;
-                HttpContext.Current.Session["InspectionReportName_" + token] = fileName;
+                HttpContext.Current.Session["InspectionReportFile_" + token] = generated.StoragePath;
+                HttpContext.Current.Session["InspectionReportName_" + token] = generated.FileName;
 
-                string filePath = VirtualPathUtility.ToAbsolute("~/Secure/R_Reports.aspx?download=" + token);
-                return new {
+                string filePath = VirtualPathUtility.ToAbsolute(
+                    "~/Secure/R_Reports.aspx?download=" + token);
+
+                return new
+                {
                     success = true,
                     status = "SUCCESS",
-                    fileName = fileName,
+                    fileName = generated.FileName,
                     filePath = filePath,
-                    storagePath = ReportFolder + fileName,
-                    message = "Report berhasil dibuat."
+                    storagePath = generated.StoragePath,
+                    message = generated.Message
                 };
             }
             catch (Exception ex)
             {
-                return new {
+                return new
+                {
                     success = false,
                     status = "FAILED",
                     fileName = "",
