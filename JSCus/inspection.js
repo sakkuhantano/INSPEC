@@ -1620,25 +1620,29 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
     const selectedOptionRequiresRemark = type === "OPTION" && remarkOptions.includes(String(saved.Value || "").trim());
     const versionRemark1Enabled = isInspectionVersionRemarkEnabled(item, 1);
     const versionRemark2Enabled = isInspectionVersionRemarkEnabled(item, 2);
-    const itemRemark1Text = item.isRemark1Required ? (item.remark1Text || "Remark") : "";
-    const itemRemark2Text = item.isRemark2Required ? (item.remark2Text || "Remark") : "";
+    const itemRemark1Required = isInspectionFlagEnabled(item.isRemark1Required, false);
+    const itemRemark2Required = isInspectionFlagEnabled(item.isRemark2Required, false);
+    const itemRemark1Mandatory = isInspectionFlagEnabled(item.isRemark1Mandatory, false);
+    const itemRemark2Mandatory = isInspectionFlagEnabled(item.isRemark2Mandatory, false);
+    const itemRemark1Text = itemRemark1Required ? (item.remark1Text || "Remark") : "";
+    const itemRemark2Text = itemRemark2Required ? (item.remark2Text || "Remark") : "";
     const versionRemark1Text = versionRemark1Enabled ? (item.versionRemark1Text || item.VersionRemark1Text || "Remark") : "";
     const versionRemark2Text = versionRemark2Enabled ? (item.versionRemark2Text || item.VersionRemark2Text || "Remark") : "";
-    const remark1Text = selectedOptionRequiresRemark && !item.isRemark1Required ? versionRemark1Text : itemRemark1Text;
-    const remark2Text = selectedOptionRequiresRemark && !item.isRemark2Required ? versionRemark2Text : itemRemark2Text;
-    const showRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || selectedOptionRequiresRemark);
-    const showRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || selectedOptionRequiresRemark);
-    const renderRemark1 = versionRemark1Enabled && (!!item.isRemark1Required || (type === "OPTION" && remarkOptions.length > 0));
-    const renderRemark2 = versionRemark2Enabled && (!!item.isRemark2Required || (type === "OPTION" && remarkOptions.length > 0));
+    const remark1Text = selectedOptionRequiresRemark && !itemRemark1Required ? versionRemark1Text : itemRemark1Text;
+    const remark2Text = selectedOptionRequiresRemark && !itemRemark2Required ? versionRemark2Text : itemRemark2Text;
+    const showRemark1 = versionRemark1Enabled && (itemRemark1Required || selectedOptionRequiresRemark);
+    const showRemark2 = versionRemark2Enabled && (itemRemark2Required || selectedOptionRequiresRemark);
+    const renderRemark1 = versionRemark1Enabled && (itemRemark1Required || (type === "OPTION" && remarkOptions.length > 0));
+    const renderRemark2 = versionRemark2Enabled && (itemRemark2Required || (type === "OPTION" && remarkOptions.length > 0));
     const remark1 = renderRemark1
         ? '<div class="mt-2" data-role="remark1-wrap" style="' + (showRemark1 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark1Text) +
-          (showRemark1 && (!!item.isRemark1Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 && (!!item.isRemark1Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
+          (showRemark1 && (itemRemark1Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark1" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark1 || saved.Remark || "") + '"' + disabled + (showRemark1 && (itemRemark1Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
         : "";
     const remark2 = renderRemark2
         ? '<div class="mt-2" data-role="remark2-wrap" style="' + (showRemark2 ? "" : "display:none;") + '"><label class="inspection-muted">' + escInspection(remark2Text) +
-          (showRemark2 && (!!item.isRemark2Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
-          escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 && (!!item.isRemark2Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
+          (showRemark2 && (itemRemark2Mandatory || selectedOptionRequiresRemark) ? ' (wajib)' : '') + '</label><input type="text" maxlength="500" data-role="remark2" class="form-control form-control-sm" value="' +
+          escInspection(saved.Remark2 || "") + '"' + disabled + (showRemark2 && (itemRemark2Mandatory || selectedOptionRequiresRemark) ? ' required' : '') + '></div>'
         : "";
 
     return '<div class="inspection-item' + (saved.IsAnomali ? ' anomaly' : '') + '" data-item-id="' + id + '" data-item-type="' + escInspection(type) +
@@ -1736,7 +1740,9 @@ function findInspectionTemplateItem(itemId) {
 
 function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     const key = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
+    const pascalKey = remarkNumber === 1 ? "VersionIsRemark1Required" : "VersionIsRemark2Required";
     if (item && item[key] != null) return isInspectionFlagEnabled(item[key], false);
+    if (item && item[pascalKey] != null) return isInspectionFlagEnabled(item[pascalKey], false);
     const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
     const versionInfo = snapshot && (snapshot.VersionInfo || snapshot.versionInfo || snapshot);
     const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
@@ -2062,6 +2068,87 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
 }
 
 window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
+
+window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNumber, value) {
+    const record = currentInspectionRecord;
+    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
+        throw new Error("Batch inspection tidak sedang aktif.");
+    if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
+        throw new Error("Batch yang sudah disubmit bersifat read-only.");
+
+    const templateItems = [];
+    (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
+        .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
+    const templateItem = templateItems.find(item =>
+        String(item.type || "").toUpperCase() === "OPTION" && Number(item.idItem) === Number(itemId));
+    if (!templateItem) throw new Error("Checklist OPTION tidak ditemukan pada template batch.");
+    const field = Number(remarkNumber) === 2 ? "Remark2" : "Remark1";
+
+    record.Points = Array.isArray(record.Points) ? record.Points : [];
+    let point = record.Points.find(item => Number(item.InspectionPointID) === Number(pointId));
+    if (!point) {
+        const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+            Number(item.InspectionPointID) === Number(pointId));
+        if (!masterPoint) throw new Error("Inspection Point tidak ditemukan.");
+        point = {
+            ClientPointID: newInspectionId(),
+            InspectionPointID: Number(masterPoint.InspectionPointID),
+            PointCode: String(masterPoint.PointCode || ""),
+            PointName: String(masterPoint.PointName || ""),
+            InspectionDateTime: localDateTimeString(new Date()),
+            Status: "PENDING",
+            PointCondition: "",
+            AbnormalRemark: "",
+            Items: [],
+            NextPhotoSeqNo: 1
+        };
+        record.Points.push(point);
+    }
+
+    point.Items = Array.isArray(point.Items) ? point.Items : [];
+    let answer = point.Items.find(item => Number(item.IDItem) === Number(itemId));
+    if (!answer) {
+        answer = {
+            IDItem: Number(itemId),
+            ItemLabel: templateItem.label || ("Item " + itemId),
+            Type: "OPTION",
+            Value: "",
+            Remark1: "",
+            Remark2: "",
+            IsAnomali: false,
+            DisplayOrder: templateItems.indexOf(templateItem) + 1,
+            Values: null
+        };
+        point.Items.push(answer);
+    }
+    answer[field] = String(value == null ? "" : value).trim();
+    point.UpdatedAt = new Date().toISOString();
+    point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
+
+    const validationErrors = validateInspectionItemsAll(point.Items);
+    const hasValue = point.Items.some(item =>
+        String(item.Value || "").trim() !== "" ||
+        Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim() !== ""));
+    if (hasValue) {
+        if (validationErrors.length) point.Status = "INCOMPLETE";
+        else point.Status = point.Items.some(item =>
+            /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()))
+            ? "ABNORMAL" : "DONE";
+    } else if (validationErrors.length) {
+        point.Status = "INCOMPLETE";
+    }
+    point.ValidationIssueCount = validationErrors.length;
+    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
+        Number(item.InspectionPointID) === Number(pointId));
+    if (masterPoint) masterPoint.ValidationIssueCount = validationErrors.length;
+
+    record.Items = [];
+    record.ActiveInspectionPointID = 0;
+    record.SyncStatus = "PENDING";
+    record.UpdatedAt = new Date().toISOString();
+    await persistInspectionRecord(record);
+    return true;
+};
 
 window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     const record = currentInspectionRecord;
