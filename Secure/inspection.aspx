@@ -555,6 +555,7 @@
     .inspection-map-panel>.inspection-map-canvas{height:min(72vh,760px);min-height:520px;min-width:0}
     .inspection-map-panel>.inspection-map-legend{position:static;left:auto;bottom:auto;max-width:none;z-index:auto}
     .inspection-map-panel>.inspection-map-hint{position:static;right:auto;bottom:auto;align-self:flex-start;max-width:100%;line-height:1.35}
+    .inspection-map-panel>.inspection-map-hint{display:block}
     .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
     .inspection-point-list-row{gap:.4rem;padding:.38rem .48rem;margin-bottom:.2rem;border-radius:.5rem;min-height:42px}
     .inspection-point-list-row .inspection-map-point-dot{flex:0 0 24px;width:24px;height:24px;font-size:.58rem}
