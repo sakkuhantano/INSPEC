@@ -1708,10 +1708,10 @@ function findInspectionTemplateItem(itemId) {
 
 function isInspectionVersionRemarkEnabled(item, remarkNumber) {
     const key = remarkNumber === 1 ? "versionIsRemark1Required" : "versionIsRemark2Required";
-    if (item && item[key] != null) return !!item[key];
+    if (item && item[key] != null) return isInspectionFlagEnabled(item[key], false);
     const snapshot = currentInspectionRecord && currentInspectionRecord.TemplateSnapshot;
     const snapshotKey = remarkNumber === 1 ? "IsRemark1Required" : "IsRemark2Required";
-    return !!(snapshot && snapshot[snapshotKey]);
+    return isInspectionFlagEnabled(snapshot && snapshot[snapshotKey], false);
 }
 
 function validateInspectionItemsAll(items) {
