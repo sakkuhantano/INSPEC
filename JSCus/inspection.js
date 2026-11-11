@@ -358,9 +358,11 @@ function wireInspectionEvents() {
         if (event.target.matches('input[name="inspectionFollowUp"]')) updateInspectionFollowUpPanel();
     });
     document.getElementById("txtInspectionSummary").addEventListener("input", function () {
+        this.classList.remove("is-invalid");
         document.getElementById("inspectionSummaryCounter").textContent = this.value.length + " / 500";
     });
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", function () {
+        this.classList.remove("is-invalid");
         document.getElementById("inspectionFollowUpRemarkCounter").textContent = this.value.length + " / 300";
     });
     document.getElementById("inspectionChecklistHost").addEventListener("click", function (event) {
@@ -385,7 +387,10 @@ function wireInspectionEvents() {
         updateInspectionFollowUpPanel();
         scheduleInspectionAutosave();
     }));
-    document.getElementById("inspectionFollowUpSection").addEventListener("change", scheduleInspectionAutosave);
+    document.getElementById("inspectionFollowUpSection").addEventListener("change", function () {
+        this.classList.remove("is-invalid");
+        scheduleInspectionAutosave();
+    });
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", scheduleInspectionAutosave);
 }
 
@@ -1151,6 +1156,9 @@ function renderBatchPointCondition(masterPoint, point, readOnly) {
     });
     const remarkInput = document.getElementById("txtPointAbnormalRemark_" + id);
     if (remarkInput) remarkInput.addEventListener("input", function () {
+        this.classList.remove("is-invalid");
+        const panel = this.closest(".inspection-validation-error");
+        if (panel) panel.classList.remove("inspection-validation-error", "border", "border-danger", "rounded", "p-2");
         point.AbnormalRemark = this.value;
     });
 }
@@ -1890,6 +1898,7 @@ function focusBatchValidationTarget(error) {
         "photo-after": "#btnAddInspectionAfterPhoto",
         "condition": "#inspectionPointConditionPanel",
         "abnormal-remark": "#inspectionPointConditionPanel textarea",
+        "point-complete": "#btnCompleteInspection",
         "summary": "#txtInspectionSummary",
         "followup-section": "#inspectionFollowUpSection",
         "followup-remark": "#txtInspectionFollowUpRemark"
@@ -2342,7 +2351,7 @@ window.submitInspectionBatch = async function () {
         const requireAll = masterPoint.RequireAllPoints == null ? true : isInspectionFlagEnabled(masterPoint.RequireAllPoints, true);
         const pointCode = String(masterPoint.PointCode || ("Point " + pointId));
         if (!point) {
-            if (requireAll) errors.push({ pointCode, pointId, message: "Belum diinspeksi (wajib berdasarkan Master Map)." });
+            if (requireAll) errors.push({ pointCode, pointId, message: "Belum diinspeksi (wajib berdasarkan Master Map).", target: "point-complete" });
             continue;
         }
         knownPointIDs.add(pointId);
@@ -2366,7 +2375,7 @@ window.submitInspectionBatch = async function () {
                 errors.push({ pointCode, pointId, message: "Abnormal Remark belum diisi.", target: "abnormal-remark" });
         }
         if (!["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
-            errors.push({ pointCode, pointId, message: "Point belum diselesaikan melalui Complete Point." });
+            errors.push({ pointCode, pointId, message: "Point belum diselesaikan melalui Complete Point.", target: "point-complete" });
     }
     points.forEach(point => {
         if (!masterPoints.some(master => Number(master.InspectionPointID) === Number(point.InspectionPointID)))
