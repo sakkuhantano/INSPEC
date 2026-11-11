@@ -1045,10 +1045,9 @@ function getBatchPointQuickOptionBlockReason(point) {
         const photoText = requirement === "BOTH" ? "BEFORE dan AFTER" : "BEFORE";
         return "Template Version mewajibkan foto " + photoText + ". Buka checklist lengkap untuk melanjutkan.";
     }
-    const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
-        Number(item.InspectionPointID) === Number(point && point.InspectionPointID));
-    if (isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false))
-        return "Point ini mewajibkan kondisi NORMAL/ABNORMAL dan mungkin Abnormal Remark. Buka checklist lengkap.";
+    // NORMAL/ABNORMAL is a separate point-level requirement. It must be
+    // validated when completing the point, but must not prevent selecting
+    // an OPTION value (such as ON/OFF) from the point list.
     const templateItems = [];
     (record.TemplateSnapshot && Array.isArray(record.TemplateSnapshot.sections) ? record.TemplateSnapshot.sections : [])
         .forEach(section => (section.items || []).forEach(item => templateItems.push(item)));
