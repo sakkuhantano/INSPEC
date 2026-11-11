@@ -751,8 +751,15 @@ async function getInspectionData() {
             throw new Error(serverMessage || ("Download Inspection templates failed (HTTP " + templateResponse.status + ")"));
         }
         const masters = masterResult.d || { types: [], details: [] };
+        const batchInspectionTypes = new Set((masters.types || [])
+            .filter(function (type) { return String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH"; })
+            .map(function (type) { return String(type.InspectionTypeCode || "").trim().toUpperCase(); }));
+        const asInspectionFlag = function (value) {
+            if (value === undefined || value === null || value === "") return false;
+            return !(value === false || value === 0 || value === "0" || String(value).toLowerCase() === "false");
+        };
         const templates = (templateResult.d || []).map(function (template) {
-            // Persist the version-level photo rule alongside the exact template version.
+            // Persist the version-level photo and remark rules alongside the exact template version.
             const photoRequirement = String(template.PhotoRequirement || template.photoRequirement || "BOTH").toUpperCase();
             // Keep the detail restriction as an explicit, normalized field in IndexedDB.
             // WebMethod JSON property casing can differ between older deployed builds.
@@ -763,15 +770,15 @@ async function getInspectionData() {
                 ? template.IsSummaryRequired : template.isSummaryRequired;
             const rawFollowUpRequired = template.IsFollowUpRequired !== undefined
                 ? template.IsFollowUpRequired : template.isFollowUpRequired;
-            return Object.assign({}, template, {
+            const inspectionTypeCode = String(template.InspectionTypeCode || template.inspectionTypeCode || "").trim().toUpperCase();
+            const isBatch = batchInspectionTypes.has(inspectionTypeCode);
+            const normalizedTemplate = Object.assign({}, template, {
                 IsSummaryRequired: rawSummaryRequired === undefined || rawSummaryRequired === null
                     ? true
-                    : !(rawSummaryRequired === false || rawSummaryRequired === 0 || rawSummaryRequired === "0" ||
-                        String(rawSummaryRequired).toLowerCase() === "false"),
+                    : asInspectionFlag(rawSummaryRequired),
                 IsFollowUpRequired: rawFollowUpRequired === undefined || rawFollowUpRequired === null
                     ? true
-                    : !(rawFollowUpRequired === false || rawFollowUpRequired === 0 || rawFollowUpRequired === "0" ||
-                        String(rawFollowUpRequired).toLowerCase() === "false"),
+                    : asInspectionFlag(rawFollowUpRequired),
                 InspectionTypeDetailCode: String(detailCodes || "").split(";")
                     .map(function (code) { return code.trim().toUpperCase(); })
                     .filter(Boolean)
@@ -779,6 +786,52 @@ async function getInspectionData() {
                     .join(";"),
                 PhotoRequirement: ["NONE", "BEFORE", "AFTER", "BOTH"].includes(photoRequirement) ? photoRequirement : "BOTH"
             });
+
+            // BATCH snapshots use the version-level switch together with each item's
+            // "Use Version Default Remark" setting. Rebuild the effective item flags
+            // from those authoritative fields so IndexedDB cannot retain stale/false
+            // aliases from an older master payload. STANDARD templates are untouched.
+            if (isBatch) {
+                const versionRemark1 = asInspectionFlag(
+                    template.IsRemark1Required !== undefined ? template.IsRemark1Required :
+                    (template.isRemark1Required !== undefined ? template.isRemark1Required :
+                    (template.VersionIsRemark1Required !== undefined ? template.VersionIsRemark1Required : template.versionIsRemark1Required))
+                );
+                const versionRemark2 = asInspectionFlag(
+                    template.IsRemark2Required !== undefined ? template.IsRemark2Required :
+                    (template.isRemark2Required !== undefined ? template.isRemark2Required :
+                    (template.VersionIsRemark2Required !== undefined ? template.VersionIsRemark2Required : template.versionIsRemark2Required))
+                );
+                const versionRemark1Text = template.Remark1Text || template.remark1Text || "";
+                const versionRemark2Text = template.Remark2Text || template.remark2Text || "";
+                const sections = template.sections || template.Sections || [];
+                normalizedTemplate.sections = sections.map(function (section) {
+                    const items = section.items || section.Items || [];
+                    return Object.assign({}, section, {
+                        items: items.map(function (item) {
+                            const useDefault1 = asInspectionFlag(item.isUseDefaultRemark1 !== undefined
+                                ? item.isUseDefaultRemark1 : item.IsUseDefaultRemark1);
+                            const useDefault2 = asInspectionFlag(item.isUseDefaultRemark2 !== undefined
+                                ? item.isUseDefaultRemark2 : item.IsUseDefaultRemark2);
+                            const itemRemark1 = asInspectionFlag(item.isRemark1Required !== undefined
+                                ? item.isRemark1Required : item.IsRemark1Required);
+                            const itemRemark2 = asInspectionFlag(item.isRemark2Required !== undefined
+                                ? item.isRemark2Required : item.IsRemark2Required);
+                            return Object.assign({}, item, {
+                                versionIsRemark1Required: versionRemark1,
+                                versionIsRemark2Required: versionRemark2,
+                                isRemark1Required: versionRemark1 && (useDefault1 || itemRemark1),
+                                isRemark2Required: versionRemark2 && (useDefault2 || itemRemark2),
+                                remark1Text: useDefault1 ? versionRemark1Text :
+                                    (item.remark1Text || item.Remark1Text || "Remark"),
+                                remark2Text: useDefault2 ? versionRemark2Text :
+                                    (item.remark2Text || item.Remark2Text || "Remark")
+                            });
+                        })
+                    });
+                });
+            }
+            return normalizedTemplate;
         });
         // Keep each detail as one IndexedDB row; ScheduleTime contains sorted HH:mm values separated by semicolons.
         const details = (masters.details || []).map(function (detail) {
