@@ -929,12 +929,16 @@ async function startNewInspection() {
         Items: []
     };
 
-    await renderInspectionForm(currentInspectionRecord, false);
+    if (typeof window.resetInspectionMapWorkspace === "function")
+        await window.resetInspectionMapWorkspace();
+    await renderInspectionForm(currentInspectionRecord, false, "param");
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
-    if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function")
-        showInspectionMapWorkspace(currentInspectionRecord, true);
-    else if (mapWorkspace)
+    if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function") {
+        showInspectionMapWorkspace(currentInspectionRecord, false);
+        if (mapWorkspace) mapWorkspace.classList.add("d-none");
+    } else if (mapWorkspace) {
         mapWorkspace.classList.add("d-none");
+    }
     // A newly created inspection should open at FIELD DOCUMENTATION BEFORE,
     // not at a leftover scroll position from the previous screen.
     window.setTimeout(() => {
@@ -1141,7 +1145,7 @@ window.mountInspectionBatchSummary = function (record) {
     }
 };
 
-async function renderInspectionForm(record, readOnly) {
+async function renderInspectionForm(record, readOnly, initialTab) {
     currentInspectionRecord = record;
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
         await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
@@ -1161,7 +1165,7 @@ async function renderInspectionForm(record, readOnly) {
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
     populateInspectionParameters(record);
-    showInspectionEditorTab("checklist");
+    showInspectionEditorTab(initialTab || "checklist");
     const canDeleteVoidedInspection = isVoidedServerRecord;
     const canDeleteConflictInspection = record.SyncStatus === "CONFLICT";
     const canDeleteDraft = canDeleteVoidedInspection || canDeleteConflictInspection || (!currentInspectionReadOnly &&
@@ -2730,6 +2734,10 @@ async function closeInspectionForm() {
 function returnFromInspectionPage(){if(!document.getElementById("inspectionInputPanel").classList.contains("d-none")){closeInspectionForm();return;}window.location.href="dashboard.aspx";}
 function showInspectionEditorTab(tab) {
     const p = tab === "param";
+    if (p) {
+        const mapWorkspace = document.getElementById("inspectionMapWorkspace");
+        if (mapWorkspace) mapWorkspace.classList.add("d-none");
+    }
     const isBatch = currentInspectionRecord &&
         String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
     if (!p && isBatch && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)) {
