@@ -551,7 +551,10 @@
 .inspection-point-list-row.active{border-color:var(--bs-primary)!important;background:var(--bs-primary-bg-subtle)!important;box-shadow:inset 3px 0 0 var(--bs-primary)}
 
     .inspection-map-content{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(260px,.8fr);align-items:stretch;min-width:0;gap:.65rem}
-    .inspection-map-content>.inspection-map-canvas{height:min(72vh,760px);min-height:520px;min-width:0}
+    .inspection-map-panel{display:flex;flex-direction:column;gap:.4rem;min-width:0}
+    .inspection-map-panel>.inspection-map-canvas{height:min(72vh,760px);min-height:520px;min-width:0}
+    .inspection-map-panel>.inspection-map-legend{position:static;left:auto;bottom:auto;max-width:none;z-index:auto}
+    .inspection-map-panel>.inspection-map-hint{position:static;right:auto;bottom:auto;align-self:flex-start;max-width:100%;line-height:1.35}
     .inspection-map-content>.inspection-point-list{height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);min-width:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
     .inspection-point-list-row{gap:.4rem;padding:.38rem .48rem;margin-bottom:.2rem;border-radius:.5rem;min-height:42px}
     .inspection-point-list-row .inspection-map-point-dot{flex:0 0 24px;width:24px;height:24px;font-size:.58rem}
@@ -565,9 +568,11 @@
     .point-info-button:focus-visible{outline:2px solid var(--bs-primary);outline-offset:1px}
     .inspection-point-option-controls{margin-left:2rem!important}
     .inspection-point-option-controls .small{font-size:.68rem!important}
+    .inspection-point-remark{margin-top:.3rem}
+    .inspection-point-remark .form-control{max-width:100%;font-size:.72rem;padding:.2rem .4rem}
     .inspection-point-option-choice{padding:.2rem .45rem;font-size:.7rem}
     .tooltip .tooltip-inner{max-width:min(280px,calc(100vw - 32px));font-size:.78rem;text-align:left}
-    .inspection-map-content>.inspection-map-canvas.d-none{display:none!important}
+    .inspection-map-content>.inspection-map-panel>.inspection-map-canvas.d-none{display:none!important}
     .inspection-map-content.no-map{grid-template-columns:minmax(0,1fr)}
     .inspection-validation-stat{border:1px solid var(--bs-border-color);border-radius:.75rem;padding:.65rem .5rem;text-align:center;min-height:70px;display:flex;flex-direction:column;justify-content:center}
     .inspection-validation-stat strong{font-size:1.35rem;line-height:1.25;color:var(--bs-emphasis-color)}
@@ -588,7 +593,7 @@
     .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
         .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}
-        .inspection-map-content>.inspection-map-canvas{height:42dvh;min-height:270px;max-height:440px}
+        .inspection-map-content>.inspection-map-panel>.inspection-map-canvas{height:42dvh;min-height:270px;max-height:440px}
         .inspection-map-content>.inspection-point-list{height:auto;min-height:240px;max-height:48dvh;padding:.4rem;overflow-y:auto}
         .inspection-point-list-row{min-height:42px;padding:.38rem .42rem}
         .inspection-point-list-row .point-name{font-size:.72rem}
@@ -891,14 +896,23 @@
                 <button type="button" id="btnInspectionMapZoomIn" class="btn btn-sm btn-light border" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
                 <button type="button" id="btnInspectionMapZoomReset" class="btn btn-sm btn-light border" title="Reset zoom" aria-label="Reset zoom"><i class="bi bi-arrows-fullscreen"></i></button>
             </div>
-            <div id="inspectionMapPdfStage" class="inspection-map-pdf-stage">
-                <canvas id="inspectionMapPdfCanvas" aria-label="PDF floor plan"></canvas>
-                <div id="inspectionMapPoints" class="inspection-map-points"></div>
-                <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
+            <div class="inspection-map-panel">
+                <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
+                    <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
+                        <button type="button" id="btnInspectionMapZoomOut" class="btn btn-sm btn-light border" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                        <span id="inspectionMapZoomLabel" class="inspection-map-zoom-label">100%</span>
+                        <button type="button" id="btnInspectionMapZoomIn" class="btn btn-sm btn-light border" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                        <button type="button" id="btnInspectionMapZoomReset" class="btn btn-sm btn-light border" title="Reset zoom" aria-label="Reset zoom"><i class="bi bi-arrows-fullscreen"></i></button>
+                    </div>
+                    <div id="inspectionMapPdfStage" class="inspection-map-pdf-stage">
+                        <canvas id="inspectionMapPdfCanvas" aria-label="PDF floor plan"></canvas>
+                        <div id="inspectionMapPoints" class="inspection-map-points"></div>
+                        <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
+                    </div>
+                </div>
+                <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
+                <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk menyorot point di daftar. Lengkapi checklist sesuai ketentuan masing-masing point.</div>
             </div>
-            <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-            <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk menyorot point di daftar · Car park: inspeksi tiap slot yang ada kendaraan; slot kosong tidak perlu di-action.</div>
-        </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
