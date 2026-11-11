@@ -2194,7 +2194,20 @@ async function saveBatchInspectionPoint(status) {
             photos.length ? "INCOMPLETE" : "PENDING";
     }
     point.Items = items;
-    point.ValidationIssueCount = status === "DONE" ? errors.length : validateInspectionItemsAll(items).length;
+    let validationIssueCount = status === "DONE" ? errors.length : validateInspectionItemsAll(items).length;
+    if (status !== "DONE") {
+        const requirement = getInspectionPhotoRequirement(record);
+        const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+        const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
+        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore) validationIssueCount++;
+        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter) validationIssueCount++;
+        if (conditionRequired) {
+            const condition = String(point.PointCondition || "").toUpperCase();
+            if (condition !== "NORMAL" && condition !== "ABNORMAL") validationIssueCount++;
+            else if (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim()) validationIssueCount++;
+        }
+    }
+    point.ValidationIssueCount = validationIssueCount;
     point.UpdatedAt = new Date().toISOString();
     point.InspectionDateTime = point.InspectionDateTime || localDateTimeString(new Date());
     record.Items = [];
