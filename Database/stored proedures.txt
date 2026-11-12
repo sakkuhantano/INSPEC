@@ -185,6 +185,19 @@ AND (ISNULL(pmclw.CompanyScope,'S')='A'
      OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 
 
+DELETE RF
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField RF
+JOIN dbo.PIP_M_CheckListWOPM_Item RI ON RI.IDItem=RF.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section RS ON RS.IDSection=RI.IDSection
+JOIN @tbl_Version RV ON RV.IDVersion=RS.IDVersion
+WHERE NOT EXISTS (SELECT 1 FROM @tbl_Item KeepItem WHERE KeepItem.IDItem=RI.IDItem);
+DELETE R
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item RI ON RI.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section RS ON RS.IDSection=RI.IDSection
+JOIN @tbl_Version RV ON RV.IDVersion=RS.IDVersion
+WHERE NOT EXISTS (SELECT 1 FROM @tbl_Item KeepItem WHERE KeepItem.IDItem=RI.IDItem);
+
 DELETE S2 FROM PIP_M_CheckListWOPM_item S2 JOIN PIP_M_CheckListWOPM_Section S1 ON S1.IDSection = S2.IDSection
 JOIN @tbl_Version S3 ON S3.IDVersion=S1.IDVersion
 JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S3.IDVersion
@@ -221,6 +234,15 @@ BEGIN
 	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
        OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
 	
+	DELETE RF FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField RF
+	JOIN dbo.PIP_M_CheckListWOPM_Item RI ON RI.IDItem=RF.IDItem
+	JOIN dbo.PIP_M_CheckListWOPM_Section RS ON RS.IDSection=RI.IDSection
+	JOIN @tbl_DelVersion DV ON DV.IDVersion=RS.IDVersion;
+	DELETE R FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+	JOIN dbo.PIP_M_CheckListWOPM_Item RI ON RI.IDItem=R.IDItem
+	JOIN dbo.PIP_M_CheckListWOPM_Section RS ON RS.IDSection=RI.IDSection
+	JOIN @tbl_DelVersion DV ON DV.IDVersion=RS.IDVersion;
+
 	DELETE A FROM PIP_M_CheckListWOPM_item A JOIN PIP_M_CheckListWOPM_section AA ON AA.IDSection = A.IDSection
 	JOIN @tbl_DelVersion B ON B.IDVersion=AA.IDVersion
 	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
