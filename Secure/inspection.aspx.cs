@@ -16,6 +16,15 @@ namespace INSPEC.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+            // Handle one-time XLSX download before checking the entry/approval mode.
+            string downloadToken = Convert.ToString(Request.QueryString["download"]).Trim();
+            if (!String.IsNullOrWhiteSpace(downloadToken))
+            {
+                GFC.RequireMenuEmployee("20022");
+                DownloadInspectionReport(downloadToken);
+                return;
+            }
+
             string mode = Convert.ToString(Request.QueryString["type"]).Trim().ToLowerInvariant();
             if (mode == "entry")
                 GFC.RequireMenuEmployee("20021");
@@ -2382,6 +2391,115 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
             }
         }
 
+
+        [WebMethod(EnableSession = true)]
+        public static object GenerateReport(
+            long[] inspectionIds,
+            string employeeId,
+            string companyId,
+            string locationId)
+        {
+            try
+            {
+                // Never trust the employee identity supplied by the browser.
+                employeeId = GFC.RequireMenuEmployee("20022");
+
+                // Reuse the existing server-side authorization and single-type validation.
+                DataTable authorized = GetAuthorizedInspectionSelection(
+                    inspectionIds, companyId, locationId);
+
+                if (authorized == null || authorized.Rows.Count == 0)
+                    throw new InvalidOperationException(
+                        "Tidak ada inspeksi yang dapat dibuatkan report.");
+
+                DataTable selectedInspections = new DataTable();
+                selectedInspections.Columns.Add("InspectionID", typeof(long));
+
+                foreach (DataRow row in authorized.Rows)
+                    selectedInspections.Rows.Add(Convert.ToInt64(row["InspectionID"]));
+
+                // Call the public static XLSX generator in R_Reports.aspx.cs.
+                var report = R_Report.GenerateInspectionXlsx(
+                    selectedInspections, employeeId);
+
+                if (report == null ||
+                    !report.Success ||
+                    String.IsNullOrWhiteSpace(report.StoragePath) ||
+                    !File.Exists(report.StoragePath))
+                {
+                    throw new InvalidOperationException(
+                        report != null && !String.IsNullOrWhiteSpace(report.Message)
+                            ? report.Message
+                            : "Gagal membuat file Excel.");
+                }
+
+                string token = Guid.NewGuid().ToString("N");
+                HttpContext.Current.Session["InspectionReport_" + token] = report.StoragePath;
+                HttpContext.Current.Session["InspectionReportName_" + token] = report.FileName;
+
+                string downloadUrl = VirtualPathUtility.ToAbsolute(
+                    "~/Secure/inspection.aspx?download=" + token);
+
+                return new
+                {
+                    success = true,
+                    status = "SUCCESS",
+                    fileName = report.FileName,
+                    filePath = downloadUrl,
+                    message = "Report berhasil dibuat."
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("GenerateReport: " + ex);
+                return new
+                {
+                    success = false,
+                    status = "FAILED",
+                    fileName = "",
+                    filePath = "",
+                    message = HttpContext.Current != null &&
+                              HttpContext.Current.IsDebuggingEnabled
+                        ? ex.GetBaseException().Message
+                        : "Gagal membuat preview report."
+                };
+            }
+        }
+
+        private void DownloadInspectionReport(string token)
+        {
+            if (token.Length != 32 || !token.All(Uri.IsHexDigit))
+                throw new HttpException(400, "Invalid download token.");
+
+            string pathKey = "InspectionReport_" + token;
+            string nameKey = "InspectionReportName_" + token;
+            string filePath = Convert.ToString(Session[pathKey]);
+            string fileName = Convert.ToString(Session[nameKey]);
+
+            if (String.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+                throw new HttpException(404,
+                    "File report tidak ditemukan atau session download sudah berakhir.");
+
+            fileName = String.IsNullOrWhiteSpace(fileName)
+                ? "Inspection_Report.xlsx"
+                : Path.GetFileName(fileName);
+
+            // A download token is valid for one request only.
+            Session.Remove(pathKey);
+            Session.Remove(nameKey);
+
+            Response.Clear();
+            Response.Buffer = true;
+            Response.ContentType =
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            Response.AddHeader("Content-Disposition",
+                "attachment; filename=\"" + fileName.Replace("\"", "") + "\"");
+            Response.AddHeader("Content-Length",
+                new FileInfo(filePath).Length.ToString(CultureInfo.InvariantCulture));
+            Response.TransmitFile(filePath);
+            Response.Flush();
+            HttpContext.Current.ApplicationInstance.CompleteRequest();
+        }
 
         // Server-side authorization and one-InspectionType validation for selected transactions.
         public static DataTable GetAuthorizedInspectionSelection(long[] inspectionIds, string companyId, string locationId)
