@@ -925,7 +925,7 @@ string.Format(@"
             }
         }
         [WebMethod]
-        public static object SyncWO(object checklists, object checklistgroups, object photos, string userid, object checklistsummarys, string companyLocation)
+        public static object SyncWO(object checklists, object checklistgroups, object checklistrepeats, object photos, string userid, object checklistsummarys, string companyLocation)
         {
             userid = GFC.RequireAnyMenuEmployee("20011", "20012");
             try
@@ -940,6 +940,7 @@ string.Format(@"
                 JArray arrChecklist = JArray.FromObject(checklists);
                 JArray arrPhotos = JArray.FromObject(photos);
                 JArray arrChecklistgroups = JArray.FromObject(checklistgroups);
+                JArray arrChecklistrepeats = JArray.FromObject(checklistrepeats);
                 JArray arrChecklistsummarys = JArray.FromObject(checklistsummarys);
 
                 // =====================================
@@ -948,6 +949,7 @@ string.Format(@"
                 DataTable dtChecklist = GFC.JsonToDataTable(arrChecklist);
                 DataTable dtPhotos = GFC.JsonToDataTable(arrPhotos);
                 DataTable dtChecklistgroups = GFC.JsonToDataTable(arrChecklistgroups);
+                DataTable dtChecklistrepeats = GFC.JsonToDataTable(arrChecklistrepeats);
                 DataTable dtChecklistsummarys = GFC.JsonToDataTable(arrChecklistsummarys);
 
                 // Enforce the selected template-version Follow Up rule on the server too.
@@ -1008,7 +1010,7 @@ WHERE W.KeyHD=@KeyHD AND ISNULL(T.TemplateType,'W')='W'",
                     throw new Exception("Company/location is required for WO sync.");
 
                 var incomingKeys = new HashSet<int>();
-                DataTable[] incomingTables = new DataTable[] { dtChecklist, dtChecklistgroups, dtPhotos, dtChecklistsummarys };
+                DataTable[] incomingTables = new DataTable[] { dtChecklist, dtChecklistgroups, dtChecklistrepeats, dtPhotos, dtChecklistsummarys };
                 foreach (DataTable incomingTable in incomingTables)
                 {
                     if (!incomingTable.Columns.Contains("KeyHD")) continue;
@@ -1079,7 +1081,7 @@ WHERE W.KeyHD=@KeyHD
                 using (var br=new BRC.PIP_T_WO())
                 {
                     br.UpdateUser = userid;
-                    br.UpdateWO(dtChecklist, dtChecklistgroups, dtPhotos, dtChecklistsummarys);
+                    br.UpdateWO(dtChecklist, dtChecklistgroups, dtChecklistrepeats, dtPhotos, dtChecklistsummarys);
                 }
                 return new
                 {
