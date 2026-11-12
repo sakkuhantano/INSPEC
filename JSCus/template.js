@@ -4167,10 +4167,9 @@ function showItemProperties(itemData)
     const itemType =
         itemData.ItemType || 'INPUT';
 
-    // OPTION stores its selected label in Value; it does not support a
-    // separate numeric value or measurement unit.
+    // OPTION stores its selected label in Value. It supports mandatory selection;
+    // only a measurement unit is not applicable.
     if (itemType === 'OPTION') {
-        itemData.IsValueRequired = false;
         itemData.Unit = '';
     }
 
@@ -4251,7 +4250,7 @@ function showItemProperties(itemData)
                             class="form-control form-control-compact"
                             type="text"
                             value="${escapeHtml(itemData.Unit || '')}"
-                            ${(isReadonlyMode || itemType === 'OPTION') ? 'disabled' : ''} maxlength="${dbLength.Unit}"
+                            ${isReadonlyMode ? 'disabled' : ''} maxlength="${dbLength.Unit}"
                         />
 
                     </div>
@@ -4679,15 +4678,12 @@ function showItemProperties(itemData)
                 {
                     itemData.Unit = "";
                 }
-                if (this.value === "OPTION") {
-                    itemData.IsValueRequired = false;
-                }
-                $("#rowUnit").toggle(
+                 $("#rowUnit").toggle(
                     this.value !== "GROUP" &&
                     this.value !== "TEXT"
                 );
                 $("#propUnit").prop("disabled", isReadonlyMode || this.value === "OPTION").val(itemData.Unit || "");
-                $("#propMandatoryValue").prop("disabled", isReadonlyMode || this.value === "OPTION").prop("checked", !!itemData.IsValueRequired);
+                $("#propMandatoryValue").prop("disabled", isReadonlyMode).prop("checked", !!itemData.IsValueRequired);
 
                 if(this.value == "OPTION")
                 {
@@ -4962,9 +4958,7 @@ function showItemProperties(itemData)
             "change",
             function()
             {
-                itemData.IsValueRequired =
-                    itemData.ItemType === "OPTION" ? false : this.checked;
-                if (itemData.ItemType === "OPTION") this.checked = false;
+                itemData.IsValueRequired = this.checked;
 
                 markCurrentVersionDirty();
             }
@@ -10856,10 +10850,7 @@ function normalizeVersionStructure(structure)
 
             item.Unit =
                 item.ItemType === "OPTION" ? "" : (item.Unit || "").trim();
-            if (item.ItemType === "OPTION") {
-                item.IsValueRequired = false;
-            }
-
+ 
             item.ItemName =
                 (item.ItemName || "").trim();
 
