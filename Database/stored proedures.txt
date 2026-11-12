@@ -1462,7 +1462,7 @@ BEGIN
         IDItem INT NOT NULL,
         ObjectIndex INT NOT NULL,
         FieldName VARCHAR(100) NOT NULL,
-        Value VARCHAR(500) NULL
+        Value NVARCHAR(500) NULL
     );
     INSERT INTO @tbl_ItemValues (IDItem, ObjectIndex, FieldName, Value)
     SELECT CAST(C1 AS INT), CAST(ISNULL(NULLIF(C4,''),'0') AS INT), ISNULL(C2,''), ISNULL(C3,'')
