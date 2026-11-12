@@ -404,3 +404,15 @@ IF TYPE_ID('dbo.Type_Tbl_RepeatField') IS NULL
         C11 VARCHAR(8000) NULL
     )');
 GO
+
+/****** Object: UserDefinedTableType [dbo].[Type_Tbl_WORepeatValue] ******/
+IF TYPE_ID('dbo.Type_Tbl_WORepeatValue') IS NULL
+    EXEC('CREATE TYPE dbo.Type_Tbl_WORepeatValue AS TABLE
+    (
+        C1 VARCHAR(8000) NULL,
+        C2 VARCHAR(8000) NULL,
+        C3 VARCHAR(8000) NULL,
+        C4 VARCHAR(8000) NULL,
+        C5 NVARCHAR(4000) NULL
+    )');
+GO
