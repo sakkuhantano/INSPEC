@@ -61,7 +61,10 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.DropDownList ddlEditorMap;
         protected global::System.Web.UI.WebControls.Panel pnlEditor;
         protected global::System.Web.UI.WebControls.Repeater rptMapElements;
+        protected global::System.Web.UI.WebControls.Literal litEditorSvgPaths;
         protected global::System.Web.UI.WebControls.HiddenField hidSwapPointID;
+        protected global::System.Web.UI.WebControls.HiddenField hidSvgPathData;
+        protected global::System.Web.UI.WebControls.DropDownList ddlPointShapeType;
         protected global::System.Web.UI.WebControls.Label lblPointMapCode;
         protected global::System.Web.UI.WebControls.LinkButton btnClearCoordinate;
         protected global::System.Web.UI.WebControls.LinkButton btnSwapPosition;
