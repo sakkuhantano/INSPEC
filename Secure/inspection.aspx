@@ -628,6 +628,7 @@
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
         height:100%;min-height:0;max-height:none;padding:.45rem;overflow:auto
     }
+    #inspectionMapWorkspace>#inspectionMapSummaryHost{flex:0 0 auto;max-height:12vh;overflow:auto;padding-top:.25rem!important;padding-bottom:.25rem!important}
     #inspectionMapWorkspace>.d-flex.justify-content-end{flex:0 0 auto;padding:.35rem .55rem!important}
     @media(max-width:767.98px){
         #inspectionMapWorkspace{height:calc(100dvh - 142px);min-height:0}
