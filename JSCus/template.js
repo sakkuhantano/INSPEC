@@ -8068,12 +8068,12 @@ function initItemOptionTagManager(optionList, itemData) {
 // --- Group Configuration Manager ---
 function createRepeatField() {
     const id = generateRuntimeID();
-    return { FieldKey:'field_'+id, FieldLabel:'New Field', FieldType:'NUMBER', OptionList:[], Unit:'', MinValue:null, MaxValue:null, IsRequired:false, GroupName:'', DisplayOrder:1 };
+    return { FieldKey:'field_'+id, FieldLabel:'New Field', FieldType:'NUMBER', OptionList:[], Unit:'', MinValue:null, MaxValue:null, MinInclusive:true, MaxInclusive:true, IsRequired:false, GroupName:'', DisplayOrder:1 };
 }
 function renderRepeatEditor(item) {
     item.Repeat = item.Repeat || { RepeatMode:'FIELDS', ColumnCount:3, ObjectLabel:'Object', CountMode:'FLEX', FixedCount:null, MinCount:1, MaxCount:null };
     item.RepeatFields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
-    item.RepeatFields.forEach((field,index)=>{field.DisplayOrder=index+1;});
+    item.RepeatFields.forEach((field,index)=>{field.DisplayOrder=index+1;if(field.MinInclusive==null)field.MinInclusive=true;if(field.MaxInclusive==null)field.MaxInclusive=true;});
     const cfg=item.Repeat, get=id=>document.getElementById(id), put=(id,v)=>{if(get(id))get(id).value=v==null?'':v;};
     item.IsValueRequired=false;
     const parentRequired=get('propMandatoryValue'); if(parentRequired){parentRequired.checked=false;parentRequired.disabled=true;}
@@ -8087,6 +8087,8 @@ function renderRepeatEditor(item) {
       '<div class="col-4"><label class="form-text">Unit</label><input class="form-control form-control-sm" data-rfield="Unit" data-index="'+i+'" maxlength="30" value="'+escapeHtml(f.Unit||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
       '<div class="col-4"><label class="form-text">Min</label><input type="number" step="any" class="form-control form-control-sm" data-rfield="MinValue" data-index="'+i+'" value="'+(f.MinValue==null?'':f.MinValue)+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
       '<div class="col-4"><label class="form-text">Max</label><input type="number" step="any" class="form-control form-control-sm" data-rfield="MaxValue" data-index="'+i+'" value="'+(f.MaxValue==null?'':f.MaxValue)+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-6"><label class="form-check mb-1"><input type="checkbox" class="form-check-input" data-rfield="MinInclusive" data-index="'+i+'" '+(f.MinInclusive!==false?'checked':'')+' '+(isReadonlyMode?'disabled':'')+'> Include minimum boundary</label></div>'+
+      '<div class="col-6"><label class="form-check mb-1"><input type="checkbox" class="form-check-input" data-rfield="MaxInclusive" data-index="'+i+'" '+(f.MaxInclusive!==false?'checked':'')+' '+(isReadonlyMode?'disabled':'')+'> Include maximum boundary</label></div>'+
       '<div class="col-6"><label class="form-text">Group heading</label><input class="form-control form-control-sm" data-rfield="GroupName" data-index="'+i+'" maxlength="100" value="'+escapeHtml(f.GroupName||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
       '<div class="col-6 d-flex align-items-end"><label class="form-check mb-1"><input type="checkbox" class="form-check-input" data-rfield="IsRequired" data-index="'+i+'" '+(f.IsRequired?'checked':'')+' '+(isReadonlyMode?'disabled':'')+'> Required</label></div></div></div>').join('');
     host.querySelectorAll('[data-rfield="FieldType"]').forEach(el=>el.value=item.RepeatFields[Number(el.dataset.index)].FieldType||'NUMBER');
