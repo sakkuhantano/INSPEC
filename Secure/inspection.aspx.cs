@@ -83,7 +83,7 @@ namespace INSPEC.Secure
                     for (int i = 1; i <= 13; i++)
                         items.Columns.Add("C" + i, typeof(string));
 
-                    // dbo.Type_N_Tbl_C5: C1=IDItem, C2=FieldName, C3=Value; C4-C5 unused.
+                    // dbo.Type_N_Tbl_C5: C1=IDItem, C2=FieldKey, C3=Value, C4=ObjectIndex.
                     DataTable itemValues = new DataTable();
                     for (int i = 1; i <= 5; i++)
                         itemValues.Columns.Add("C" + i, typeof(string));
@@ -124,6 +124,25 @@ namespace INSPEC.Secure
                                 valueRow["C2"] = Limit(field.Name, 100);
                                 valueRow["C3"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
                                 itemValues.Rows.Add(valueRow);
+                            }
+                        }
+                        JArray repeatValues = item["RepeatValues"] as JArray;
+                        if (repeatValues != null)
+                        {
+                            foreach (JObject repeatObject in repeatValues.OfType<JObject>())
+                            {
+                                int objectIndex = TokenInt(repeatObject, "ObjectIndex");
+                                JObject repeatFields = repeatObject["Values"] as JObject;
+                                if (repeatFields == null) continue;
+                                foreach (JProperty field in repeatFields.Properties())
+                                {
+                                    DataRow valueRow = itemValues.NewRow();
+                                    valueRow["C1"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                                    valueRow["C2"] = Limit(field.Name, 100);
+                                    valueRow["C3"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
+                                    valueRow["C4"] = objectIndex.ToString(CultureInfo.InvariantCulture);
+                                    itemValues.Rows.Add(valueRow);
+                                }
                             }
                         }
                     }
@@ -182,6 +201,26 @@ namespace INSPEC.Secure
                                         valueRow["C3"] = Limit(field.Name, 100);
                                         valueRow["C4"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
                                         batchItemValues.Rows.Add(valueRow);
+                                    }
+                                }
+                                JArray repeatValues = item["RepeatValues"] as JArray;
+                                if (repeatValues != null)
+                                {
+                                    foreach (JObject repeatObject in repeatValues.OfType<JObject>())
+                                    {
+                                        int objectIndex = TokenInt(repeatObject, "ObjectIndex");
+                                        JObject repeatFields = repeatObject["Values"] as JObject;
+                                        if (repeatFields == null) continue;
+                                        foreach (JProperty field in repeatFields.Properties())
+                                        {
+                                            DataRow valueRow = batchItemValues.NewRow();
+                                            valueRow["C1"] = clientPointID;
+                                            valueRow["C2"] = TokenInt(item, "IDItem").ToString(CultureInfo.InvariantCulture);
+                                            valueRow["C3"] = Limit(field.Name, 100);
+                                            valueRow["C4"] = DbString(field.Value == null || field.Value.Type == JTokenType.Null ? "" : field.Value.ToString());
+                                            valueRow["C5"] = objectIndex.ToString(CultureInfo.InvariantCulture);
+                                            batchItemValues.Rows.Add(valueRow);
+                                        }
                                     }
                                 }
                             }
