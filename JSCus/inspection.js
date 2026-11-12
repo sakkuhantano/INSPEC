@@ -2434,7 +2434,10 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     const validationErrors = validateInspectionItemsAll(point.Items || []);
     const hasAnyAnswer = (point.Items || []).some(item =>
         String(item.Value || "").trim() !== "" ||
-        Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim() !== "")
+        Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim() !== "") ||
+        (Array.isArray(item.RepeatValues) && item.RepeatValues.some(objectRow =>
+            Object.keys((objectRow && objectRow.Values) || {}).some(key =>
+                String(objectRow.Values[key] == null ? "" : objectRow.Values[key]).trim() !== "")))
     );
     if (!hasAnyAnswer) point.Status = "PENDING";
     else if (validationErrors.length) point.Status = "INCOMPLETE";
