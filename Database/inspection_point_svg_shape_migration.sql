@@ -17,7 +17,7 @@ GO
 
 IF COL_LENGTH('dbo.PIP_M_InspectionPoint','SvgPathData') IS NULL
     ALTER TABLE dbo.PIP_M_InspectionPoint
-        ADD SvgPathData NVARCHAR(8000) NULL;
+        ADD SvgPathData NVARCHAR(MAX) NULL;
 GO
 
 IF COL_LENGTH('dbo.PIP_M_InspectionPoint','ShapeAttributes') IS NULL
