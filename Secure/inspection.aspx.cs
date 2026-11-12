@@ -2309,7 +2309,7 @@ ORDER BY I.UpdateDate DESC",
                     long id = Convert.ToInt64(header["InspectionID"]);
                     DataTable rows = br.EQueryP(@"
 SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali, R.DisplayOrder,
-       V.FieldName, V.Value AS FieldValue
+       V.ObjectIndex,V.FieldName, V.Value AS FieldValue
 FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
 WHERE R.InspectionID=@InspectionID
@@ -2332,13 +2332,23 @@ new SqlParameter("@InspectionID", id) });
                                 { "Remark2", row["Remark2"] == DBNull.Value ? "" : row["Remark2"].ToString() },
                                 { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
                                 { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
-                                { "Values", new Dictionary<string, object>() }
+                                { "Values", new Dictionary<string, object>() },
+                                { "RepeatValues", new List<Dictionary<string, object>>() }
                             };
                             grouped.Add(itemId, item);
                         }
                         if (row["FieldName"] != DBNull.Value)
-                            ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
-                                row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                        {
+                            if (String.Equals(Convert.ToString(item["Type"]), "REPEAT", StringComparison.OrdinalIgnoreCase))
+                            {
+                                int objectIndex = row["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(row["ObjectIndex"]);
+                                var repeatRows = (List<Dictionary<string, object>>)item["RepeatValues"];
+                                var repeatRow = repeatRows.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
+                                if (repeatRow == null) { repeatRow = new Dictionary<string, object> { { "ObjectIndex", objectIndex }, { "Values", new Dictionary<string, object>() } }; repeatRows.Add(repeatRow); }
+                                ((Dictionary<string, object>)repeatRow["Values"])[row["FieldName"].ToString()] = row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                            }
+                            else ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] = row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                        }
                     }
                     var record = new Dictionary<string, object>();
                     foreach (DataColumn col in headers.Columns)
@@ -2359,7 +2369,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
                             new SqlParameter[] { new SqlParameter("@InspectionID", id) });
                         DataTable returnedPointItems = br.EQueryP(@"
 SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
-       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.FieldName,V.Value AS FieldValue
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
 FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
 WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
@@ -2384,12 +2394,23 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                     { "Remark2", GF.GetString(pointItemRow["Remark2"]) },
                                     { "IsAnomali", pointItemRow["IsAnomali"] != DBNull.Value && Convert.ToBoolean(pointItemRow["IsAnomali"]) },
                                     { "DisplayOrder", pointItemRow["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(pointItemRow["DisplayOrder"]) },
-                                    { "Values", new Dictionary<string, object>() }
+                                    { "Values", new Dictionary<string, object>() },
+                                    { "RepeatValues", new List<Dictionary<string, object>>() }
                                 };
                                 pointGroups[pointTransactionID].Add(itemID, pointItem);
                             }
                             if (pointItemRow["FieldName"] != DBNull.Value)
-                                ((Dictionary<string, object>)pointItem["Values"])[GF.GetString(pointItemRow["FieldName"])] = GF.GetString(pointItemRow["FieldValue"]);
+                            {
+                                if (String.Equals(Convert.ToString(pointItem["Type"]), "REPEAT", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    int objectIndex = pointItemRow["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(pointItemRow["ObjectIndex"]);
+                                    var repeatRows = (List<Dictionary<string, object>>)pointItem["RepeatValues"];
+                                    var repeatRow = repeatRows.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
+                                    if (repeatRow == null) { repeatRow = new Dictionary<string, object> { { "ObjectIndex", objectIndex }, { "Values", new Dictionary<string, object>() } }; repeatRows.Add(repeatRow); }
+                                    ((Dictionary<string, object>)repeatRow["Values"])[GF.GetString(pointItemRow["FieldName"])] = GF.GetString(pointItemRow["FieldValue"]);
+                                }
+                                else ((Dictionary<string, object>)pointItem["Values"])[GF.GetString(pointItemRow["FieldName"])] = GF.GetString(pointItemRow["FieldValue"]);
+                            }
                         }
 
                         var returnedPointList = new List<Dictionary<string, object>>();
