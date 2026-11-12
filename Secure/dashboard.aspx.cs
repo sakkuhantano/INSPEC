@@ -211,7 +211,7 @@ WHERE S.IDVersion=@IDVersion",
                         "@IDVersion=" + row["IDVersion"].ToString());
                     DataTable dtRepeatFields = br.EQuery(@"
 SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
-       F.IsRequired,F.GroupName,F.DisplayOrder
+       F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -319,6 +319,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey",
                                             unit = GF.GetString(f["Unit"]),
                                             min = f["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(f["MinValue"]),
                                             max = f["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(f["MaxValue"]),
+                                            minInclusive = f["MinInclusive"] == DBNull.Value || Convert.ToBoolean(f["MinInclusive"]),
+                                            maxInclusive = f["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(f["MaxInclusive"]),
                                             isRequired = Convert.ToBoolean(f["IsRequired"]),
                                             groupName = GF.GetString(f["GroupName"]),
                                             displayOrder = Convert.ToInt32(f["DisplayOrder"])
