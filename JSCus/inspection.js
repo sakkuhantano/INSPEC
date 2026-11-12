@@ -1655,6 +1655,30 @@ function updateInspectionSectionNavActive() {
 }
 
 function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
+    if (!document.documentElement.dataset.inspectionRepeatActionsWired) {
+        document.documentElement.dataset.inspectionRepeatActionsWired = "1";
+        document.addEventListener("click", function(event) {
+            const button=event.target.closest("[data-inspection-repeat-action]");
+            if(!button)return;
+            const host=button.closest(".inspection-item");
+            if(!host)return;
+            const rows=Array.from(host.querySelectorAll(".inspection-repeat-object"));
+            const min=Number(button.dataset.minCount||0);
+            const max=button.dataset.maxCount===""?Number.MAX_SAFE_INTEGER:Number(button.dataset.maxCount);
+            if(button.dataset.inspectionRepeatAction==="add"){
+                if(rows.length>=max||!rows.length)return;
+                const clone=rows[rows.length-1].cloneNode(true);
+                const nextIndex=rows.length;
+                clone.dataset.objectIndex=String(nextIndex);
+                const heading=clone.querySelector(".inspection-repeat-object-title");
+                if(heading)heading.textContent=String(heading.dataset.label||"Object")+" "+(nextIndex+1);
+                clone.querySelectorAll("input,select,textarea").forEach(input=>{if(input.tagName==="SELECT")input.selectedIndex=0;else input.value="";});
+                button.closest(".inspection-repeat-actions").before(clone);
+            } else if(button.dataset.inspectionRepeatAction==="remove" && rows.length>min) {
+                rows[rows.length-1].remove();
+            }
+        });
+    }
     const saved = savedItems.find(x => Number(x.IDItem) === Number(item.idItem)) || {};
     const type = String(item.type || "").toUpperCase();
     const id = Number(item.idItem);
@@ -1701,9 +1725,13 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                 const col=mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):6;
                 return heading+'<div class="col-12 col-md-'+col+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
             }).join("");
-            objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2">'+fieldHtml+'</div></div>');
+            objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2 inspection-repeat-object-title" data-label="'+escInspection(cfg.objectLabel||"Object")+'">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2">'+fieldHtml+'</div></div>');
         }
         control=objects.join("");
+        if(mode==="OBJECTS" && String(cfg.countMode||"FLEX").toUpperCase()==="FLEX" && !readOnly){
+            const minCount=Number(cfg.minCount||0), maxCount=cfg.maxCount==null?"":Number(cfg.maxCount);
+            control+='<div class="inspection-repeat-actions d-flex gap-2 mb-2"><button type="button" class="btn btn-sm btn-outline-primary" data-inspection-repeat-action="add" data-min-count="'+minCount+'" data-max-count="'+maxCount+'">+ Add '+escInspection(cfg.objectLabel||"Object")+'</button>'+(count>minCount?'<button type="button" class="btn btn-sm btn-outline-secondary" data-inspection-repeat-action="remove" data-min-count="'+minCount+'" data-max-count="'+maxCount+'">Remove last</button>':"")+'</div>';
+        }
     } else if (type === "GROUP") {
         const values = saved.Values || {};
         const groups = item.groups || [];
