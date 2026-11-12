@@ -97,7 +97,16 @@ IF NOT EXISTS
         ON dbo.PIP_T_WO_CheckList_SubValue(IDResult,ObjectIndex,FieldName);
 GO
 
-/* Inspection values already store text; ObjectIndex makes OBJECTS lossless. */
+/* Inspection values support Unicode text child fields and OBJECTS identity. */
+IF EXISTS
+(
+    SELECT 1 FROM sys.columns
+    WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionResultValue')
+      AND name='Value' AND TYPE_NAME(user_type_id)<>'nvarchar'
+)
+    ALTER TABLE dbo.PIP_T_InspectionResultValue ALTER COLUMN Value NVARCHAR(500) NULL;
+GO
+
 IF COL_LENGTH('dbo.PIP_T_InspectionResultValue','ObjectIndex') IS NULL
     ALTER TABLE dbo.PIP_T_InspectionResultValue
         ADD ObjectIndex INT NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_ObjectIndex DEFAULT (0);
