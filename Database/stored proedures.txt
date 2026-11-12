@@ -1062,6 +1062,30 @@ BEGIN
         RETURN;
     END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items V
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(V.C2 AS INT) AND I.ItemType='OPTION'
+        WHERE ISNULL(I.IsValueRequired,0)=1 AND ISNULL(LTRIM(RTRIM(V.C5)),'')=''
+    )
+    BEGIN RAISERROR('A required OPTION item must be selected in every BATCH Inspection Point.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items V
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(V.C2 AS INT) AND I.ItemType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND ISNULL(I.OptionList,'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(I.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.C5)))
+          )
+    )
+    BEGIN RAISERROR('A BATCH Inspection OPTION value is not in the configured option list.',16,1); RETURN; END;
+
     /* Validate native REPEAT values per submitted inspection point. */
     IF EXISTS
     (
