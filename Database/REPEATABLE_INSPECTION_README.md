@@ -52,7 +52,7 @@ The map workspace is a separate JavaScript module referenced by `Secure/inspecti
 - A point can now use `ShapeType='PATH'`; its SVG `d` data is stored in `PIP_M_InspectionPoint.SvgPathData`, with `ShapeAttributes` and `StrokeWidth` stored on the same point row.
 - SVG coordinates use the normalized `0..100` map coordinate plane. `MapX/MapY` remain the anchor/centroid used for the point identity and navigation.
 - `Secure/inspectionmaster.aspx` includes a freehand Draw SVG Path tool; the Inspection map renders the path as a clickable area whose visual state follows the point's checklist status.
-- This design deliberately extends `PIP_M_InspectionPoint` and does not revive the dropped `PIP_M_InspectionMapElement` table.
+- This design deliberately extends `PIP_M_InspectionPoint` and does not revive the dropped `PIP_M_InspectionMapElement` table. The old `database/inspection_location_map_schema.sql` has also had its obsolete MapElement create/FK/index sections removed.
 
 ## REPEAT coverage audit
 
