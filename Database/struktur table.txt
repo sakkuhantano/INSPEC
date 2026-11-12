@@ -86,6 +86,37 @@ CREATE TABLE [dbo].[PIP_M_CheckListWOPM_ItemGroup](
 (
 	[IDGroup] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+ ) ON [PRIMARY]
+GO
+
+/****** Object: Table [dbo].[PIP_M_CheckListWOPM_ItemRepeat] ******/
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_ItemRepeat](
+    [IDItem] [int] NOT NULL,
+    [RepeatMode] [varchar](10) NOT NULL,
+    [ColumnCount] [tinyint] NOT NULL CONSTRAINT [DF_PIP_M_ItemRepeat_ColumnCount] DEFAULT ((3)),
+    [ObjectLabel] [nvarchar](100) NULL,
+    [CountMode] [varchar](10) NOT NULL CONSTRAINT [DF_PIP_M_ItemRepeat_CountMode] DEFAULT ('FLEX'),
+    [FixedCount] [int] NULL,
+    [MinCount] [int] NULL,
+    [MaxCount] [int] NULL,
+    CONSTRAINT [PK_PIP_M_CheckListWOPM_ItemRepeat] PRIMARY KEY CLUSTERED ([IDItem] ASC)
+) ON [PRIMARY]
+GO
+
+/****** Object: Table [dbo].[PIP_M_CheckListWOPM_ItemRepeatField] ******/
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_ItemRepeatField](
+    [IDItem] [int] NOT NULL,
+    [FieldKey] [varchar](50) NOT NULL,
+    [FieldLabel] [nvarchar](100) NOT NULL,
+    [FieldType] [varchar](20) NOT NULL,
+    [OptionList] [nvarchar](1000) NULL,
+    [Unit] [nvarchar](30) NULL,
+    [MinValue] [decimal](18,4) NULL,
+    [MaxValue] [decimal](18,4) NULL,
+    [IsRequired] [bit] NOT NULL DEFAULT ((0)),
+    [GroupName] [nvarchar](100) NULL,
+    [DisplayOrder] [int] NOT NULL,
+    CONSTRAINT [PK_PIP_M_CheckListWOPM_ItemRepeatField] PRIMARY KEY CLUSTERED ([IDItem] ASC,[FieldKey] ASC)
 ) ON [PRIMARY]
 GO
 
@@ -359,6 +390,7 @@ GO
 
 CREATE TABLE [dbo].[PIP_T_InspectionResultValue](
 	[InspectionResultID] [bigint] NOT NULL,
+	[ObjectIndex] [int] NOT NULL DEFAULT ((0)),
 	[FieldName] [varchar](100) NOT NULL,
 	[Value] [varchar](500) NULL,
 	[EntryUser] [varchar](50) NOT NULL,
@@ -368,6 +400,7 @@ CREATE TABLE [dbo].[PIP_T_InspectionResultValue](
  CONSTRAINT [PK_PIP_T_InspectionResultValue] PRIMARY KEY CLUSTERED 
 (
 	[InspectionResultID] ASC,
+	[ObjectIndex] ASC,
 	[FieldName] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
 ) ON [PRIMARY]
@@ -409,8 +442,9 @@ GO
 CREATE TABLE [dbo].[PIP_T_WO_CheckList_SubValue](
 	[IDSubValue] [int] NOT NULL,
 	[IDResult] [int] NOT NULL,
-	[FieldName] [varchar](50) NOT NULL,
-	[Value] [decimal](10, 2) NULL,
+	[ObjectIndex] [int] NOT NULL DEFAULT ((0)),
+	[FieldName] [varchar](100) NOT NULL,
+	[Value] [nvarchar](500) NULL,
  CONSTRAINT [PK__PIP_T_WO__A27DFC3F53E74F73] PRIMARY KEY CLUSTERED 
 (
 	[IDSubValue] ASC
