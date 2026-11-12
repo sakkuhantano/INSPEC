@@ -9311,19 +9311,6 @@ async function validateCurrentTemplate() {
             if (item.ItemType ==
                 "INPUT") {
 
-                if (!item.Unit ||
-                    !item.Unit.trim()) {
-
-                    addValidationError(
-                        result,
-                        "ITEM",
-                        section.RuntimeSectionID,
-                        item.RuntimeItemID,
-                        null,
-                        "Unit",
-                        "Unit is required."
-                    );
-                }
             }
             if(
                 (
