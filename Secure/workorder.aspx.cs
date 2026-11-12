@@ -854,16 +854,33 @@ string.Format(@"
                             if (itemType == "GROUP")
                             {
                                 Dictionary<string, object> groupValues = new Dictionary<string, object>();
-                                foreach (DataRow r1 in br.EQuery("SELECT * FROM PIP_T_WO_CheckList_subvalue WHERE IDResult=@IDResult",
+                                foreach (DataRow r1 in br.EQuery("SELECT * FROM PIP_T_WO_CheckList_subvalue WHERE IDResult=@IDResult AND ISNULL(ObjectIndex,0)=0",
                                     "@IDResult=" + r["IDResult"].ToString()).Rows)
-                                {
                                     groupValues[r1["FieldName"].ToString()] = r1["Value"];
-                                }
                                 itemRow["Values"] = groupValues;
+                            }
+                            else if (itemType == "REPEAT")
+                            {
+                                var repeatValues = new List<Dictionary<string, object>>();
+                                DataTable repeatRows = br.EQuery("SELECT ObjectIndex,FieldName,Value FROM PIP_T_WO_CheckList_SubValue WHERE IDResult=@IDResult ORDER BY ObjectIndex,FieldName",
+                                    "@IDResult=" + r["IDResult"].ToString());
+                                foreach (DataRow repeatValue in repeatRows.Rows)
+                                {
+                                    int objectIndex = repeatValue["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(repeatValue["ObjectIndex"]);
+                                    var objectRow = repeatValues.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
+                                    if (objectRow == null)
+                                    {
+                                        objectRow = new Dictionary<string, object> { { "ObjectIndex", objectIndex }, { "Values", new Dictionary<string, object>() } };
+                                        repeatValues.Add(objectRow);
+                                    }
+                                    ((Dictionary<string, object>)objectRow["Values"])[Convert.ToString(repeatValue["FieldName"])] = repeatValue["Value"] == DBNull.Value ? "" : Convert.ToString(repeatValue["Value"]);
+                                }
+                                itemRow["RepeatValues"] = repeatValues;
+                                itemRow["Values"] = null;
                             }
                             else
                             {
-                                itemRow["Values"] = null; 
+                                itemRow["Values"] = null;
                             }
                             listItems.Add(itemRow);
                         }
