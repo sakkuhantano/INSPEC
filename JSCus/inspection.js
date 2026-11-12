@@ -1668,7 +1668,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
         control = '<div class="inspection-option-list d-flex flex-wrap gap-2" data-role="option-list">' + options.map((option, index) => {
             const optionId = controlPrefix + "_opt_" + id + "_" + index;
             return '<input class="btn-check" type="radio" data-role="value" name="' + controlPrefix + "_opt_" + id + '" id="' + optionId + '" value="' + escInspection(option) + '"' +
-                (String(saved.Value || "") === option ? " checked" : "") + disabled + '><label class="btn btn-outline-primary inspection-option-choice" for="' + optionId + '">' + escInspection(option) + '</label>';
+                (String(saved.Value || "") === option ? " checked" : "") + disabled + required + '><label class="btn btn-outline-primary inspection-option-choice" for="' + optionId + '">' + escInspection(option) + '</label>';
         }).join("") + '</div>';
     } else if (type === "GROUP") {
         const values = saved.Values || {};
