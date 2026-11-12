@@ -1005,7 +1005,7 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261111-validation-nav-1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261112-report-progress-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261111-pointlist-1"></script>
