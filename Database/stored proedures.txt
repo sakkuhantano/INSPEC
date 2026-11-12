@@ -1133,6 +1133,27 @@ BEGIN
     IF EXISTS
     (
         SELECT 1
+        FROM @p_ItemValues V
+        JOIN @p_Items I ON I.C1=V.C1 AND I.C2=V.C2 AND UPPER(ISNULL(I.C4,''))='REPEAT'
+        WHERE CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT)<0
+    )
+    BEGIN RAISERROR('BATCH REPEAT ObjectIndex cannot be negative.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT V.C1,V.C2
+        FROM @p_ItemValues V
+        JOIN @p_Items I ON I.C1=V.C1 AND I.C2=V.C2 AND UPPER(ISNULL(I.C4,''))='REPEAT'
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=CAST(I.C2 AS INT) AND R.RepeatMode='OBJECTS'
+        GROUP BY V.C1,V.C2
+        HAVING MIN(CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT))<>0
+            OR MAX(CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT))<>COUNT(DISTINCT CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT))-1
+    )
+    BEGIN RAISERROR('BATCH REPEAT ObjectIndex values must be sequential from zero.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
         FROM @p_Items I
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(I.C2 AS INT) AND F.IsRequired=1
         JOIN (SELECT DISTINCT C1,C2,C5 FROM @p_ItemValues) O ON O.C1=I.C1 AND O.C2=I.C2
