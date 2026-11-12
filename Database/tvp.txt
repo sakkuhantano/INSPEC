@@ -1,0 +1,372 @@
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C10]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C10] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C13]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C13] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL,
+	[C11] [nvarchar](max) NULL,
+	[C12] [nvarchar](max) NULL,
+	[C13] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C14]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C14] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL,
+	[C11] [nvarchar](max) NULL,
+	[C12] [nvarchar](max) NULL,
+	[C13] [nvarchar](max) NULL,
+	[C14] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C15]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C15] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL,
+	[C11] [nvarchar](max) NULL,
+	[C12] [nvarchar](max) NULL,
+	[C13] [nvarchar](max) NULL,
+	[C14] [nvarchar](max) NULL,
+	[C15] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C20]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C20] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL,
+	[C11] [nvarchar](max) NULL,
+	[C12] [nvarchar](max) NULL,
+	[C13] [nvarchar](max) NULL,
+	[C14] [nvarchar](max) NULL,
+	[C15] [nvarchar](max) NULL,
+	[C16] [nvarchar](max) NULL,
+	[C17] [nvarchar](max) NULL,
+	[C18] [nvarchar](max) NULL,
+	[C19] [nvarchar](max) NULL,
+	[C20] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C25]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C25] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL,
+	[C6] [nvarchar](max) NULL,
+	[C7] [nvarchar](max) NULL,
+	[C8] [nvarchar](max) NULL,
+	[C9] [nvarchar](max) NULL,
+	[C10] [nvarchar](max) NULL,
+	[C11] [nvarchar](max) NULL,
+	[C12] [nvarchar](max) NULL,
+	[C13] [nvarchar](max) NULL,
+	[C14] [nvarchar](max) NULL,
+	[C15] [nvarchar](max) NULL,
+	[C16] [nvarchar](max) NULL,
+	[C17] [nvarchar](max) NULL,
+	[C18] [nvarchar](max) NULL,
+	[C19] [nvarchar](max) NULL,
+	[C20] [nvarchar](max) NULL,
+	[C21] [nvarchar](max) NULL,
+	[C22] [nvarchar](max) NULL,
+	[C23] [nvarchar](max) NULL,
+	[C24] [nvarchar](max) NULL,
+	[C25] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_N_Tbl_C5]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_N_Tbl_C5] AS TABLE(
+	[C1] [nvarchar](max) NULL,
+	[C2] [nvarchar](max) NULL,
+	[C3] [nvarchar](max) NULL,
+	[C4] [nvarchar](max) NULL,
+	[C5] [nvarchar](max) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C10]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C10] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [smalldatetime] NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [int] NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [numeric](5, 2) NULL,
+	[C9] [tinyint] NULL,
+	[C10] [numeric](5, 2) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C11]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C11] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [smalldatetime] NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [int] NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [numeric](5, 2) NULL,
+	[C10] [tinyint] NULL,
+	[C11] [numeric](5, 2) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C12]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C12] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [varchar](8000) NULL,
+	[C10] [varchar](8000) NULL,
+	[C11] [varchar](8000) NULL,
+	[C12] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C13]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C13] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [varchar](8000) NULL,
+	[C10] [varchar](8000) NULL,
+	[C11] [varchar](8000) NULL,
+	[C12] [varchar](8000) NULL,
+	[C13] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C2]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C2] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C24]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C24] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [varchar](8000) NULL,
+	[C10] [varchar](8000) NULL,
+	[C11] [varchar](8000) NULL,
+	[C12] [varchar](8000) NULL,
+	[C13] [varchar](8000) NULL,
+	[C14] [varchar](8000) NULL,
+	[C15] [varchar](8000) NULL,
+	[C16] [varchar](8000) NULL,
+	[C17] [varchar](8000) NULL,
+	[C18] [varchar](8000) NULL,
+	[C19] [varchar](8000) NULL,
+	[C20] [varchar](8000) NULL,
+	[C21] [varchar](8000) NULL,
+	[C22] [varchar](8000) NULL,
+	[C23] [varchar](8000) NULL,
+	[C24] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C4]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C4] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C5]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C5] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C7]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C7] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C70]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C70] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [varchar](8000) NULL,
+	[C10] [varchar](8000) NULL,
+	[C11] [varchar](8000) NULL,
+	[C12] [varchar](8000) NULL,
+	[C13] [varchar](8000) NULL,
+	[C14] [varchar](8000) NULL,
+	[C15] [varchar](8000) NULL,
+	[C16] [varchar](8000) NULL,
+	[C17] [varchar](8000) NULL,
+	[C18] [varchar](8000) NULL,
+	[C19] [varchar](8000) NULL,
+	[C20] [varchar](8000) NULL,
+	[C21] [varchar](8000) NULL,
+	[C22] [varchar](8000) NULL,
+	[C23] [varchar](8000) NULL,
+	[C24] [varchar](8000) NULL,
+	[C25] [varchar](8000) NULL,
+	[C26] [varchar](8000) NULL,
+	[C27] [varchar](8000) NULL,
+	[C28] [varchar](8000) NULL,
+	[C29] [varchar](8000) NULL,
+	[C30] [varchar](8000) NULL,
+	[C31] [varchar](8000) NULL,
+	[C32] [varchar](8000) NULL,
+	[C33] [varchar](8000) NULL,
+	[C34] [varchar](8000) NULL,
+	[C35] [varchar](8000) NULL,
+	[C36] [varchar](8000) NULL,
+	[C37] [varchar](8000) NULL,
+	[C38] [varchar](8000) NULL,
+	[C39] [varchar](8000) NULL,
+	[C40] [varchar](8000) NULL,
+	[C41] [varchar](8000) NULL,
+	[C42] [varchar](8000) NULL,
+	[C43] [varchar](8000) NULL,
+	[C44] [varchar](8000) NULL,
+	[C45] [varchar](8000) NULL,
+	[C46] [varchar](8000) NULL,
+	[C47] [varchar](8000) NULL,
+	[C48] [varchar](8000) NULL,
+	[C49] [varchar](8000) NULL,
+	[C50] [varchar](8000) NULL,
+	[C51] [varchar](8000) NULL,
+	[C52] [varchar](8000) NULL,
+	[C53] [varchar](8000) NULL,
+	[C54] [varchar](8000) NULL,
+	[C55] [varchar](8000) NULL,
+	[C56] [varchar](8000) NULL,
+	[C57] [varchar](8000) NULL,
+	[C58] [varchar](8000) NULL,
+	[C59] [varchar](8000) NULL,
+	[C60] [varchar](8000) NULL,
+	[C61] [varchar](8000) NULL,
+	[C62] [varchar](8000) NULL,
+	[C63] [varchar](8000) NULL,
+	[C64] [varchar](8000) NULL,
+	[C65] [varchar](8000) NULL,
+	[C66] [varchar](8000) NULL,
+	[C67] [varchar](8000) NULL,
+	[C68] [varchar](8000) NULL,
+	[C69] [varchar](8000) NULL,
+	[C70] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C8]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C8] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL
+)
+GO
+
+/****** Object:  UserDefinedTableType [dbo].[Type_Tbl_C9]    Script Date: 12-Nov-2026 12:26:26 PM ******/
+CREATE TYPE [dbo].[Type_Tbl_C9] AS TABLE(
+	[C1] [varchar](8000) NULL,
+	[C2] [varchar](8000) NULL,
+	[C3] [varchar](8000) NULL,
+	[C4] [varchar](8000) NULL,
+	[C5] [varchar](8000) NULL,
+	[C6] [varchar](8000) NULL,
+	[C7] [varchar](8000) NULL,
+	[C8] [varchar](8000) NULL,
+	[C9] [varchar](8000) NULL
+)
+GO
+
