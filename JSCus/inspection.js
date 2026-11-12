@@ -1670,6 +1670,40 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             return '<input class="btn-check" type="radio" data-role="value" name="' + controlPrefix + "_opt_" + id + '" id="' + optionId + '" value="' + escInspection(option) + '"' +
                 (String(saved.Value || "") === option ? " checked" : "") + disabled + required + '><label class="btn btn-outline-primary inspection-option-choice" for="' + optionId + '">' + escInspection(option) + '</label>';
         }).join("") + '</div>';
+    } else if (type === "REPEAT") {
+        const cfg=item.repeat||{};
+        const fields=Array.isArray(item.repeatFields)?item.repeatFields:[];
+        const mode=String(cfg.repeatMode||"FIELDS").toUpperCase();
+        const savedObjects=Array.isArray(saved.RepeatValues)?saved.RepeatValues:[];
+        let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(Number(cfg.minCount||1),savedObjects.length||1));
+        if(mode==="OBJECTS"&&cfg.maxCount)count=Math.min(count,Number(cfg.maxCount));
+        const objects=[];
+        for(let oi=0;oi<count;oi++){
+            const old=savedObjects.find(x=>Number(x.ObjectIndex)===oi);
+            const objectValues=old&&old.Values?old.Values:{};
+            let lastGroup="";
+            const fieldHtml=fields.map(field=>{
+                const key=String(field.fieldKey||"");
+                const label=String(field.fieldLabel||key);
+                const group=String(field.groupName||"");
+                const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escInspection(group)+'</div>':"";
+                lastGroup=group||lastGroup;
+                const fieldValue=objectValues[key]==null?"":objectValues[key];
+                const fieldRequired=field.isRequired?' required aria-required="true"':"";
+                let input="";
+                if(String(field.fieldType||"").toUpperCase()==="OPTION"){
+                    const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
+                    input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
+                }else{
+                    const textType=String(field.fieldType||"").toUpperCase()==="TEXT";
+                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"')+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
+                }
+                const col=mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):6;
+                return heading+'<div class="col-12 col-md-'+col+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
+            }).join("");
+            objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2">'+fieldHtml+'</div></div>');
+        }
+        control=objects.join("");
     } else if (type === "GROUP") {
         const values = saved.Values || {};
         const groups = item.groups || [];
@@ -1771,7 +1805,12 @@ function collectInspectionItems() {
         container.querySelectorAll('[data-role="group-value"]').forEach(field => {
             values[field.dataset.field] = field.value === "" ? null : field.value;
         });
-        const value = type === "GROUP" ? "" : (valueElement ? valueElement.value : "");
+        const repeatValues=Array.from(container.querySelectorAll(".inspection-repeat-object")).map(objectEl=>{
+            const objectValues={};
+            objectEl.querySelectorAll("[data-role='repeat-value']").forEach(field=>{objectValues[field.dataset.fieldKey]=field.value===""?null:field.value;});
+            return {ObjectIndex:Number(objectEl.dataset.objectIndex||0),Values:objectValues};
+        });
+        const value = (type === "GROUP" || type === "REPEAT") ? "" : (valueElement ? valueElement.value : "");
         const remark1Element = container.querySelector('[data-role="remark1"]');
         const remark2Element = container.querySelector('[data-role="remark2"]');
         const remark1 = remark1Element ? remark1Element.value.trim() : "";
@@ -1820,7 +1859,8 @@ function collectInspectionItems() {
             Remark2: remark2,
             IsAnomali: isAnomali,
             DisplayOrder: index + 1,
-            Values: type === "GROUP" ? values : null
+            Values: type === "GROUP" ? values : null,
+            RepeatValues: type === "REPEAT" ? repeatValues : null
         });
     });
     return result;
