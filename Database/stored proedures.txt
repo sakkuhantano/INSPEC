@@ -2250,6 +2250,34 @@ DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_WONo VARCHAR(10),
 --JOIN PIP_T_WO wo ON wo.KeyHD=AA.KeyHD AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
 
 IF @V_IsApprovalSPV=0
+BEGIN
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT)
+        WHERE I.ItemType='OPTION' AND ISNULL(I.IsValueRequired,0)=1
+          AND ISNULL(LTRIM(RTRIM(A.C3)),'')=''
+    )
+    BEGIN RAISERROR('A required OPTION checklist item must be selected before Work Order sync.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(A.C3)),'')<>''
+          AND ISNULL(I.OptionList,'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(I.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(A.C3)))
+          )
+    )
+    BEGIN RAISERROR('A Work Order OPTION value is not in the configured option list.',16,1); RETURN; END;
+END;
+
+IF @V_IsApprovalSPV=0
 	DELETE A 
 	FROM PIP_T_DocumentAttachment A JOIN PIP_T_WO B ON B.CompanyID = A.CompanyID AND B.LocationID = A.LocationID AND a.DocNo=b.WONo 
 	WHERE a.[Type] IN ('wo1','wo2')
