@@ -2426,6 +2426,15 @@ BEGIN
 
     IF EXISTS
     (
+        SELECT C1,C2,C3,C4
+        FROM @p_DtRepeat
+        GROUP BY C1,C2,C3,C4
+        HAVING COUNT(*)>1
+    )
+    BEGIN RAISERROR('Duplicate REPEAT field values submitted for Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
         SELECT 1
         FROM @p_DtRepeat R
         WHERE ISNULL(R.C1,'')='' OR ISNUMERIC(R.C2)=0 OR ISNUMERIC(R.C3)=0
@@ -2467,8 +2476,12 @@ BEGIN
                 (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<R.MinCount)
             OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MaxCount IS NOT NULL AND
                 (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)>R.MaxCount)
+            OR (R.RepeatMode='OBJECTS' AND EXISTS
+                (SELECT 1 FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2
+                 GROUP BY V.C1,V.C2
+                 HAVING MIN(CAST(V.C3 AS INT))<>0 OR MAX(CAST(V.C3 AS INT))<>COUNT(DISTINCT CAST(V.C3 AS INT))-1))
     )
-    BEGIN RAISERROR('REPEAT object count does not match Work Order template configuration.',16,1); RETURN; END;
+    BEGIN RAISERROR('REPEAT object count or ObjectIndex sequence does not match Work Order template configuration.',16,1); RETURN; END;
 
     IF EXISTS
     (
