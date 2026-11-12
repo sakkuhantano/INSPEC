@@ -421,6 +421,140 @@
                 if (zoom === 1) { panX = 0; panY = 0; }
                 applyView();
             }
+            var shapeSelect = document.getElementById('ddlPointShapeType');
+            var pathField = document.getElementById('hidSvgPathData');
+            var drawButton = document.getElementById('btnStartPathDraw');
+            var undoButton = document.getElementById('btnUndoPath');
+            var clearPathButton = document.getElementById('btnClearPath');
+            var pathStatus = document.getElementById('lblPathDrawStatus');
+            var drawMode = false, drawingPath = false, suppressNextClick = false;
+            var pathPoints = [], pathPreview = null;
+            function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
+            function mapPointFromEvent(event) {
+                var rect = board.getBoundingClientRect();
+                return {
+                    x: Math.max(0, Math.min(100, ((event.clientX - rect.left - panX) / (rect.width * zoom)) * 100)),
+                    y: Math.max(0, Math.min(100, ((event.clientY - rect.top - panY) / (rect.height * zoom)) * 100))
+                };
+            }
+            function ensurePathPreview() {
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (!svg) {
+                    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.id = 'inspectionCoordinateSvgOverlay';
+                    svg.setAttribute('class', 'inspection-coordinate-svg-overlay');
+                    svg.setAttribute('viewBox', '0 0 100 100');
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                    content.appendChild(svg);
+                }
+                if (!pathPreview) {
+                    pathPreview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    pathPreview.id = 'inspectionCoordinatePathPreview';
+                    pathPreview.setAttribute('fill', 'rgba(13,110,253,.16)');
+                    pathPreview.setAttribute('stroke', '#0d6efd');
+                    pathPreview.setAttribute('stroke-width', '0.8');
+                    pathPreview.setAttribute('stroke-linejoin', 'round');
+                    pathPreview.setAttribute('vector-effect', 'non-scaling-stroke');
+                    svg.appendChild(pathPreview);
+                }
+                return pathPreview;
+            }
+            function renderPathPreview(closePath) {
+                var path = ensurePathPreview();
+                if (!pathPoints.length) { path.setAttribute('d', ''); return; }
+                var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
+                for (var p = 1; p < pathPoints.length; p++)
+                    d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
+                if (closePath && pathPoints.length >= 3) d += ' Z';
+                path.setAttribute('d', d);
+            }
+            function startPathDrawing() {
+                if (shapeSelect) shapeSelect.value = 'PATH';
+                drawMode = true; drawingPath = false; pathPoints = [];
+                if (pathField) pathField.value = '';
+                var activeId = document.getElementById('hidPointID');
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (svg && activeId && activeId.value) {
+                    var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
+                    if (oldPath) oldPath.style.display = 'none';
+                }
+                renderPathPreview(false);
+                board.classList.add('path-drawing');
+                pathStatusText('Draw mode aktif: drag mengikuti batas area, lalu lepaskan untuk menutup path.');
+            }
+            function finishPathDrawing() {
+                drawingPath = false; dragging = false;
+                if (pathPoints.length < 3) {
+                    pathPoints = []; renderPathPreview(false);
+                    pathStatusText('Path perlu minimal 3 titik. Klik Draw SVG Path untuk mencoba lagi.');
+                    return;
+                }
+                renderPathPreview(true);
+                var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
+                for (var p = 1; p < pathPoints.length; p++)
+                    d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
+                d += ' Z';
+                if (pathField) pathField.value = d;
+                var sx = 0, sy = 0;
+                pathPoints.forEach(function (point) { sx += point.x; sy += point.y; });
+                if (markerX) markerX.value = (sx / pathPoints.length).toFixed(2);
+                if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
+                drawMode = false;
+                board.classList.remove('path-drawing');
+                pathStatusText('SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.');
+            }
+            if (drawButton) drawButton.addEventListener('click', startPathDrawing);
+            if (undoButton) undoButton.addEventListener('click', function () {
+                if (pathPoints.length) { pathPoints.pop(); renderPathPreview(drawingPath); }
+                else if (pathField) { pathField.value = ''; renderPathPreview(false); }
+                pathStatusText(pathPoints.length ? 'Titik terakhir dibatalkan.' : 'Path dikosongkan.');
+            });
+            if (clearPathButton) clearPathButton.addEventListener('click', function () {
+                drawMode = false; drawingPath = false; pathPoints = [];
+                if (pathField) pathField.value = '';
+                if (shapeSelect) shapeSelect.value = 'CIRCLE';
+                board.classList.remove('path-drawing');
+                if (pathPreview) pathPreview.setAttribute('d', '');
+                pathStatusText('Path dihapus. Circle marker dapat ditempatkan dengan klik map.');
+            });
+            if (shapeSelect) shapeSelect.addEventListener('change', function () {
+                if (this.value === 'CIRCLE') {
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    if (pathField) pathField.value = '';
+                    if (pathPreview) pathPreview.setAttribute('d', '');
+                    pathStatusText('Circle: klik map untuk menentukan satu koordinat.');
+                } else {
+                    pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
+                }
+            });
+            board.addEventListener('pointerdown', function (event) {
+                if (!drawMode || event.button !== 0) return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                drawingPath = true; suppressNextClick = true;
+                pathPoints = [mapPointFromEvent(event)];
+                renderPathPreview(false);
+                try { board.setPointerCapture(event.pointerId); } catch (_) { }
+            }, true);
+            board.addEventListener('pointermove', function (event) {
+                if (!drawMode || !drawingPath) return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                var next = mapPointFromEvent(event), last = pathPoints[pathPoints.length - 1];
+                var dx = next.x - last.x, dy = next.y - last.y;
+                if (Math.sqrt(dx * dx + dy * dy) >= 0.25) {
+                    pathPoints.push(next); renderPathPreview(false);
+                }
+            }, true);
+            board.addEventListener('pointerup', function (event) {
+                if (!drawMode || !drawingPath) return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                finishPathDrawing();
+            }, true);
+            board.addEventListener('pointercancel', function (event) {
+                if (!drawMode || !drawingPath) return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                drawingPath = false; pathPoints = []; renderPathPreview(false);
+            }, true);
+
             document.getElementById('btnMapZoomIn').addEventListener('click', function () { setZoom(zoom + 0.25); });
             document.getElementById('btnMapZoomOut').addEventListener('click', function () { setZoom(zoom - 0.25); });
             document.getElementById('btnMapZoomFit').addEventListener('click', function () { zoom = 1; panX = 0; panY = 0; applyView(); });
@@ -444,7 +578,7 @@
             board.addEventListener('pointerup', function () { dragging = false; });
             board.addEventListener('pointercancel', function () { dragging = false; });
             content.addEventListener('click', function (event) {
-                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker') : null;
+                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-path') : null;
                 if (marker) {
                     event.preventDefault(); event.stopPropagation();
                     var activeId = document.getElementById('hidPointID');
@@ -460,6 +594,8 @@
                 }
             });
             board.addEventListener('click', function (event) {
+                if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
+                if (drawMode) { event.preventDefault(); return; }
                 if (moved) { moved = false; return; }
                 var rect = board.getBoundingClientRect();
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left - panX) / (rect.width * zoom)) * 100));
