@@ -1722,7 +1722,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                 const key=String(field.fieldKey||"");
                 const label=String(field.fieldLabel||key);
                 const group=String(field.groupName||"");
-                const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escInspection(group)+'</div>':"";
+                const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary" style="flex:0 0 100%;width:100%;max-width:100%">'+escInspection(group)+'</div>':"";
                 lastGroup=group;
                 const fieldValue=objectValues[key]==null?"":objectValues[key];
                 const fieldRequired=field.isRequired?' required aria-required="true"':"";
