@@ -686,7 +686,8 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT P.MapX, P.MapY, P.PointCode, P.PointName
+SELECT P.MapX, P.MapY, P.PointCode, P.PointName,
+       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.StrokeWidth
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
@@ -700,17 +701,32 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     });
 
             System.Text.StringBuilder html = new System.Text.StringBuilder();
+            html.Append("<svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>");
             foreach (DataRow point in points.Rows)
             {
                 string pointLabel = Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"]);
-                html.Append("<span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
+                if (String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase))
+                {
+                    string d = Convert.ToString(point["SvgPathData"]);
+                    if (!String.IsNullOrWhiteSpace(d) && System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$"))
+                    {
+                        html.Append("<path d='");
+                        html.Append(HttpUtility.HtmlAttributeEncode(d));
+                        html.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' vector-effect='non-scaling-stroke'><title>");
+                        html.Append(HttpUtility.HtmlEncode(pointLabel));
+                        html.Append("</title></path>");
+                    }
+                    continue;
+                }
+                html.Append("</svg><span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
                 html.Append(HttpUtility.HtmlAttributeEncode(pointLabel));
                 html.Append("' style='left:");
                 html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
                 html.Append("%;top:");
                 html.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
-                html.Append("%'></span>");
+                html.Append("%'></span><svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>");
             }
+            html.Append("</svg>");
             return html.ToString();
         }
 
