@@ -830,9 +830,9 @@ function renderWORepeatItem(item, saved, isEntryMode) {
                 const type=String(f.fieldType).toUpperCase()==="TEXT"?"text":"number";
                 input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+(f.min!=null?'min="'+escapeHtmlAttribute(f.min)+'" ':'')+(f.max!=null?'max="'+escapeHtmlAttribute(f.max)+'" ':''):'maxlength="500"')+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
             }
-            return heading+'<div class="col-12 col-md-'+(mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):'6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
+            return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
         }).join("");
-        objects.push('<div class="repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2">'+escapeHtmlAttribute(cfg.objectLabel||"Object")+' '+(oi+1)+'</div>':"")+'<div class="row g-2">'+controls+'</div></div>');
+        objects.push('<div class="repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2">'+escapeHtmlAttribute(cfg.objectLabel||"Object")+' '+(oi+1)+'</div>':"")+'<div class="row g-2 '+(mode==="FIELDS"?'row-cols-1 row-cols-md-'+Math.max(1,Math.min(6,Number(cfg.columnCount||3))):'')+'">'+controls+'</div></div>');
     }
     const actions=mode==="OBJECTS"&&String(cfg.countMode||"FLEX").toUpperCase()==="FLEX"&&isEntryMode
         ?'<div class="d-flex gap-2 mb-2"><button type="button" class="btn btn-sm btn-outline-primary" data-repeat-action="add" data-item-id="'+item.idItem+'">+ Add '+escapeHtmlAttribute(cfg.objectLabel||"Object")+'</button>'+(count>Number(cfg.minCount||0)?'<button type="button" class="btn btn-sm btn-outline-secondary" data-repeat-action="remove" data-item-id="'+item.idItem+'">Remove last</button>':"")+'</div>':"";
