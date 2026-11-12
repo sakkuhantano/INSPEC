@@ -1789,7 +1789,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
     } else if (type === "RANGE") {
         const hint = item.min != null || item.max != null
             ? '<div class="inspection-muted mb-1">Rentang acuan: ' + escInspection(item.min == null ? "-" : item.min) +
-              ' sampai ' + escInspection(item.max == null ? "-" : item.max) + (item.unit ? " " + escInspection(item.unit) : "") + '</div>'
+              ' sampai ' + escInspection(item.max == null ? "-" : item.max) + (item.showUnitInRange && item.unit ? " " + escInspection(item.unit) : "") + '</div>'
             : "";
         control = hint + '<div class="input-group input-group-sm"><input type="number" step="any" data-role="value" class="form-control" value="' +
             escInspection(saved.Value == null ? "" : saved.Value) + '"' + disabled + required + '>' +
