@@ -2416,14 +2416,6 @@ DEALLOCATE tamp
 
 IF @V_IsApprovalSPV=0
 BEGIN
-    /* Replace only native REPEAT child values for the submitted WOs. Legacy GROUP
-       rows remain untouched and continue to use the original @p_Dt2 contract. */
-    DELETE SV
-    FROM dbo.PIP_T_WO_CheckList_SubValue SV
-    JOIN dbo.PIP_T_WO_CheckList CL ON CL.IDResult=SV.IDResult
-    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
-    JOIN @p_Dt4 WO ON WO.C1=CL.KeyHD;
-
     IF EXISTS
     (
         SELECT C1,C2,C3,C4
@@ -2576,6 +2568,14 @@ BEGIN
         WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND CONVERT(FLOAT,V.C5)>F.MaxValue
     )
     BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
+
+    /* All REPEAT payload checks have passed. Replace the saved child values only now,
+       so a rejected payload cannot erase the previous successful inspection values. */
+    DELETE SV
+    FROM dbo.PIP_T_WO_CheckList_SubValue SV
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.IDResult=SV.IDResult
+    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+    JOIN @p_Dt4 WO ON WO.C1=CL.KeyHD;
 
     DECLARE @V_NextRepeatSubValueID INT;
     SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
