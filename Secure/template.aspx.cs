@@ -1186,6 +1186,7 @@ WHERE a.SectionID = @SectionID
                                                 repeatRow["C9"] = repeat.ContainsKey("MaxCount") && repeat["MaxCount"] != null ? Convert.ToString(repeat["MaxCount"], CultureInfo.InvariantCulture) : "";
                                                 dtRepeatConfig.Rows.Add(repeatRow);
 
+                                                var repeatFieldKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                                                 foreach (object repeatFieldNode in repeatFields)
                                                 {
                                                     Dictionary<string, object> repeatField = repeatFieldNode as Dictionary<string, object>;
@@ -1197,6 +1198,8 @@ WHERE a.SectionID = @SectionID
                                                     string fieldGroup = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
                                                     if (fieldKey.Length == 0 || fieldKey.Length > 50)
                                                         throw new Exception("Every REPEAT child field requires a stable FieldKey (maximum 50 characters).");
+                                                    if (!repeatFieldKeys.Add(fieldKey))
+                                                        throw new Exception("Duplicate REPEAT FieldKey '" + fieldKey + "'. FieldKey must be unique within one REPEAT item.");
                                                     if (fieldLabel.Length == 0 || fieldLabel.Length > 100) throw new Exception("REPEAT child field label is required and limited to 100 characters.");
                                                     if (fieldUnit.Length > 30 || fieldGroup.Length > 100) throw new Exception("REPEAT unit is limited to 30 characters and group heading to 100 characters.");
                                                     if (fieldType != "NUMBER" && fieldType != "RANGE" && fieldType != "OPTION" && fieldType != "TEXT")
