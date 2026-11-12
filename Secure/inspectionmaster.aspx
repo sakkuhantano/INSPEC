@@ -166,7 +166,7 @@
                                                 <asp:Repeater ID="rptMapElements" runat="server">
                                                     <ItemTemplate>
                                                         <button type="button" class='inspection-coordinate-marker <%# Convert.ToString(Eval("InspectionPointID")) == hidPointID.Value ? "inspection-coordinate-marker-current" : "" %>'
-                                                            style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;'
+                                                            style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;display:<%# Convert.ToString(Eval("ShapeType")) == "PATH" ? "none" : "flex" %>;'
                                                             data-point-id='<%# Eval("InspectionPointID") %>' data-can-swap='<%# Eval("CanSwap") %>'
                                                             title='<%# Eval("PointCode") + " - " + Eval("PointName") %>'>
                                                             <%# Eval("MarkerLabel") %>
