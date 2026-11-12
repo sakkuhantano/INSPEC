@@ -505,12 +505,26 @@
             }
             if (drawButton) drawButton.addEventListener('click', startPathDrawing);
             if (undoButton) undoButton.addEventListener('click', function () {
-                if (drawingPath && pathPoints.length) {
+                if (pathPoints.length) {
                     pathPoints.pop();
-                    renderPathPreview(false);
+                    if (!drawingPath && pathPoints.length >= 3) {
+                        renderPathPreview(true);
+                        var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
+                        for (var p = 1; p < pathPoints.length; p++)
+                            d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
+                        d += ' Z';
+                        if (pathField) pathField.value = d;
+                        var sx = 0, sy = 0;
+                        pathPoints.forEach(function (point) { sx += point.x; sy += point.y; });
+                        if (markerX) markerX.value = (sx / pathPoints.length).toFixed(2);
+                        if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
+                    } else {
+                        renderPathPreview(false);
+                        if (pathField) pathField.value = '';
+                        if (!drawingPath && shapeSelect) shapeSelect.value = 'CIRCLE';
+                    }
                     pathStatusText('Titik terakhir dibatalkan.');
                 } else {
-                    pathPoints = [];
                     if (pathField) pathField.value = '';
                     if (shapeSelect) shapeSelect.value = 'CIRCLE';
                     if (pathPreview) pathPreview.setAttribute('d', '');
