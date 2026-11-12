@@ -501,8 +501,20 @@
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
 
-        // A map marker selects and scrolls to its matching list row.
-        // Checklist navigation remains an explicit action from that row.
+        // On phones, a map tap is the primary navigation: open the point checklist
+        // immediately instead of exposing/focusing the desktop Point List below the map.
+        // Desktop keeps the existing list-selection workflow.
+        if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches &&
+            typeof window.openBatchInspectionPointChecklist === "function") {
+            window.openBatchInspectionPointChecklist(selectedPoint).catch(function (error) {
+                console.error("Unable to open inspection point checklist from map:", error);
+                if (typeof showToast === "function")
+                    showToast(error && error.message ? error.message : "Checklist point gagal dibuka.", "warning");
+            });
+            return;
+        }
+
+        // Desktop: select and scroll to the matching Point List row.
         listKeyword = "";
         var pointIndex = currentPoints.findIndex(function (point) {
             return String(point.InspectionPointID) === String(id);
@@ -722,7 +734,9 @@
             if (requestId !== pdfRenderSequence) return;
             var base = page.getViewport({ scale: 1 });
             var width = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
-            var ratio = Math.min(window.devicePixelRatio || 1, 1.5); var viewport = page.getViewport({ scale: (width / base.width) * ratio });
+            // Render at a higher backing resolution so PDF floor plans stay crisp on
+            // high-DPI phones and desktop displays; CSS dimensions still preserve page ratio.
+            var ratio = Math.min(window.devicePixelRatio || 1, 2); var viewport = page.getViewport({ scale: (width / base.width) * ratio });
             canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
             canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px';
             stage.style.width = canvas.style.width; stage.style.minHeight = '0';
