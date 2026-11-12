@@ -41,7 +41,7 @@ The integrated branch also includes these Inspection Entry fixes:
 - STANDARD `Start Checklist` opens the Checklist pane immediately after the parameters are accepted.
 - On screens up to 767.98px, the desktop Point List is fully hidden; it does not collapse below the map.
 - Tapping a map marker on mobile opens that point's Checklist Entry directly. Desktop retains the Point List workflow.
-- PDF floor plans render with a higher device-pixel backing resolution while their page aspect ratio remains intact. JPEG maps continue to use their intrinsic aspect ratio (`height:auto`).
+- The Batch map workspace uses a viewport-height layout, a narrower desktop Point List, and a map stage fitted to both available width and height. PDF/JPEG maps preserve their original aspect ratios in Inspection Entry and Inspection Master preview.
 - `JSCus/inspectionMapWorkspace.js` is explicitly included in `INSPEC.csproj`, so it is part of the Web Application project build/publish output.
 
 The map workspace is a separate JavaScript module referenced by `Secure/inspection.aspx`; keep both the page reference and project inclusion when moving the patch into another solution.
