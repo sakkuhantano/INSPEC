@@ -16,26 +16,11 @@ namespace INSPEC.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Read query values defensively from the current request context.
-            // This also avoids a NullReferenceException if the Page Request wrapper is unavailable.
-            HttpContext currentContext = HttpContext.Current;
-            string downloadToken = String.Empty;
-            string mode = String.Empty;
+            // Keep the normal inspection page lifecycle independent from report downloads.
+            string mode = (Request.QueryString["type"] ?? String.Empty)
+                .Trim()
+                .ToLowerInvariant();
 
-            if (currentContext != null && currentContext.Request != null &&
-                currentContext.Request.QueryString != null)
-            {
-                downloadToken = Convert.ToString(currentContext.Request.QueryString["download"]).Trim();
-                mode = Convert.ToString(currentContext.Request.QueryString["type"]).Trim().ToLowerInvariant();
-            }
-
-            // Handle one-time XLSX download before checking the entry/approval mode.
-            if (!String.IsNullOrWhiteSpace(downloadToken))
-            {
-                GFC.RequireMenuEmployee("20022");
-                DownloadInspectionReport(downloadToken);
-                return;
-            }
             if (mode == "entry")
                 GFC.RequireMenuEmployee("20021");
             else if (mode == "approval")
