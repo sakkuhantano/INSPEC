@@ -708,8 +708,13 @@
                 var objectUrl = URL.createObjectURL(blob); image.dataset.objectUrl = objectUrl;
                 image.onload = function () {
                     if (requestId !== pdfRenderSequence) return;
-                    var available = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
-                    image.style.width = available + 'px'; image.style.height = 'auto'; image.style.maxWidth = 'none'; image.style.display = 'block';
+                    var mapViewport = document.getElementById('inspectionMapCanvas');
+                    var availableWidth = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
+                    var availableHeight = Math.max(260, mapViewport.clientHeight - 16);
+                    image.style.width = 'auto'; image.style.height = 'auto';
+                    image.style.maxWidth = availableWidth + 'px'; image.style.maxHeight = availableHeight + 'px';
+                    image.style.objectFit = 'contain'; image.style.display = 'block';
+                    stage.style.width = Math.min(availableWidth, image.naturalWidth) + 'px';
                     stage.style.width = available + 'px'; stage.style.minHeight = '0';
                     if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
                 };
@@ -733,10 +738,13 @@
             var page = await currentPdfDocument.getPage(1);
             if (requestId !== pdfRenderSequence) return;
             var base = page.getViewport({ scale: 1 });
-            var width = Math.max(300, Math.min(1200, document.getElementById('inspectionMapCanvas').clientWidth - 28));
-            // Render at a higher backing resolution so PDF floor plans stay crisp on
-            // high-DPI phones and desktop displays; CSS dimensions still preserve page ratio.
-            var ratio = Math.min(window.devicePixelRatio || 1, 2); var viewport = page.getViewport({ scale: (width / base.width) * ratio });
+            var mapViewport = document.getElementById('inspectionMapCanvas');
+            var width = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
+            var height = Math.max(260, mapViewport.clientHeight - 16);
+            var fitScale = Math.min(width / base.width, height / base.height);
+            // Fit the full PDF page into the larger map viewport without stretching.
+            // Render at high backing resolution for crisp markers and floor-plan detail.
+            var ratio = Math.min(window.devicePixelRatio || 1, 2); var viewport = page.getViewport({ scale: fitScale * ratio });
             canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
             canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px';
             stage.style.width = canvas.style.width; stage.style.minHeight = '0';
