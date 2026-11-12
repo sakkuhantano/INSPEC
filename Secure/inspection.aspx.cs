@@ -2413,9 +2413,10 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                 foreach (DataRow row in authorized.Rows)
                     selectedInspections.Rows.Add(Convert.ToInt64(row["InspectionID"]));
 
-                // Call the public static XLSX generator in R_Reports.aspx.cs.
+                // Pass the scope validated by GetAuthorizedInspectionSelection.
+                // This WebMethod has no dependable Page.Master scope.
                 var report = R_Report.GenerateInspectionXlsx(
-                    selectedInspections, employeeId);
+                    selectedInspections, companyId, locationId, employeeId);
 
                 if (report == null ||
                     !report.Success ||
