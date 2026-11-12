@@ -8072,6 +8072,8 @@ function renderRepeatEditor(item) {
     item.RepeatFields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
     item.RepeatFields.forEach((field,index)=>{field.DisplayOrder=index+1;});
     const cfg=item.Repeat, get=id=>document.getElementById(id), put=(id,v)=>{if(get(id))get(id).value=v==null?'':v;};
+    item.IsValueRequired=false;
+    const parentRequired=get('propMandatoryValue'); if(parentRequired){parentRequired.checked=false;parentRequired.disabled=true;}
     put('repeatMode',cfg.RepeatMode||'FIELDS'); put('repeatColumnCount',cfg.ColumnCount||3); put('repeatObjectLabel',cfg.ObjectLabel||'Object'); put('repeatCountMode',cfg.CountMode||'FLEX'); put('repeatFixedCount',cfg.FixedCount); put('repeatMinCount',cfg.MinCount==null?1:cfg.MinCount); put('repeatMaxCount',cfg.MaxCount);
     const host=get('repeatFieldsHost'); if(!host)return;
     host.innerHTML=item.RepeatFields.map((f,i)=>'<div class="border rounded p-2 mb-2"><div class="d-flex justify-content-between"><b class="small">Field '+(i+1)+'</b><button type="button" class="btn btn-sm btn-link text-danger repeat-remove-field" data-index="'+i+'" '+(isReadonlyMode?'disabled':'')+'>Remove</button></div><div class="row g-1">'+
