@@ -4495,6 +4495,73 @@ async function previewSelectedInspections() {
         showToast("Preview report memerlukan koneksi ke server.", "warning");
         return;
     }
+
+    const previewButton = document.getElementById("btnInspectionApprovalPreview");
+    if (previewButton && previewButton.dataset.processing === "1") return;
+
+    // Show visible progress while the server validates the selection and builds the Excel workbook.
+    let progressOverlay = null;
+    let progressTimer = null;
+    let originalButtonHtml = "";
+    const progressMessages = [
+        "Mengumpulkan data inspeksi yang dipilih...",
+        "Memvalidasi transaksi dan hak akses...",
+        "Mengambil detail checklist dan hasil inspeksi...",
+        "Menyusun lembar kerja Excel...",
+        "Memformat dan merapikan laporan...",
+        "Memeriksa hasil akhir file report..."
+    ];
+    let messageIndex = 0;
+
+    function showReportProgress() {
+        if (previewButton) {
+            originalButtonHtml = previewButton.innerHTML;
+            previewButton.dataset.processing = "1";
+            previewButton.disabled = true;
+            previewButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Processing...';
+        }
+
+        progressOverlay = document.createElement("div");
+        progressOverlay.setAttribute("role", "status");
+        progressOverlay.setAttribute("aria-live", "polite");
+        progressOverlay.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(15,23,42,.58);backdrop-filter:blur(3px);";
+        progressOverlay.innerHTML =
+            '<div style="width:min(430px,100%);padding:1.5rem;border-radius:1rem;background:var(--bs-body-bg,#fff);color:var(--bs-body-color,#212529);box-shadow:0 1rem 3rem rgba(0,0,0,.25);text-align:center;">' +
+                '<div class="mb-3"><div class="spinner-border text-primary" style="width:2.8rem;height:2.8rem;" role="status"><span class="visually-hidden">Processing...</span></div></div>' +
+                '<div class="fw-bold fs-5 mb-1">Generating Inspection Report</div>' +
+                '<div class="small text-muted mb-3">Mohon tunggu, sistem sedang memproses data inspeksi.</div>' +
+                '<div class="progress mb-3" style="height:7px;"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%;"></div></div>' +
+                '<div data-report-progress-message class="small fw-semibold text-primary">' + progressMessages[0] + '</div>' +
+                '<div class="small text-muted mt-2">' + rows.length + ' transaksi diproses</div>' +
+                '<div class="small text-muted mt-3">Jangan tutup atau refresh halaman ini.</div>' +
+            '</div>';
+        document.body.appendChild(progressOverlay);
+
+        progressTimer = window.setInterval(function () {
+            messageIndex = (messageIndex + 1) % progressMessages.length;
+            const message = progressOverlay && progressOverlay.querySelector("[data-report-progress-message]");
+            if (message) message.textContent = progressMessages[messageIndex];
+        }, 1800);
+    }
+
+    function hideReportProgress() {
+        if (progressTimer) {
+            window.clearInterval(progressTimer);
+            progressTimer = null;
+        }
+        if (progressOverlay && progressOverlay.parentNode)
+            progressOverlay.parentNode.removeChild(progressOverlay);
+        progressOverlay = null;
+
+        if (previewButton) {
+            delete previewButton.dataset.processing;
+            previewButton.innerHTML = originalButtonHtml || '<i class="bi bi-file-earmark-excel me-1"></i>Preview';
+            previewButton.disabled = currentInspectionApprovalTab !== "OUTSTANDING" ||
+                getSelectedInspectionApprovalRows().length === 0;
+        }
+    }
+
+    showReportProgress();
     try {
         const response = await fetch("inspection.aspx/GenerateReport", {
             method: "POST",
@@ -4512,8 +4579,10 @@ async function previewSelectedInspections() {
             throw new Error(result && result.message ? result.message : "Server gagal membuat file Excel.");
 
         showToast("Report berhasil dibuat: " + result.fileName, "success");
+        hideReportProgress();
         window.location.href = result.filePath;
     } catch (err) {
+        hideReportProgress();
         showToast(err.message || "Gagal membuat preview report.", "warning");
     }
 }
