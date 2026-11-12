@@ -444,7 +444,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion",
                                 new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
                             DataTable versionRepeatFields = br.EQueryP(@"
-SELECT F.IDItem,F.FieldKey,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.IsRequired
+SELECT F.IDItem,F.FieldKey,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -544,10 +544,14 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                                     decimal numeric;
                                                     if (!Decimal.TryParse(childText, NumberStyles.Any, CultureInfo.InvariantCulture, out numeric))
                                                         throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " harus berupa angka.");
-                                                    if (field["MinValue"] != DBNull.Value && numeric < Convert.ToDecimal(field["MinValue"]))
-                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di bawah nilai minimum.");
-                                                    if (field["MaxValue"] != DBNull.Value && numeric > Convert.ToDecimal(field["MaxValue"]))
-                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " melebihi nilai maksimum.");
+                                                    bool minInclusive = field["MinInclusive"] == DBNull.Value || Convert.ToBoolean(field["MinInclusive"]);
+                                                    bool maxInclusive = field["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(field["MaxInclusive"]);
+                                                    if (field["MinValue"] != DBNull.Value &&
+                                                        (numeric < Convert.ToDecimal(field["MinValue"]) || (!minInclusive && numeric == Convert.ToDecimal(field["MinValue"]))))
+                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di bawah atau tepat pada batas minimum eksklusif.");
+                                                    if (field["MaxValue"] != DBNull.Value &&
+                                                        (numeric > Convert.ToDecimal(field["MaxValue"]) || (!maxInclusive && numeric == Convert.ToDecimal(field["MaxValue"]))))
+                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di atas atau tepat pada batas maksimum eksklusif.");
                                                 }
                                             }
                                         }
