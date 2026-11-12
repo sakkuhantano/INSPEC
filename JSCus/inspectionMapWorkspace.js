@@ -714,7 +714,7 @@
                     image.style.width = 'auto'; image.style.height = 'auto';
                     image.style.maxWidth = availableWidth + 'px'; image.style.maxHeight = availableHeight + 'px';
                     image.style.objectFit = 'contain'; image.style.display = 'block';
-                    stage.style.width = Math.min(availableWidth, image.naturalWidth) + 'px';
+                    stage.style.width = image.clientWidth + 'px';
                     stage.style.width = available + 'px'; stage.style.minHeight = '0';
                     if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
                 };
