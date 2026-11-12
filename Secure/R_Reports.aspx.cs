@@ -502,14 +502,15 @@ ORDER BY I.InspectionNo,P.PointCode,R.DisplayOrder,V.ObjectIndex,F.DisplayOrder,
             ws.Cells[2,1,2,columns].Merge = true;
             Put(ws.Cells[2,1], "REPEAT CHILD FIELD DETAIL");
             ws.Cells[2,1,2,columns].Style.Font.Bold = true;
-            string[] headers = { "INSPECTION NO","DATE","INSPECTION TYPE","POINT CODE","POINT NAME","ITEM","OBJECT INDEX","FIELD KEY","FIELD LABEL","FIELD TYPE","VALUE","UNIT" };
+            string[] headers = { "INSPECTION NO","DATE","INSPECTION TYPE","POINT CODE","POINT NAME","ITEM","OBJECT NO.","FIELD KEY","FIELD LABEL","FIELD TYPE","VALUE","UNIT" };
             for (int i=0;i<headers.Length;i++) Put(ws.Cells[4,i+1],headers[i]);
             int rowIndex=5;
             foreach (DataRow row in rows.Rows)
             {
                 object[] values = {
                     row["InspectionNo"], row["InspectionDate"], row["InspectionTypeDetailName"],
-                    row["PointCode"], row["PointName"], row["ItemLabel"], row["ObjectIndex"],
+                    row["PointCode"], row["PointName"], row["ItemLabel"],
+                    row["ObjectIndex"] == DBNull.Value ? "" : (Convert.ToInt32(row["ObjectIndex"]) + 1).ToString(CultureInfo.InvariantCulture),
                     row["FieldKey"], row["FieldLabel"], row["FieldType"], row["Value"], row["Unit"]
                 };
                 for (int i=0;i<values.Length;i++)
