@@ -1525,6 +1525,27 @@ BEGIN
     IF EXISTS
     (
         SELECT 1
+        FROM @tbl_ItemValues V
+        JOIN @tbl_Items I ON I.IDItem=V.IDItem AND I.ItemType='REPEAT'
+        WHERE V.ObjectIndex<0
+    )
+    BEGIN RAISERROR('REPEAT ObjectIndex cannot be negative.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=I.IDItem
+        JOIN @tbl_ItemValues V ON V.IDItem=I.IDItem
+        WHERE I.ItemType='REPEAT' AND R.RepeatMode='OBJECTS'
+        GROUP BY I.IDItem
+        HAVING MIN(V.ObjectIndex)<>0 OR MAX(V.ObjectIndex)<>COUNT(DISTINCT V.ObjectIndex)-1
+    )
+    BEGIN RAISERROR('REPEAT OBJECTS ObjectIndex values must be sequential from zero.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
         FROM @tbl_Items I
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
         JOIN (SELECT DISTINCT IDItem,ObjectIndex FROM @tbl_ItemValues) O ON O.IDItem=I.IDItem
