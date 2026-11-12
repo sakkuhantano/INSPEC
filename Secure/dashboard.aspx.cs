@@ -202,6 +202,22 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                         "@IDVersion=" + row["IDVersion"].ToString());
                     DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
                                               "FROM PIP_M_CheckListWOPM_ItemGroup");
+                    DataTable dtRepeat = br.EQuery(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                        "@IDVersion=" + row["IDVersion"].ToString());
+                    DataTable dtRepeatFields = br.EQuery(@"
+SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey",
+                        "@IDVersion=" + row["IDVersion"].ToString());
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
                         {
@@ -278,7 +294,35 @@ ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrde
                                     mintol = item["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(item["MinTolerance"]),
                                     maxtol = item["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(item["MaxTolerance"]),
                                     modelcode = GF.GetString(item["ModelCode"]),
-                                    groups = groups.Count > 0 ? groups : null
+                                    groups = groups.Count > 0 ? groups : null,
+                                    repeat = dtRepeat.AsEnumerable()
+                                        .Where(r => r["IDItem"].ToString() == item["IDItem"].ToString())
+                                        .Select(r => new
+                                        {
+                                            repeatMode = r["RepeatMode"].ToString(),
+                                            columnCount = Convert.ToInt32(r["ColumnCount"]),
+                                            objectLabel = GF.GetString(r["ObjectLabel"]),
+                                            countMode = r["CountMode"].ToString(),
+                                            fixedCount = r["FixedCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["FixedCount"]),
+                                            minCount = r["MinCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["MinCount"]),
+                                            maxCount = r["MaxCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(r["MaxCount"])
+                                        }).FirstOrDefault(),
+                                    repeatFields = dtRepeatFields.AsEnumerable()
+                                        .Where(f => f["IDItem"].ToString() == item["IDItem"].ToString())
+                                        .OrderBy(f => f["DisplayOrder"])
+                                        .Select(f => new
+                                        {
+                                            fieldKey = f["FieldKey"].ToString(),
+                                            fieldLabel = f["FieldLabel"].ToString(),
+                                            fieldType = f["FieldType"].ToString(),
+                                            optionList = String.IsNullOrWhiteSpace(GF.GetString(f["OptionList"])) ? new string[0] : GF.GetString(f["OptionList"]).Split(';'),
+                                            unit = GF.GetString(f["Unit"]),
+                                            min = f["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(f["MinValue"]),
+                                            max = f["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(f["MaxValue"]),
+                                            isRequired = Convert.ToBoolean(f["IsRequired"]),
+                                            groupName = GF.GetString(f["GroupName"]),
+                                            displayOrder = Convert.ToInt32(f["DisplayOrder"])
+                                        }).ToList()
                                 };
 
                             }).ToList()
