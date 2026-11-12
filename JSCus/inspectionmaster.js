@@ -431,10 +431,13 @@
             var pathPoints = [], pathPreview = null;
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
             function mapPointFromEvent(event) {
-                var rect = board.getBoundingClientRect();
+                // Measure the actual image content, not the outer 16:10 board.
+                // This keeps coordinates aligned when the floor plan has a different aspect ratio.
+                var rect = content.getBoundingClientRect();
+                if (!rect.width || !rect.height) return { x: 0, y: 0 };
                 return {
-                    x: Math.max(0, Math.min(100, ((event.clientX - rect.left - panX) / (rect.width * zoom)) * 100)),
-                    y: Math.max(0, Math.min(100, ((event.clientY - rect.top - panY) / (rect.height * zoom)) * 100))
+                    x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
+                    y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
                 };
             }
             function ensurePathPreview() {
@@ -639,9 +642,12 @@
                 if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
                 if (drawMode) { event.preventDefault(); return; }
                 if (moved) { moved = false; return; }
-                var rect = board.getBoundingClientRect();
-                var x = Math.max(0, Math.min(100, ((event.clientX - rect.left - panX) / (rect.width * zoom)) * 100));
-                var y = Math.max(0, Math.min(100, ((event.clientY - rect.top - panY) / (rect.height * zoom)) * 100));
+                // Coordinate against the actual map image content so its original
+                // aspect ratio and any letterboxing never distort saved point positions.
+                var rect = content.getBoundingClientRect();
+                if (!rect.width || !rect.height) return;
+                var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+                var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
