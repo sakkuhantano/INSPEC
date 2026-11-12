@@ -700,8 +700,8 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         new SqlParameter("@MapID", mapID)
                     });
 
-            System.Text.StringBuilder html = new System.Text.StringBuilder();
-            html.Append("<svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>");
+            System.Text.StringBuilder paths = new System.Text.StringBuilder();
+            System.Text.StringBuilder markers = new System.Text.StringBuilder();
             foreach (DataRow point in points.Rows)
             {
                 string pointLabel = Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"]);
@@ -710,24 +710,24 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     string d = Convert.ToString(point["SvgPathData"]);
                     if (!String.IsNullOrWhiteSpace(d) && System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$"))
                     {
-                        html.Append("<path d='");
-                        html.Append(HttpUtility.HtmlAttributeEncode(d));
-                        html.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' vector-effect='non-scaling-stroke'><title>");
-                        html.Append(HttpUtility.HtmlEncode(pointLabel));
-                        html.Append("</title></path>");
+                        paths.Append("<path d='");
+                        paths.Append(HttpUtility.HtmlAttributeEncode(d));
+                        paths.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' vector-effect='non-scaling-stroke'><title>");
+                        paths.Append(HttpUtility.HtmlEncode(pointLabel));
+                        paths.Append("</title></path>");
                     }
                     continue;
                 }
-                html.Append("</svg><span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
-                html.Append(HttpUtility.HtmlAttributeEncode(pointLabel));
-                html.Append("' style='left:");
-                html.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
-                html.Append("%;top:");
-                html.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
-                html.Append("%'></span><svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>");
+                markers.Append("<span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
+                markers.Append(HttpUtility.HtmlAttributeEncode(pointLabel));
+                markers.Append("' style='left:");
+                markers.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
+                markers.Append("%;top:");
+                markers.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
+                markers.Append("%'></span>");
             }
-            html.Append("</svg>");
-            return html.ToString();
+            return "<svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>" +
+                paths.ToString() + "</svg>" + markers.ToString();
         }
 
         private void LoadEditorMapPdf()
