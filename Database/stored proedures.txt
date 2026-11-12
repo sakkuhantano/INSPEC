@@ -1328,6 +1328,71 @@ BEGIN
     SELECT CAST(C1 AS INT), CAST(ISNULL(NULLIF(C4,''),'0') AS INT), ISNULL(C2,''), ISNULL(C3,'')
     FROM @p_ItemValues;
 
+    /* Server-side REPEAT validation for STANDARD sync. BATCH validates each point in its
+       canonical C# validation path and persists the same ObjectIndex shape below. */
+    IF EXISTS
+    (
+        SELECT 1 FROM @tbl_Items I
+        WHERE I.ItemType='REPEAT'
+          AND (NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=I.IDItem)
+               OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F WHERE F.IDItem=I.IDItem))
+    )
+    BEGIN RAISERROR('REPEAT checklist item has no valid master configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_ItemValues V
+        JOIN @tbl_Items I ON I.IDItem=V.IDItem AND I.ItemType='REPEAT'
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+            WHERE F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
+        )
+    )
+    BEGIN RAISERROR('Unknown REPEAT child FieldKey submitted.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=I.IDItem
+        WHERE I.ItemType='REPEAT'
+          AND R.RepeatMode='FIELDS'
+          AND
+          (
+              (SELECT COUNT(DISTINCT V.ObjectIndex) FROM @tbl_ItemValues V WHERE V.IDItem=I.IDItem)<>1
+              OR EXISTS (SELECT 1 FROM @tbl_ItemValues V WHERE V.IDItem=I.IDItem AND V.ObjectIndex<>0)
+          )
+    )
+    BEGIN RAISERROR('REPEAT FIELDS must contain exactly ObjectIndex 0.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=I.IDItem
+        WHERE I.ItemType='REPEAT' AND R.RepeatMode='OBJECTS'
+          AND
+          (
+              (R.CountMode='FIXED' AND (SELECT COUNT(DISTINCT V.ObjectIndex) FROM @tbl_ItemValues V WHERE V.IDItem=I.IDItem)<>R.FixedCount)
+              OR (R.CountMode='FLEX' AND R.MinCount IS NOT NULL AND (SELECT COUNT(DISTINCT V.ObjectIndex) FROM @tbl_ItemValues V WHERE V.IDItem=I.IDItem)<R.MinCount)
+              OR (R.CountMode='FLEX' AND R.MaxCount IS NOT NULL AND (SELECT COUNT(DISTINCT V.ObjectIndex) FROM @tbl_ItemValues V WHERE V.IDItem=I.IDItem)>R.MaxCount)
+          )
+    )
+    BEGIN RAISERROR('REPEAT OBJECTS count does not match its master configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
+        JOIN (SELECT DISTINCT IDItem,ObjectIndex FROM @tbl_ItemValues) O ON O.IDItem=I.IDItem
+        LEFT JOIN @tbl_ItemValues V ON V.IDItem=O.IDItem AND V.ObjectIndex=O.ObjectIndex AND V.FieldName=F.FieldKey
+        WHERE I.ItemType='REPEAT' AND ISNULL(LTRIM(RTRIM(V.Value)),'')=''
+    )
+    BEGIN RAISERROR('A required REPEAT child field is missing.',16,1); RETURN; END;
+
     /* Drafts are device-local only. SQL may persist completed inspections only. */
     IF ISNULL(@p_Status, '') <> 'DONE'
     BEGIN
