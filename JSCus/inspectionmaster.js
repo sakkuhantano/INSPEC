@@ -172,10 +172,12 @@
         }).then(function (page) {
             var base = page.getViewport({ scale: 1 });
             var width = stage.clientWidth;
-            if (!width) throw new Error('Area preview denah belum terlihat.');
-            var viewport = page.getViewport({ scale: width / base.width });
-            media.style.width = width + 'px';
-            media.style.height = stage.clientHeight + 'px';
+            var height = stage.clientHeight;
+            if (!width || !height) throw new Error('Area preview denah belum terlihat.');
+            var fitScale = Math.min(width / base.width, height / base.height);
+            var viewport = page.getViewport({ scale: fitScale });
+            media.style.width = viewport.width + 'px';
+            media.style.height = viewport.height + 'px';
             canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
             canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
             canvas.style.width = '100%';
@@ -203,13 +205,16 @@
         if (image) {
             var sizeImage = function () {
                 if (!image.naturalWidth || !image.naturalHeight) return;
-                media.style.width = stage.clientWidth + 'px';
-                media.style.height = stage.clientHeight + 'px';
-                image.style.width = '100%';
-                image.style.height = '100%';
+                var scale = Math.min(stage.clientWidth / image.naturalWidth, stage.clientHeight / image.naturalHeight);
+                var width = Math.max(1, Math.round(image.naturalWidth * scale));
+                var height = Math.max(1, Math.round(image.naturalHeight * scale));
+                media.style.width = width + 'px';
+                media.style.height = height + 'px';
+                image.style.width = width + 'px';
+                image.style.height = height + 'px';
                 image.style.maxWidth = 'none';
                 image.style.maxHeight = 'none';
-                image.style.objectFit = 'fill';
+                image.style.objectFit = 'contain';
             };
             image.addEventListener('load', sizeImage);
             if (image.complete) sizeImage();
