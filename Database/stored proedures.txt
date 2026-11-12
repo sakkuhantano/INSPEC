@@ -1197,9 +1197,9 @@ BEGIN
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
-            InspectionResultID,FieldName,Value,EntryUser,EntryDate,UpdateUser,UpdateDate
+            InspectionResultID,ObjectIndex,FieldName,Value,EntryUser,EntryDate,UpdateUser,UpdateDate
         )
-        SELECT RM.InspectionResultID,V.C3,ISNULL(V.C4,''),
+        SELECT RM.InspectionResultID,CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT),V.C3,ISNULL(V.C4,''),
                @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM @p_ItemValues V
         JOIN @V_PointMap PM ON PM.ClientPointID=V.C1
@@ -1320,11 +1320,12 @@ BEGIN
     DECLARE @tbl_ItemValues TABLE
     (
         IDItem INT NOT NULL,
+        ObjectIndex INT NOT NULL,
         FieldName VARCHAR(100) NOT NULL,
         Value VARCHAR(500) NULL
     );
-    INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value)
-    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,'')
+    INSERT INTO @tbl_ItemValues (IDItem, ObjectIndex, FieldName, Value)
+    SELECT CAST(C1 AS INT), CAST(ISNULL(NULLIF(C4,''),'0') AS INT), ISNULL(C2,''), ISNULL(C3,'')
     FROM @p_ItemValues;
 
     /* Drafts are device-local only. SQL may persist completed inspections only. */
@@ -1679,9 +1680,9 @@ BEGIN
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
-            InspectionResultID, FieldName, Value, EntryUser, EntryDate, UpdateUser, UpdateDate
+            InspectionResultID, ObjectIndex, FieldName, Value, EntryUser, EntryDate, UpdateUser, UpdateDate
         )
-        SELECT M.InspectionResultID, V.FieldName, V.Value,
+        SELECT M.InspectionResultID, V.ObjectIndex, V.FieldName, V.Value,
                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
         FROM @tbl_ItemValues V
         JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
