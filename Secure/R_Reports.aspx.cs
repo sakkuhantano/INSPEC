@@ -454,6 +454,84 @@ namespace INSPEC.Secure
             throw new UnauthorizedAccessException("MasterPage tidak menyediakan data login: " + memberName);
         }
 
+
+        private static void AppendRepeatDetailsWorksheet(ExcelPackage package, ReportData report)
+        {
+            var inspectionIds = report.Groups.SelectMany(g => g.Headers)
+                .Select(h => BRC.Report.GetValue(h, "InspectionID"))
+                .Where(x => !String.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (inspectionIds.Count == 0) return;
+
+            var parameters = new List<SqlParameter>();
+            var idNames = new List<string>();
+            for (int i = 0; i < inspectionIds.Count; i++)
+            {
+                string name = "@InspectionID" + i.ToString(CultureInfo.InvariantCulture);
+                idNames.Add(name);
+                parameters.Add(new SqlParameter(name, Convert.ToInt64(inspectionIds[i], CultureInfo.InvariantCulture)));
+            }
+
+            DataTable rows;
+            using (var br = new WAL.BR.CF())
+            {
+                rows = br.EQueryP(@"
+SELECT I.InspectionNo,I.InspectionDate,I.InspectionTypeDetailName,
+       P.PointCode,P.PointName,R.ItemLabel,V.ObjectIndex,
+       F.FieldKey,F.FieldLabel,F.FieldType,V.Value,F.Unit,
+       R.DisplayOrder,F.DisplayOrder AS FieldDisplayOrder
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_T_InspectionResult R ON R.InspectionID=I.InspectionID
+JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=R.IDItem AND F.FieldKey=V.FieldName
+LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=R.InspectionPointTransactionID
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+WHERE I.InspectionID IN (" + String.Join(",", idNames.ToArray()) + @")
+ORDER BY I.InspectionNo,P.PointCode,R.DisplayOrder,V.ObjectIndex,F.DisplayOrder,F.FieldKey",
+                    parameters.ToArray());
+            }
+            if (rows == null || rows.Rows.Count == 0) return;
+
+            ExcelWorksheet ws = package.Workbook.Worksheets.Add(NewSheetName("REPEAT DETAIL"));
+            const int columns = 12;
+            ws.Cells[1,1,1,columns].Merge = true;
+            Put(ws.Cells[1,1], report.Title);
+            ws.Cells[1,1,1,columns].Style.Font.Bold = true;
+            ws.Cells[1,1,1,columns].Style.Font.Size = 18;
+            ws.Cells[1,1,1,columns].Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+            ws.Cells[2,1,2,columns].Merge = true;
+            Put(ws.Cells[2,1], "REPEAT CHILD FIELD DETAIL");
+            ws.Cells[2,1,2,columns].Style.Font.Bold = true;
+            string[] headers = { "INSPECTION NO","DATE","INSPECTION TYPE","POINT CODE","POINT NAME","ITEM","OBJECT INDEX","FIELD KEY","FIELD LABEL","FIELD TYPE","VALUE","UNIT" };
+            for (int i=0;i<headers.Length;i++) Put(ws.Cells[4,i+1],headers[i]);
+            int rowIndex=5;
+            foreach (DataRow row in rows.Rows)
+            {
+                object[] values = {
+                    row["InspectionNo"], row["InspectionDate"], row["InspectionTypeDetailName"],
+                    row["PointCode"], row["PointName"], row["ItemLabel"], row["ObjectIndex"],
+                    row["FieldKey"], row["FieldLabel"], row["FieldType"], row["Value"], row["Unit"]
+                };
+                for (int i=0;i<values.Length;i++)
+                    Put(ws.Cells[rowIndex,i+1], values[i] == DBNull.Value ? "" : Convert.ToString(values[i]));
+                rowIndex++;
+            }
+            ExcelRange table=ws.Cells[4,1,rowIndex-1,columns];
+            table.Style.Border.Top.Style=ExcelBorderStyle.Thin;
+            table.Style.Border.Bottom.Style=ExcelBorderStyle.Thin;
+            table.Style.Border.Left.Style=ExcelBorderStyle.Thin;
+            table.Style.Border.Right.Style=ExcelBorderStyle.Thin;
+            table.Style.WrapText=true;
+            table.Style.VerticalAlignment=ExcelVerticalAlignment.Center;
+            ws.Cells[4,1,4,columns].Style.Font.Bold=true;
+            ws.Cells[4,1,4,columns].Style.Fill.PatternType=ExcelFillStyle.Solid;
+            ws.Cells[4,1,4,columns].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(232,238,242));
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+            ws.View.FreezePanes(5,1);
+            ConfigurePageSetup(ws);
+            ws.PrinterSettings.PrintArea=ws.Cells[1,1,rowIndex-1,columns];
+        }
+
         private static ReportFileResult GenerateInspectionXlsxCore(IEnumerable<string> inspectionIds, string companyId, string locationId, string userId)
         {
             string storagePath = null;
@@ -508,6 +586,7 @@ namespace INSPEC.Secure
 
                 stage = "GENERATE XLSX / EPPLUS";
                 _CreateXLSXFile(report, new FileInfo(storagePath));
+                using (ExcelPackage package = new ExcelPackage(new FileInfo(storagePath))) { AppendRepeatDetailsWorksheet(package, report); package.Save(); }
 
                 stage = "UJI FILE HASIL SAVE";
                 FileInfo created = new FileInfo(storagePath);
@@ -526,8 +605,8 @@ namespace INSPEC.Secure
                             throw new InvalidOperationException("Judul worksheet '" + sheet.Name + "' tidak cocok dengan TemplateName.");
                     }
                 }
-                if (actualSheets != report.Groups.Count)
-                    throw new InvalidOperationException("Jumlah worksheet hasil save tidak cocok dengan GroupingBy.");
+                if (actualSheets < report.Groups.Count)
+                    throw new InvalidOperationException("Jumlah worksheet hasil save kurang dari GroupingBy.");
 
                 System.Diagnostics.Trace.TraceInformation("InspectionReport SUCCESS; InspectionCount={0}; Sheets={1}; Bytes={2}",
                                                            selected.Count, actualSheets, created.Length);
