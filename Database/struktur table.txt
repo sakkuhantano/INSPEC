@@ -392,7 +392,7 @@ CREATE TABLE [dbo].[PIP_T_InspectionResultValue](
 	[InspectionResultID] [bigint] NOT NULL,
 	[ObjectIndex] [int] NOT NULL DEFAULT ((0)),
 	[FieldName] [varchar](100) NOT NULL,
-	[Value] [varchar](500) NULL,
+	[Value] [nvarchar](500) NULL,
 	[EntryUser] [varchar](50) NOT NULL,
 	[EntryDate] [datetime] NOT NULL,
 	[UpdateUser] [varchar](50) NOT NULL,
