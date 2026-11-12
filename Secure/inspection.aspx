@@ -538,7 +538,7 @@
         .inspection-map-point-label { top:30px; font-size:.56rem; }
         .inspection-map-legend { left:6px; right:6px; bottom:6px; max-width:none; gap:.35rem .55rem; padding:.4rem .5rem; font-size:.68rem; }
         .inspection-map-hint { display:block; }
-        .inspection-point-list { min-height:36dvh; max-height:52dvh; padding:.5rem; }
+        .inspection-point-list { min-height:0; max-height:none; padding:.5rem; }
         .inspection-point-list-row { min-height:56px; padding:.65rem; }
         .inspection-map-point-sheet { left:8px; right:8px; bottom:max(.5rem,env(safe-area-inset-bottom)); width:auto; transform:none; padding:.85rem; }
         .inspection-map-point-sheet .btn { min-height:44px; }
@@ -593,9 +593,9 @@
     #inspectionBatchValidationNavigator{border-left:4px solid var(--bs-warning)}
     .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
-        .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}
+        .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}\n        .inspection-map-content>.inspection-map-panel{width:100%;min-width:0}\n        .inspection-map-content>#inspectionPointList{display:none!important}
         .inspection-map-content>.inspection-map-panel>.inspection-map-canvas{height:42dvh;min-height:270px;max-height:440px}
-        .inspection-map-content>.inspection-point-list{height:auto;min-height:240px;max-height:48dvh;padding:.4rem;overflow-y:auto}
+        .inspection-map-content>.inspection-point-list{display:none!important;height:0;min-height:0;max-height:0;padding:0;overflow:hidden}
         .inspection-point-list-row{min-height:42px;padding:.38rem .42rem}
         .inspection-point-list-row .point-name{font-size:.72rem}
         .point-info-button{width:28px;height:28px;flex-basis:28px}
@@ -905,7 +905,7 @@
                     </div>
                 </div>
                 <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-                <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk menyorot point di daftar. Lengkapi checklist sesuai ketentuan masing-masing point.</div>
+                <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pilih marker untuk membuka checklist point. Pada desktop, daftar point tetap tersedia di samping map.</div>
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
