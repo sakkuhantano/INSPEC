@@ -1117,6 +1117,21 @@ BEGIN
     )
     BEGIN RAISERROR('A required REPEAT child field is missing in BATCH inspection.',16,1); RETURN; END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3 AND F.FieldType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(F.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.C4)))
+          )
+    )
+    BEGIN RAISERROR('A BATCH REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
+
     DECLARE @V_EntryTranCount INT;
     SET @V_EntryTranCount=@@TRANCOUNT;
 
@@ -1469,6 +1484,21 @@ BEGIN
         WHERE I.ItemType='REPEAT' AND ISNULL(LTRIM(RTRIM(V.Value)),'')=''
     )
     BEGIN RAISERROR('A required REPEAT child field is missing.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @tbl_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName AND F.FieldType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(F.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.Value)))
+          )
+    )
+    BEGIN RAISERROR('A REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
 
     /* Drafts are device-local only. SQL may persist completed inspections only. */
     IF ISNULL(@p_Status, '') <> 'DONE'
