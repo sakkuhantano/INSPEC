@@ -1027,7 +1027,7 @@ async function renderChecklist(template, isEntryMode) {
                     },
                     {
                         id: "2",
-                        label: item.min === item.max ? `${item.min}` : `${item.min} - ${item.max}`,
+                        label: (item.min === item.max ? `${item.min}` : `${item.min} - ${item.max}`) + (item.showUnitInRange && item.unit ? ` ${item.unit}` : ''),
                         //value: `${item.min}-${item.max}`, 
                         value: "2",
                         isChecked: Number(V_Value) >= Number(item.min) && Number(V_Value) <= Number(item.max) && V_Value != ""
