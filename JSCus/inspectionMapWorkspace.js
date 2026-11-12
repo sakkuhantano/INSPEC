@@ -195,23 +195,43 @@
                 point.MapX !== null && point.MapX !== undefined &&
                 point.MapY !== null && point.MapY !== undefined;
         });
-        host.innerHTML = points.map(function (point) {
+        var svg = ['<svg class="inspection-map-svg-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Inspection point vector shapes">'];
+        var circleMarkers = [];
+        points.forEach(function (point) {
             var status = getPointVisualStatus(point);
             var code = String(point.PointCode || "");
+            var pointName = String(point.PointName || "");
+            var title = code + " - " + pointName + " · " + statusLabel(status, point);
+            if (String(point.ShapeType || "CIRCLE").toUpperCase() === "PATH" && point.SvgPathData) {
+                var strokeWidth = Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
+                svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + '" d="' +
+                    esc(point.SvgPathData) + '" stroke-width="' + strokeWidth + '" data-point-id="' +
+                    esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' +
+                    esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></path>');
+                return;
+            }
             var x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
             var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
-            return '<button type="button" class="inspection-map-point ' + pointClass(status) + '" ' +
-                'style="left:' + x + '%;top:' + y + '%" ' +
-                'data-point-id="' + esc(point.InspectionPointID) + '" aria-label="' +
-                esc(code + " " + (point.PointName || "")) + '" title="' +
-                esc(code + " - " + (point.PointName || "") + " · " + statusLabel(status, point)) + '">' +
+            circleMarkers.push('<button type="button" class="inspection-map-point ' + pointClass(status) + '" ' +
+                'style="left:' + x + '%;top:' + y + '%" data-point-id="' + esc(point.InspectionPointID) +
+                '" aria-label="' + esc(title) + '" title="' + esc(title) + '">' +
                 '<span class="inspection-map-point-dot">' + statusSymbol(status) + '</span>' +
-                '<span class="inspection-map-point-label">' + esc(code) + '</span></button>';
-        }).join("");
+                '<span class="inspection-map-point-label">' + esc(code) + '</span></button>');
+        });
+        svg.push('</svg>');
+        host.innerHTML = svg.join("") + circleMarkers.join("");
 
-        host.querySelectorAll(".inspection-map-point").forEach(function (button) {
-            button.addEventListener("click", function () {
-                openPoint(button.getAttribute("data-point-id"));
+        host.querySelectorAll("[data-point-id]").forEach(function (shape) {
+            shape.addEventListener("click", function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                openPoint(shape.getAttribute("data-point-id"));
+            });
+            shape.addEventListener("keydown", function (event) {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openPoint(shape.getAttribute("data-point-id"));
+                }
             });
         });
     }
@@ -472,7 +492,7 @@
         }) || null;
         if (!selectedPoint) return;
 
-        document.querySelectorAll(".inspection-map-point").forEach(function (element) {
+        document.querySelectorAll(".inspection-map-point, .inspection-map-svg-path").forEach(function (element) {
             element.classList.toggle("selected", element.getAttribute("data-point-id") === String(id));
         });
 
