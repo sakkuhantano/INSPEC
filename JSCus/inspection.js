@@ -1677,6 +1677,18 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             } else if(button.dataset.inspectionRepeatAction==="remove" && rows.length>min) {
                 rows[rows.length-1].remove();
             }
+            const actions=host.querySelector(".inspection-repeat-actions");
+            if(actions){
+                const remaining=host.querySelectorAll(".inspection-repeat-object").length;
+                let removeButton=actions.querySelector('[data-inspection-repeat-action="remove"]');
+                if(remaining>min && !removeButton){
+                    removeButton=document.createElement("button");
+                    removeButton.type="button"; removeButton.className="btn btn-sm btn-outline-secondary";
+                    removeButton.dataset.inspectionRepeatAction="remove";
+                    removeButton.dataset.minCount=String(min); removeButton.dataset.maxCount=String(max);
+                    removeButton.textContent="Remove last"; actions.appendChild(removeButton);
+                } else if(remaining<=min && removeButton) removeButton.remove();
+            }
         });
     }
     const saved = savedItems.find(x => Number(x.IDItem) === Number(item.idItem)) || {};
