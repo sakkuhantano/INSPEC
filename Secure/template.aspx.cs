@@ -343,7 +343,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion;
 
-SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder
+SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -488,6 +488,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
                                                     Unit = GF.GetString(fRow["Unit"]),
                                                     MinValue = fRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(fRow["MinValue"]),
                                                     MaxValue = fRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(fRow["MaxValue"]),
+                                                    MinInclusive = fRow["MinInclusive"] == DBNull.Value || Convert.ToBoolean(fRow["MinInclusive"]),
+                                                    MaxInclusive = fRow["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(fRow["MaxInclusive"]),
                                                     IsRequired = Convert.ToBoolean(fRow["IsRequired"]),
                                                     GroupName = GF.GetString(fRow["GroupName"]),
                                                     DisplayOrder = Convert.ToInt32(fRow["DisplayOrder"])
@@ -898,7 +900,7 @@ WHERE a.SectionID = @SectionID
                 for (int i = 1; i <= 9; i++)
                     dtRepeatConfig.Columns.Add("C" + i, typeof(System.String));
                 DataTable dtRepeatField = new DataTable();
-                for (int i = 1; i <= 11; i++)
+                for (int i = 1; i <= 13; i++)
                     dtRepeatField.Columns.Add("C" + i, typeof(System.String));
                 DataTable dtDeletedTemplate = new DataTable();
                 dtDeletedTemplate.Columns.Add("C1", typeof(System.String));
@@ -1221,6 +1223,8 @@ WHERE a.SectionID = @SectionID
                                                     fieldRow["C9"] = repeatField.ContainsKey("IsRequired") && Convert.ToBoolean(repeatField["IsRequired"]) ? "1" : "0";
                                                     fieldRow["C10"] = fieldGroup;
                                                     fieldRow["C11"] = repeatField.ContainsKey("DisplayOrder") ? Convert.ToString(repeatField["DisplayOrder"], CultureInfo.InvariantCulture) : (dtRepeatField.Rows.Count + 1).ToString(CultureInfo.InvariantCulture);
+                                                    fieldRow["C12"] = !repeatField.ContainsKey("MinInclusive") || repeatField["MinInclusive"] == null || Convert.ToBoolean(repeatField["MinInclusive"]) ? "1" : "0";
+                                                    fieldRow["C13"] = !repeatField.ContainsKey("MaxInclusive") || repeatField["MaxInclusive"] == null || Convert.ToBoolean(repeatField["MaxInclusive"]) ? "1" : "0";
                                                     dtRepeatField.Rows.Add(fieldRow);
                                                 }
                                             }
