@@ -2231,6 +2231,47 @@ BEGIN
     )
     BEGIN RAISERROR('Invalid REPEAT values submitted for Work Order.',16,1); RETURN; END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=I.IDItem)
+           OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F WHERE F.IDItem=I.IDItem)
+    )
+    BEGIN RAISERROR('A REPEAT Work Order item has no master field configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=I.IDItem
+        WHERE
+            (R.RepeatMode='FIELDS' AND
+                ((SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<>1
+                 OR EXISTS (SELECT 1 FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2 AND CAST(V.C3 AS INT)<>0)))
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FIXED' AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<>R.FixedCount)
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MinCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<R.MinCount)
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MaxCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)>R.MaxCount)
+    )
+    BEGIN RAISERROR('REPEAT object count does not match Work Order template configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
+        JOIN (SELECT DISTINCT C1,C2,C3 FROM @p_DtRepeat) O ON O.C1=A.C1 AND O.C2=A.C2
+        LEFT JOIN @p_DtRepeat V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C3=O.C3 AND V.C4=F.FieldKey
+        WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')=''
+    )
+    BEGIN RAISERROR('A required REPEAT child field is missing in Work Order.',16,1); RETURN; END;
+
     DECLARE @V_NextRepeatSubValueID INT;
     SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
     FROM dbo.PIP_T_WO_CheckList_SubValue WITH (UPDLOCK,HOLDLOCK);
