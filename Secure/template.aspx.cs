@@ -1190,24 +1190,31 @@ WHERE a.SectionID = @SectionID
                                                     if (repeatField == null) throw new Exception("Invalid REPEAT child field.");
                                                     string fieldKey = Convert.ToString(repeatField.ContainsKey("FieldKey") ? repeatField["FieldKey"] : "").Trim();
                                                     string fieldType = Convert.ToString(repeatField.ContainsKey("FieldType") ? repeatField["FieldType"] : "").Trim().ToUpperInvariant();
+                                                    string fieldLabel = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : fieldKey;
+                                                    string fieldUnit = repeatField.ContainsKey("Unit") ? GF.GetString(repeatField["Unit"]) : "";
+                                                    string fieldGroup = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
                                                     if (fieldKey.Length == 0 || fieldKey.Length > 50)
                                                         throw new Exception("Every REPEAT child field requires a stable FieldKey (maximum 50 characters).");
+                                                    if (fieldLabel.Length == 0 || fieldLabel.Length > 100) throw new Exception("REPEAT child field label is required and limited to 100 characters.");
+                                                    if (fieldUnit.Length > 30 || fieldGroup.Length > 100) throw new Exception("REPEAT unit is limited to 30 characters and group heading to 100 characters.");
                                                     if (fieldType != "NUMBER" && fieldType != "RANGE" && fieldType != "OPTION" && fieldType != "TEXT")
                                                         throw new Exception("REPEAT child fields support NUMBER, RANGE, OPTION, and TEXT only.");
 
                                                     ArrayList childOptions = repeatField.ContainsKey("OptionList") ? repeatField["OptionList"] as ArrayList : null;
                                                     string childOptionList = childOptions == null ? Convert.ToString(repeatField.ContainsKey("OptionList") ? repeatField["OptionList"] : "") : String.Join(";", childOptions.ToArray());
+                                                    if (childOptionList.Length > 1000) throw new Exception("REPEAT OPTION list is limited to 1000 characters.");
+                                                    if (fieldType == "OPTION" && String.IsNullOrWhiteSpace(childOptionList)) throw new Exception("REPEAT OPTION child requires at least one option.");
                                                     DataRow fieldRow = dtRepeatField.NewRow();
                                                     fieldRow["C1"] = runtimeItemID.ToString(CultureInfo.InvariantCulture);
                                                     fieldRow["C2"] = fieldKey;
-                                                    fieldRow["C3"] = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : fieldKey;
+                                                    fieldRow["C3"] = fieldLabel;
                                                     fieldRow["C4"] = fieldType;
                                                     fieldRow["C5"] = childOptionList;
-                                                    fieldRow["C6"] = repeatField.ContainsKey("Unit") ? GF.GetString(repeatField["Unit"]) : "";
+                                                    fieldRow["C6"] = fieldUnit;
                                                     fieldRow["C7"] = repeatField.ContainsKey("MinValue") && repeatField["MinValue"] != null ? Convert.ToString(repeatField["MinValue"], CultureInfo.InvariantCulture) : "";
                                                     fieldRow["C8"] = repeatField.ContainsKey("MaxValue") && repeatField["MaxValue"] != null ? Convert.ToString(repeatField["MaxValue"], CultureInfo.InvariantCulture) : "";
                                                     fieldRow["C9"] = repeatField.ContainsKey("IsRequired") && Convert.ToBoolean(repeatField["IsRequired"]) ? "1" : "0";
-                                                    fieldRow["C10"] = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
+                                                    fieldRow["C10"] = fieldGroup;
                                                     fieldRow["C11"] = repeatField.ContainsKey("DisplayOrder") ? Convert.ToString(repeatField["DisplayOrder"], CultureInfo.InvariantCulture) : (dtRepeatField.Rows.Count + 1).ToString(CultureInfo.InvariantCulture);
                                                     dtRepeatField.Rows.Add(fieldRow);
                                                 }
