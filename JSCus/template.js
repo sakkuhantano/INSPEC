@@ -4251,7 +4251,7 @@ function showItemProperties(itemData)
                     <div class="col-5" id="rowUnit" style="${itemType === 'TEXT' || itemType === 'GROUP' || itemType === 'REPEAT' ? 'display:none;' : ''}">
 
                         <label class="form-label text-xs fw-bold mb-1">
-                            Unit
+                            Unit <span class="text-muted fw-normal">(optional)</span>
                         </label>
 
                         <input
