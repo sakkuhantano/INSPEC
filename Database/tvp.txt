@@ -370,3 +370,37 @@ CREATE TYPE [dbo].[Type_Tbl_C9] AS TABLE(
 )
 GO
 
+
+/****** Object: UserDefinedTableType [dbo].[Type_Tbl_RepeatConfig] ******/
+IF TYPE_ID('dbo.Type_Tbl_RepeatConfig') IS NULL
+    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatConfig AS TABLE
+    (
+        C1 VARCHAR(8000) NULL,
+        C2 VARCHAR(8000) NULL,
+        C3 VARCHAR(8000) NULL,
+        C4 VARCHAR(8000) NULL,
+        C5 NVARCHAR(4000) NULL,
+        C6 VARCHAR(8000) NULL,
+        C7 VARCHAR(8000) NULL,
+        C8 VARCHAR(8000) NULL,
+        C9 VARCHAR(8000) NULL
+    )');
+GO
+
+/****** Object: UserDefinedTableType [dbo].[Type_Tbl_RepeatField] ******/
+IF TYPE_ID('dbo.Type_Tbl_RepeatField') IS NULL
+    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatField AS TABLE
+    (
+        C1 VARCHAR(8000) NULL,
+        C2 VARCHAR(8000) NULL,
+        C3 NVARCHAR(4000) NULL,
+        C4 VARCHAR(8000) NULL,
+        C5 NVARCHAR(4000) NULL,
+        C6 NVARCHAR(4000) NULL,
+        C7 VARCHAR(8000) NULL,
+        C8 VARCHAR(8000) NULL,
+        C9 VARCHAR(8000) NULL,
+        C10 NVARCHAR(4000) NULL,
+        C11 VARCHAR(8000) NULL
+    )');
+GO
