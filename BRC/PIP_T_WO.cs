@@ -215,7 +215,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             }
 
         }
-        public bool UpdateWO(DataTable dtCheckLists, DataTable dtCheckListGroups, DataTable dtPhotos, DataTable dtSummary)
+        public bool UpdateWO(DataTable dtCheckLists, DataTable dtCheckListGroups, DataTable dtCheckListRepeats, DataTable dtPhotos, DataTable dtSummary)
         {
             _mainConnection.Open();
             Begintrans();
@@ -261,6 +261,19 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                     row["C4"] = r["Value"].ToString();
                     V_tblTmp_2.Rows.Add(row);
                 }
+                DataTable V_tblTmp_Repeat = new DataTable();
+                for (int i = 1; i <= 5; i++)
+                    V_tblTmp_Repeat.Columns.Add("C" + i, typeof(System.String));
+                foreach (DataRow r in dtCheckListRepeats.Rows)
+                {
+                    DataRow row = V_tblTmp_Repeat.NewRow();
+                    row["C1"] = r["KeyHD"].ToString();
+                    row["C2"] = r["IDItem"].ToString();
+                    row["C3"] = r["ObjectIndex"].ToString();
+                    row["C4"] = r["FieldKey"].ToString();
+                    row["C5"] = r["Value"].ToString();
+                    V_tblTmp_Repeat.Rows.Add(row);
+                }
                 DataTable V_tblTmp_3 = new DataTable();
                 for (int i = 1; i <= 4; i++)
                 {
@@ -304,6 +317,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                         { 
                             new SqlParameter("@p_dt1", V_tblTmp_1), 
                             new SqlParameter("@p_dt2", V_tblTmp_2), 
+                            new SqlParameter("@p_DtRepeat", V_tblTmp_Repeat),
                             new SqlParameter("@p_dt3", V_tblTmp_3), 
                             new SqlParameter("@p_dt4", V_tblTmp_4), 
                             new SqlParameter("@p_UpdateUser", UpdateUser)
