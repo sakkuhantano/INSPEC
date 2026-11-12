@@ -8070,6 +8070,7 @@ function createRepeatField() {
 function renderRepeatEditor(item) {
     item.Repeat = item.Repeat || { RepeatMode:'FIELDS', ColumnCount:3, ObjectLabel:'Object', CountMode:'FLEX', FixedCount:null, MinCount:1, MaxCount:null };
     item.RepeatFields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
+    item.RepeatFields.forEach((field,index)=>{field.DisplayOrder=index+1;});
     const cfg=item.Repeat, get=id=>document.getElementById(id), put=(id,v)=>{if(get(id))get(id).value=v==null?'':v;};
     put('repeatMode',cfg.RepeatMode||'FIELDS'); put('repeatColumnCount',cfg.ColumnCount||3); put('repeatObjectLabel',cfg.ObjectLabel||'Object'); put('repeatCountMode',cfg.CountMode||'FLEX'); put('repeatFixedCount',cfg.FixedCount); put('repeatMinCount',cfg.MinCount==null?1:cfg.MinCount); put('repeatMaxCount',cfg.MaxCount);
     const host=get('repeatFieldsHost'); if(!host)return;
