@@ -4705,7 +4705,7 @@ function showItemProperties(itemData)
                     itemData.MaxTolerance = "";
                 }
 
-                if(this.value == "GROUP" || this.value == "TEXT" || this.value == "OPTION")
+                if(this.value == "GROUP" || this.value == "REPEAT" || this.value == "TEXT" || this.value == "OPTION")
                 {
                     itemData.Unit = "";
                 }
