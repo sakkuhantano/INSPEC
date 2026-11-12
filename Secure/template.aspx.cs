@@ -460,7 +460,39 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
                                                     RuntimeGroupID = Convert.ToInt32(gRow["IDGroup"]),
                                                     IDGroup = Convert.ToInt32(gRow["IDGroup"])
                                                 }).ToList()
-                                            : new List<object>() // Sekarang kedua belah pihak sama-sama menghasilkan List<object>
+                                            : new List<object>(),
+                                        Repeat = itemType == "REPEAT"
+                                            ? dtRepeat.AsEnumerable()
+                                                .Where(rRow => Convert.ToInt32(rRow["IDItem"]) == idItem)
+                                                .Select(rRow => new
+                                                {
+                                                    RepeatMode = rRow["RepeatMode"].ToString(),
+                                                    ColumnCount = Convert.ToInt32(rRow["ColumnCount"]),
+                                                    ObjectLabel = GF.GetString(rRow["ObjectLabel"]),
+                                                    CountMode = rRow["CountMode"].ToString(),
+                                                    FixedCount = rRow["FixedCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(rRow["FixedCount"]),
+                                                    MinCount = rRow["MinCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(rRow["MinCount"]),
+                                                    MaxCount = rRow["MaxCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(rRow["MaxCount"])
+                                                }).FirstOrDefault()
+                                            : null,
+                                        RepeatFields = itemType == "REPEAT"
+                                            ? dtRepeatFields.AsEnumerable()
+                                                .Where(fRow => Convert.ToInt32(fRow["IDItem"]) == idItem)
+                                                .OrderBy(fRow => Convert.ToInt32(fRow["DisplayOrder"]))
+                                                .Select(fRow => new
+                                                {
+                                                    FieldKey = fRow["FieldKey"].ToString(),
+                                                    FieldLabel = fRow["FieldLabel"].ToString(),
+                                                    FieldType = fRow["FieldType"].ToString(),
+                                                    OptionList = String.IsNullOrWhiteSpace(GF.GetString(fRow["OptionList"])) ? new string[0] : GF.GetString(fRow["OptionList"]).Split(';'),
+                                                    Unit = GF.GetString(fRow["Unit"]),
+                                                    MinValue = fRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(fRow["MinValue"]),
+                                                    MaxValue = fRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(fRow["MaxValue"]),
+                                                    IsRequired = Convert.ToBoolean(fRow["IsRequired"]),
+                                                    GroupName = GF.GetString(fRow["GroupName"]),
+                                                    DisplayOrder = Convert.ToInt32(fRow["DisplayOrder"])
+                                                }).ToList()
+                                            : new List<object>()
                                     };
                                 }).ToList()
                         };
