@@ -4,7 +4,7 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
 
 ## Deployment order
 
-1. Run `Database/repeatable_inspection_schema.sql` on the INSPEC database. It creates the REPEAT master tables and TVPs, adds `ObjectIndex` to Work Order and Inspection child values, widens Work Order child values to text, and updates the Inspection child-value primary key.
+1. Run `Database/repeatable_inspection_schema.sql` on the INSPEC database. It creates the REPEAT master tables and TVPs (including `Type_Tbl_RepeatFieldV2`), adds `ObjectIndex` to Work Order and Inspection child values, widens Work Order child values to text, adds inclusive/exclusive range flags, and updates the Inspection child-value primary key.
 2. Deploy the updated definitions of these procedures from `Database/stored proedures.txt`:
    - `spUTL_PIP_M_CheckListWOPM`
    - `spUTL_WO_CheckList`
@@ -12,7 +12,7 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
    - `spUTL_PIP_T_Inspection_Batch_Sync`
 3. Deploy the corresponding WebForms and JavaScript changes from this branch.
 
-`Database/tvp.txt` is the TVP reference listing. The schema migration creates the new TVP types required by the application.
+`Database/tvp.txt` is the TVP reference listing. The schema migration creates the new TVP types required by the application. The template save procedure now accepts `Type_Tbl_RepeatFieldV2`; the original `Type_Tbl_RepeatField` is retained so other existing consumers are not broken.
 
 ## Data model
 
@@ -22,7 +22,7 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
 - `FIELDS`: one logical record, stored as `ObjectIndex=0`; `ColumnCount` controls the UI grid (default 3).
 - `OBJECTS`: repeated objects with the same child field definitions; object indices are zero-based and sequential.
 - Child values use `FieldKey`, never the visible field label. Renaming a label therefore does not change the data key.
-- Child fields can be required, constrained by min/max, assigned a unit, option list, display order, and optional group heading.
+- Child fields can be required, constrained by min/max, assigned a unit, option list, display order, and optional group heading. `MinInclusive` and `MaxInclusive` independently define whether a configured boundary is accepted; legacy fields default to inclusive. For example, `MinValue=26, MinInclusive=0` means `>26`, while `MaxValue=47, MaxInclusive=0` means `<47`. An open boundary is represented by NULL.
 
 ## Transaction storage
 
