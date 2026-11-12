@@ -257,6 +257,7 @@
     <None Include="Database\repeatable_inspection_schema.sql" />
     <None Include="Database\REPEATABLE_INSPECTION_README.md" />
     <None Include="Database\stored proedures.txt" />
+    <None Include="Database\tvp.txt" />
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup />
