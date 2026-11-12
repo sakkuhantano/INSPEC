@@ -16,7 +16,16 @@ namespace INSPEC.Secure
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Keep the normal inspection page lifecycle independent from report downloads.
+            // Handle report downloads first. Download URLs use ?download=TOKEN.
+            string downloadToken = (Request.QueryString["download"] ?? String.Empty).Trim();
+
+            if (!String.IsNullOrWhiteSpace(downloadToken))
+            {
+                DownloadInspectionReport(downloadToken);
+                return;
+            }
+
+            // Normal inspection entry / approval page.
             string mode = (Request.QueryString["type"] ?? String.Empty)
                 .Trim()
                 .ToLowerInvariant();
