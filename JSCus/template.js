@@ -4683,6 +4683,7 @@ function showItemProperties(itemData)
 
                 itemData.ItemType =
                     this.value;
+                if (this.value === "REPEAT") itemData.Groups = [];
                 $("#rowUseTolerance").toggle(
                     this.value === "INPUT" ||
                     this.value === "RANGE"
