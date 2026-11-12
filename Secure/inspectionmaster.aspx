@@ -131,6 +131,7 @@
                                     </div>
                                 </div>
                                 <asp:HiddenField ID="hidSwapPointID" runat="server" ClientIDMode="Static" />
+                                <asp:HiddenField ID="hidSvgPathData" runat="server" ClientIDMode="Static" />
                                 <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-2">
                                     <div class="border rounded p-2">
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
@@ -141,6 +142,21 @@
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit">Fit</button>
                                                 <span class="small text-muted" id="lblMapZoom">100%</span>
                                                 <asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1" Visible="false">Open PDF</asp:HyperLink>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2 mb-2 align-items-end">
+                                            <div class="col-6 col-md-3">
+                                                <label class="small fw-semibold">Marker Shape</label>
+                                                <asp:DropDownList ID="ddlPointShapeType" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm">
+                                                    <asp:ListItem Value="CIRCLE">Circle</asp:ListItem>
+                                                    <asp:ListItem Value="PATH">SVG Path / Area</asp:ListItem>
+                                                </asp:DropDownList>
+                                            </div>
+                                            <div class="col-12 col-md d-flex flex-wrap gap-1 align-items-end">
+                                                <button type="button" id="btnStartPathDraw" class="btn btn-sm btn-outline-primary">Draw SVG Path</button>
+                                                <button type="button" id="btnUndoPath" class="btn btn-sm btn-outline-secondary">Undo</button>
+                                                <button type="button" id="btnClearPath" class="btn btn-sm btn-outline-danger">Clear Path</button>
+                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: click map to set one coordinate. Path: draw an outline on the map.</span>
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
@@ -157,6 +173,7 @@
                                                         </button>
                                                     </ItemTemplate>
                                                 </asp:Repeater>
+                                                <asp:Literal ID="litEditorSvgPaths" runat="server" />
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-hint" role="note">
