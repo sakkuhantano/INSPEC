@@ -4127,6 +4127,12 @@ function getCurrentVersionState() {
                     [...itemEl._tagManager.tags];
             }
 
+            const modelItem = findItemById(Number(itemEl.dataset.id));
+            if (modelItem && modelItem.ItemType === 'REPEAT') {
+                itemObj.Repeat = JSON.parse(JSON.stringify(modelItem.Repeat || {}));
+                itemObj.RepeatFields = JSON.parse(JSON.stringify(modelItem.RepeatFields || []));
+            }
+
             // GROUPS
             if (itemEl._groupData) {
 
@@ -4502,6 +4508,29 @@ function showItemProperties(itemData)
 
 
         <!-- ===================================== -->
+        <!-- NATIVE REPEAT -->
+        <!-- ===================================== -->
+        <div id="repeatProperties" class="prop-group" style="display:${itemType === 'REPEAT' ? 'block' : 'none'}">
+            <div class="prop-group-header">REPEAT Configuration</div>
+            <div class="prop-group-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label text-xs">Mode</label><select id="repeatMode" class="form-select form-select-sm"><option value="FIELDS">FIELDS · one record</option><option value="OBJECTS">OBJECTS · repeated objects</option></select></div>
+                    <div class="col-6"><label class="form-label text-xs">Columns per row</label><input id="repeatColumnCount" type="number" min="1" max="6" class="form-control form-control-sm" value="3"></div>
+                </div>
+                <div id="repeatObjectConfig" class="row g-2 mb-2">
+                    <div class="col-6"><label class="form-label text-xs">Object label</label><input id="repeatObjectLabel" class="form-control form-control-sm" value="Object"></div>
+                    <div class="col-6"><label class="form-label text-xs">Count mode</label><select id="repeatCountMode" class="form-select form-select-sm"><option value="FLEX">Flexible</option><option value="FIXED">Fixed</option></select></div>
+                    <div class="col-4"><label class="form-text">Fixed count</label><input id="repeatFixedCount" type="number" min="1" class="form-control form-control-sm"></div>
+                    <div class="col-4"><label class="form-text">Min count</label><input id="repeatMinCount" type="number" min="0" class="form-control form-control-sm"></div>
+                    <div class="col-4"><label class="form-text">Max count</label><input id="repeatMaxCount" type="number" min="1" class="form-control form-control-sm"></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2"><span class="small fw-semibold">Child fields</span><button type="button" id="addRepeatFieldBtn" class="btn btn-sm btn-outline-primary">+ Add field</button></div>
+                <div id="repeatFieldsHost"></div>
+                <div class="form-text">Supported child types: NUMBER, RANGE, OPTION, TEXT. Each field has a stable Field Key. Nested REPEAT is not allowed.</div>
+            </div>
+        </div>
+
+        <!-- ===================================== -->
         <!-- GROUP -->
         <!-- ===================================== -->
 
@@ -4618,6 +4647,7 @@ function showItemProperties(itemData)
 
         renderGroupTable();
     }
+    if (itemType === 'REPEAT') renderRepeatEditor(itemData);
 
     const txtName =
         document.getElementById(
