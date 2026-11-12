@@ -1156,6 +1156,30 @@ BEGIN
     )
     BEGIN RAISERROR('A BATCH REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
 
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
+        WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND ISNUMERIC(V.C4)=0
+    )
+    BEGIN RAISERROR('A BATCH REPEAT numeric value must be a valid number.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND CONVERT(FLOAT,V.C4)<F.MinValue
+    )
+    BEGIN RAISERROR('A BATCH REPEAT numeric value is below its minimum.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND CONVERT(FLOAT,V.C4)>F.MaxValue
+    )
+    BEGIN RAISERROR('A BATCH REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
+
     DECLARE @V_EntryTranCount INT;
     SET @V_EntryTranCount=@@TRANCOUNT;
 
@@ -1548,6 +1572,30 @@ BEGIN
           )
     )
     BEGIN RAISERROR('An Inspection OPTION value is not in the configured option list.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @tbl_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
+        WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND ISNUMERIC(V.Value)=0
+    )
+    BEGIN RAISERROR('A REPEAT numeric value must be a valid number.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @tbl_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND CONVERT(FLOAT,V.Value)<F.MinValue
+    )
+    BEGIN RAISERROR('A REPEAT numeric value is below its minimum.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @tbl_ItemValues V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND CONVERT(FLOAT,V.Value)>F.MaxValue
+    )
+    BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
     /* Drafts are device-local only. SQL may persist completed inspections only. */
     IF ISNULL(@p_Status, '') <> 'DONE'
@@ -2463,6 +2511,30 @@ BEGIN
           )
     )
     BEGIN RAISERROR('A REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND ISNUMERIC(V.C5)=0
+    )
+    BEGIN RAISERROR('A REPEAT numeric value must be a valid number.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND CONVERT(FLOAT,V.C5)<F.MinValue
+    )
+    BEGIN RAISERROR('A REPEAT numeric value is below its minimum.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND CONVERT(FLOAT,V.C5)>F.MaxValue
+    )
+    BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
     DECLARE @V_NextRepeatSubValueID INT;
     SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
