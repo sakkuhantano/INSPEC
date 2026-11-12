@@ -818,7 +818,7 @@ function renderWORepeatItem(item, saved, isEntryMode) {
             const key=String(f.fieldKey||"");
             const label=String(f.fieldLabel||key);
             const group=String(f.groupName||"");
-            const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escapeHtmlAttribute(group)+'</div>':"";
+            const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary" style="flex:0 0 100%;width:100%;max-width:100%">'+escapeHtmlAttribute(group)+'</div>':"";
             lastGroup=group;
             const value=values[key]==null?"":values[key];
             const required=f.isRequired?' required aria-required="true"':"";
