@@ -2327,6 +2327,21 @@ BEGIN
     )
     BEGIN RAISERROR('A required REPEAT child field is missing in Work Order.',16,1); RETURN; END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4 AND F.FieldType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(F.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.C5)))
+          )
+    )
+    BEGIN RAISERROR('A REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
+
     DECLARE @V_NextRepeatSubValueID INT;
     SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
     FROM dbo.PIP_T_WO_CheckList_SubValue WITH (UPDLOCK,HOLDLOCK);
