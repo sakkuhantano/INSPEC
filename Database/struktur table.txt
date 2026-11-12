@@ -1,0 +1,690 @@
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM](
+	[IDTemplate] [int] NOT NULL,
+	[TemplateNo] [varchar](10) NOT NULL,
+	[TemplateName] [varchar](200) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[IsActive] [bit] NOT NULL,
+	[EntryUser] [varchar](50) NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+	[TemplateType] [varchar](1) NULL,
+	[InspectionTypeCode] [varchar](10) NULL,
+	[CompanyScope] [varchar](1) NULL,
+	[CompanyLocationList] [varchar](8000) NOT NULL,
+	[EmployeeList] [varchar](8000) NOT NULL,
+	[InspectionTypeDetailCode] [varchar](500) NULL,
+ CONSTRAINT [PK_PIP_M_CheckListWOPM] PRIMARY KEY CLUSTERED 
+(
+	[IDTemplate] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Item]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Item](
+	[IDItem] [int] NOT NULL,
+	[IDSection] [int] NOT NULL,
+	[ItemLabel] [varchar](500) NOT NULL,
+	[ItemType] [varchar](20) NOT NULL,
+	[OptionList] [varchar](200) NULL,
+	[MinValue] [decimal](10, 2) NULL,
+	[MaxValue] [decimal](10, 2) NULL,
+	[Unit] [varchar](20) NULL,
+	[ShowUnitInRange] [bit] NULL,
+	[IsValueRequired] [bit] NOT NULL,
+	[IsRemark1Required] [bit] NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+	[IsToleranceRequired] [bit] NULL,
+	[MinTolerance] [money] NULL,
+	[MaxTolerance] [money] NULL,
+	[ModelCode] [varchar](50) NULL,
+	[RemarkRequiredOptions] [varchar](8000) NULL,
+	[IDSubSection] [int] NULL,
+	[IsRemark2Required] [bit] NOT NULL,
+	[Remark1Text] [varchar](100) NOT NULL,
+	[Remark2Text] [varchar](100) NOT NULL,
+	[IsUseDefaultRemark1] [bit] NOT NULL,
+	[IsUseDefaultRemark2] [bit] NOT NULL,
+	[IsRemark1Mandatory] [bit] NOT NULL,
+	[IsRemark2Mandatory] [bit] NOT NULL,
+ CONSTRAINT [PK__PIP_M_Ch__C9778A104599301C] PRIMARY KEY CLUSTERED 
+(
+	[IDItem] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_ItemGroup]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_ItemGroup](
+	[IDGroup] [int] NOT NULL,
+	[IDItem] [int] NOT NULL,
+	[GroupName] [varchar](100) NOT NULL,
+	[FieldList] [varchar](100) NOT NULL,
+	[Unit] [varchar](20) NULL,
+	[DisplayOrder] [int] NOT NULL,
+ CONSTRAINT [PK__PIP_M_Ch__CB4260CA4B520972] PRIMARY KEY CLUSTERED 
+(
+	[IDGroup] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Section]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Section](
+	[IDSection] [int] NOT NULL,
+	[IDVersion] [int] NOT NULL,
+	[SectionName] [varchar](200) NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+ CONSTRAINT [PK__PIP_M_Ch__F69B10B841C89F38] PRIMARY KEY CLUSTERED 
+(
+	[IDSection] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_SubSection]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_SubSection](
+	[IDSubSection] [int] NOT NULL,
+	[IDSection] [int] NOT NULL,
+	[SubSectionName] [varchar](200) NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+	[EntryUser] [varchar](50) NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+ CONSTRAINT [PK_PIP_M_CheckListWOPM_SubSection] PRIMARY KEY CLUSTERED 
+(
+	[IDSubSection] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_M_CheckListWOPM_Version]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_M_CheckListWOPM_Version](
+	[IDVersion] [int] NOT NULL,
+	[IDTemplate] [int] NULL,
+	[Version] [varchar](10) NULL,
+	[StatusOption] [varchar](50) NULL,
+	[EffectiveDate] [smalldatetime] NULL,
+	[Remark] [varchar](255) NULL,
+	[Status] [varchar](10) NULL,
+	[GroupEquipment] [varchar](10) NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+	[SummarySampleText] [varchar](500) NULL,
+	[RemarkRequiredOptions] [varchar](8000) NULL,
+	[IsRemark1Required] [bit] NOT NULL,
+	[Remark1Text] [varchar](100) NOT NULL,
+	[IsRemark2Required] [bit] NOT NULL,
+	[Remark2Text] [varchar](100) NOT NULL,
+	[PhotoRequirement] [varchar](10) NOT NULL,
+	[IsSummaryRequired] [bit] NOT NULL,
+	[IsFollowUpRequired] [bit] NULL,
+ CONSTRAINT [PK_PIP_M_CheckListWOPM_Version] PRIMARY KEY CLUSTERED 
+(
+	[IDVersion] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_Inspection]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_Inspection](
+	[InspectionID] [bigint] NOT NULL,
+	[ClientInspectionID] [varchar](36) NOT NULL,
+	[InspectionNo] [varchar](10) NULL,
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](3) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[InspectionTypeCode] [varchar](2) NOT NULL,
+	[InspectionTypeName] [varchar](100) NOT NULL,
+	[InspectionTypeDetailCode] [varchar](20) NOT NULL,
+	[InspectionTypeDetailName] [varchar](100) NOT NULL,
+	[ScheduledTime] [varchar](5) NULL,
+	[IDTemplate] [int] NOT NULL,
+	[IDVersion] [int] NOT NULL,
+	[TemplateNo] [varchar](50) NOT NULL,
+	[TemplateName] [varchar](200) NOT NULL,
+	[TemplateVersion] [varchar](10) NOT NULL,
+	[InspectionDate] [datetime] NOT NULL,
+	[StartDateTime] [datetime] NULL,
+	[EndDateTime] [datetime] NULL,
+	[Status] [varchar](10) NOT NULL,
+	[Summary] [varchar](500) NULL,
+	[FollowUp] [varchar](30) NULL,
+	[FollowUpSection] [varchar](10) NULL,
+	[FollowUpRemark] [varchar](300) NULL,
+	[FollowUpWONo] [varchar](10) NULL,
+	[OwnerEmployeeID] [varchar](50) NOT NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[UpdateUser] [varchar](50) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+	[IsApprove] [bit] NOT NULL,
+	[ApprovedBy] [varchar](50) NULL,
+	[ApprovedDate] [datetime] NULL,
+	[ApprovalRemark] [varchar](500) NULL,
+	[ReasonVoid] [varchar](500) NULL,
+	[SyncDate] [datetime] NULL,
+	[IsActive] [bit] NOT NULL,
+	[ReasonCancel] [varchar](500) NOT NULL,
+	[InspectionMode] [varchar](10) NOT NULL,
+	[InspectionMapID] [bigint] NULL,
+ CONSTRAINT [PK_PIP_T_Inspection] PRIMARY KEY CLUSTERED 
+(
+	[InspectionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [UQ_PIP_T_Inspection_ClientInspectionID] UNIQUE NONCLUSTERED 
+(
+	[ClientInspectionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_Inspection_Delete]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_Inspection_Delete](
+	[DeleteArchiveID] [bigint] NOT NULL,
+	[ClientInspectionID] [varchar](36) NOT NULL,
+	[CompanyID] [varchar](10) NOT NULL,
+	[LocationID] [varchar](3) NOT NULL,
+	[SectionID] [varchar](10) NOT NULL,
+	[InspectionTypeCode] [varchar](2) NOT NULL,
+	[InspectionTypeDetailCode] [varchar](20) NOT NULL,
+	[IDTemplate] [int] NOT NULL,
+	[InspectionDate] [datetime] NOT NULL,
+	[OriginalStatus] [varchar](10) NULL,
+	[OriginalSyncStatus] [varchar](20) NULL,
+	[DeletedBy] [varchar](50) NOT NULL,
+	[DeletedAt] [datetime] NOT NULL,
+	[OriginalTransactionJson] [nvarchar](max) NOT NULL,
+	[ReasonCancel] [varchar](1000) NOT NULL,
+ CONSTRAINT [PK_PIP_T_Inspection_Delete] PRIMARY KEY CLUSTERED 
+(
+	[DeleteArchiveID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [UQ_PIP_T_Inspection_Delete_ClientInspectionID] UNIQUE NONCLUSTERED 
+(
+	[ClientInspectionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_InspectionPhoto]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_InspectionPhoto](
+	[InspectionPhotoID] [bigint] NOT NULL,
+	[InspectionID] [bigint] NOT NULL,
+	[PhotoType] [varchar](10) NOT NULL,
+	[FileName] [varchar](255) NOT NULL,
+	[FileType] [varchar](10) NOT NULL,
+	[SeqNo] [int] NOT NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[InspectionPointTransactionID] [bigint] NULL,
+ CONSTRAINT [PK_PIP_T_InspectionPhoto] PRIMARY KEY CLUSTERED 
+(
+	[InspectionPhotoID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_InspectionPoint]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_InspectionPoint](
+	[InspectionPointTransactionID] [bigint] NOT NULL,
+	[InspectionID] [bigint] NOT NULL,
+	[ClientPointID] [varchar](36) NOT NULL,
+	[InspectionPointID] [bigint] NOT NULL,
+	[InspectionDateTime] [datetime] NOT NULL,
+	[Status] [varchar](12) NOT NULL,
+	[AbnormalRemark] [varchar](500) NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[UpdateUser] [varchar](50) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_PIP_T_InspectionPoint] PRIMARY KEY CLUSTERED 
+(
+	[InspectionPointTransactionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [UQ_PIP_T_InspectionPoint_Client] UNIQUE NONCLUSTERED 
+(
+	[InspectionID] ASC,
+	[ClientPointID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY],
+ CONSTRAINT [UQ_PIP_T_InspectionPoint_Master] UNIQUE NONCLUSTERED 
+(
+	[InspectionID] ASC,
+	[InspectionPointID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_InspectionResult]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_InspectionResult](
+	[InspectionResultID] [bigint] NOT NULL,
+	[InspectionID] [bigint] NOT NULL,
+	[IDItem] [int] NOT NULL,
+	[ItemLabel] [varchar](500) NOT NULL,
+	[ItemType] [varchar](20) NOT NULL,
+	[Value] [varchar](50) NULL,
+	[Remark1] [varchar](500) NULL,
+	[IsAnomali] [bit] NOT NULL,
+	[DisplayOrder] [int] NOT NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[UpdateUser] [varchar](50) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+	[Remark2] [varchar](500) NULL,
+	[InspectionPointTransactionID] [bigint] NULL,
+ CONSTRAINT [PK_PIP_T_InspectionResult] PRIMARY KEY CLUSTERED 
+(
+	[InspectionResultID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_InspectionResultValue]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_InspectionResultValue](
+	[InspectionResultID] [bigint] NOT NULL,
+	[FieldName] [varchar](100) NOT NULL,
+	[Value] [varchar](500) NULL,
+	[EntryUser] [varchar](50) NOT NULL,
+	[EntryDate] [datetime] NOT NULL,
+	[UpdateUser] [varchar](50) NOT NULL,
+	[UpdateDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_PIP_T_InspectionResultValue] PRIMARY KEY CLUSTERED 
+(
+	[InspectionResultID] ASC,
+	[FieldName] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_WO_CheckList]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_WO_CheckList](
+	[IDResult] [int] NOT NULL,
+	[KeyHD] [int] NOT NULL,
+	[IDItem] [int] NOT NULL,
+	[Value] [varchar](50) NULL,
+	[Remark1] [varchar](500) NULL,
+	[EntryUser] [varchar](50) NULL,
+	[EntryDate] [datetime] NULL,
+	[UpdateUser] [varchar](50) NULL,
+	[UpdateDate] [datetime] NULL,
+	[IsAnomali] [bit] NULL,
+	[Remark2] [varchar](500) NULL,
+ CONSTRAINT [PK__PIP_T_WO__0F12D3A24F229A56] PRIMARY KEY CLUSTERED 
+(
+	[IDResult] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+/****** Object:  Table [dbo].[PIP_T_WO_CheckList_SubValue]    Script Date: 12-Nov-2026 12:21:36 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [dbo].[PIP_T_WO_CheckList_SubValue](
+	[IDSubValue] [int] NOT NULL,
+	[IDResult] [int] NOT NULL,
+	[FieldName] [varchar](50) NOT NULL,
+	[Value] [decimal](10, 2) NULL,
+ CONSTRAINT [PK__PIP_T_WO__A27DFC3F53E74F73] PRIMARY KEY CLUSTERED 
+(
+	[IDSubValue] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM] ADD  CONSTRAINT [DF__PIP_M_Che__IsAct__3EEC328D]  DEFAULT ((1)) FOR [IsActive]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_CompanyLocationList]  DEFAULT ('') FOR [CompanyLocationList]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_EmployeeList]  DEFAULT ('') FOR [EmployeeList]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_ShowUnitInRange]  DEFAULT ((1)) FOR [ShowUnitInRange]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF__PIP_M_Che__IsVal__4781788E]  DEFAULT ((1)) FOR [IsValueRequired]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF__PIP_M_Che__IsRem__48759CC7]  DEFAULT ((0)) FOR [IsRemark1Required]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_IsRemark2Required]  DEFAULT ((0)) FOR [IsRemark2Required]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_Remark1Text]  DEFAULT ('Remark') FOR [Remark1Text]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_Remark2Text]  DEFAULT ('Remark') FOR [Remark2Text]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_IsUseDefaultRemark1]  DEFAULT ((0)) FOR [IsUseDefaultRemark1]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_IsUseDefaultRemark2]  DEFAULT ((0)) FOR [IsUseDefaultRemark2]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_IsRemark1Mandatory]  DEFAULT ((0)) FOR [IsRemark1Mandatory]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Item_IsRemark2Mandatory]  DEFAULT ((0)) FOR [IsRemark2Mandatory]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_SubSection] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_SubSection_DisplayOrder]  DEFAULT ((0)) FOR [DisplayOrder]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_IsRemark1Required]  DEFAULT ((0)) FOR [IsRemark1Required]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_Remark1Text]  DEFAULT ('Remark') FOR [Remark1Text]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_IsRemark2Required]  DEFAULT ((0)) FOR [IsRemark2Required]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_Remark2Text]  DEFAULT ('Remark') FOR [Remark2Text]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_PhotoRequirement]  DEFAULT ('BOTH') FOR [PhotoRequirement]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_IsSummaryRequired]  DEFAULT ((1)) FOR [IsSummaryRequired]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Version] ADD  CONSTRAINT [DF_PIP_M_CheckListWOPM_Version_IsFollowUpRequired]  DEFAULT ((1)) FOR [IsFollowUpRequired]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_InspectionNo]  DEFAULT ('') FOR [InspectionNo]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ScheduledTime]  DEFAULT ('') FOR [ScheduledTime]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_StartDateTime]  DEFAULT ('19000101') FOR [StartDateTime]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_EndDateTime]  DEFAULT ('19000101') FOR [EndDateTime]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_Summary]  DEFAULT ('') FOR [Summary]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_FollowUpSection]  DEFAULT ('') FOR [FollowUpSection]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_FollowUpRemark]  DEFAULT ('') FOR [FollowUpRemark]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_FollowUpWONo]  DEFAULT ('') FOR [FollowUpWONo]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_EntryDate]  DEFAULT (getdate()) FOR [EntryDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsApprove]  DEFAULT ((0)) FOR [IsApprove]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovedBy]  DEFAULT ('') FOR [ApprovedBy]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovedDate]  DEFAULT ('19000101') FOR [ApprovedDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovalRemark]  DEFAULT ('') FOR [ApprovalRemark]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ReasonVoid]  DEFAULT ('') FOR [ReasonVoid]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsActive]  DEFAULT ((1)) FOR [IsActive]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ReasonCancel]  DEFAULT ('') FOR [ReasonCancel]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_InspectionMode]  DEFAULT ('STANDARD') FOR [InspectionMode]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection_Delete] ADD  CONSTRAINT [DF_PIP_T_Inspection_Delete_OriginalStatus]  DEFAULT ('') FOR [OriginalStatus]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection_Delete] ADD  CONSTRAINT [DF_PIP_T_Inspection_Delete_OriginalSyncStatus]  DEFAULT ('') FOR [OriginalSyncStatus]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection_Delete] ADD  CONSTRAINT [DF_PIP_T_Inspection_Delete_DeletedAt]  DEFAULT (getdate()) FOR [DeletedAt]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection_Delete] ADD  CONSTRAINT [DF_PIP_T_Inspection_Delete_ReasonCancel]  DEFAULT ('') FOR [ReasonCancel]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto] ADD  CONSTRAINT [DF_PIP_T_InspectionPhoto_EntryDate]  DEFAULT (getdate()) FOR [EntryDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] ADD  CONSTRAINT [DF_PIP_T_InspectionPoint_Status]  DEFAULT ('PENDING') FOR [Status]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] ADD  CONSTRAINT [DF_PIP_T_InspectionPoint_EntryDate]  DEFAULT (getdate()) FOR [EntryDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] ADD  CONSTRAINT [DF_PIP_T_InspectionPoint_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_Value]  DEFAULT ('') FOR [Value]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_Remark1]  DEFAULT ('') FOR [Remark1]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_IsAnomali]  DEFAULT ((0)) FOR [IsAnomali]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_DisplayOrder]  DEFAULT ((0)) FOR [DisplayOrder]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_EntryDate]  DEFAULT (getdate()) FOR [EntryDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] ADD  CONSTRAINT [DF_PIP_T_InspectionResult_Remark2]  DEFAULT ('') FOR [Remark2]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResultValue] ADD  CONSTRAINT [DF_PIP_T_InspectionResultValue_EntryDate]  DEFAULT (getdate()) FOR [EntryDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResultValue] ADD  CONSTRAINT [DF_PIP_T_InspectionResultValue_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
+GO
+
+ALTER TABLE [dbo].[PIP_T_WO_CheckList] ADD  DEFAULT ((0)) FOR [IsAnomali]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item]  WITH CHECK ADD  CONSTRAINT [FK_PIP_M_CheckListWOPM_Item_SubSection] FOREIGN KEY([IDSubSection])
+REFERENCES [dbo].[PIP_M_CheckListWOPM_SubSection] ([IDSubSection])
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_Item] CHECK CONSTRAINT [FK_PIP_M_CheckListWOPM_Item_SubSection]
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_SubSection]  WITH CHECK ADD  CONSTRAINT [FK_PIP_M_CheckListWOPM_SubSection_Section] FOREIGN KEY([IDSection])
+REFERENCES [dbo].[PIP_M_CheckListWOPM_Section] ([IDSection])
+GO
+
+ALTER TABLE [dbo].[PIP_M_CheckListWOPM_SubSection] CHECK CONSTRAINT [FK_PIP_M_CheckListWOPM_SubSection_Section]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_Inspection_Map] FOREIGN KEY([InspectionMapID])
+REFERENCES [dbo].[PIP_M_InspectionMap] ([MapID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] CHECK CONSTRAINT [FK_PIP_T_Inspection_Map]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionPhoto_Inspection] FOREIGN KEY([InspectionID])
+REFERENCES [dbo].[PIP_T_Inspection] ([InspectionID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto] CHECK CONSTRAINT [FK_PIP_T_InspectionPhoto_Inspection]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionPhoto_Point] FOREIGN KEY([InspectionPointTransactionID])
+REFERENCES [dbo].[PIP_T_InspectionPoint] ([InspectionPointTransactionID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto] CHECK CONSTRAINT [FK_PIP_T_InspectionPhoto_Point]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionPoint_Header] FOREIGN KEY([InspectionID])
+REFERENCES [dbo].[PIP_T_Inspection] ([InspectionID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] CHECK CONSTRAINT [FK_PIP_T_InspectionPoint_Header]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionPoint_Master] FOREIGN KEY([InspectionPointID])
+REFERENCES [dbo].[PIP_M_InspectionPoint] ([InspectionPointID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] CHECK CONSTRAINT [FK_PIP_T_InspectionPoint_Master]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionResult_Header] FOREIGN KEY([InspectionID])
+REFERENCES [dbo].[PIP_T_Inspection] ([InspectionID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] CHECK CONSTRAINT [FK_PIP_T_InspectionResult_Header]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionResult_Point] FOREIGN KEY([InspectionPointTransactionID])
+REFERENCES [dbo].[PIP_T_InspectionPoint] ([InspectionPointTransactionID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResult] CHECK CONSTRAINT [FK_PIP_T_InspectionResult_Point]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResultValue]  WITH CHECK ADD  CONSTRAINT [FK_PIP_T_InspectionResultValue_Result] FOREIGN KEY([InspectionResultID])
+REFERENCES [dbo].[PIP_T_InspectionResult] ([InspectionResultID])
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionResultValue] CHECK CONSTRAINT [FK_PIP_T_InspectionResultValue_Result]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection]  WITH CHECK ADD  CONSTRAINT [CK_PIP_T_Inspection_InspectionMode] CHECK  (([InspectionMode]='MAP' OR [InspectionMode]='STANDARD'))
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] CHECK CONSTRAINT [CK_PIP_T_Inspection_InspectionMode]
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection]  WITH CHECK ADD  CONSTRAINT [CK_PIP_T_Inspection_Status] CHECK  (([Status]='DONE' OR [Status]='DRAFT'))
+GO
+
+ALTER TABLE [dbo].[PIP_T_Inspection] CHECK CONSTRAINT [CK_PIP_T_Inspection_Status]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto]  WITH CHECK ADD  CONSTRAINT [CK_PIP_T_InspectionPhoto_SeqNo] CHECK  (([SeqNo]>(0)))
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto] CHECK CONSTRAINT [CK_PIP_T_InspectionPhoto_SeqNo]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto]  WITH CHECK ADD  CONSTRAINT [CK_PIP_T_InspectionPhoto_Type] CHECK  (([PhotoType]='AFTER' OR [PhotoType]='BEFORE'))
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPhoto] CHECK CONSTRAINT [CK_PIP_T_InspectionPhoto_Type]
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint]  WITH CHECK ADD  CONSTRAINT [CK_PIP_T_InspectionPoint_Status] CHECK  (([Status]='ABNORMAL' OR [Status]='DONE' OR [Status]='INCOMPLETE' OR [Status]='PENDING'))
+GO
+
+ALTER TABLE [dbo].[PIP_T_InspectionPoint] CHECK CONSTRAINT [CK_PIP_T_InspectionPoint_Status]
+GO
