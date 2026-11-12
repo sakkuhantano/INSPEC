@@ -2582,8 +2582,8 @@ BEGIN
           AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND
           (
-              (F.MinValue IS NOT NULL AND (CONVERT(DECIMAL(18,4),V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(DECIMAL(18,4),V.C5)=F.MinValue)))
-              OR (F.MaxValue IS NOT NULL AND (CONVERT(DECIMAL(18,4),V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(DECIMAL(18,4),V.C5)=F.MaxValue)))
+              (F.MinValue IS NOT NULL AND (CONVERT(FLOAT,V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MinValue)))
+              OR (F.MaxValue IS NOT NULL AND (CONVERT(FLOAT,V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MaxValue)))
           )
     )
     BEGIN RAISERROR('A REPEAT NUMBER/RANGE value is outside the configured limits in Work Order.',16,1); RETURN; END;
