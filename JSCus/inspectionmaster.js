@@ -505,14 +505,33 @@
             }
             if (drawButton) drawButton.addEventListener('click', startPathDrawing);
             if (undoButton) undoButton.addEventListener('click', function () {
-                if (pathPoints.length) { pathPoints.pop(); renderPathPreview(drawingPath); }
-                else if (pathField) { pathField.value = ''; renderPathPreview(false); }
-                pathStatusText(pathPoints.length ? 'Titik terakhir dibatalkan.' : 'Path dikosongkan.');
+                if (drawingPath && pathPoints.length) {
+                    pathPoints.pop();
+                    renderPathPreview(false);
+                    pathStatusText('Titik terakhir dibatalkan.');
+                } else {
+                    pathPoints = [];
+                    if (pathField) pathField.value = '';
+                    if (pathPreview) pathPreview.setAttribute('d', '');
+                    var activeId = document.getElementById('hidPointID');
+                    var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                    if (svg && activeId && activeId.value) {
+                        var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
+                        if (oldPath) oldPath.style.display = 'none';
+                    }
+                    pathStatusText('Path dikosongkan.');
+                }
             });
             if (clearPathButton) clearPathButton.addEventListener('click', function () {
                 drawMode = false; drawingPath = false; pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
+                var activeId = document.getElementById('hidPointID');
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (svg && activeId && activeId.value) {
+                    var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
+                    if (oldPath) oldPath.style.display = 'none';
+                }
                 board.classList.remove('path-drawing');
                 if (pathPreview) pathPreview.setAttribute('d', '');
                 pathStatusText('Path dihapus. Circle marker dapat ditempatkan dengan klik map.');
@@ -522,6 +541,12 @@
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
+                    var activeId = document.getElementById('hidPointID');
+                    var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                    if (svg && activeId && activeId.value) {
+                        var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
+                        if (oldPath) oldPath.style.display = 'none';
+                    }
                     pathStatusText('Circle: klik map untuk menentukan satu koordinat.');
                 } else {
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
