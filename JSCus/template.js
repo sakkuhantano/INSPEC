@@ -8090,7 +8090,7 @@ function renderRepeatEditor(item) {
     get('addRepeatFieldBtn').onclick=()=>{if(isReadonlyMode)return;item.RepeatFields.push(createRepeatField());renderRepeatEditor(item);markCurrentVersionDirty();};
     host.querySelectorAll('.repeat-remove-field').forEach(el=>el.addEventListener('click',()=>{if(isReadonlyMode)return;item.RepeatFields.splice(Number(el.dataset.index),1);renderRepeatEditor(item);markCurrentVersionDirty();}));
     const fixed=cfg.CountMode==='FIXED';get('repeatFixedCount').disabled=isReadonlyMode||!fixed;get('repeatMinCount').disabled=isReadonlyMode||fixed;get('repeatMaxCount').disabled=isReadonlyMode||fixed;
-    ['repeatMode','repeatColumnCount','repeatObjectLabel','repeatCountMode','repeatFixedCount','repeatMinCount','repeatMaxCount','addRepeatFieldBtn'].forEach(id=>{if(get(id))get(id).disabled=isReadonlyMode;});
+    ['repeatMode','repeatColumnCount','repeatObjectLabel','repeatCountMode','addRepeatFieldBtn'].forEach(id=>{if(get(id))get(id).disabled=isReadonlyMode;});
 }
 function addGroup()
 {
