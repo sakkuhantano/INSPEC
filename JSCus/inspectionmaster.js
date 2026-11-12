@@ -512,6 +512,7 @@
                 } else {
                     pathPoints = [];
                     if (pathField) pathField.value = '';
+                    if (shapeSelect) shapeSelect.value = 'CIRCLE';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     var activeId = document.getElementById('hidPointID');
                     var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
@@ -577,7 +578,7 @@
             board.addEventListener('pointercancel', function (event) {
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
-                drawingPath = false; pathPoints = []; renderPathPreview(false);
+                drawingPath = false; pathPoints = []; suppressNextClick = false; renderPathPreview(false);
             }, true);
 
             document.getElementById('btnMapZoomIn').addEventListener('click', function () { setZoom(zoom + 0.25); });
