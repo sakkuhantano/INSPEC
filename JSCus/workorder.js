@@ -807,7 +807,8 @@ function renderWORepeatItem(item, saved, isEntryMode) {
     const fields=Array.isArray(item.repeatFields)?item.repeatFields:[];
     const mode=String(cfg.repeatMode||"FIELDS").toUpperCase();
     const oldValues=Array.isArray(saved.RepeatValues)?saved.RepeatValues:[];
-    let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(Number(cfg.minCount||1),oldValues.length||1));
+    const configuredMin=cfg.minCount==null?1:Math.max(0,Number(cfg.minCount));
+    let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(configuredMin,oldValues.length));
     if(mode==="OBJECTS" && cfg.maxCount) count=Math.min(count,Number(cfg.maxCount));
     const objects=[];
     for(let oi=0;oi<count;oi++){
