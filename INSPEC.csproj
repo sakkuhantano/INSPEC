@@ -255,6 +255,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Database\repeatable_inspection_schema.sql" />
+    <None Include="Database\inspection_point_svg_shape_migration.sql" />
     <None Include="Database\REPEATABLE_INSPECTION_README.md" />
     <None Include="Database\stored proedures.txt" />
     <None Include="Database\tvp.txt" />
