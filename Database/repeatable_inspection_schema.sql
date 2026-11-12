@@ -80,6 +80,20 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MaxInclusive') IS NULL
         ADD MaxInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MaxInclusive DEFAULT (1);
 GO
 
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField')
+      AND name='CK_PIP_M_ItemRepeatField_RangeBoundary'
+)
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD CONSTRAINT CK_PIP_M_ItemRepeatField_RangeBoundary CHECK
+        (
+            MinValue IS NULL OR MaxValue IS NULL OR MinValue<MaxValue
+            OR (MinValue=MaxValue AND MinInclusive=1 AND MaxInclusive=1)
+        );
+GO
+
 /* Existing WO subvalues were numeric-only. Widen storage for OPTION/TEXT too. */
 IF COL_LENGTH('dbo.PIP_T_WO_CheckList_SubValue','ObjectIndex') IS NULL
     ALTER TABLE dbo.PIP_T_WO_CheckList_SubValue
