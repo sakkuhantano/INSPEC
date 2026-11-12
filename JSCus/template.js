@@ -9511,9 +9511,10 @@ async function validateCurrentTemplate() {
                 fields.forEach(function(field,index) {
                     const key=String(field.FieldKey || "").trim();
                     const fieldType=String(field.FieldType || "").toUpperCase();
-                    if (!key || key.length>50 || keys.has(key))
+                    const normalizedKey=key.toLowerCase();
+                    if (!key || key.length>50 || keys.has(normalizedKey))
                         addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldKey","Every child field requires a unique stable Field Key (max 50 characters).");
-                    keys.add(key);
+                    keys.add(normalizedKey);
                     if (!String(field.FieldLabel || "").trim())
                         addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldLabel","REPEAT field label is required.");
                     if (!["NUMBER","RANGE","OPTION","TEXT"].includes(fieldType))
