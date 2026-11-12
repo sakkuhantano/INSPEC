@@ -104,6 +104,7 @@
     <Content Include="JSCus\sortable.js" />
     <Content Include="JSCus\html5-qrcode.min.js" />
     <Content Include="JSCus\inspection.js" />
+    <Content Include="JSCus\inspectionMapWorkspace.js" />
     <Content Include="JSCus\inspectionmaster.js" />
     <Content Include="JSCus\inspectionApprovalOffline.js" />
     <Content Include="JSCus\inspectionApprovalSync.js" />
@@ -253,6 +254,9 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Database\repeatable_inspection_schema.sql" />
+    <None Include="Database\REPEATABLE_INSPECTION_README.md" />
+    <None Include="Database\stored proedures.txt" />
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup />
