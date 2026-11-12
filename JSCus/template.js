@@ -4266,6 +4266,11 @@ function showItemProperties(itemData)
 
                 </div>
 
+                <div class="form-check form-switch mb-2" id="rowShowUnitInRange" style="${itemType === 'RANGE' ? '' : 'display:none;'}">
+                    <input type="checkbox" class="form-check-input" id="propShowUnitInRange" ${itemData.ShowUnitInRange ? 'checked' : ''} ${isReadonlyMode ? 'disabled' : ''}>
+                    <label class="form-check-label small" for="propShowUnitInRange">Show unit in reference range</label>
+                </div>
+
                 <div class="row g-2 mb-2" id="rowModel">
                     <div class="col-12">
                     <label class="form-label text-xs fw-bold mb-1">
@@ -4718,6 +4723,9 @@ function showItemProperties(itemData)
                     this.value !== "TEXT"
                 );
                 $("#propUnit").prop("disabled", isReadonlyMode || this.value === "OPTION").val(itemData.Unit || "");
+                $("#rowShowUnitInRange").toggle(this.value === "RANGE");
+                if (this.value !== "RANGE") itemData.ShowUnitInRange = false;
+                $("#propShowUnitInRange").prop("checked", !!itemData.ShowUnitInRange);
                 $("#propMandatoryValue").prop("disabled", isReadonlyMode).prop("checked", !!itemData.IsValueRequired);
 
                 if(this.value == "OPTION")
@@ -4813,6 +4821,14 @@ function showItemProperties(itemData)
             markCurrentVersionDirty();
         });
 
+    }
+
+    const showUnitInRange = document.getElementById('propShowUnitInRange');
+    if (showUnitInRange) {
+        showUnitInRange.addEventListener('change', function () {
+            itemData.ShowUnitInRange = this.checked;
+            markCurrentVersionDirty();
+        });
     }
 
     const txtUnit =
@@ -9286,19 +9302,6 @@ async function validateCurrentTemplate() {
                     }
                 }
 
-                if (!item.Unit ||
-                    !item.Unit.trim()) {
-
-                    addValidationError(
-                        result,
-                        "ITEM",
-                        section.RuntimeSectionID,
-                        item.RuntimeItemID,
-                        null,
-                        "Unit",
-                        "Unit is required."
-                    );
-                }
             }
 
             //------------------------
