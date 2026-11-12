@@ -89,65 +89,6 @@ END;
 GO
 
 /* ============================================================
-   2. MAP ELEMENT / DRAWING OBJECT
-   ============================================================ */
-IF OBJECT_ID('dbo.PIP_M_InspectionMapElement', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_M_InspectionMapElement
-    (
-        MapElementID BIGINT NOT NULL,
-        MapID BIGINT NOT NULL,
-        InspectionPointID BIGINT NULL,
-        ElementID VARCHAR(100) NOT NULL,
-        ShapeType VARCHAR(20) NOT NULL,
-        SvgPathData VARCHAR(8000) NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_SvgPathData DEFAULT (''),
-        ShapeAttributes VARCHAR(1000) NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_ShapeAttributes DEFAULT (''),
-        StrokeWidth DECIMAL(10,2) NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_StrokeWidth DEFAULT (5),
-        DisplayOrder INT NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_DisplayOrder DEFAULT (0),
-        IsVisible BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_IsVisible DEFAULT (1),
-        IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_IsActive DEFAULT (1),
-        IsDeleted BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_IsDeleted DEFAULT (0),
-        DeletedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_DeletedBy DEFAULT (''),
-        DeletedDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_DeletedDate DEFAULT ('19000101'),
-        EntryUser VARCHAR(50) NOT NULL,
-        EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_EntryDate DEFAULT (GETDATE()),
-        UpdateUser VARCHAR(50) NOT NULL,
-        UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionMapElement_UpdateDate DEFAULT (GETDATE()),
-
-        CONSTRAINT PK_PIP_M_InspectionMapElement PRIMARY KEY CLUSTERED (MapElementID),
-        CONSTRAINT UQ_PIP_M_InspectionMapElement_Element
-            UNIQUE (MapID, ElementID),
-        CONSTRAINT FK_PIP_M_InspectionMapElement_Map
-            FOREIGN KEY (MapID)
-            REFERENCES dbo.PIP_M_InspectionMap(MapID),
-        CONSTRAINT CK_PIP_M_InspectionMapElement_ShapeType CHECK
-        (
-            ShapeType IN
-            ('ELLIPSE','RECT','CIRCLE','LINE','POLYLINE','PATH','POLYGON','TEXT')
-        ),
-        CONSTRAINT CK_PIP_M_InspectionMapElement_StrokeWidth CHECK
-        (
-            StrokeWidth >= 0
-        )
-    );
-END;
-GO
-
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.PIP_M_InspectionMapElement')
-      AND name = 'IX_PIP_M_InspectionMapElement_Point'
-)
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_PIP_M_InspectionMapElement_Point
-        ON dbo.PIP_M_InspectionMapElement
-        (InspectionPointID, MapID, IsActive, IsDeleted);
-END;
-GO
-
-/* ============================================================
    3. MASTER INSPECTION POINT
    ============================================================ */
 IF OBJECT_ID('dbo.PIP_M_InspectionPoint', 'U') IS NULL
@@ -219,32 +160,7 @@ END;
 GO
 
 /* ============================================================
-   4. ADD POINT REFERENCE TO MAP ELEMENT
-   ============================================================ */
-IF COL_LENGTH('dbo.PIP_M_InspectionMapElement', 'InspectionPointID') IS NULL
-BEGIN
-    ALTER TABLE dbo.PIP_M_InspectionMapElement
-        ADD InspectionPointID BIGINT NULL;
-END;
-GO
-
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM sys.foreign_keys
-    WHERE name = 'FK_PIP_M_InspectionMapElement_Point'
-      AND parent_object_id = OBJECT_ID('dbo.PIP_M_InspectionMapElement')
-)
-BEGIN
-    ALTER TABLE dbo.PIP_M_InspectionMapElement
-        ADD CONSTRAINT FK_PIP_M_InspectionMapElement_Point
-        FOREIGN KEY (InspectionPointID)
-        REFERENCES dbo.PIP_M_InspectionPoint(InspectionPointID);
-END;
-GO
-
-/* ============================================================
-   5. EXTEND EXISTING PIP_T_Inspection AS BATCH HEADER
+   4. EXTEND EXISTING PIP_T_Inspection AS BATCH HEADER
    ============================================================ */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'InspectionMode') IS NULL
 BEGIN
@@ -560,16 +476,3 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.PIP_M_InspectionMapElement')
-      AND name = 'IX_PIP_M_InspectionMapElement_MapOrder'
-)
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_PIP_M_InspectionMapElement_MapOrder
-        ON dbo.PIP_M_InspectionMapElement
-        (MapID, IsActive, IsDeleted, DisplayOrder);
-END;
-GO
