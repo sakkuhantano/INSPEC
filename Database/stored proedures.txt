@@ -1,0 +1,2238 @@
+/****** Object:  StoredProcedure [dbo].[spUTL_PIP_M_CheckListWOPM]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[spUTL_PIP_M_CheckListWOPM]
+(
+	@p_CompanyID VARCHAR(10), @p_LocationID VARCHAR(3),
+	@p_dt_Template AS [Type_N_Tbl_C5] READONLY,
+	@p_dt_Version AS [Type_N_Tbl_C13] READONLY,
+	@p_dt_Section AS [Type_N_Tbl_C5] READONLY,
+	@p_dt_SubSection AS [Type_N_Tbl_C5] READONLY,
+	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
+	@p_dt_Group AS [Type_Tbl_C7] READONLY,
+	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
+	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
+	@p_UpdateUser VARCHAR(50),
+	@p_IsPublished BIT = 0  
+)
+AS
+SET NOCOUNT ON
+
+DECLARE @tbl_Template TABLE 
+(IDTemplate INT, RuntimeTemplateID INT, TemplateNo VARCHAR(50), TemplateName VARCHAR(200), SectionID VARCHAR(10))
+INSERT @tbl_Template SELECT * FROM @p_dt_Template
+
+DECLARE @tbl_Version TABLE 
+(IDVersion INT, RuntimeVersionID INT, RuntimeTemplateID INT, [Version] VARCHAR(10), Remark VARCHAR(255), [Status] VARCHAR(10), EffectiveDate SMALLDATETIME, StatusOption VARCHAR(50), GroupEquipment VARCHAR(10), SummarySampleText VARCHAR(500), RemarkRequiredOptions VARCHAR(8000), IsRemark1Required BIT, Remark1Text VARCHAR(100), IsRemark2Required BIT, Remark2Text VARCHAR(100), PhotoRequirement VARCHAR(10))
+INSERT @tbl_Version SELECT C1, C2, C3, C4, C5, C6, CAST(C7 AS SMALLDATETIME), C8, C9, C10, C11,
+ CASE WHEN LEFT(ISNULL(C12,''),2)='1|' THEN 1 ELSE 0 END,
+ CASE WHEN LEFT(ISNULL(C12,''),2)='1|' AND CHARINDEX('|',ISNULL(C12,''))>0 THEN SUBSTRING(C12,3,100) ELSE '' END,
+ CASE WHEN LEFT(ISNULL(C13,''),2)='1|' THEN 1 ELSE 0 END,
+ CASE WHEN LEFT(ISNULL(C13,''),2)='1|' AND CHARINDEX('|',ISNULL(C13,''))>0 THEN SUBSTRING(C13,3,CASE WHEN CHARINDEX('|',C13+'|',3)>0 THEN CHARINDEX('|',C13+'|',3)-3 ELSE 100 END) ELSE '' END,
+ CASE WHEN CHARINDEX('|',ISNULL(C13,''),3)>0 AND UPPER(SUBSTRING(C13,CHARINDEX('|',C13,3)+1,10)) IN ('NONE','BEFORE','AFTER','BOTH') THEN UPPER(SUBSTRING(C13,CHARINDEX('|',C13,3)+1,10)) ELSE 'NONE' END
+ FROM @p_dt_Version
+
+DECLARE @tbl_Section TABLE 
+(IDSection INT, RuntimeSectionID INT, RuntimeVersionID INT, SectionName VARCHAR(200), DisplayOrder INT)
+INSERT @tbl_Section SELECT C1, C2, C3, C4, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)) FROM @p_dt_Section
+
+DECLARE @tbl_SubSection TABLE
+(IDSubSection INT, RuntimeSubSectionID INT, RuntimeSectionID INT, SubSectionName VARCHAR(200), DisplayOrder INT)
+INSERT @tbl_SubSection SELECT C1, C2, C3, C4, C5 FROM @p_dt_SubSection
+
+DECLARE @tbl_Item TABLE 
+(IDItem INT, RuntimeItemID INT, RuntimeSectionID INT, ItemLabel VARCHAR(500), ItemType VARCHAR(20), Unit VARCHAR(20), IsRemark1Required BIT, IsRemark2Required BIT, IsValueRequired BIT, ShowUnitInRange BIT, OptionList VARCHAR(200), MinValue DECIMAL, MaxValue DECIMAL, DisplayOrder INT, MinTolerance MONEY, MaxTolerance MONEY, ModelCode VARCHAR(50), IsToleranceRequired BIT, RemarkRequiredOptions VARCHAR(8000), Remark1Text VARCHAR(100), Remark2Text VARCHAR(100), RuntimeSubSectionID INT, IsUseDefaultRemark1 BIT, IsUseDefaultRemark2 BIT, IsRemark1Mandatory BIT, IsRemark2Mandatory BIT)
+INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, ISNULL(NULLIF(C22, 0), ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL))), C13, C14, C15, CAST(C16 AS BIT), C17, CASE WHEN CAST(ISNULL(NULLIF(C7, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C19, ''), 'Remark') ELSE '' END, CASE WHEN CAST(ISNULL(NULLIF(C18, ''), '0') AS BIT)=1 THEN ISNULL(NULLIF(C20, ''), 'Remark') ELSE '' END, ISNULL(C21, 0), CAST(ISNULL(NULLIF(C23,''),'0') AS BIT), CAST(ISNULL(NULLIF(C24,''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 3 ELSE 2 END),''),'0') AS BIT), CAST(ISNULL(NULLIF(PARSENAME(REPLACE(ISNULL(C25,'0|0'),'|','.'), CASE WHEN LEN(ISNULL(C25,''))-LEN(REPLACE(ISNULL(C25,''),'|',''))>=2 THEN 2 ELSE 1 END),''),'0') AS BIT) FROM @p_dt_Item
+
+DECLARE @tbl_Group TABLE
+(IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
+INSERT @tbl_Group SELECT C1, C2, C3, C4, C5, C6, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)) FROM @p_dt_Group
+
+DECLARE @tbl_DelTemplate TABLE (IDTemplate INT)
+INSERT @tbl_DelTemplate SELECT C1 FROM @p_dt_DelTemplate
+
+DECLARE @tbl_DelVersion TABLE (IDTemplate INT, IDVersion INT)
+INSERT @tbl_DelVersion SELECT * FROM @p_dt_DelVersion
+
+DECLARE @tbl_Identity TABLE (Entity VARCHAR(50), RuntimeID INT, ID INT)
+
+DECLARE @p_IsDebug BIT = 0
+IF @p_IsDebug=1
+BEGIN
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_Version')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_Version
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_Section')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_Section
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_Item')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_Item
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_ItemGroup')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_ItemGroup
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_SubSection')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_SubSection
+	IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES AS t WHERE t.TABLE_NAME='tmpDebug_PIP_M_CheckListWOPM_SubSectionSource')
+		DROP TABLE tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM FROM @tbl_Template
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Version FROM @tbl_Version
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Section FROM @tbl_Section
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_Item FROM @tbl_Item
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_ItemGroup FROM @tbl_Group
+	SELECT * INTO tmpDebug_PIP_M_CheckListWOPM_SubSection FROM @tbl_SubSection
+END
+
+
+/* Published/Active and archived versions are immutable at the database boundary. */
+IF EXISTS (SELECT 1 FROM @tbl_Version S JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE S.IDVersion>0 AND ISNULL(V.[Status],'')<>'Draft')
+BEGIN RAISERROR('Only Draft versions can be edited or published.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_DelVersion D JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=D.IDVersion
+           WHERE ISNULL(V.[Status],'')<>'Draft')
+BEGIN RAISERROR('Only Draft versions can be deleted.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_Section X JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=X.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDSection>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_Item X JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=X.IDItem
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDItem>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_Group X JOIN dbo.PIP_M_CheckListWOPM_ItemGroup G ON G.IDGroup=X.IDGroup
+           JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDGroup>0 AND ISNULL(V.[Status],'')<>'Draft')
+OR EXISTS (SELECT 1 FROM @tbl_SubSection X JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=X.IDSubSection
+           JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
+           JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+           WHERE X.IDSubSection>0 AND ISNULL(V.[Status],'')<>'Draft')
+BEGIN RAISERROR('Published/Active version structure is immutable.',16,1); RETURN; END;
+IF EXISTS (SELECT 1 FROM @tbl_DelTemplate D JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=D.IDTemplate
+           WHERE V.[Status] IN ('Active','Archieved'))
+BEGIN RAISERROR('Templates with published versions cannot be deleted.',16,1); RETURN; END;
+
+--- begin processsing
+--- DELETED
+DELETE S2 FROM PIP_M_CheckListWOPM_itemgroup S2 JOIN PIP_M_CheckListWOPM_Item S1 ON S1.IDItem = S2.IDItem
+JOIN PIP_M_CheckListWOPM_Section S3 ON S3.IDSection = S1.IDSection
+JOIN @tbl_Version S4 ON S4.IDVersion=S3.IDVersion
+JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S4.IDVersion
+JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+WHERE NOT EXISTS (SELECT * FROM @tbl_Group S WHERE S.IDGroup=S2.IDGroup)
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+
+
+DELETE S2 FROM PIP_M_CheckListWOPM_item S2 JOIN PIP_M_CheckListWOPM_Section S1 ON S1.IDSection = S2.IDSection
+JOIN @tbl_Version S3 ON S3.IDVersion=S1.IDVersion
+JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S3.IDVersion
+JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+WHERE NOT EXISTS (SELECT * FROM @tbl_Item S WHERE S.IDItem=S2.IDItem)
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+
+
+DELETE OldSub
+FROM PIP_M_CheckListWOPM_SubSection OldSub
+JOIN PIP_M_CheckListWOPM_Section OldSec ON OldSec.IDSection=OldSub.IDSection
+JOIN @tbl_Version V ON V.IDVersion=OldSec.IDVersion
+JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=V.IDVersion
+JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
+WHERE NOT EXISTS (SELECT 1 FROM @tbl_Section S WHERE S.IDSection=OldSec.IDSection)
+AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
+
+DELETE S2 FROM PIP_M_CheckListWOPM_section S2 JOIN @tbl_Version S1 ON S1.IDVersion = S2.IDVersion
+JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = S2.IDVersion
+JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+WHERE NOT EXISTS (SELECT * FROM @tbl_Section S WHERE S.IDSection=S2.IDSection)
+AND (ISNULL(pmclw.CompanyScope,'S')='A'
+     OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+
+
+IF EXISTS (SELECT * FROM @tbl_DelVersion)
+BEGIN
+	DELETE A FROM PIP_M_CheckListWOPM_ItemGroup A JOIN PIP_M_CheckListWOPM_item AA ON AA.IDItem = A.IDItem
+	JOIN PIP_M_CheckListWOPM_section AAA ON AAA.IDSection = AA.IDSection
+	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
+	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
+	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+	
+	DELETE A FROM PIP_M_CheckListWOPM_item A JOIN PIP_M_CheckListWOPM_section AA ON AA.IDSection = A.IDSection
+	JOIN @tbl_DelVersion B ON B.IDVersion=AA.IDVersion
+	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
+	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+	
+	DELETE SS FROM PIP_M_CheckListWOPM_SubSection SS
+	JOIN PIP_M_CheckListWOPM_section AAA ON AAA.IDSection=SS.IDSection
+	JOIN @tbl_DelVersion B ON B.IDVersion=AAA.IDVersion
+	JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=B.IDVersion
+	JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
+	WHERE (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
+
+	DELETE A FROM PIP_M_CheckListWOPM_section A JOIN @tbl_DelVersion B ON B.IDVersion=A.IDVersion
+	JOIN PIP_M_CheckListWOPM_Version AS pmclwv ON pmclwv.IDVersion = B.IDVersion
+	JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=pmclwv.IDTemplate
+	WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+	
+END
+
+DELETE V FROM PIP_M_CheckListWOPM_version V
+INNER JOIN @tbl_DelVersion D ON V.IDTemplate = D.IDTemplate AND V.IDVersion = D.IDVersion
+JOIN PIP_M_CheckListWOPM AS pmclw ON pmclw.IDTemplate=V.IDTemplate
+WHERE (ISNULL(pmclw.CompanyScope,'S')='A'
+       OR (';' + ISNULL(pmclw.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+
+
+/* Resolve which requested templates are visible in this company/location before removing their relations. */
+DECLARE @tbl_AllowedDelTemplate TABLE (IDTemplate INT PRIMARY KEY);
+INSERT INTO @tbl_AllowedDelTemplate (IDTemplate)
+SELECT T.IDTemplate
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN @tbl_DelTemplate D ON D.IDTemplate=T.IDTemplate
+WHERE ISNULL(T.CompanyScope,'S')='A'
+   OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%');
+
+UPDATE I SET I.IDSubSection=NULL
+FROM PIP_M_CheckListWOPM_Item I
+JOIN PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+JOIN PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=V.IDTemplate;
+
+DELETE SS
+FROM PIP_M_CheckListWOPM_SubSection SS
+JOIN PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
+JOIN PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+JOIN @tbl_AllowedDelTemplate D ON D.IDTemplate=V.IDTemplate;
+
+DELETE T FROM PIP_M_CheckListWOPM T
+JOIN @tbl_AllowedDelTemplate D ON T.IDTemplate = D.IDTemplate
+
+
+--- TEMPLATE
+UPDATE T
+SET
+  T.TemplateNo = S.TemplateNo,
+  T.TemplateName = S.TemplateName,
+  T.SectionID = S.SectionID,
+  T.UpdateUser=@p_UpdateUser, T.UpdateDate=GETDATE()
+FROM PIP_M_CheckListWOPM T
+JOIN @tbl_Template S ON T.IDTemplate = S.IDTemplate
+WHERE S.IDTemplate > 0 
+MERGE INTO PIP_M_CheckListWOPM AS target
+USING (
+    SELECT 
+        templateno, 
+        templatename, 
+        sectionid, 
+        runtimetemplateid,
+        -- Menggunakan ISNULL(..., 0) untuk antisipasi jika tabel target masih kosong
+        (SELECT ISNULL(MAX(IDTemplate), 0) FROM PIP_M_CheckListWOPM) 
+        + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDTemplate
+    FROM @tbl_template 
+    WHERE idtemplate = 0
+) AS source
+ON 1 = 0 
+WHEN NOT MATCHED THEN
+    INSERT (IDTemplate, TemplateNo, TemplateName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyLocationList, EmployeeList)
+    VALUES (source.NewIDTemplate, source.templateno, source.templatename, source.sectionid, 1, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_CompanyID + @p_LocationID, '')
+OUTPUT 
+    'Template' Entity,
+    source.runtimetemplateid,   
+    inserted.IDTemplate   -- Tetap mengembalikan IDTemplate manual yang baru saja dimasukkan
+INTO @tbl_Identity (Entity, RuntimeID, ID);
+
+--- Version
+UPDATE V
+SET 
+    V.Version = S.Version,
+    V.[Status] = S.[Status],
+    V.Remark = S.Remark,
+    V.EffectiveDate = S.EffectiveDate,
+    V.StatusOption = S.StatusOption, V.UpdateUser=@p_UpdateUser, V.UpdateDate=GETDATE(), 
+    V.GroupEquipment=S.GroupEquipment, V.SummarySampleText=S.SummarySampleText, V.RemarkRequiredOptions=S.RemarkRequiredOptions,
+    V.IsRemark1Required=S.IsRemark1Required, V.Remark1Text=CASE WHEN S.IsRemark1Required=1 THEN ISNULL(NULLIF(S.Remark1Text,''),'Remark') ELSE '' END,
+    V.IsRemark2Required=S.IsRemark2Required, V.Remark2Text=CASE WHEN S.IsRemark2Required=1 THEN ISNULL(NULLIF(S.Remark2Text,''),'Remark') ELSE '' END,
+    V.PhotoRequirement=S.PhotoRequirement
+FROM PIP_M_CheckListWOPM_version V
+JOIN @tbl_Version S ON V.IDVersion = S.IDVersion
+WHERE S.IDVersion > 0 
+MERGE INTO PIP_M_CheckListWOPM_version AS target
+USING (
+    SELECT 
+        v.RuntimeVersionID,
+        v.RuntimeTemplateID,
+        v.[Version],
+        v.Remark,
+        v.[Status],
+        v.EffectiveDate,
+        v.StatusOption,
+        v.GroupEquipment, v.SummarySampleText, v.RemarkRequiredOptions, v.IsRemark1Required, v.Remark1Text, v.IsRemark2Required, v.Remark2Text, v.PhotoRequirement,
+        tmpl.IDTemplate, -- Hubungkan dengan tabel map untuk mendapatkan IDTemplate asli database
+        (SELECT ISNULL(MAX(IDVersion), 0) FROM PIP_M_CheckListWOPM_version) 
+        + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDVersion
+    FROM @tbl_Version v
+    INNER JOIN (
+        -- Gabungkan data template baru dan template existing di sini
+        SELECT RuntimeID RuntimeTemplateID, ID IDTemplate FROM @tbl_Identity WHERE Entity='Template'  -- Template baru
+        UNION ALL
+        SELECT RuntimeTemplateID, IDTemplate FROM @tbl_Template WHERE IDTemplate <> 0 -- Template lama
+    ) tmpl ON v.RuntimeTemplateID = tmpl.RuntimeTemplateID    
+    WHERE v.IDVersion = 0 -- Sesuai request: hanya insert yang IDVersion = 0
+) AS source
+ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
+WHEN NOT MATCHED THEN
+    -- Sebutkan nama kolom target di tabel PIP_M_CheckListWOPM_version
+    -- Kolom IDVersion tidak ditulis karena IDENTITY ON
+    INSERT (IDTemplate, IDVersion, [Version], StatusOption, EffectiveDate, Remark, [Status], EntryUser, EntryDate, UpdateUser, UpdateDate, GroupEquipment, SummarySampleText, RemarkRequiredOptions, IsRemark1Required, Remark1Text, IsRemark2Required, Remark2Text, PhotoRequirement)
+    -- Masukkan nilai yang berasal dari blok USING (source)
+    VALUES (source.IDTemplate, source.NewIDVersion, source.[Version], source.StatusOption, source.EffectiveDate, source.Remark, source.[Status], @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), source.GroupEquipment, source.SummarySampleText, source.RemarkRequiredOptions, source.IsRemark1Required, CASE WHEN source.IsRemark1Required=1 THEN ISNULL(NULLIF(source.Remark1Text,''),'Remark') ELSE '' END, source.IsRemark2Required, CASE WHEN source.IsRemark2Required=1 THEN ISNULL(NULLIF(source.Remark2Text,''),'Remark') ELSE '' END, source.PhotoRequirement)
+OUTPUT 
+	'Version' Entity,
+    source.RuntimeVersionID,  -- Dari tabel asal
+    inserted.IDVersion       -- Identity baru yang digenerate oleh database
+INTO @tbl_Identity (Entity, RuntimeID, ID); 
+
+--- section
+UPDATE S2
+SET S2.SectionName = S.SectionName, S2.DisplayOrder=S.DisplayOrder
+FROM PIP_M_CheckListWOPM_section S2
+JOIN @tbl_Section S
+  ON S2.IDSection = S.IDSection
+WHERE S.IDSection > 0
+MERGE INTO PIP_M_CheckListWOPM_section AS target
+USING (
+    SELECT 
+        v.RuntimeSectionID,
+        v.RuntimeVersionID,
+        v.SectionName,
+        v.DisplayOrder,
+        tmpl.IDVersion,
+        (SELECT ISNULL(MAX(IDSection), 0) FROM PIP_M_CheckListWOPM_section) 
+        + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDSection
+    FROM @tbl_Section v
+    INNER JOIN (
+        SELECT RuntimeID RuntimeVersionID, ID IDVersion FROM @tbl_Identity WHERE Entity='Version'   
+        UNION ALL
+        SELECT RuntimeVersionID, IDVersion FROM @tbl_Version WHERE IDVersion <> 0 
+    ) tmpl ON v.RuntimeVersionID = tmpl.RuntimeVersionID
+    WHERE v.IDSection = 0 
+) AS source
+ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
+WHEN NOT MATCHED THEN
+    INSERT (IDVersion,IDSection,SectionName,DisplayOrder)
+    VALUES (source.IDVersion, source.NewIDSection, source.SectionName, source.DisplayOrder)
+OUTPUT 
+	'Section' Entity,
+    source.RuntimeSectionID,  
+    inserted.IDSection
+INTO @tbl_Identity (Entity, RuntimeID, ID);    
+
+-- Capture resolved IDs only in debug mode, after new Sections have been mapped.
+IF @p_IsDebug=1
+BEGIN
+    SELECT v.IDSubSection, v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection AS ResolvedIDSection
+    INTO tmpDebug_PIP_M_CheckListWOPM_SubSectionSource
+    FROM @tbl_SubSection v
+    LEFT JOIN (
+        SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+        UNION ALL
+        SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+    ) sec ON sec.RuntimeSectionID = v.RuntimeSectionID;
+END;
+
+IF EXISTS (SELECT 1 FROM @tbl_SubSection v
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM (
+            SELECT RuntimeID AS RuntimeSectionID, ID AS IDSection FROM @tbl_Identity WHERE Entity='Section'
+            UNION ALL
+            SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+        ) sec
+        WHERE sec.RuntimeSectionID = v.RuntimeSectionID
+    ))
+BEGIN
+    RAISERROR('SaveAllTemplate: a Sub-section RuntimeSectionID could not be mapped to a database Section ID.', 16, 1);
+    RETURN;
+END;
+
+-- Resolve/create sub-sections before linking items to them.
+MERGE INTO PIP_M_CheckListWOPM_SubSection AS target
+USING (
+    SELECT v.RuntimeSubSectionID, v.RuntimeSectionID, v.SubSectionName, v.DisplayOrder, sec.IDSection,
+           (SELECT ISNULL(MAX(IDSubSection),0) FROM PIP_M_CheckListWOPM_SubSection WITH (UPDLOCK, HOLDLOCK)) +
+           ROW_NUMBER() OVER (ORDER BY v.RuntimeSectionID, v.RuntimeSubSectionID) AS NewIDSubSection
+    FROM @tbl_SubSection v
+    INNER JOIN (
+        SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section'
+        UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0
+    ) sec ON sec.RuntimeSectionID=v.RuntimeSectionID
+    WHERE v.IDSubSection=0
+) AS source
+ON 1=0
+WHEN NOT MATCHED THEN
+    INSERT (IDSubSection, IDSection, SubSectionName, DisplayOrder)
+    VALUES (source.NewIDSubSection, source.IDSection, source.SubSectionName, source.DisplayOrder)
+OUTPUT 'SubSection',source.RuntimeSubSectionID,inserted.IDSubSection INTO @tbl_Identity (Entity,RuntimeID,ID);
+
+UPDATE ExistingSub
+SET ExistingSub.SubSectionName = Incoming.SubSectionName,
+    ExistingSub.DisplayOrder = Incoming.DisplayOrder,
+    ExistingSub.IDSection = SectionMap.IDSection
+FROM PIP_M_CheckListWOPM_SubSection ExistingSub
+JOIN @tbl_SubSection Incoming ON Incoming.IDSubSection = ExistingSub.IDSubSection
+JOIN (SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section' UNION ALL SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection<>0) SectionMap ON SectionMap.RuntimeSectionID = Incoming.RuntimeSectionID;
+
+UPDATE I
+SET 
+    I.ItemLabel = S.ItemLabel,
+    I.ItemType = S.ItemType,
+    I.Unit = S.Unit,
+    I.IsRemark1Required = S.IsRemark1Required,
+    I.IsRemark2Required = S.IsRemark2Required,
+    I.Remark1Text = S.Remark1Text,
+    I.Remark2Text = S.Remark2Text,
+    I.IsValueRequired = S.IsValueRequired,
+    I.ShowUnitInRange = S.ShowUnitInRange,
+    I.OptionList = S.OptionList,
+    I.MinTolerance = S.MinTolerance, I.MaxTolerance = S.MaxTolerance, I.ModelCode = S.ModelCode,
+    I.MinValue = S.MinValue,
+    I.MaxValue = S.MaxValue, I.DisplayOrder=S.DisplayOrder, I.IDSection=SS.IDSection, I.IsToleranceRequired=S.IsToleranceRequired,
+    I.RemarkRequiredOptions=S.RemarkRequiredOptions,
+    I.IsUseDefaultRemark1=S.IsUseDefaultRemark1,
+    I.IsUseDefaultRemark2=S.IsUseDefaultRemark2,
+    I.IsRemark1Mandatory=S.IsRemark1Mandatory,
+    I.IsRemark2Mandatory=S.IsRemark2Mandatory,
+    I.IDSubSection = CASE WHEN ISNULL(S.RuntimeSubSectionID,0)=0 THEN NULL ELSE SubS.IDSubSection END
+FROM PIP_M_CheckListWOPM_item I
+JOIN @tbl_Item S JOIN @tbl_Section SS ON SS.RuntimeSectionID=S.RuntimeSectionID ON I.IDItem = S.IDItem
+LEFT JOIN (SELECT RuntimeID RuntimeSubSectionID, ID IDSubSection FROM @tbl_Identity WHERE Entity='SubSection' UNION ALL SELECT RuntimeSubSectionID, IDSubSection FROM @tbl_SubSection WHERE IDSubSection<>0) SubS ON SubS.RuntimeSubSectionID=S.RuntimeSubSectionID
+WHERE S.IDItem > 0
+
+DELETE SS
+FROM PIP_M_CheckListWOPM_SubSection SS
+JOIN PIP_M_CheckListWOPM_Section SEC ON SEC.IDSection=SS.IDSection
+JOIN @tbl_Version V ON V.IDVersion=SEC.IDVersion
+JOIN PIP_M_CheckListWOPM_Version VER ON VER.IDVersion=V.IDVersion
+JOIN PIP_M_CheckListWOPM T ON T.IDTemplate=VER.IDTemplate
+WHERE NOT EXISTS (SELECT 1 FROM @tbl_SubSection S WHERE S.IDSubSection=SS.IDSubSection)
+-- Newly inserted rows have generated database IDs that are not present in the TVP's IDSubSection=0 rows.
+-- Preserve them during this cleanup; otherwise every new Sub-section is deleted in the same Save All call.
+AND NOT EXISTS (SELECT 1 FROM @tbl_Identity NewSub WHERE NewSub.Entity='SubSection' AND NewSub.ID=SS.IDSubSection)
+AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'));
+
+MERGE INTO PIP_M_CheckListWOPM_item AS target
+USING (
+    SELECT 
+        v.RuntimeItemID,
+        v.RuntimeSectionID,
+        v.ItemLabel, v.ItemType, V.Unit, V.IsRemark1Required, V.IsRemark2Required, V.IsValueRequired, V.ShowUnitInRange,
+        v.OptionList, v.MinValue, v.MaxValue, v.DisplayOrder,
+        tmpl.IDSection, subMap.IDSubSection, v.MinTolerance, v.MaxTolerance, v.ModelCode, v.IsToleranceRequired, v.RemarkRequiredOptions, v.Remark1Text, v.Remark2Text, v.IsUseDefaultRemark1, v.IsUseDefaultRemark2, v.IsRemark1Mandatory, v.IsRemark2Mandatory,
+        (SELECT ISNULL(MAX(IDItem), 0) FROM PIP_M_CheckListWOPM_item) 
+        + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDItem
+    FROM @tbl_Item v
+    INNER JOIN (
+        SELECT RuntimeID RuntimeSectionID, ID IDSection FROM @tbl_Identity WHERE Entity='Section'  
+        UNION ALL
+        SELECT RuntimeSectionID, IDSection FROM @tbl_Section WHERE IDSection <> 0 
+    ) tmpl ON v.RuntimeSectionID = tmpl.RuntimeSectionID
+    LEFT JOIN (SELECT RuntimeID RuntimeSubSectionID, ID IDSubSection FROM @tbl_Identity WHERE Entity='SubSection' UNION ALL SELECT RuntimeSubSectionID, IDSubSection FROM @tbl_SubSection WHERE IDSubSection<>0) subMap ON subMap.RuntimeSubSectionID=v.RuntimeSubSectionID
+    WHERE v.IDItem = 0 
+) AS source
+ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
+WHEN NOT MATCHED THEN
+    INSERT (IDSection,IDSubSection,IDItem,ItemLabel,ItemType,OptionList,MinValue,MaxValue,Unit,
+            ShowUnitInRange,IsValueRequired,IsRemark1Required,IsRemark2Required,Remark1Text,Remark2Text,DisplayOrder,MinTolerance,MaxTolerance,ModelCode,IsToleranceRequired,RemarkRequiredOptions,IsUseDefaultRemark1,IsUseDefaultRemark2,IsRemark1Mandatory,IsRemark2Mandatory)
+    VALUES (source.IDSection, source.IDSubSection, source.NewIDItem, source.ItemLabel, source.ItemType, source.OptionList, source.MinValue, source.MaxValue, source.Unit,
+            source.ShowUnitInRange, source.IsValueRequired, source.IsRemark1Required, source.IsRemark2Required, source.Remark1Text, source.Remark2Text, source.DisplayOrder,
+            source.MinTolerance, source.MaxTolerance, source.ModelCode,source.IsToleranceRequired,source.RemarkRequiredOptions,source.IsUseDefaultRemark1,source.IsUseDefaultRemark2,source.IsRemark1Mandatory,source.IsRemark2Mandatory)
+OUTPUT
+	'Item' Entity, 
+    source.RuntimeItemID,  
+    inserted.IDItem
+INTO @tbl_Identity (Entity, RuntimeID, ID);    
+
+--- item group
+UPDATE I
+SET 
+    I.GroupName = S.GroupName,
+    I.FieldList = S.FieldList,
+    I.Unit = S.Unit, 
+	I.DisplayOrder=S.DisplayOrder, I.IDItem=SS.IDItem
+FROM PIP_M_CheckListWOPM_itemgroup I
+JOIN @tbl_Group S JOIN @tbl_Item SS ON SS.RuntimeItemID=S.RuntimeItemID ON I.IDGroup = S.IDGroup 
+WHERE S.IDGroup > 0
+MERGE INTO PIP_M_CheckListWOPM_itemgroup AS target
+USING (
+    SELECT 
+        v.RuntimeGroupID,
+        v.RuntimeItemID,
+        v.GroupName, v.FieldList, V.Unit, v.DisplayOrder,
+        tmpl.IDItem,
+        (SELECT ISNULL(MAX(IDGroup), 0) FROM PIP_M_CheckListWOPM_itemgroup) 
+        + ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS NewIDGroup
+    FROM @tbl_Group v 
+    INNER JOIN (
+        SELECT RuntimeID RuntimeItemID, ID IDItem FROM @tbl_Identity WHERE Entity='Item'
+        UNION ALL
+        SELECT RuntimeItemID, IDItem FROM @tbl_Item WHERE IDItem<> 0 
+    ) tmpl ON v.RuntimeItemID = tmpl.RuntimeItemID
+    WHERE v.IDGroup = 0 
+) AS source
+ON 1 = 0 -- Trik agar selalu memicu aksi INSERT
+WHEN NOT MATCHED THEN
+    INSERT (IDItem,IDGroup,GroupName,FieldList,Unit,DisplayOrder)
+    VALUES (source.IDItem, source.NewIDGroup, source.GroupName, source.FieldList, source.Unit, source.DisplayOrder)
+OUTPUT 
+	'Group',
+    source.RuntimeGroupID,  
+    inserted.IDGroup
+INTO @tbl_Identity (Entity, RuntimeID, ID);
+
+IF @p_IsPublished=1
+BEGIN
+	IF EXISTS (SELECT * FROM @tbl_Identity WHERE Entity='Version')
+	BEGIN
+		UPDATE A SET a.[Status]='Archieved' 
+		FROM PIP_M_CheckListWOPM_Version a 
+		JOIN @tbl_Identity b JOIN PIP_M_CheckListWOPM_Version aa ON aa.IDVersion=b.ID ON aa.IDTemplate=a.IDTemplate 
+		WHERE Entity='Version' AND a.[Status]='Active'
+		UPDATE a SET a.[Status]='Active' 
+		FROM PIP_M_CheckListWOPM_Version a JOIN @tbl_Identity b ON b.ID=a.IDVersion  
+		WHERE Entity='Version' AND a.[Status]='Draft'
+	END
+	ELSE
+	BEGIN
+		UPDATE A SET a.[Status]='Archieved' 
+		FROM PIP_M_CheckListWOPM_Version a 
+		JOIN @tbl_Version b JOIN PIP_M_CheckListWOPM_Version aa ON aa.IDVersion=b.IDVersion ON aa.IDTemplate=a.IDTemplate 
+		WHERE b.IDVersion<>0 AND a.[Status]='Active'
+		UPDATE a SET a.[Status]='Active' 
+		FROM PIP_M_CheckListWOPM_Version a JOIN @tbl_Version b ON b.IDVersion=a.IDVersion  
+		WHERE a.[Status]='Draft' AND b.IDVersion<>0
+		
+	END
+END
+SELECT * FROM @tbl_Identity    
+
+--- end processsing
+GO
+
+/****** Object:  StoredProcedure [dbo].[spUTL_PIP_T_Inspection_Approval]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval]
+(
+    @p_InspectionID BIGINT,
+    @p_Action VARCHAR(10),
+    @p_EmployeeID VARCHAR(50),
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
+    @p_Remark VARCHAR(500) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    SET @p_Action = UPPER(LTRIM(RTRIM(ISNULL(@p_Action, ''))));
+    IF @p_Action NOT IN ('APPROVE', 'VOID')
+    BEGIN
+        RAISERROR('Invalid inspection approval action.', 16, 1);
+        RETURN;
+    END;
+    IF @p_Action = 'VOID' AND LEN(LTRIM(RTRIM(ISNULL(@p_Remark, '')))) = 0
+    BEGIN
+        RAISERROR('Reason for void is required.', 16, 1);
+        RETURN;
+    END;
+    IF ISNULL(@p_EmployeeID, '') = ''
+    BEGIN
+        RAISERROR('Supervisor identity is required.', 16, 1);
+        RETURN;
+    END;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @V_SectionID VARCHAR(10);
+        DECLARE @V_Status VARCHAR(10);
+        DECLARE @V_IsApprove BIT;
+        DECLARE @V_ApprovedBy VARCHAR(50);
+        DECLARE @V_ApprovedDate DATETIME;
+        DECLARE @V_ApprovalRemark VARCHAR(500);
+        DECLARE @V_ReasonVoid VARCHAR(500);
+        DECLARE @V_FollowUp VARCHAR(30);
+        DECLARE @V_FollowUpSection VARCHAR(10);
+        DECLARE @V_FollowUpRemark VARCHAR(300);
+        DECLARE @V_FollowUpWONo VARCHAR(10);
+        DECLARE @V_InspectionNo VARCHAR(10);
+        DECLARE @V_OwnerEmployeeID VARCHAR(50);
+        DECLARE @V_IDTemplate INT;
+
+        SELECT @V_IDTemplate=IDTemplate, @V_SectionID=SectionID, @V_Status=Status, @V_IsApprove=IsApprove,
+               @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
+               @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
+               @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
+               @V_FollowUpSection=ISNULL(FollowUpSection,''),
+               @V_FollowUpRemark=ISNULL(FollowUpRemark,''),
+               @V_FollowUpWONo=ISNULL(FollowUpWONo,''),
+               @V_InspectionNo=ISNULL(InspectionNo,''),
+               @V_OwnerEmployeeID=OwnerEmployeeID
+        FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+        WHERE InspectionID=@p_InspectionID
+          AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID;
+
+        IF @V_SectionID IS NULL
+            RAISERROR('Inspection was not found for this company/location.', 16, 1);
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.UTL_User U
+            WHERE U.EmployeeID=@p_EmployeeID
+              AND ISNULL(U.IsSPV,0)=1
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=@V_SectionID)
+              AND
+              (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                            AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                             WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
+              )
+        )
+        OR NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.PIP_M_CheckListWOPM T
+            WHERE T.IDTemplate=@V_IDTemplate
+              AND T.SectionID=@V_SectionID
+              AND ISNULL(T.TemplateType,'W')='I'
+              AND (ISNULL(T.CompanyScope,'S')='A'
+                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+              AND (ISNULL(T.EmployeeList,'')=''
+                   OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @V_OwnerEmployeeID + ';%'))
+        )
+            RAISERROR('Supervisor is not authorized for this inspection template, technician, or company/location.', 16, 1);
+
+        IF @V_Status <> 'DONE' OR ISNULL(@V_IsApprove,0) <> 0
+           OR ISNULL(@V_ApprovedBy,'') <> '' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+           OR ISNULL(@V_ApprovalRemark,'') <> '' OR ISNULL(@V_ReasonVoid,'') <> ''
+            RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
+
+        IF @p_Action = 'APPROVE'
+        BEGIN
+            IF @V_FollowUp NOT IN ('No Follow Up','Recommend Follow Up')
+                RAISERROR('Inspection Follow Up selection is invalid.', 16, 1);
+
+            IF @V_FollowUp='Recommend Follow Up'
+            BEGIN
+                IF @V_FollowUpSection NOT IN ('ACON','COMM','MECH','ELEC','CIVIL','PFIT','PHKP','PSEC')
+                    RAISERROR('A valid Follow Up Responsible Section is required.', 16, 1);
+                IF LEN(LTRIM(RTRIM(@V_FollowUpRemark)))=0
+                    RAISERROR('Follow Up Work Order Description is required.', 16, 1);
+            END;
+
+            UPDATE dbo.PIP_T_Inspection
+            SET IsApprove=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
+                ApprovalRemark=ISNULL(NULLIF(LTRIM(RTRIM(@p_Remark)), ''), ''),
+                ReasonVoid='', UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
+
+            IF @@ROWCOUNT <> 1
+                RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
+
+            /* Create the internal WO in the same transaction as approval. The stored WONo
+               on the Inspection header prevents a duplicate if the approval is retried. */
+            IF @V_FollowUp='Recommend Follow Up' AND ISNULL(@V_FollowUpWONo,'')=''
+            BEGIN
+                DECLARE @V_KeyHDWO INT;
+                DECLARE @V_WONo VARCHAR(10);
+                DECLARE @V_AutoNum VARCHAR(30);
+                DECLARE @V_RequestedBy VARCHAR(50);
+                DECLARE @V_DescriptionWO VARCHAR(255);
+                DECLARE @V_AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+
+                SELECT @V_KeyHDWO=ISNULL(MAX(KeyHD),0)+1
+                FROM dbo.PIP_T_WO WITH (TABLOCKX, HOLDLOCK);
+
+                SET @V_AutoNum='PIPWO'+@p_CompanyID+@p_LocationID;
+                INSERT INTO @V_AutoNumResult
+                EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @V_AutoNum, 1;
+                SELECT @V_WONo=ID FROM @V_AutoNumResult;
+
+                IF ISNULL(@V_WONo,'')=''
+                    RAISERROR('Failed to generate internal Follow Up WO number.', 16, 1);
+
+                SELECT @V_RequestedBy=LEFT(ISNULL(
+                    (SELECT TOP 1 SWU.UserID FROM dbo.SysWebUser SWU WHERE SWU.EmployeeID=@V_OwnerEmployeeID),
+                    @V_OwnerEmployeeID),50);
+
+                SET @V_DescriptionWO=LEFT(
+                    CASE WHEN @V_InspectionNo='' THEN '' ELSE 'Inspection '+@V_InspectionNo+': ' END+
+                    @V_FollowUpRemark,255);
+
+                INSERT INTO dbo.PIP_T_WO
+                (
+                    KeyHD, CompanyID, LocationID, WONo, WODate, WOType, StartDate, JONo,
+                    PMType, Description, LocationNo, SectionID, RequestedBy, CompletedBy, CompletedDate,
+                    CancelReason, SIIAmount, IsDelete, IsJO, IsApproved, ApprovedUser, ApprovedDate,
+                    EntryUser, EntryDate, UpdateUser, UpdateDate, IsPrint, [RePrint],
+                    Feedback1, Feedback2, Feedback3, Feedback4, Feedback5, EquipmentCode, SectionIDUser,
+                    isApprovedDH, ApprovedDHUser, ApprovedDHDate, ReasonDH,
+                    isApprovedHelpDesk, ApprovedHelpDeskUser, ApprovedHelpDeskDate, ReasonHelpDesk,
+                    isCompleteDC, ReasonDC, LastStatusTransaction, ProfitCenterNo,
+                    isRespondDC, ApprovedRespondDCUser, ApprovedRespondDCDate, ReasonRespondDC,
+                    isCompletedUser, CompletedUser, CompletedDateUser, ReasonUser
+                )
+                VALUES
+                (
+                    @V_KeyHDWO, @p_CompanyID, @p_LocationID, @V_WONo,
+                    CONVERT(VARCHAR(8),GETDATE(),112), 'I', CONVERT(VARCHAR(8),GETDATE(),112), '',
+                    '', @V_DescriptionWO, '', @V_FollowUpSection, @V_RequestedBy, '', '',
+                    '', 0, 0, 1, 0, '', '',
+                    @p_EmployeeID, GETDATE(), @p_EmployeeID, GETDATE(), 0, 0,
+                    0, 0, 0, 0, 0, '', @V_SectionID,
+                    1, @p_EmployeeID, GETDATE(), '',
+                    1, @p_EmployeeID, GETDATE(), '',
+                    0, '', '', '',
+                    0, '', '', '',
+                    0, '', '', ''
+                );
+
+                UPDATE dbo.PIP_T_Inspection
+                SET FollowUpWONo=@V_WONo, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+                WHERE InspectionID=@p_InspectionID;
+            END;
+        END
+        ELSE
+        BEGIN
+            UPDATE dbo.PIP_T_Inspection
+            SET Status='DRAFT', IsApprove=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
+                ApprovalRemark='', ReasonVoid=LTRIM(RTRIM(ISNULL(@p_Remark,''))),
+                UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
+            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
+              AND Status='DONE' AND IsApprove=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
+              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
+
+            IF @@ROWCOUNT <> 1
+                RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
+        END;
+
+        COMMIT TRANSACTION;
+        SELECT @p_InspectionID AS InspectionID, @p_Action AS Action,
+               (SELECT FollowUpWONo FROM dbo.PIP_T_Inspection WHERE InspectionID=@p_InspectionID) AS FollowUpWONo;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        DECLARE @V_ErrorMessage NVARCHAR(4000);
+        DECLARE @V_ErrorSeverity INT;
+        DECLARE @V_ErrorState INT;
+        SELECT @V_ErrorMessage=ERROR_MESSAGE(), @V_ErrorSeverity=ERROR_SEVERITY(), @V_ErrorState=ERROR_STATE();
+        RAISERROR(@V_ErrorMessage, @V_ErrorSeverity, @V_ErrorState);
+    END CATCH;
+END;
+GO
+
+/****** Object:  StoredProcedure [dbo].[spUTL_PIP_T_Inspection_Batch_Sync]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Batch_Sync]
+    @p_ClientInspectionID VARCHAR(36),
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
+    @p_SectionID VARCHAR(10),
+    @p_InspectionTypeCode VARCHAR(2),
+    @p_InspectionTypeDetailCode VARCHAR(20),
+    @p_ScheduledTime VARCHAR(5),
+    @p_IDTemplate INT,
+    @p_IDVersion INT,
+    @p_TemplateNo VARCHAR(50),
+    @p_TemplateVersion VARCHAR(10),
+    @p_InspectionDate DATETIME,
+    @p_StartDateTime DATETIME = NULL,
+    @p_EndDateTime DATETIME = NULL,
+    @p_Status VARCHAR(10),
+    @p_Summary VARCHAR(500),
+    @p_FollowUp VARCHAR(30),
+    @p_FollowUpSection VARCHAR(10),
+    @p_FollowUpRemark VARCHAR(300),
+    @p_UpdateUser VARCHAR(50),
+    @p_InspectionNo VARCHAR(10),
+    @p_Points dbo.Type_N_Tbl_C13 READONLY,
+    @p_Photos dbo.Type_N_Tbl_C5 READONLY,
+    @p_Items dbo.Type_N_Tbl_C13 READONLY,
+    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    IF ISNULL(@p_Status,'') <> 'DONE'
+    BEGIN
+        RAISERROR('Only submitted BATCH inspections can be synchronized.',16,1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionType IT
+        WHERE IT.InspectionTypeCode=@p_InspectionTypeCode
+          AND IT.SectionID=@p_SectionID
+          AND IT.IsActive=1
+          AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+    )
+    BEGIN
+        RAISERROR('Inspection Type is not configured for BATCH mode.',16,1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM @p_Points)
+    BEGIN
+        RAISERROR('A BATCH inspection must contain at least one inspected point.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT C1 FROM @p_Points
+        GROUP BY C1 HAVING COUNT(1)>1
+    )
+    BEGIN
+        RAISERROR('Duplicate ClientPointID in BATCH inspection.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Points P
+        WHERE ISNULL(P.C1,'')=''
+           OR ISNUMERIC(P.C2)=0
+           OR NOT EXISTS
+             (SELECT 1 FROM dbo.PIP_M_InspectionPoint M
+              INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
+              WHERE M.InspectionPointID=CAST(P.C2 AS BIGINT)
+                AND MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+                AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+                AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+                AND M.IsActive=1)
+    )
+    BEGIN
+        RAISERROR('One or more Inspection Point records are invalid or inactive.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionPoint M
+        INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
+        WHERE MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+          AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+          AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND M.IsActive=1
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM @p_Points P
+              WHERE ISNUMERIC(P.C2)=1 AND CAST(P.C2 AS BIGINT)=M.InspectionPointID
+          )
+    )
+    BEGIN
+        RAISERROR('Every active Inspection Point for this BATCH must be submitted.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Points P
+        INNER JOIN dbo.PIP_M_InspectionPoint M ON M.InspectionPointID=CAST(P.C2 AS BIGINT)
+        WHERE ISNULL(M.IsNormalAbnormalRequired,0)=1
+          AND ISNULL(P.C6,'') NOT IN ('NORMAL','ABNORMAL')
+    )
+    BEGIN
+        RAISERROR('Normal/Abnormal must be selected for every required Inspection Point.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_Points
+        WHERE UPPER(ISNULL(C6,''))='ABNORMAL'
+          AND ISNULL(LTRIM(RTRIM(C5)),'')=''
+    )
+    BEGIN
+        RAISERROR('Abnormal Remark is required when an Inspection Point is ABNORMAL.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_Points
+        WHERE UPPER(ISNULL(C6,''))='NORMAL'
+          AND ISNULL(LTRIM(RTRIM(C5)),'')<>''
+    )
+    BEGIN
+        RAISERROR('Abnormal Remark must be empty when an Inspection Point is NORMAL.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_Points
+        WHERE ISNULL(C4,'') NOT IN ('DONE','ABNORMAL')
+    )
+    BEGIN
+        RAISERROR('All selected Inspection Points must be DONE or ABNORMAL before batch submission.',16,1);
+        RETURN;
+    END;
+
+    DECLARE @V_EntryTranCount INT;
+    SET @V_EntryTranCount=@@TRANCOUNT;
+
+    BEGIN TRY
+        IF @V_EntryTranCount=0 BEGIN TRANSACTION;
+        ELSE SAVE TRANSACTION InspectionBatchSyncSave;
+
+        DECLARE @V_InspectionNo VARCHAR(10);
+        SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))), '');
+
+        /* The canonical Inspection sync generates InspectionNo when this parameter is empty.
+           Batch inspections use the same InspectionNo mechanism; no separate batch sequence is required. */
+
+        /* Reuse the current canonical header sync procedure. Empty checklist/photo
+           TVPs ensure no batch-level results are written; all child data is saved below. */
+        DECLARE @V_EmptyPhotos dbo.Type_N_Tbl_C5;
+        DECLARE @V_EmptyItems dbo.Type_N_Tbl_C13;
+        DECLARE @V_EmptyValues dbo.Type_N_Tbl_C5;
+
+        EXEC dbo.spUTL_PIP_T_Inspection_Sync
+            @p_ClientInspectionID=@p_ClientInspectionID,
+            @p_CompanyID=@p_CompanyID,
+            @p_LocationID=@p_LocationID,
+            @p_SectionID=@p_SectionID,
+            @p_InspectionTypeCode=@p_InspectionTypeCode,
+            @p_InspectionTypeDetailCode=@p_InspectionTypeDetailCode,
+            @p_ScheduledTime=@p_ScheduledTime,
+            @p_IDTemplate=@p_IDTemplate,
+            @p_IDVersion=@p_IDVersion,
+            @p_TemplateNo=@p_TemplateNo,
+            @p_TemplateVersion=@p_TemplateVersion,
+            @p_InspectionDate=@p_InspectionDate,
+            @p_StartDateTime=@p_StartDateTime,
+            @p_EndDateTime=@p_EndDateTime,
+            @p_Status=@p_Status,
+            @p_Summary=@p_Summary,
+            @p_FollowUp=@p_FollowUp,
+            @p_FollowUpSection=@p_FollowUpSection,
+            @p_FollowUpRemark=@p_FollowUpRemark,
+            @p_UpdateUser=@p_UpdateUser,
+            @p_InspectionNo=@V_InspectionNo,
+            @p_Photos=@V_EmptyPhotos,
+            @p_Items=@V_EmptyItems,
+            @p_ItemValues=@V_EmptyValues;
+
+        DECLARE @V_InspectionID BIGINT;
+        SELECT @V_InspectionID=InspectionID
+        FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK)
+        WHERE ClientInspectionID=@p_ClientInspectionID;
+
+        IF @V_InspectionID IS NULL
+            RAISERROR('BATCH header was not saved by the canonical Inspection sync procedure.',16,1);
+
+        /* Remove old child results/photos before rebuilding the submitted local snapshot. */
+        DELETE V
+        FROM dbo.PIP_T_InspectionResultValue V
+        JOIN dbo.PIP_T_InspectionResult R ON R.InspectionResultID=V.InspectionResultID
+        WHERE R.InspectionID=@V_InspectionID;
+
+        DELETE FROM dbo.PIP_T_InspectionResult WHERE InspectionID=@V_InspectionID;
+        DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@V_InspectionID;
+
+        DECLARE @V_PointMap TABLE
+        (
+            ClientPointID VARCHAR(36) NOT NULL PRIMARY KEY,
+            InspectionPointTransactionID BIGINT NOT NULL
+        );
+
+        UPDATE T
+        SET T.InspectionPointID=CAST(P.C2 AS BIGINT),
+            T.InspectionDateTime=ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()),
+            T.Status=P.C4,
+            T.AbnormalRemark=NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),''),
+            T.UpdateUser=@p_UpdateUser,
+            T.UpdateDate=GETDATE()
+        FROM dbo.PIP_T_InspectionPoint T
+        JOIN @p_Points P ON P.C1=T.ClientPointID
+        WHERE T.InspectionID=@V_InspectionID;
+
+        DECLARE @V_NextPointID BIGINT;
+        SELECT @V_NextPointID=ISNULL(MAX(InspectionPointTransactionID),0)
+        FROM dbo.PIP_T_InspectionPoint WITH (UPDLOCK,HOLDLOCK);
+
+        ;WITH NewPoints AS
+        (
+            SELECT P.C1 ClientPointID, CAST(P.C2 AS BIGINT) InspectionPointID,
+                   ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()) InspectionDateTime,
+                   P.C4 Status,
+                   NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),'') AbnormalRemark,
+                   @V_NextPointID+ROW_NUMBER() OVER (ORDER BY P.C1) NewID
+            FROM @p_Points P
+            WHERE NOT EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_InspectionPoint T
+                WHERE T.InspectionID=@V_InspectionID AND T.ClientPointID=P.C1
+            )
+        )
+        INSERT dbo.PIP_T_InspectionPoint
+        (
+            InspectionPointTransactionID,InspectionID,ClientPointID,InspectionPointID,
+            InspectionDateTime,Status,AbnormalRemark,EntryUser,EntryDate,UpdateUser,UpdateDate
+        )
+        OUTPUT inserted.ClientPointID, inserted.InspectionPointTransactionID
+            INTO @V_PointMap(ClientPointID,InspectionPointTransactionID)
+        SELECT N.NewID,@V_InspectionID,N.ClientPointID,N.InspectionPointID,
+               N.InspectionDateTime,N.Status,N.AbnormalRemark,@p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
+        FROM NewPoints N;
+
+        INSERT @V_PointMap(ClientPointID,InspectionPointTransactionID)
+        SELECT T.ClientPointID,T.InspectionPointTransactionID
+        FROM dbo.PIP_T_InspectionPoint T
+        JOIN @p_Points P ON P.C1=T.ClientPointID
+        WHERE T.InspectionID=@V_InspectionID
+          AND NOT EXISTS (SELECT 1 FROM @V_PointMap M WHERE M.ClientPointID=T.ClientPointID);
+
+        DELETE T
+        FROM dbo.PIP_T_InspectionPoint T
+        WHERE T.InspectionID=@V_InspectionID
+          AND NOT EXISTS (SELECT 1 FROM @p_Points P WHERE P.C1=T.ClientPointID);
+
+        DECLARE @V_ResultMap TABLE
+        (
+            InspectionPointTransactionID BIGINT NOT NULL,
+            IDItem INT NOT NULL,
+            InspectionResultID BIGINT NOT NULL,
+            PRIMARY KEY(InspectionPointTransactionID,IDItem)
+        );
+        DECLARE @V_NextResultID BIGINT;
+        SELECT @V_NextResultID=ISNULL(MAX(InspectionResultID),0)
+        FROM dbo.PIP_T_InspectionResult WITH (UPDLOCK,HOLDLOCK);
+
+        ;WITH ResultRows AS
+        (
+            SELECT I.C1 ClientPointID, CAST(I.C2 AS INT) IDItem,
+                   I.C3 ItemLabel, I.C4 ItemType, ISNULL(I.C5,'') Value,
+                   ISNULL(I.C6,'') Remark1,
+                   CASE WHEN ISNULL(I.C7,'0') IN ('1','True','true') THEN 1 ELSE 0 END IsAnomali,
+                   ISNULL(CAST(NULLIF(I.C8,'') AS INT),0) DisplayOrder,
+                   ISNULL(I.C9,'') Remark2,
+                   @V_NextResultID+ROW_NUMBER() OVER (ORDER BY I.C1,CAST(I.C2 AS INT)) NewID
+            FROM @p_Items I
+        )
+        INSERT dbo.PIP_T_InspectionResult
+        (
+            InspectionResultID,InspectionID,InspectionPointTransactionID,IDItem,ItemLabel,ItemType,
+            Value,Remark1,Remark2,IsAnomali,DisplayOrder,EntryUser,EntryDate,UpdateUser,UpdateDate
+        )
+        OUTPUT inserted.InspectionPointTransactionID, inserted.IDItem, inserted.InspectionResultID
+            INTO @V_ResultMap(InspectionPointTransactionID,IDItem,InspectionResultID)
+        SELECT R.NewID,@V_InspectionID,PM.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,
+               R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,
+               @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
+        FROM ResultRows R
+        JOIN @V_PointMap PM ON PM.ClientPointID=R.ClientPointID;
+
+        INSERT dbo.PIP_T_InspectionResultValue
+        (
+            InspectionResultID,FieldName,Value,EntryUser,EntryDate,UpdateUser,UpdateDate
+        )
+        SELECT RM.InspectionResultID,V.C3,ISNULL(V.C4,''),
+               @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
+        FROM @p_ItemValues V
+        JOIN @V_PointMap PM ON PM.ClientPointID=V.C1
+        JOIN @V_ResultMap RM ON RM.InspectionPointTransactionID=PM.InspectionPointTransactionID
+                            AND RM.IDItem=CAST(V.C2 AS INT);
+
+        DECLARE @V_NextPhotoID BIGINT;
+        SELECT @V_NextPhotoID=ISNULL(MAX(InspectionPhotoID),0)
+        FROM dbo.PIP_T_InspectionPhoto WITH (UPDLOCK,HOLDLOCK);
+
+        ;WITH PhotoRows AS
+        (
+            SELECT P.C1 ClientPointID,P.C2 PhotoType,P.C3 FileName,P.C4 FileType,
+                   CAST(ISNULL(NULLIF(P.C5,''),'0') AS INT) SeqNo,
+                   @V_NextPhotoID+ROW_NUMBER() OVER (ORDER BY P.C1,CAST(ISNULL(NULLIF(P.C5,''),'0') AS INT),P.C3) NewID
+            FROM @p_Photos P
+        )
+        INSERT dbo.PIP_T_InspectionPhoto
+        (
+            InspectionPhotoID,InspectionID,InspectionPointTransactionID,PhotoType,
+            FileName,FileType,SeqNo,EntryUser,EntryDate
+        )
+        SELECT P.NewID,@V_InspectionID,PM.InspectionPointTransactionID,
+               P.PhotoType,P.FileName,P.FileType,P.SeqNo,@p_UpdateUser,GETDATE()
+        FROM PhotoRows P
+        JOIN @V_PointMap PM ON PM.ClientPointID=P.ClientPointID;
+
+        IF @V_EntryTranCount=0 COMMIT TRANSACTION;
+
+        SELECT @V_InspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
+               InspectionNo
+        FROM dbo.PIP_T_Inspection
+        WHERE InspectionID=@V_InspectionID;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE()=1
+        BEGIN
+            IF @V_EntryTranCount=0 ROLLBACK TRANSACTION;
+            ELSE ROLLBACK TRANSACTION InspectionBatchSyncSave;
+        END
+        ELSE IF XACT_STATE()=-1 AND @V_EntryTranCount=0
+            ROLLBACK TRANSACTION;
+
+        DECLARE @V_ErrorMessage NVARCHAR(4000);
+        DECLARE @V_ErrorSeverity INT;
+        DECLARE @V_ErrorState INT;
+        SELECT @V_ErrorMessage=ERROR_MESSAGE(),@V_ErrorSeverity=ERROR_SEVERITY(),@V_ErrorState=ERROR_STATE();
+        RAISERROR(@V_ErrorMessage,@V_ErrorSeverity,@V_ErrorState);
+    END CATCH;
+END;
+GO
+
+/****** Object:  StoredProcedure [dbo].[spUTL_PIP_T_Inspection_Sync]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Sync]
+(
+    @p_ClientInspectionID VARCHAR(36),
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
+    @p_SectionID VARCHAR(10),
+    @p_InspectionTypeCode VARCHAR(2),
+    @p_InspectionTypeDetailCode VARCHAR(20),
+    @p_ScheduledTime VARCHAR(5),
+    @p_IDTemplate INT,
+    @p_IDVersion INT,
+    @p_TemplateNo VARCHAR(50),
+    @p_TemplateVersion VARCHAR(10),
+    @p_InspectionDate DATETIME,
+    @p_StartDateTime DATETIME = NULL,
+    @p_EndDateTime DATETIME = NULL,
+    @p_Status VARCHAR(10),
+    @p_Summary VARCHAR(500),
+    @p_FollowUp VARCHAR(30),
+    @p_FollowUpSection VARCHAR(10),
+    @p_FollowUpRemark VARCHAR(300),
+    @p_UpdateUser VARCHAR(50),
+    @p_InspectionNo VARCHAR(10),
+    @p_Photos dbo.Type_N_Tbl_C5 READONLY,
+    @p_Items dbo.Type_N_Tbl_C13 READONLY,
+    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    SET @p_ScheduledTime = ISNULL(@p_ScheduledTime, '');
+    SET @p_StartDateTime = ISNULL(@p_StartDateTime, CONVERT(DATETIME,'19000101',112));
+    SET @p_EndDateTime = ISNULL(@p_EndDateTime, CONVERT(DATETIME,'19000101',112));
+    SET @p_Summary = ISNULL(@p_Summary, '');
+    SET @p_FollowUp = ISNULL(NULLIF(LTRIM(RTRIM(@p_FollowUp)), ''), 'No Follow Up');
+    SET @p_FollowUpSection = ISNULL(@p_FollowUpSection, '');
+    SET @p_FollowUpRemark = ISNULL(@p_FollowUpRemark, '');
+
+    /* Map shared generic TVPs to the inspection-specific row shape. */
+    DECLARE @tbl_Items TABLE
+    (
+        IDItem INT NOT NULL,
+        ItemLabel VARCHAR(500) NOT NULL,
+        ItemType VARCHAR(20) NOT NULL,
+        Value VARCHAR(50) NULL,
+        Remark1 VARCHAR(500) NULL,
+        Remark2 VARCHAR(500) NULL,
+        IsAnomali BIT NOT NULL,
+        DisplayOrder INT NOT NULL
+    );
+    INSERT INTO @tbl_Items (IDItem, ItemLabel, ItemType, Value, Remark1, IsAnomali, DisplayOrder, Remark2)
+    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,''), ISNULL(C4,''), ISNULL(C5,''),
+           CAST(ISNULL(NULLIF(C6, ''), '0') AS BIT),
+           CAST(ISNULL(NULLIF(C7, ''), '0') AS INT), ISNULL(C8,'')
+    FROM @p_Items;
+
+    DECLARE @tbl_ItemValues TABLE
+    (
+        IDItem INT NOT NULL,
+        FieldName VARCHAR(100) NOT NULL,
+        Value VARCHAR(500) NULL
+    );
+    INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value)
+    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,'')
+    FROM @p_ItemValues;
+
+    /* Drafts are device-local only. SQL may persist completed inspections only. */
+    IF ISNULL(@p_Status, '') <> 'DONE'
+    BEGIN
+        RAISERROR('Only completed inspections (DONE) can be saved to SQL Server.', 16, 1);
+        RETURN;
+    END;
+
+    SET @p_FollowUp = LTRIM(RTRIM(ISNULL(@p_FollowUp, 'No Follow Up')));
+    SET @p_FollowUpSection = LTRIM(RTRIM(ISNULL(@p_FollowUpSection, '')));
+    SET @p_FollowUpRemark = LTRIM(RTRIM(ISNULL(@p_FollowUpRemark, '')));
+
+    /* Follow Up is controlled by the selected checklist Version for both STANDARD and BATCH.
+       BATCH delegates its header to this canonical procedure, so one rule covers both modes. */
+    DECLARE @V_IsFollowUpRequired BIT;
+    SELECT @V_IsFollowUpRequired=ISNULL(V.IsFollowUpRequired,1)
+    FROM dbo.PIP_M_CheckListWOPM_Version V
+    WHERE V.IDVersion=@p_IDVersion AND V.IDTemplate=@p_IDTemplate;
+    IF ISNULL(@V_IsFollowUpRequired,1)=0
+    BEGIN
+        SET @p_FollowUp='No Follow Up';
+        SET @p_FollowUpSection='';
+        SET @p_FollowUpRemark='';
+    END;
+
+    IF @p_FollowUp NOT IN ('No Follow Up', 'Recommend Follow Up')
+    BEGIN
+        RAISERROR('Invalid Inspection Follow Up selection.', 16, 1);
+        RETURN;
+    END;
+
+    IF @p_FollowUp = 'Recommend Follow Up'
+    BEGIN
+        IF @p_Status = 'DONE'
+        BEGIN
+            IF @p_FollowUpSection NOT IN ('ACON','COMM','MECH','ELEC','CIVIL','PFIT','PHKP','PSEC')
+            BEGIN
+                RAISERROR('A valid Responsible Section is required for Follow Up.', 16, 1);
+                RETURN;
+            END;
+            IF @p_FollowUpRemark = ''
+            BEGIN
+                RAISERROR('Follow Up Work Order Description is required.', 16, 1);
+                RETURN;
+            END;
+        END;
+    END
+    ELSE
+    BEGIN
+        SET @p_FollowUpSection = '';
+        SET @p_FollowUpRemark = '';
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.UTL_User U
+        WHERE U.EmployeeID=@p_UpdateUser
+          AND
+          (
+              EXISTS
+              (
+                  SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                    AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID
+              )
+              OR EXISTS
+              (
+                  SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID
+              )
+          )
+    )
+    BEGIN
+        RAISERROR('Employee is not authorized for this company/location.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.UTL_User U
+        WHERE U.EmployeeID=@p_UpdateUser
+          AND ISNULL(U.IsWO,0)=1
+          AND EXISTS
+              (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
+               WHERE S.val=@p_SectionID)
+    )
+    BEGIN
+        RAISERROR('Employee is not authorized for this inspection section.', 16, 1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionType T
+        JOIN dbo.PIP_M_InspectionTypeDetail D
+          ON D.InspectionTypeCode=T.InspectionTypeCode
+        WHERE T.InspectionTypeCode=@p_InspectionTypeCode
+          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID
+          AND D.LocationID=@p_LocationID
+          AND T.SectionID=@p_SectionID
+          AND T.IsActive=1 AND D.IsActive=1
+    )
+    BEGIN
+        RAISERROR('Inspection Type or detail is inactive, missing, or belongs to another section.', 16, 1);
+        RETURN;
+    END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionTypeDetail D
+        WHERE D.InspectionTypeCode=@p_InspectionTypeCode
+          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID
+          AND D.LocationID=@p_LocationID
+          AND LEN(LTRIM(RTRIM(ISNULL(D.ScheduleTime,'')))) > 0
+    )
+       AND ISNULL(@p_ScheduledTime, '') = ''
+    BEGIN
+        RAISERROR('Scheduled time is required for this inspection detail.', 16, 1);
+        RETURN;
+    END;
+
+    IF ISNULL(@p_ScheduledTime, '') <> ''
+       AND NOT EXISTS
+       (
+           SELECT 1
+           FROM dbo.PIP_M_InspectionTypeDetail D
+           WHERE D.InspectionTypeCode=@p_InspectionTypeCode
+             AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+             AND D.CompanyID=@p_CompanyID
+             AND D.LocationID=@p_LocationID
+             AND CHARINDEX(';' + @p_ScheduledTime + ';', ';' + REPLACE(D.ScheduleTime, ' ', '') + ';') > 0
+       )
+    BEGIN
+        RAISERROR('Scheduled time is not configured for this inspection detail.', 16, 1);
+        RETURN;
+    END;
+
+    /* A returned, unapproved inspection may change parameters/template.
+       The same ClientInspectionID is updated and its checklist/photo snapshot is replaced atomically. */
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_CheckListWOPM T
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=@p_IDVersion AND V.IDTemplate=T.IDTemplate
+        WHERE T.IDTemplate=@p_IDTemplate
+          AND T.TemplateNo=@p_TemplateNo
+          AND T.SectionID=@p_SectionID
+          AND T.TemplateType='I'
+          AND T.InspectionTypeCode=@p_InspectionTypeCode
+          AND T.IsActive=1
+          AND V.Version=@p_TemplateVersion
+          AND (V.Status='Active' OR
+          (V.Status='Archieved' AND EXISTS
+             (SELECT 1 FROM dbo.PIP_T_Inspection Existing
+              WHERE Existing.ClientInspectionID=@p_ClientInspectionID
+                AND Existing.IDTemplate=T.IDTemplate AND Existing.IDVersion=V.IDVersion
+                AND Existing.OwnerEmployeeID=@p_UpdateUser AND ISNULL(Existing.IsApprove,0)=0)))
+          AND
+          (
+              ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @p_UpdateUser + ';%')
+          )
+          AND
+          (
+              ISNULL(T.CompanyScope,'S')='A'
+              OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @p_CompanyID + @p_LocationID + ';%')
+          )
+    )
+    BEGIN
+        RAISERROR('Inspection template is inactive, missing, or unavailable for this company/location.', 16, 1);
+        RETURN;
+    END;
+
+    /* EQueryP may already own a transaction. Use a savepoint when nested so this
+       procedure never rolls back the caller's transaction on a handled conflict. */
+    DECLARE @V_EntryTranCount INT;
+    SET @V_EntryTranCount = @@TRANCOUNT;
+
+    BEGIN TRY
+        IF @V_EntryTranCount = 0
+            BEGIN TRANSACTION;
+        ELSE
+            SAVE TRANSACTION InspectionSyncSave;
+
+        /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
+           ClientInspectionID is excluded so syncing an existing offline record remains an update. */
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+            WHERE ClientInspectionID <> @p_ClientInspectionID
+              AND ISNULL(IsActive,1)=1
+              AND CompanyID = @p_CompanyID
+              AND LocationID = @p_LocationID
+              AND SectionID = @p_SectionID
+              AND InspectionTypeCode = @p_InspectionTypeCode
+              AND InspectionTypeDetailCode = @p_InspectionTypeDetailCode
+              AND ISNULL(ScheduledTime, '') = ISNULL(@p_ScheduledTime, '')
+              AND IDTemplate = @p_IDTemplate
+              AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120)
+              AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120))
+        )
+        BEGIN
+            RAISERROR('An inspection already exists for this date, company/location, section, type, detail, schedule, and template.', 16, 1);
+        END;
+
+        DECLARE @V_InspectionID BIGINT;
+        DECLARE @V_InspectionTypeName VARCHAR(100);
+        DECLARE @V_InspectionTypeDetailName VARCHAR(100);
+        DECLARE @V_TemplateName VARCHAR(200);
+
+        SELECT @V_InspectionTypeName=T.InspectionTypeName,
+               @V_InspectionTypeDetailName=D.InspectionTypeDetailName
+        FROM dbo.PIP_M_InspectionType T
+        JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
+        WHERE T.InspectionTypeCode=@p_InspectionTypeCode
+          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID
+          AND D.LocationID=@p_LocationID;
+
+        SELECT @V_TemplateName=TemplateName
+        FROM dbo.PIP_M_CheckListWOPM
+        WHERE IDTemplate=@p_IDTemplate;
+
+        SELECT @V_InspectionID=InspectionID
+        FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+        WHERE ClientInspectionID=@p_ClientInspectionID;
+
+        IF @V_InspectionID IS NOT NULL
+        BEGIN
+            IF NOT EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_Inspection
+                WHERE InspectionID=@V_InspectionID AND OwnerEmployeeID=@p_UpdateUser
+            )
+            BEGIN
+                RAISERROR('This offline inspection belongs to another employee.', 16, 1);
+            END;
+
+            IF EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_Inspection
+                WHERE InspectionID=@V_InspectionID AND ISNULL(IsActive,1)=0
+            )
+            BEGIN
+                RAISERROR('Inactive inspections cannot be changed or resubmitted.', 16, 1);
+            END;
+
+            IF EXISTS
+            (
+                SELECT 1 FROM dbo.PIP_T_Inspection
+                WHERE InspectionID=@V_InspectionID AND ISNULL(IsApprove,0)=1
+            )
+            BEGIN
+                RAISERROR('Approved inspections are locked and cannot be changed.', 16, 1);
+            END;
+
+            UPDATE dbo.PIP_T_Inspection
+            SET InspectionNo=CASE WHEN ISNULL(@p_InspectionNo,'')<>'' THEN @p_InspectionNo ELSE InspectionNo END,
+                CompanyID=@p_CompanyID, LocationID=@p_LocationID, SectionID=@p_SectionID,
+                InspectionTypeCode=@p_InspectionTypeCode, InspectionTypeName=@V_InspectionTypeName,
+                InspectionTypeDetailCode=@p_InspectionTypeDetailCode,
+                InspectionTypeDetailName=@V_InspectionTypeDetailName, ScheduledTime=@p_ScheduledTime,
+                IDTemplate=@p_IDTemplate, IDVersion=@p_IDVersion, TemplateNo=@p_TemplateNo,
+                TemplateName=@V_TemplateName, TemplateVersion=@p_TemplateVersion,
+                InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
+                EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
+                FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
+                IsApprove=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
+                ReasonVoid='',
+                UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
+            WHERE InspectionID=@V_InspectionID;
+        END
+        ELSE
+        BEGIN
+            DECLARE @V_InspectionNo VARCHAR(10);
+            DECLARE @V_AutoNum VARCHAR(30);
+            DECLARE @V_AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+
+            SET @V_InspectionNo = NULLIF(LTRIM(RTRIM(@p_InspectionNo)), '');
+            IF @V_InspectionNo IS NULL
+            BEGIN
+                SET @V_AutoNum = 'PIPINS' + @p_CompanyID + @p_LocationID;
+                INSERT INTO @V_AutoNumResult
+                EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @V_AutoNum, 1;
+                SELECT @V_InspectionNo = ID FROM @V_AutoNumResult;
+            END;
+
+            IF ISNULL(@V_InspectionNo, '') = ''
+            BEGIN
+                RAISERROR('Failed to generate InspectionNo.', 16, 1);
+            END;
+
+            SELECT @V_InspectionID=ISNULL(MAX(InspectionID),0)+1
+            FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK);
+
+            INSERT dbo.PIP_T_Inspection
+            (
+                InspectionID, ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
+                InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
+                InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
+                TemplateNo, TemplateName, TemplateVersion, InspectionDate,
+                StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
+                EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate, IsActive
+            )
+            VALUES
+            (
+                @V_InspectionID, @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
+                @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
+                @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
+                @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
+                @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
+                ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
+                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE(), 1
+            );
+        END;
+
+        DELETE V
+        FROM dbo.PIP_T_InspectionResultValue V
+        JOIN dbo.PIP_T_InspectionResult R ON R.InspectionResultID=V.InspectionResultID
+        WHERE R.InspectionID=@V_InspectionID;
+
+        DELETE FROM dbo.PIP_T_InspectionResult WHERE InspectionID=@V_InspectionID;
+
+        DECLARE @V_ResultMap TABLE (IDItem INT NOT NULL, InspectionResultID BIGINT NOT NULL);
+        DECLARE @V_NextResultID BIGINT;
+        SELECT @V_NextResultID=ISNULL(MAX(InspectionResultID),0)
+        FROM dbo.PIP_T_InspectionResult WITH (UPDLOCK, HOLDLOCK);
+        ;WITH ResultRows AS
+        (
+            SELECT I.*,
+                   @V_NextResultID + ROW_NUMBER() OVER (ORDER BY I.IDItem) AS NewInspectionResultID
+            FROM @tbl_Items I
+        )
+        INSERT dbo.PIP_T_InspectionResult
+        (
+            InspectionResultID, InspectionID, IDItem, ItemLabel, ItemType, Value, Remark1, Remark2, IsAnomali,
+            DisplayOrder, EntryUser, EntryDate, UpdateUser, UpdateDate
+        )
+        OUTPUT inserted.IDItem, inserted.InspectionResultID
+            INTO @V_ResultMap (IDItem, InspectionResultID)
+        SELECT I.NewInspectionResultID, @V_InspectionID, I.IDItem, I.ItemLabel, I.ItemType, I.Value, I.Remark1, I.Remark2,
+               I.IsAnomali, I.DisplayOrder, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+        FROM ResultRows I;
+
+        INSERT dbo.PIP_T_InspectionResultValue
+        (
+            InspectionResultID, FieldName, Value, EntryUser, EntryDate, UpdateUser, UpdateDate
+        )
+        SELECT M.InspectionResultID, V.FieldName, V.Value,
+               @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+        FROM @tbl_ItemValues V
+        JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
+
+        /* Header, checklist, and photo metadata commit or roll back together. */
+        DELETE FROM dbo.PIP_T_InspectionPhoto WHERE InspectionID=@V_InspectionID;
+        DECLARE @V_NextPhotoID BIGINT;
+        SELECT @V_NextPhotoID=ISNULL(MAX(InspectionPhotoID),0)
+        FROM dbo.PIP_T_InspectionPhoto WITH (UPDLOCK, HOLDLOCK);
+        ;WITH PhotoRows AS
+        (
+            SELECT P.C1, P.C2, P.C3, P.C4,
+                   @V_NextPhotoID + ROW_NUMBER() OVER (ORDER BY CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), P.C2) AS NewInspectionPhotoID
+            FROM @p_Photos P
+        )
+        INSERT dbo.PIP_T_InspectionPhoto
+            (InspectionPhotoID, InspectionID, PhotoType, FileName, FileType, SeqNo, EntryUser, EntryDate)
+        SELECT P.NewInspectionPhotoID, @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
+               CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
+        FROM PhotoRows P;
+
+        IF @V_EntryTranCount = 0
+            COMMIT TRANSACTION;
+
+        SELECT @V_InspectionID AS InspectionID,
+               @p_ClientInspectionID AS ClientInspectionID,
+               InspectionNo
+        FROM dbo.PIP_T_Inspection
+        WHERE InspectionID=@V_InspectionID;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() = 1
+        BEGIN
+            IF @V_EntryTranCount = 0
+                ROLLBACK TRANSACTION;
+            ELSE
+                ROLLBACK TRANSACTION InspectionSyncSave;
+        END
+        ELSE IF XACT_STATE() = -1 AND @V_EntryTranCount = 0
+            ROLLBACK TRANSACTION;
+
+        DECLARE @V_ErrorMessage NVARCHAR(4000);
+        DECLARE @V_ErrorSeverity INT;
+        DECLARE @V_ErrorState INT;
+        SELECT @V_ErrorMessage=ERROR_MESSAGE(), @V_ErrorSeverity=ERROR_SEVERITY(), @V_ErrorState=ERROR_STATE();
+        RAISERROR(@V_ErrorMessage, @V_ErrorSeverity, @V_ErrorState);
+    END CATCH;
+END;
+GO
+
+/****** Object:  StoredProcedure [dbo].[spUTL_PIP_T_WO_AssignmentEmployee]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE PROCEDURE [dbo].[spUTL_PIP_T_WO_AssignmentEmployee]
+(
+	@p_Tipe VARCHAR(2), -- '1': Search, '2': Employee List, '3': Assign/Save, 4:Employee List all WO
+	@p_SearchParam VARCHAR(8000)='', -- CompanyID;LocationID;Section;Year;Week;Status;IsGlobal;Keyword;StartRow;EndRow;SelectAll;ExcludedWO
+	@p_UpdateUser VARCHAR(50)='',
+	@p_EmployeeAssigned VARCHAR(8000)='',
+	@p_AssignMode VARCHAR(10)='', -- ADD,REPLACE,REMOVE
+	@p_Dt [dbo].[Type_Tbl_C2] READONLY -- C1: KeyHD, C2: EmployeeAssigned
+)
+AS
+-- spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam='I00020022;L01;ACON;2025;37;;0;;1;20'
+SET NOCOUNT ON
+
+DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_Section VARCHAR(10)
+DECLARE @V_Year VARCHAR(4), @V_Week VARCHAR(2), @V_Status VARCHAR(1), @V_IsGlobal VARCHAR(1)
+DECLARE @V_Keyword VARCHAR(8000), @V_StartRow INT, @V_EndRow INT
+
+SET @V_CompanyID = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=1)
+SET @V_LocationID = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=2)
+SET @V_Section = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=3)
+
+DECLARE @V_TblWOSearch TABLE 
+(KeyHD INT, WONo VARCHAR(10), EquipmentCode VARCHAR(10), SectionID VARCHAR(10), EquipmentName VARCHAR(200), LocationNo VARCHAR(10),
+[Status] VARCHAR(50), EmployeeAssigned VARCHAR(8000), isCompleteDC BIT, RowNo INT, JumlahWO INT, 
+JumlahComplete INT, JumlahAssigned INT)
+
+IF @p_Tipe IN ('1','3')
+BEGIN
+SET @V_Year = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=4)
+SET @V_Week = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=5)
+SET @V_Status = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=6)
+SET @V_IsGlobal = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=7)
+SET @V_Keyword = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=8)
+SET @V_StartRow = (SELECT CAST(a.val AS INT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=9)
+SET @V_EndRow = (SELECT CAST(a.val AS INT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=10)
+END
+
+IF @p_Tipe='1'
+BEGIN
+DECLARE @Token TABLE (Keyword VARCHAR(8000))
+DECLARE @xml XML
+SET @xml =
+CAST(
+'<x><i>' +
+REPLACE(@V_Keyword,'*','</i><i>') +
+'</i></x>'
+AS XML)
+INSERT INTO @Token
+SELECT LTRIM(RTRIM(T.c.value('.','varchar(100)')))
+FROM @xml.nodes('/x/i') T(c)
+WHERE LTRIM(RTRIM(T.c.value('.','varchar(100)'))) <> ''
+
+CREATE TABLE #TampWO (KeyHD INT, WONo VARCHAR(10), EquipmentCode VARCHAR(10), SectionID VARCHAR(10), EquipmentName VARCHAR(200),
+                      LocationNo VARCHAR(10), [Status] VARCHAR(20), EmployeeAssigned VARCHAR(8000), isCompleteDC BIT, RowNo INT) 
+INSERT INTO #TampWO
+SELECT a.KeyHD, a.WONo, a.EquipmentCode, a.SectionID, RTRIM(pme.EquipmentName) EquipmentName, RTRIM(a.LocationNo) LocationNo,
+[Status]=CASE WHEN ISNULL(a.EmployeeAssigned,'')='' THEN 'UNASSIGNED' ELSE 'ASSIGNED' END, ISNULL(a.EmployeeAssigned,'') EmployeeAssigned,
+a.isCompleteDC,
+ROW_NUMBER() OVER (ORDER BY a.WONo DESC ) AS RowNo
+FROM PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON h.KeyHD = d.KeyHD
+JOIN pip_t_wo a ON a.CompanyID=h.CompanyID AND a.LocationID=h.LocationID AND d.WONo=a.WONo
+JOIN PIP_M_Equipment AS pme ON pme.CompanyID = a.CompanyID AND pme.LocationID = a.LocationID AND pme.EquipmentCode = a.EquipmentCode
+WHERE a.WOType='P' AND a.SectionID=@V_Section AND a.CompanyID=@V_CompanyID AND a.LocationID=@V_LocationID
+AND (@V_IsGlobal=1 OR (h.[Year]=@V_Year AND d.Week=@V_Week))  
+AND (@V_Status='' OR (@V_Status='1' AND ISNULL(a.EmployeeAssigned,'')='') 
+				  OR (@V_Status='2' AND ISNULL(a.EmployeeAssigned,'')<>'')
+	)
+AND
+(
+    NOT EXISTS
+    (
+        SELECT *
+        FROM @Token
+    )
+    OR
+    NOT EXISTS
+    (
+        SELECT *
+        FROM @Token t
+        WHERE
+            a.WONo          NOT LIKE '%' + t.Keyword + '%'
+        AND a.EquipmentCode NOT LIKE '%' + t.Keyword + '%'
+        AND pme.EquipmentName NOT LIKE '%' + t.Keyword + '%'
+        AND a.LocationNo NOT LIKE '%' + t.Keyword + '%'
+    )
+)
+DECLARE @TotalWO INT = @@ROWCOUNT
+;WITH WO AS
+(
+SELECT *, JumlahWO=@TotalWO 
+FROM #TampWO a
+)
+SELECT a.*, JumlahComplete=ISNULL(aa.JumlahComplete,0), JumlahAssigned=ISNULL(bb.JumlahAssigned,0) 
+FROM WO a 
+CROSS JOIN (SELECT COUNT(*) JumlahComplete FROM #tampWO WHERE isCompleteDC=1) aa
+CROSS JOIN (SELECT COUNT(*) JumlahAssigned FROM #tampWO WHERE EmployeeAssigned<>'') bb
+WHERE ((@V_StartRow<>0 AND @V_EndRow <>0 AND RowNo BETWEEN @V_StartRow AND @V_EndRow) OR (@V_StartRow=0 AND @V_EndRow=0))
+ORDER BY RowNo
+DROP TABLE #TampWO
+
+END
+IF @p_Tipe='4'
+BEGIN
+	INSERT @V_TblWOSearch
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	SELECT DISTINCT B.val EmployeeID, mhe.Name 
+	FROM @V_TblWOSearch A CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') B
+	JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=B.val
+END
+IF @p_Tipe='2'
+BEGIN
+
+SELECT a.EmployeeID, a.Name
+,ISNULL( 
+	(SELECT COUNT(*) FROM PIP_T_WO wo 
+	WHERE wo.CompanyID=a.CompanyID AND wo.LocationID=@V_LocationID AND wo.CompletedDate=''
+	AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(wo.EmployeeAssigned,';') aa
+				WHERE aa.val=a.EmployeeID)
+	),0) OutstandingCount
+INTO #TampEmp
+FROM M_HRD_Employee a
+WHERE SectionID=@V_Section AND TerminationDate='' AND a.CompanyID=@V_CompanyID 
+DECLARE @TotalEmp INT = @@ROWCOUNT
+SELECT *, TotalEmp=@TotalEmp FROM #TampEmp a ORDER BY a.Name
+DROP TABLE #TampEmp
+	
+END
+DECLARE @V_ErrMsg VARCHAR(1000)='', @V_UpdateRows INT=0
+IF @p_Tipe='3'
+BEGIN
+	DECLARE @V_IsSelectAllResult BIT = (SELECT CAST(a.val AS BIT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=11)
+	--DECLARE @V_IsExcluded BIT = (SELECT CAST(a.val AS BIT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=12)
+	
+	INSERT @V_TblWOSearch
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	
+	SELECT TOP 1 @V_ErrMsg='Some of Work Order has been completed.' 
+	FROM @V_TblWOSearch a JOIN @p_Dt AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=1 AND @V_IsSelectAllResult=0 
+	
+	IF @V_ErrMsg='' 
+	BEGIN
+		SELECT TOP 1 @V_ErrMsg='Some of Work Order has been completed.' 
+		FROM @V_TblWOSearch a WHERE NOT EXISTS (SELECT * FROM @p_Dt AA WHERE AA.C1=a.KeyHD)
+		AND a.isCompleteDC=1 AND @V_IsSelectAllResult=1 
+	END 
+
+	IF @V_ErrMsg=''
+	BEGIN
+		SELECT *	--, EmployeeAssigned=CAST('' AS VARCHAR(8000)) 
+		INTO #TampWOProcessed FROM @V_TblWOSearch WHERE 1<>1
+		
+		--UPDATE A SET A.EmployeeAssigned = @p_EmployeeAssigned FROM @V_TblWOSearch A 
+		IF @V_IsSelectAllResult=0
+		BEGIN
+			INSERT #TampWOProcessed
+			SELECT A.* FROM @V_TblWOSearch A JOIN @p_Dt AA ON AA.C1=A.KeyHD
+		END
+		ELSE
+		BEGIN
+			INSERT #TampWOProcessed
+			SELECT A.* FROM @V_TblWOSearch A 
+			WHERE NOT EXISTS (SELECT * FROM @p_Dt AA WHERE AA.C1=A.KeyHD)
+		END
+		
+		--SELECT @p_SearchParam SearchParam INTO TampWOProcessed 
+		--SELECT * FROM TampWOProcessed
+		--DROP TABLE TampWOProcessed 
+		
+		IF @p_AssignMode='REPLACE'
+		BEGIN
+			UPDATE A SET A.EmployeeAssigned=@p_EmployeeAssigned, A.UpdateUser=@p_UpdateUser, A.UpdateDate=GETDATE() 
+			FROM PIP_T_WO A JOIN #TampWOProcessed AA ON AA.KeyHD=A.KeyHD
+			SET @V_UpdateRows=@@ROWCOUNT
+		END
+		ELSE 
+		BEGIN
+			IF @p_AssignMode='REMOVE'
+			BEGIN
+				WITH SplitParam AS (
+					SELECT 
+						CAST(LEFT(@p_EmployeeAssigned, CHARINDEX(';', @p_EmployeeAssigned + ';') - 1) AS VARCHAR(8000)) AS EmpCode,
+						STUFF(@p_EmployeeAssigned, 1, CHARINDEX(';', @p_EmployeeAssigned + ';'), '') AS Remainder
+					UNION ALL
+					SELECT 
+						CAST(LEFT(Remainder, CHARINDEX(';', Remainder + ';') - 1) AS VARCHAR(8000)),
+						STUFF(Remainder, 1, CHARINDEX(';', Remainder + ';'), '')
+					FROM SplitParam
+					WHERE Remainder > ''
+				),
+				IndexedParam AS (
+					SELECT EmpCode, ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS RowNum 
+					FROM SplitParam
+				),
+				CleanedData AS (
+					SELECT KeyHD, ';' + EmployeeAssigned + ';' AS TempString, 1 AS Step
+					FROM #TampWOProcessed
+					UNION ALL
+					SELECT 
+						c.KeyHD,
+						REPLACE(c.TempString, ';' + p.EmpCode + ';', ';') AS TempString,
+						c.Step + 1
+					FROM CleanedData c
+					INNER JOIN IndexedParam p ON c.Step = p.RowNum
+				)
+				UPDATE a
+				SET a.EmployeeAssigned = 
+					CASE 
+						WHEN LEN(c.TempString) <= 2 THEN '' 
+						ELSE SUBSTRING(c.TempString, 2, LEN(c.TempString) - 2) 
+					END
+				FROM PIP_T_WO a 
+				INNER JOIN CleanedData c ON a.KeyHD = c.KeyHD
+				WHERE c.Step = (SELECT COUNT(*) + 1 FROM SplitParam);
+				SET @V_UpdateRows=@@ROWCOUNT
+			END
+			ELSE
+			BEGIN
+				CREATE TABLE #TampWOAssigned (KeyHD INT, EmployeeID VARCHAR(10))
+				INSERT #TampWOAssigned
+				SELECT DISTINCT A.KeyHD, AA.val EmployeeID
+				FROM
+				(
+					SELECT A.KeyHD, @p_EmployeeAssigned+CASE WHEN ISNULL(A.EmployeeAssigned,'')<>'' THEN ';' ELSE '' END+ISNULL(A.EmployeeAssigned,'') EmployeeAssigned 
+					FROM PIP_T_WO A JOIN #TampWOProcessed AA ON AA.KeyHD=A.KeyHD
+				) A CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') AA
+				UPDATE B SET B.EmployeeAssigned=BB.EmployeeAssigned, B.UpdateUser=@p_UpdateUser, B.UpdateDate=GETDATE() 
+				FROM PIP_T_WO B
+				JOIN
+				(
+					SELECT A.KeyHD,
+					ISNULL(STUFF(
+					(
+						SELECT ';'+AA.EmployeeID FROM #TampWOAssigned AA
+						WHERE AA.KeyHD=A.KeyHD
+						FOR XML PATH ('')
+					),1,1,''),'') EmployeeAssigned
+					FROM #TampWOAssigned A
+				) BB ON B.KeyHD=BB.KeyHD
+			
+				SET @V_UpdateRows=@@ROWCOUNT
+				DROP TABLE #TampWOAssigned
+			END
+			
+			
+		END
+		
+		DROP TABLE #TampWOProcessed
+		SET @V_ErrMsg=CAST(@V_UpdateRows AS VARCHAR)+' Work Orders has been assigned.'
+	END	
+
+	SELECT @V_ErrMsg ErrMsg
+	
+END
+GO
+
+/****** Object:  StoredProcedure [dbo].[spUTL_WO_CheckList]    Script Date: 12-Nov-2026 12:23:37 PM ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+-- utk sync wo dari teknisi atau proses approve/void spv
+CREATE PROCEDURE [dbo].[spUTL_WO_CheckList] 
+(
+--DECLARE
+	@p_Dt1 [dbo].[Type_N_Tbl_C13] READONLY,	-- item checklist
+	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- item checklist group
+	@p_Dt3 [dbo].[Type_Tbl_C4] READONLY,	-- photos
+	@p_Dt4 [dbo].[Type_N_Tbl_C10] READONLY,	-- summary
+	@p_UpdateUser VARCHAR(50)=''
+)
+AS
+
+--INSERT @p_Dt1 SELECT a.KeyHD,a.IDItem,a.[value],a.remark,a.isanomali FROM PIP_T_WO_CheckList a  WHERE a.KeyHD=637993
+--INSERT @p_Dt2 SELECT aa.KeyHD,aa.IDItem,a.FieldName,a.[Value] FROM PIP_T_WO_CheckList_SubValue a JOIN PIP_T_WO_CheckList aa ON aa.IDResult = a.IDResult WHERE aa.KeyHD=637993
+--SET @p_UpdateUser='006290'
+
+--SELECT * INTO tempWOCheckList FROM @p_Dt1
+--SELECT * INTO tempWOCheckListGroup FROM @p_Dt2
+--SELECT * INTO tempWOCheckListPhotos FROM @p_Dt3
+--SELECT * INTO tempWOCheckListSummary FROM @p_Dt4
+/*
+DROP TABLE tempWOCheckList
+DROP TABLE tempWOCheckListGroup
+DROP TABLE tempWOCheckListPhotos
+DROP TABLE tempWOCheckListSummary
+*/
+
+DECLARE @V_IsApprovalSPV BIT = (CASE WHEN NOT EXISTS (SELECT * FROM @p_Dt1) THEN 1 ELSE 0 END)
+DECLARE @tmp_Photos TABLE 
+(
+	CompanyID VARCHAR(10), 
+	LocationID VARCHAR(3), 
+	DocNo VARCHAR(10), 
+	[Type] VARCHAR(3), 
+	[FileName] VARCHAR(100), 
+	Alias VARCHAR(100), 
+	FileType VARCHAR(50), 
+	SeqNo INT, 
+	KeyHD INT
+)
+
+CREATE TABLE #tblEmail  
+(
+	FormEmail NVARCHAR(MAX), 
+	EmailAddressFrom VARCHAR(200),
+	[From] VARCHAR(200),
+	EmailAddressTo VARCHAR(200),
+	WONo VARCHAR(10),
+	[Subject] VARCHAR(200),
+	BCC_EmailAddress VARCHAR(MAX)
+)
+
+DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_WONo VARCHAR(10), @V_KeyHD INT, @v_counter INT=0
+
+--INSERT INTO PIP_T_WO_CheckList
+--(KeyHD,IDItem,Value,Remark1,Remark2,EntryUser,EntryDate,UpdateUser,UpdateDate,IDResult,IsAnomali)
+--SELECT A.C1, A.C2, A.C3, LEFT(A.C4,500), LEFT(A.C6,500), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(),
+--ISNULL((SELECT MAX(IDResult) FROM PIP_T_WO_CheckList),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), CAST(C5 AS BIT)
+--FROM @p_Dt1 A WHERE NOT EXISTS (SELECT * FROM PIP_T_WO_CheckList AA WHERE AA.KeyHD=A.C1 AND AA.IDItem=A.C2)
+--UPDATE AA SET AA.Value=A.C3, AA.Remark1=LEFT(A.C4,500), AA.Remark2=LEFT(A.C6,500), AA.UpdateUser=@p_UpdateUser, AA.UpdateDate=GETDATE(), AA.IsAnomali=CAST(C5 AS BIT)
+--FROM PIP_T_WO_CheckList AA JOIN @p_Dt1 A ON AA.KeyHD=A.C1 AND AA.IDItem=A.C2
+--JOIN PIP_T_WO wo ON wo.KeyHD=A.C1 AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
+
+--INSERT PIP_T_WO_CheckList_SubValue (IDResult, FieldName, [Value], IDSubValue)
+--SELECT AA.IDResult, A.C3, A.C4,
+--ISNULL((SELECT MAX(IDSubValue) FROM PIP_T_WO_CheckList_SubValue),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) 
+--FROM @p_Dt2 A JOIN PIP_T_WO_CheckList AA ON A.C1=AA.KeyHD AND A.C2=AA.IDItem
+--WHERE NOT EXISTS (SELECT * FROM PIP_T_WO_CheckList_SubValue B WHERE B.IDResult=AA.IDResult AND B.FieldName=A.C3)
+--UPDATE B SET B.Value=A.C4 
+--FROM @p_Dt2 A JOIN PIP_T_WO_CheckList AA ON A.C1=AA.KeyHD AND A.C2=AA.IDItem 
+--JOIN PIP_T_WO_CheckList_SubValue B ON B.IDResult=AA.IDResult AND B.FieldName=A.C3
+--JOIN PIP_T_WO wo ON wo.KeyHD=AA.KeyHD AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
+
+IF @V_IsApprovalSPV=0
+	DELETE A 
+	FROM PIP_T_DocumentAttachment A JOIN PIP_T_WO B ON B.CompanyID = A.CompanyID AND B.LocationID = A.LocationID AND a.DocNo=b.WONo 
+	WHERE a.[Type] IN ('wo1','wo2')
+	AND EXISTS (SELECT * FROM @p_Dt4 C WHERE b.KeyHD=C.C1)
+	AND ((b.RemarkTechnician='' AND b.ReasonRespondDC='') OR (b.RemarkTechnician<>'' AND b.ReasonRespondDC<>'')) AND b.isCompleteDC=0 
+ELSE	
+	DELETE A 
+	FROM PIP_T_DocumentAttachment A JOIN PIP_T_WO B ON B.CompanyID = A.CompanyID AND B.LocationID = A.LocationID AND a.DocNo=b.WONo 
+	WHERE a.[Type] IN ('wo3')
+	AND EXISTS (SELECT * FROM @p_Dt4 C WHERE b.KeyHD=C.C1) 
+
+DECLARE tamp CURSOR FOR 
+SELECT a.CompanyID, a.LocationID, a.WONo, a.KeyHD 
+FROM PIP_T_WO a JOIN @p_Dt4 B ON a.KeyHD=b.C1
+WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+OPEN tamp
+FETCH NEXT FROM tamp INTO @V_CompanyID, @V_LocationID, @V_WONo, @V_KeyHD
+WHILE @@FETCH_STATUS=0
+BEGIN
+	SET @v_counter=@v_counter+1
+	INSERT @tmp_Photos
+	SELECT @V_CompanyID, @V_LocationID,@V_WONo,A.C2, 
+	REPLACE(REPLACE(REPLACE(REPLACE(CONVERT(VARCHAR, GETDATE(), 25), '-', ''), ' ', ''), ':', ''), '.', '')+ '_'+CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS VARCHAR(5)),
+	(SELECT TOP 1 LEFT(aa.val,100) FROM dbo.SplitStringConvertToTable(A.C3,'.') aa ORDER BY aa.id), 
+	(SELECT TOP 1 aa.val FROM dbo.SplitStringConvertToTable(A.C3,'.') aa ORDER BY aa.id DESC),
+	A.C4, A.C1
+	FROM @p_Dt3 A WHERE A.C1=@V_KeyHD
+	
+	INSERT INTO PIP_T_DocumentAttachment
+	(ID,CompanyID,LocationID,DocNo,[Type],SeqNo,[FileName],Alias,FileType,UploadUser,UploadDate)
+	SELECT ISNULL((SELECT MAX(ID) FROM PIP_T_DocumentAttachment),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) ID,
+	a.CompanyID, a.LocationID,a.DocNo,a.[Type], a.seqno, a.[FileName], a.alias, a.filetype, @p_UpdateUser, GETDATE()
+	FROM @tmp_Photos a WHERE a.keyhd=@V_KeyHD
+	
+	FETCH NEXT FROM tamp INTO @V_CompanyID, @V_LocationID, @V_WONo, @V_KeyHD
+END
+CLOSE tamp
+DEALLOCATE tamp
+
+IF @V_IsApprovalSPV=1
+BEGIN
+	DECLARE @m_Constanta VARCHAR(50), @m_CompanyID VARCHAR(10), @m_LocationID VARCHAR(3), @m_WONo VARCHAR(10)
+	DECLARE @V_SectionID VARCHAR(10), @V_DescriptionWO VARCHAR(500), @V_SectionIDUser VARCHAR(10), @V_ProfitCenterUser VARCHAR(10)
+	DECLARE @V_ApprovedBy VARCHAR(50)
+	
+	DECLARE tamp1 CURSOR FOR 
+	SELECT a.KeyHD, a.CompanyID, a.LocationID,AA.C7 SectionID, AA.C8 RemarkWO, A.SectionID, A.ProfitCenterNo, a.ApprovedHelpDeskUser 
+	FROM pip_t_wo A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=0 AND a.ReasonRespondDC='' AND AA.C5='APPROVED' AND AA.C3='Recommend Follow Up'
+	OPEN tamp1
+	FETCH NEXT FROM tamp1 INTO @V_KeyHD, @m_CompanyID, @m_LocationID, @V_SectionID, @V_DescriptionWO, @V_SectionIDUser,@V_ProfitCenterUser, @V_ApprovedBy
+	WHILE @@FETCH_STATUS=0
+	BEGIN
+		DECLARE @m_KeyHDWO INT = ISNULL((SELECT MAX(a.KeyHD) FROM PIP_T_WO a),0)+1 
+		DECLARE @tbl_tmp1 TABLE (ID VARCHAR(10), SeqNo INT)
+		SET @m_Constanta='PIPWO'+@m_CompanyID+@m_LocationID
+		INSERT @tbl_tmp1
+		EXECUTE sp_GetGenerateAutoNumID 'pip',@m_Constanta,1
+		SELECT @m_WONo=ID FROM @tbl_tmp1 
+		Insert Into PIP_T_WO (KeyHD, CompanyID, LocationID, WONo, WODate, WOType, StartDate, JONo, 
+		PMType, Description, LocationNo, SectionID, RequestedBy, CompletedBy, CompletedDate, 
+		CancelReason, SIIAmount, IsDelete, IsJO, IsApproved, ApprovedUser, ApprovedDate, EntryUser, EntryDate, UpdateUser, UpdateDate, IsPrint, [RePrint],
+		Feedback1, Feedback2, Feedback3, Feedback4, Feedback5, EquipmentCode, SectionIDUser, isApprovedDH, ApprovedDHUser, ApprovedDHDate, ReasonDH, 
+		isApprovedHelpDesk, ApprovedHelpDeskUser, ApprovedHelpDeskDate, ReasonHelpDesk, isCompleteDC, ReasonDC, LastStatusTransaction,ProfitCenterNo, 
+		isRespondDC, ApprovedRespondDCUser,ApprovedRespondDCDate,ReasonRespondDC,isCompletedUser,CompletedUser,CompletedDateUser,ReasonUser) 
+		VALUES (@m_KeyHDWO, @m_CompanyID, @m_LocationID, @m_WONo, CONVERT(VARCHAR(8),GETDATE(),112), 'I', CONVERT(VARCHAR(8),GETDATE(),112), '', 
+		'', @V_DescriptionWO, '', @V_SectionID, LEFT(ISNULL((SELECT swu.UserID FROM SysWebUser AS swu WHERE swu.employeeid=@V_ApprovedBy),@V_ApprovedBy),50), '', '', 
+		'', 0, 0, 1, 0, '', '', @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), 0, 0, 0, 0, 0, 0, 0, '', @V_SectionIDUser, 1, @p_UpdateUser, GETDATE(), '',
+		1, @p_UpdateUser, GETDATE(), '', 0, '', '', @V_ProfitCenterUser,0,'','','',0,'','','')	
+		UPDATE PIP_T_WO SET FollowUpWONo = @m_WONo WHERE KeyHD=@V_KeyHD
+		
+		FETCH NEXT FROM tamp1 INTO @v_KeyHD, @m_CompanyID, @m_LocationID, @V_SectionID, @V_DescriptionWO, @V_SectionIDUser,@V_ProfitCenterUser, @V_ApprovedBy
+	END
+	CLOSE tamp1
+	DEALLOCATE tamp1
+	
+	UPDATE A 
+	SET ReasonRespondDC = AA.C6, isRespondDC = CASE WHEN AA.C5='VOID' THEN 0 ELSE 1 END, 
+	UpdateUser = @p_UpdateUser, UpdateDate = GETDATE(), isCompleteDC = CASE WHEN AA.C5='VOID' THEN 0 ELSE 1 END,
+	CompletedDate = CASE WHEN AA.C5='VOID' THEN '' ELSE GETDATE() END,
+	CompletedBy = CASE WHEN AA.C5='VOID' THEN '' ELSE ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@p_UpdateUser),@p_UpdateUser) END,
+	A.RemarkSupervisor=AA.C4,
+	ApprovedRespondDCDate = GETDATE(),
+	ApprovedRespondDCUser = ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@p_UpdateUser),@p_UpdateUser)
+	FROM pip_t_wo A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=0 AND a.ReasonRespondDC=''
+END
+ELSE
+BEGIN
+	UPDATE A SET A.ReasonRespondDC='', A.ApprovedRespondDCUser='', A.ApprovedRespondDCDate='', A.isRespondDC = 0,
+	A.UpdateUser=@p_UpdateUser, A.UpdateDate=GETDATE(), 
+	A.ApprovedHelpDeskUser=@p_UpdateUser, 
+	A.ApprovedHelpDeskDate=GETDATE(),
+	A.RemarkTechnician=LEFT(AA.C2,255), 
+	A.IsFollowUp=CASE WHEN AA.C3='Recommend Follow Up' THEN 1 ELSE 0 END,
+	A.FollowUpSection=CASE WHEN AA.C3='Recommend Follow Up' THEN AA.C7 ELSE '' END,
+	A.FollowUpRemark=CASE WHEN AA.C3='Recommend Follow Up' THEN AA.C8 ELSE '' END
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+
+	UPDATE B
+	SET B.StartDate=CASE WHEN AA.C9='' THEN '' ELSE AA.C9 END, 
+	B.EndDate=CASE WHEN AA.C10='' THEN '' ELSE AA.C10 END, 
+	B.Remark=LEFT(AA.C2,100), B.UpdateUser=@p_UpdateUser, B.UpdateDate=GETDATE(),
+	B.WorkingHours=CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+						CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) / 60 AS VARCHAR(10))
+					ELSE 0 END,
+	B.WorkingMinutes=CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+						CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) % 60 AS VARCHAR(2))
+					ELSE 0 END
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD 
+	JOIN PIP_T_H_WO_Employee B ON B.KeyHD=A.KeyHD
+	WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0	
+
+	INSERT INTO PIP_T_H_WO_Employee
+	(KeyHD,SeqNo,ComplaintType,ProblemCode,StartDate,EndDate,WorkingHours,WorkingMinutes,Remark,
+	EntryUser,EntryDate,UpdateUser,UpdateDate)
+	SELECT a.KeyHD, 1, '', '', CASE WHEN AA.C9='' THEN '' ELSE AA.C9 END, CASE WHEN AA.C10='' THEN '' ELSE AA.C10 END, 
+	CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+		CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) / 60 AS VARCHAR(10))
+	ELSE 0 END,
+	CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+		 CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) % 60 AS VARCHAR(2))
+	ELSE 0 END, LEFT(AA.C2,100), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE NOT EXISTS (SELECT * FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD)
+	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+
+	DELETE D FROM PIP_T_D_WO_Employee D JOIN PIP_T_WO H JOIN @p_Dt4 A ON A.C1=H.KeyHD ON H.KeyHD = D.KeyHD
+	WHERE NOT EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(H.EmployeeAssigned,';') b 
+					  WHERE b.val=d.EmployeeID)
+    AND ((h.RemarkTechnician='' AND h.ReasonRespondDC='') OR (h.RemarkTechnician<>'' AND h.ReasonRespondDC<>'')) AND h.isCompleteDC=0					  
+	INSERT INTO PIP_T_D_WO_Employee
+	(KeyHD,SeqNo,EmployeeID)
+	SELECT a.KeyHD, ISNULL((SELECT MAX(AB.SeqNo) FROM PIP_T_D_WO_Employee AB WHERE AB.KeyHD=A.KeyHD),0)+ROW_NUMBER() OVER (ORDER BY b.val ), b.val  
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') b
+	WHERE NOT EXISTS (SELECT * FROM PIP_T_D_WO_Employee BB WHERE BB.KeyHD=A.KeyHD AND BB.EmployeeID=b.val) 
+	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0
+	
+	IF EXISTS(SELECT * FROM @p_Dt1 WHERE CAST(C5 AS BIT)=1) -- send email utk anomali
+	BEGIN
+		DECLARE @V_BCC_EmailAddress VARCHAR(MAX)
+		SELECT 
+		@V_BCC_EmailAddress = s.Description 
+		FROM syswebcommonvalue s 
+		WHERE s.CommonGroup = 'BCC' 
+		and s.APPID = 'PIP'
+		
+		INSERT INTO #tblEmail
+			(FormEmail, EmailAddressFrom, [From], EmailAddressTo, WONo, [Subject], BCC_EmailAddress)
+			SELECT DISTINCT FormEmail=
+'<html>
+<head></head>
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.5;">
+	<tr>
+		<td colspan=3 valign=top> Dear Mr/Mrs. ' + mhe.Name + ', </td>
+	</tr>
+	<tr><td colspan="3" height="15"></td></tr>
+	<tr>
+		<td colspan="3" style="color: #d9534f; font-weight: bold;">
+		  An anomaly has been detected during the Preventive Maintenance inspection.
+		</td>
+	</tr>
+	<tr><td colspan="3" height="15"></td></tr>
+	
+	  <tr>
+		<td colspan="3" style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">WO Details</td>
+	  </tr>
+	  <tr><td colspan="3" height="5"></td></tr>
+	  <tr>
+		<td width="150" valign="top">WO PM</td>
+		<td width="15" valign="top" align="center">:</td>
+		<td>'+b.WONo+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Equipment</td>
+		<td valign="top" align="center">:</td>
+		<td>['+b.SectionID+']'+b.EquipmentCode+' '+pme.EquipmentName+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Location</td>
+		<td valign="top" align="center">:</td>
+		<td>'+b.LocationNo  + ' ' + pml.[Description]+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Technician</td>
+		<td valign="top" align="center">:</td>
+		<td>'+mhe2.Name+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Inspection Date</td>
+		<td valign="top" align="center">:</td>
+		<td>'+convert(varchar,pthwe.StartDate,106) + ' ' + convert(varchar(5),pthwe.StartDate,108)+'</td>
+	  </tr>
+	  <tr><td colspan="3" height="20"></td></tr>
+
+	  <tr>
+		<td colspan="3" style="font-weight: bold; color: #d9534f; border-bottom: 1px solid #d9534f; padding-bottom: 5px;">ANOMALY DETECTED</td>
+	  </tr>
+	  <tr><td colspan="3" height="5"></td></tr>'+
+		ISNULL(REPLACE(REPLACE(
+		(
+			SELECT
+			CASE 
+				WHEN ROW_NUMBER() OVER (ORDER BY a.IDItem) > 1 
+				THEN '<tr><td colspan="3" style="border-top: 1px dashed #ddd; padding-top: 15px; margin-bottom: 15px;"></td></tr>' 
+				ELSE '' 
+			  END+ 			
+		  '<tr>
+			<td colspan="3" style="padding-left: 10px;">
+			  <b style="display: block; margin-bottom: 5px;">'+CAST(ROW_NUMBER() OVER (ORDER BY a.IDItem) AS VARCHAR)+'. '+pmclwi.ItemLabel+'</b>
+			  <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+				<tr>
+				  <td width="100" valign="top">Expected</td>
+				  <td width="15" valign="top" align="center">:</td>
+				  <td>'+ CONVERT(VARCHAR,CAST((pmclwi.MinValue-pmclwi.MinTolerance) AS MONEY),1) + ' - ' + CONVERT(VARCHAR,CAST((pmclwi.MaxValue+pmclwi.MaxTolerance) AS MONEY),1) + ' ' + pmclwi.Unit + '</td>
+				</tr>
+				<tr>
+				  <td valign="top">Actual</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ CONVERT(VARCHAR,a.[Value],1) + ' ' + pmclwi.Unit + '</td>
+				</tr>
+				<tr>
+				  <td valign="top">'+ISNULL(pmclwi.Remark1Text,'Remark')+'</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ISNULL(a.Remark1,'')+'</td>
+				</tr>' +
+                '<tr><td valign="top">'+ISNULL(pmclwi.Remark2Text,'Remark')+'</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ISNULL(a.Remark2,'')+'</td>
+				</tr>
+			  </table>
+			</td>
+		  </tr>
+		  <tr><td colspan="3" height="20"></td></tr>'
+			FROM PIP_M_CheckListWOPM_Item AS pmclwi JOIN PIP_T_WO_CheckList a ON a.IDItem = pmclwi.IDItem
+			WHERE a.KeyHD=b.KeyHD AND a.IsAnomali=1 
+			ORDER BY a.IDItem
+			FOR XML PATH('')
+		) 
+		,'&lt;','<'),'&gt;','>'),'')+
+	  '
+	<tr>
+    <td colspan="3">
+      <b>Required Action:</b><br>
+      Please review the anomaly and take the necessary corrective action.
+    </td>
+  </tr>
+  <tr><td colspan="3" height="15"></td></tr>
+  <tr>
+    <td colspan="3">
+      <b>System Status:</b> <span style="background-color: #f0f0f0; padding: 2px 6px; border-radius: 3px;">Pending Supervisor Review</span>
+    </td>
+  </tr>
+  <tr><td colspan="3" height="40"></td></tr>
+  <tr>
+    <td colspan="3" style="font-size: 12px; color: #777; font-style: italic; border-top: 1px solid #eee; padding-top: 10px;">
+      Mulia Preventive Maintenance System<br>
+      This is an automated email. Please do not reply.
+    </td>
+  </tr>
+'		
+			, EmailAddressFrom=mhe2.EmailAddress, [From]=mhe2.Name, EmailAddressTo=mhe.EmailAddress, b.WONo 
+			, [Subject]='[ACTION REQUIRED] PM Anomaly – ['+b.SectionID+'] ['+pme.EquipmentName+'] – [WO-PM-'+b.WONo+']'
+			, BCC_EmailAddress=@V_BCC_EmailAddress
+			FROM PIP_T_WO b 
+			JOIN PIP_T_H_WO_Employee AS pthwe ON pthwe.KeyHD = b.KeyHD
+			JOIN 
+			(
+				SELECT c.EmployeeID, cc.val SectionID 
+				FROM utl_user c CROSS APPLY dbo.SplitStringConvertToTable(c.Section,';') cc
+				WHERE IsSpv=1				
+			) d ON d.SectionID=b.SectionID
+			JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=d.EmployeeID
+			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
+			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
+			CROSS JOIN M_HRD_Employee AS mhe2  
+			WHERE mhe2.EmployeeID=@p_UpdateUser
+			AND EXISTS (SELECT 1 FROM PIP_T_WO_CheckList a JOIN @p_Dt1 aa ON aa.C1=a.KeyHD
+			            WHERE a.IsAnomali=1 AND a.KeyHD=b.KeyHD)
+	END
+END
+
+SELECT * FROM @tmp_Photos AS tp
+SELECT * FROM #tblEmail
+
+DROP TABLE #tblEmail
+GO
+
