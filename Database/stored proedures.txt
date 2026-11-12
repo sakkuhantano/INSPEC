@@ -2402,6 +2402,21 @@ BEGIN
     (
         SELECT 1
         FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT)
+        WHERE I.ItemType='REPEAT' AND I.IsValueRequired=1
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM @p_DtRepeat V
+              WHERE V.C1=A.C1 AND V.C2=A.C2
+                AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          )
+    )
+    BEGIN RAISERROR('At least one REPEAT value is required for this Work Order item.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
         JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
         JOIN (SELECT DISTINCT C1,C2,C3 FROM @p_DtRepeat) O ON O.C1=A.C1 AND O.C2=A.C2
