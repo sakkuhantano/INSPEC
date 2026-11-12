@@ -4246,7 +4246,7 @@ function showItemProperties(itemData)
 
                     </div>
 
-                    <div class="col-5" id="rowUnit" style="${itemType === 'TEXT' || itemType === 'GROUP' ? 'display:none;' : ''}">
+                    <div class="col-5" id="rowUnit" style="${itemType === 'TEXT' || itemType === 'GROUP' || itemType === 'REPEAT' ? 'display:none;' : ''}">
 
                         <label class="form-label text-xs fw-bold mb-1">
                             Unit
@@ -4711,6 +4711,7 @@ function showItemProperties(itemData)
                 }
                  $("#rowUnit").toggle(
                     this.value !== "GROUP" &&
+                    this.value !== "REPEAT" &&
                     this.value !== "TEXT"
                 );
                 $("#propUnit").prop("disabled", isReadonlyMode || this.value === "OPTION").val(itemData.Unit || "");
