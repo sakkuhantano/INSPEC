@@ -1735,9 +1735,9 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                     input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+(field.min!=null?' min="'+escInspection(field.min)+'"':'')+(field.max!=null?' max="'+escInspection(field.max)+'"':''))+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
                 }
                 const col=mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):6;
-                return heading+'<div class="col-12 col-md-'+col+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
+                return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
             }).join("");
-            objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2 inspection-repeat-object-title" data-label="'+escInspection(cfg.objectLabel||"Object")+'">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2">'+fieldHtml+'</div></div>');
+            objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2 inspection-repeat-object-title" data-label="'+escInspection(cfg.objectLabel||"Object")+'">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2 '+(mode==="FIELDS"?'row-cols-1 row-cols-md-'+Math.max(1,Math.min(6,Number(cfg.columnCount||3))):'')+'">'+fieldHtml+'</div></div>');
         }
         control=objects.join("");
         if(mode==="OBJECTS" && String(cfg.countMode||"FLEX").toUpperCase()==="FLEX" && !readOnly){
