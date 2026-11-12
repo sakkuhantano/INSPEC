@@ -2153,7 +2153,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
    I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
    ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
    I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
    I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
    I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -2212,6 +2212,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                                     min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
                                     max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                     unit = itemRow["Unit"].ToString(),
+                                    showUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                     isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
                                     
                                     versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
@@ -2475,7 +2476,7 @@ SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
        I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
        ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
        I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, I.IsValueRequired,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
        I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
        I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
 FROM dbo.PIP_M_CheckListWOPM_Section S
@@ -2534,6 +2535,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                                         min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
                                         max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                         unit = itemRow["Unit"].ToString(),
+                                    showUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
                                     
                                         versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
