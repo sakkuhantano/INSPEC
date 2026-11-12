@@ -525,6 +525,8 @@
                     }
                     pathStatusText('Titik terakhir dibatalkan.');
                 } else {
+                    drawMode = false; drawingPath = false;
+                    board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
                     if (shapeSelect) shapeSelect.value = 'CIRCLE';
                     if (pathPreview) pathPreview.setAttribute('d', '');
