@@ -1723,7 +1723,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                 const label=String(field.fieldLabel||key);
                 const group=String(field.groupName||"");
                 const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escInspection(group)+'</div>':"";
-                lastGroup=group||lastGroup;
+                lastGroup=group;
                 const fieldValue=objectValues[key]==null?"":objectValues[key];
                 const fieldRequired=field.isRequired?' required aria-required="true"':"";
                 let input="";
@@ -2004,6 +2004,11 @@ function validateInspectionItemsAll(items) {
                     else if (fields.length < 2 || filledCount < 2)
                         invalid("Minimal 2 kolom harus diisi untuk GROUP " + (group.groupName || "") + " pada " + label, "group-value");
                 });
+            } else if (itemType === "REPEAT") {
+                const hasRepeatValue = (Array.isArray(answer.RepeatValues) ? answer.RepeatValues : []).some(objectRow =>
+                    objectRow && objectRow.Values && Object.keys(objectRow.Values).some(key =>
+                        objectRow.Values[key] != null && String(objectRow.Values[key]).trim() !== ""));
+                if (!hasRepeatValue) invalid("Minimal satu nilai pada REPEAT wajib diisi: " + label, "repeat-value");
             } else if (answer.Value == null || String(answer.Value).trim() === "") {
                 invalid((itemType === "OPTION" ? "Pilih salah satu option: " : "Nilai wajib diisi: ") + label, "value");
             }
