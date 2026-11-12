@@ -1302,6 +1302,9 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 chkNormalAbnormalRequired.Checked = row["IsNormalAbnormalRequired"] != DBNull.Value && Convert.ToBoolean(row["IsNormalAbnormalRequired"]);
                 txtMarkerX.Text = row["MapX"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
                 txtMarkerY.Text = row["MapY"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
+                string savedShapeType = row.Table.Columns.Contains("ShapeType") ? Convert.ToString(row["ShapeType"]) : "CIRCLE";
+                if (ddlPointShapeType.Items.FindByValue(savedShapeType) != null) ddlPointShapeType.SelectedValue = savedShapeType;
+                hidSvgPathData.Value = row.Table.Columns.Contains("SvgPathData") ? Convert.ToString(row["SvgPathData"]) : "";
                 BindEditorMaps();
                 LoadEditorMapPdf();
                 BindMapElements();
@@ -1329,6 +1332,16 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 SetTab("#tab-point");
                 return;
             }
+            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) ? "PATH" : "CIRCLE";
+            string svgPathData = (hidSvgPathData.Value ?? "").Trim();
+            if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
+                !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\\s+\\-]+$")))
+            {
+                GF.MsgBox(this, "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup.", "BS-5.3.0");
+                SetTab("#tab-point");
+                return;
+            }
+            if (shapeType == "CIRCLE") svgPathData = "";
             decimal? coordinateX = null;
             decimal? coordinateY = null;
             if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
@@ -1500,12 +1513,14 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
 UPDATE dbo.PIP_M_InspectionPoint
 SET PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
     PointDescription=@Description, ObjectReferenceType=@ObjectType,
-    ObjectReferenceCode=@ReferenceCode, MapX=@MapX, MapY=@MapY, DisplayOrder=@DisplayOrder,
+    ObjectReferenceCode=@ReferenceCode, MapX=@MapX, MapY=@MapY,
+    ShapeType=@ShapeType, SvgPathData=@SvgPathData, ShapeAttributes=@ShapeAttributes, StrokeWidth=@StrokeWidth,
+    DisplayOrder=@DisplayOrder,
     IsNormalAbnormalRequired=@IsNormalAbnormalRequired, UpdateUser=@UserID, UpdateDate=GETDATE()
 WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=@MapID
               AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)",
-                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData));
                     }
                     else
                     {
@@ -1513,13 +1528,13 @@ WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
                         br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionPoint
 (InspectionPointID,PointCode,PointName,PointObjectType,PointDescription,
- ObjectReferenceType,ObjectReferenceID,ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,
+ ObjectReferenceType,ObjectReferenceID,ObjectReferenceCode,MapID,MapX,MapY,ShapeType,SvgPathData,ShapeAttributes,StrokeWidth,DisplayOrder,
  IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
 VALUES
 (@PointID,@PointCode,@PointName,@ObjectType,@Description,
- @ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@DisplayOrder,
+ @ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@ShapeType,@SvgPathData,@ShapeAttributes,@StrokeWidth,@DisplayOrder,
  1,@IsNormalAbnormalRequired,@UserID,@UserID)",
-                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY));
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
@@ -1618,7 +1633,8 @@ VALUES
         }
 
         private SqlParameter[] PointParameters(long pointID, object mapValue,
-            string code, string name, int order, decimal? coordinateX, decimal? coordinateY)
+            string code, string name, int order, decimal? coordinateX, decimal? coordinateY,
+            string shapeType, string svgPathData)
         {
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
@@ -1633,6 +1649,10 @@ VALUES
                 new SqlParameter("@MapID", mapValue),
                 new SqlParameter("@MapX", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value },
                 new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
+                new SqlParameter("@ShapeType", shapeType),
+                new SqlParameter("@SvgPathData", String.IsNullOrWhiteSpace(svgPathData) ? (object)DBNull.Value : svgPathData),
+                new SqlParameter("@ShapeAttributes", "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}"),
+                new SqlParameter("@StrokeWidth", SqlDbType.Decimal) { Precision = 10, Scale = 2, Value = 1.50m },
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsNormalAbnormalRequired", chkNormalAbnormalRequired.Checked),
                 new SqlParameter("@UserID", Master.Mn_EmployeeID)
