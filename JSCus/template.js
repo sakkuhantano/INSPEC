@@ -9490,7 +9490,42 @@ async function validateCurrentTemplate() {
             }
 
             //------------------------
-            // GROUP
+            // NATIVE REPEAT
+            //------------------------
+            if (item.ItemType === "REPEAT") {
+                const cfg = item.Repeat || {};
+                const fields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
+                if (!["FIELDS","OBJECTS"].includes(String(cfg.RepeatMode || "").toUpperCase()))
+                    addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"RepeatMode","REPEAT mode must be FIELDS or OBJECTS.");
+                if (Number(cfg.ColumnCount || 0) < 1 || Number(cfg.ColumnCount || 0) > 6)
+                    addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"ColumnCount","REPEAT columns must be between 1 and 6.");
+                if (!fields.length)
+                    addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"RepeatFields","At least one REPEAT child field is required.");
+                const keys = new Set();
+                fields.forEach(function(field,index) {
+                    const key=String(field.FieldKey || "").trim();
+                    const fieldType=String(field.FieldType || "").toUpperCase();
+                    if (!key || key.length>50 || keys.has(key))
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldKey","Every child field requires a unique stable Field Key (max 50 characters).");
+                    keys.add(key);
+                    if (!String(field.FieldLabel || "").trim())
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldLabel","REPEAT field label is required.");
+                    if (!["NUMBER","RANGE","OPTION","TEXT"].includes(fieldType))
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldType","Unsupported REPEAT child field type.");
+                    const options=Array.isArray(field.OptionList)?field.OptionList:String(field.OptionList||"").split(";");
+                    if (fieldType==="OPTION" && !options.some(x=>String(x).trim()))
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"OptionList","OPTION child requires at least one option.");
+                    if (field.MinValue!=null && field.MaxValue!=null && Number(field.MinValue)>Number(field.MaxValue))
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"MinValue","Minimum must not exceed maximum.");
+                });
+                if (String(cfg.RepeatMode).toUpperCase()==="OBJECTS" && String(cfg.CountMode).toUpperCase()==="FIXED" && Number(cfg.FixedCount||0)<1)
+                    addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"FixedCount","Fixed object count must be at least one.");
+                if (String(cfg.RepeatMode).toUpperCase()==="OBJECTS" && String(cfg.CountMode).toUpperCase()==="FLEX" && cfg.MinCount!=null && cfg.MaxCount!=null && Number(cfg.MinCount)>Number(cfg.MaxCount))
+                    addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"Count","Minimum object count must not exceed maximum.");
+            }
+
+            //------------------------
+            // GROUP (legacy)
             //------------------------
 
             if (item.ItemType ==
