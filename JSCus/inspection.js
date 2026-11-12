@@ -4496,7 +4496,7 @@ async function previewSelectedInspections() {
         return;
     }
     try {
-        const response = await fetch("R_Reports.aspx/GenerateReport", {
+        const response = await fetch("inspection.aspx/GenerateReport", {
             method: "POST",
             headers: { "Content-Type": "application/json; charset=utf-8" },
             body: JSON.stringify({
