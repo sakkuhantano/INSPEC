@@ -603,6 +603,44 @@
         .point-info-button{width:28px;height:28px;flex-basis:28px}
         .inspection-point-option-controls{margin-left:1.6rem!important}
     }
+
+    /* Batch map-first workspace: reclaim vertical space from the page chrome. */
+    #inspectionMapWorkspace{
+        height:calc(100dvh - 148px);
+        min-height:600px;
+        display:flex;
+        flex-direction:column;
+        overflow:hidden;
+        border-radius:.55rem;
+    }
+    #inspectionMapWorkspace>.inspection-map-toolbar{flex:0 0 auto;padding:.4rem .7rem;min-height:48px}
+    #inspectionMapWorkspace>.inspection-map-summary{flex:0 0 auto;min-height:52px}
+    #inspectionMapWorkspace>#inspectionMapSelectWrap{flex:0 0 auto;padding:.25rem .7rem!important}
+    #inspectionMapWorkspace>.inspection-map-content{flex:1 1 auto;min-height:0;grid-template-columns:minmax(0,1fr) 250px;gap:.45rem}
+    #inspectionMapWorkspace .inspection-map-panel{min-height:0;overflow:hidden}
+    #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
+        flex:1 1 auto;height:auto!important;min-height:0!important;max-height:none!important;
+        padding:4px!important;display:flex;align-items:center;justify-content:center;
+    }
+    #inspectionMapWorkspace .inspection-map-pdf-stage{flex:0 0 auto;max-width:100%;max-height:100%;margin:auto}
+    #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
+    #inspectionMapWorkspace .inspection-map-pdf-stage img{max-width:100%;max-height:100%;height:auto;object-fit:contain}
+    #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
+        height:100%;min-height:0;max-height:none;padding:.45rem;overflow:auto
+    }
+    #inspectionMapWorkspace>.d-flex.justify-content-end{flex:0 0 auto;padding:.35rem .55rem!important}
+    @media(max-width:767.98px){
+        #inspectionMapWorkspace{height:calc(100dvh - 142px);min-height:0}
+        #inspectionMapWorkspace>.inspection-map-toolbar{min-height:44px;padding:.3rem .45rem}
+        #inspectionMapWorkspace>.inspection-map-summary{min-height:46px}
+        #inspectionMapWorkspace>.inspection-map-content{grid-template-columns:minmax(0,1fr);min-height:0}
+        #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
+            height:100%!important;min-height:0!important;max-height:none!important;padding:2px!important
+        }
+        #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{display:none!important}
+        #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:100%;max-height:100%}
+    }
+
 </style>
 </asp:Content>
 
