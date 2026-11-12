@@ -2515,6 +2515,34 @@ BEGIN
         SELECT 1
         FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE')
+          AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND ISNUMERIC(V.C5)=0
+    )
+    BEGIN RAISERROR('A REPEAT NUMBER/RANGE value must be numeric in Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE')
+          AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND
+          (
+              (F.MinValue IS NOT NULL AND CONVERT(DECIMAL(18,4),V.C5)<F.MinValue)
+              OR (F.MaxValue IS NOT NULL AND CONVERT(DECIMAL(18,4),V.C5)>F.MaxValue)
+          )
+    )
+    BEGIN RAISERROR('A REPEAT NUMBER/RANGE value is outside the configured limits in Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
           ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4 AND F.FieldType='OPTION'
         WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND NOT EXISTS
