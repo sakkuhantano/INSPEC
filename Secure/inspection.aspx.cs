@@ -1452,7 +1452,8 @@ WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
                 DataTable points = br.EQueryP(@"
 SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
-       P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY, P.DisplayOrder,
+       P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY,
+       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,P.DisplayOrder,
        M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
