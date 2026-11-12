@@ -846,6 +846,12 @@ WHERE a.SectionID = @SectionID
                 DataTable dtGroup = new DataTable();
                 for (int i = 1; i <= 7; i++)
                     dtGroup.Columns.Add("C" + i + "", typeof(System.String));
+                DataTable dtRepeatConfig = new DataTable();
+                for (int i = 1; i <= 9; i++)
+                    dtRepeatConfig.Columns.Add("C" + i, typeof(System.String));
+                DataTable dtRepeatField = new DataTable();
+                for (int i = 1; i <= 11; i++)
+                    dtRepeatField.Columns.Add("C" + i, typeof(System.String));
                 DataTable dtDeletedTemplate = new DataTable();
                 dtDeletedTemplate.Columns.Add("C1", typeof(System.String));
                 dtDeletedTemplate.Columns.Add("C2", typeof(System.String));
@@ -1101,6 +1107,63 @@ WHERE a.SectionID = @SectionID
                                                     dtGroup.Rows.Add(gRow);
                                                 }
                                             }
+
+                                            // Native REPEAT configuration. Child fields use stable FieldKey values;
+                                            // RuntimeItemID is resolved to the database ID inside the save procedure.
+                                            if (itemType == "REPEAT")
+                                            {
+                                                Dictionary<string, object> repeat = item.ContainsKey("Repeat") ? item["Repeat"] as Dictionary<string, object> : null;
+                                                ArrayList repeatFields = item.ContainsKey("RepeatFields") ? item["RepeatFields"] as ArrayList : null;
+                                                if (repeat == null || repeatFields == null || repeatFields.Count == 0)
+                                                    throw new Exception("REPEAT item '" + Convert.ToString(item["ItemName"]) + "' must have configuration and at least one child field.");
+
+                                                string repeatMode = Convert.ToString(repeat.ContainsKey("RepeatMode") ? repeat["RepeatMode"] : "FIELDS").ToUpperInvariant();
+                                                string countMode = Convert.ToString(repeat.ContainsKey("CountMode") ? repeat["CountMode"] : "FLEX").ToUpperInvariant();
+                                                if (repeatMode != "FIELDS" && repeatMode != "OBJECTS")
+                                                    throw new Exception("Invalid REPEAT mode.");
+                                                if (countMode != "FIXED" && countMode != "FLEX")
+                                                    throw new Exception("Invalid REPEAT count mode.");
+
+                                                DataRow repeatRow = dtRepeatConfig.NewRow();
+                                                repeatRow["C1"] = idItem.ToString(CultureInfo.InvariantCulture);
+                                                repeatRow["C2"] = runtimeItemID.ToString(CultureInfo.InvariantCulture);
+                                                repeatRow["C3"] = repeatMode;
+                                                repeatRow["C4"] = Convert.ToString(repeat.ContainsKey("ColumnCount") ? repeat["ColumnCount"] : 3);
+                                                repeatRow["C5"] = repeat.ContainsKey("ObjectLabel") ? GF.GetString(repeat["ObjectLabel"]) : "";
+                                                repeatRow["C6"] = countMode;
+                                                repeatRow["C7"] = repeat.ContainsKey("FixedCount") && repeat["FixedCount"] != null ? Convert.ToString(repeat["FixedCount"], CultureInfo.InvariantCulture) : "";
+                                                repeatRow["C8"] = repeat.ContainsKey("MinCount") && repeat["MinCount"] != null ? Convert.ToString(repeat["MinCount"], CultureInfo.InvariantCulture) : "";
+                                                repeatRow["C9"] = repeat.ContainsKey("MaxCount") && repeat["MaxCount"] != null ? Convert.ToString(repeat["MaxCount"], CultureInfo.InvariantCulture) : "";
+                                                dtRepeatConfig.Rows.Add(repeatRow);
+
+                                                foreach (object repeatFieldNode in repeatFields)
+                                                {
+                                                    Dictionary<string, object> repeatField = repeatFieldNode as Dictionary<string, object>;
+                                                    if (repeatField == null) throw new Exception("Invalid REPEAT child field.");
+                                                    string fieldKey = Convert.ToString(repeatField.ContainsKey("FieldKey") ? repeatField["FieldKey"] : "").Trim();
+                                                    string fieldType = Convert.ToString(repeatField.ContainsKey("FieldType") ? repeatField["FieldType"] : "").Trim().ToUpperInvariant();
+                                                    if (fieldKey.Length == 0 || fieldKey.Length > 50)
+                                                        throw new Exception("Every REPEAT child field requires a stable FieldKey (maximum 50 characters).");
+                                                    if (fieldType != "NUMBER" && fieldType != "RANGE" && fieldType != "OPTION" && fieldType != "TEXT")
+                                                        throw new Exception("REPEAT child fields support NUMBER, RANGE, OPTION, and TEXT only.");
+
+                                                    ArrayList childOptions = repeatField.ContainsKey("OptionList") ? repeatField["OptionList"] as ArrayList : null;
+                                                    string childOptionList = childOptions == null ? Convert.ToString(repeatField.ContainsKey("OptionList") ? repeatField["OptionList"] : "") : String.Join(";", childOptions.ToArray());
+                                                    DataRow fieldRow = dtRepeatField.NewRow();
+                                                    fieldRow["C1"] = runtimeItemID.ToString(CultureInfo.InvariantCulture);
+                                                    fieldRow["C2"] = fieldKey;
+                                                    fieldRow["C3"] = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : fieldKey;
+                                                    fieldRow["C4"] = fieldType;
+                                                    fieldRow["C5"] = childOptionList;
+                                                    fieldRow["C6"] = repeatField.ContainsKey("Unit") ? GF.GetString(repeatField["Unit"]) : "";
+                                                    fieldRow["C7"] = repeatField.ContainsKey("MinValue") && repeatField["MinValue"] != null ? Convert.ToString(repeatField["MinValue"], CultureInfo.InvariantCulture) : "";
+                                                    fieldRow["C8"] = repeatField.ContainsKey("MaxValue") && repeatField["MaxValue"] != null ? Convert.ToString(repeatField["MaxValue"], CultureInfo.InvariantCulture) : "";
+                                                    fieldRow["C9"] = repeatField.ContainsKey("IsRequired") && Convert.ToBoolean(repeatField["IsRequired"]) ? "1" : "0";
+                                                    fieldRow["C10"] = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
+                                                    fieldRow["C11"] = repeatField.ContainsKey("DisplayOrder") ? Convert.ToString(repeatField["DisplayOrder"], CultureInfo.InvariantCulture) : (dtRepeatField.Rows.Count + 1).ToString(CultureInfo.InvariantCulture);
+                                                    dtRepeatField.Rows.Add(fieldRow);
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -1160,6 +1223,8 @@ WHERE a.SectionID = @SectionID
                         new SqlParameter("@p_dt_SubSection", dtSubSection),
                         new SqlParameter("@p_dt_Item", dtItem),
                         new SqlParameter("@p_dt_Group", dtGroup),
+                        new SqlParameter("@p_dt_RepeatConfig", dtRepeatConfig),
+                        new SqlParameter("@p_dt_RepeatField", dtRepeatField),
                         new SqlParameter("@p_dt_DelTemplate", dtDeletedTemplate),
                         new SqlParameter("@p_dt_DelVersion", dtDeletedVersion),
                         new SqlParameter("@p_UpdateUser", employeeID),
