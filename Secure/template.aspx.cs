@@ -479,7 +479,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
                                             ? dtRepeatFields.AsEnumerable()
                                                 .Where(fRow => Convert.ToInt32(fRow["IDItem"]) == idItem)
                                                 .OrderBy(fRow => Convert.ToInt32(fRow["DisplayOrder"]))
-                                                .Select(fRow => new
+                                                .Select(fRow => (object)new
                                                 {
                                                     FieldKey = fRow["FieldKey"].ToString(),
                                                     FieldLabel = fRow["FieldLabel"].ToString(),
