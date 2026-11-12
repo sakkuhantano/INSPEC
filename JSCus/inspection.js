@@ -1666,7 +1666,20 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             const min=Number(button.dataset.minCount||0);
             const max=button.dataset.maxCount===""?Number.MAX_SAFE_INTEGER:Number(button.dataset.maxCount);
             if(button.dataset.inspectionRepeatAction==="add"){
-                if(rows.length>=max||!rows.length)return;
+                if(rows.length>=max)return;
+                if(!rows.length){
+                    const itemId=Number(host.dataset.itemId);
+                    const templateItem=findInspectionTemplateItem(itemId);
+                    const savedItems=collectInspectionItems();
+                    const savedItem=savedItems.find(x=>Number(x.IDItem)===itemId);
+                    if(!templateItem||!savedItem)return;
+                    savedItem.RepeatValues=[{ObjectIndex:0,Values:{}}];
+                    const holder=document.createElement("div");
+                    holder.innerHTML=renderInspectionItem(templateItem,savedItems,false,"inspection");
+                    const replacement=holder.firstElementChild;
+                    if(replacement)host.replaceWith(replacement);
+                    return;
+                }
                 const clone=rows[rows.length-1].cloneNode(true);
                 const nextIndex=rows.length;
                 clone.dataset.objectIndex=String(nextIndex);
@@ -1711,7 +1724,8 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
         const fields=Array.isArray(item.repeatFields)?item.repeatFields:[];
         const mode=String(cfg.repeatMode||"FIELDS").toUpperCase();
         const savedObjects=Array.isArray(saved.RepeatValues)?saved.RepeatValues:[];
-        let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(Number(cfg.minCount||1),savedObjects.length||1));
+        const configuredMin=cfg.minCount==null?1:Math.max(0,Number(cfg.minCount));
+        let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(configuredMin,savedObjects.length));
         if(mode==="OBJECTS"&&cfg.maxCount)count=Math.min(count,Number(cfg.maxCount));
         const objects=[];
         for(let oi=0;oi<count;oi++){
