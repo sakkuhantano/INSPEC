@@ -1035,7 +1035,7 @@ async function startNewInspection() {
 
     if (typeof window.resetInspectionMapWorkspace === "function")
         await window.resetInspectionMapWorkspace();
-    await renderInspectionForm(currentInspectionRecord, false, "param");
+    await renderInspectionForm(currentInspectionRecord, false, "checklist");
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
     if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function") {
         // BATCH starts directly in the MAP workspace so the denah and point list
