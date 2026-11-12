@@ -56,7 +56,5 @@ GO
 
 /* Existing points remain CIRCLE. A PATH point keeps MapX/MapY as its anchor
    and stores its actual clickable outline in SvgPathData. */
-SELECT InspectionPointID,MapID,PointCode,ShapeType,MapX,MapY,SvgPathData,ShapeAttributes,StrokeWidth
-FROM dbo.PIP_M_InspectionPoint
-WHERE IsActive=1;
+PRINT 'InspectionPoint SVG geometry columns are ready.';
 GO
