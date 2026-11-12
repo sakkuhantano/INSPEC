@@ -5182,6 +5182,7 @@ function syncItemTypeBadge(itemData)
             break;
 
         case "GROUP":
+        case "REPEAT":
 
             badge.classList.add(
                 "badge-group"
