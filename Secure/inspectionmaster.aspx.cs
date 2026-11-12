@@ -1662,6 +1662,9 @@ VALUES
             string code, string name, int order, decimal? coordinateX, decimal? coordinateY,
             string shapeType, string svgPathData)
         {
+            string shapeAttributes = shapeType == "PATH"
+                ? "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}"
+                : "{\"coordinateSpace\":\"PERCENT_100\",\"marker\":\"circle\"}";
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
                 // These parameters validate the owning Map; they are not Point columns.
@@ -1677,7 +1680,7 @@ VALUES
                 new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
                 new SqlParameter("@ShapeType", shapeType),
                 new SqlParameter("@SvgPathData", SqlDbType.NVarChar, -1) { Value = String.IsNullOrWhiteSpace(svgPathData) ? (object)DBNull.Value : svgPathData },
-                new SqlParameter("@ShapeAttributes", "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}"),
+                new SqlParameter("@ShapeAttributes", shapeAttributes),
                 new SqlParameter("@StrokeWidth", SqlDbType.Decimal) { Precision = 10, Scale = 2, Value = 1.50m },
                 new SqlParameter("@DisplayOrder", order),
                 new SqlParameter("@IsNormalAbnormalRequired", chkNormalAbnormalRequired.Checked),
