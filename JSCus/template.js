@@ -8061,6 +8061,34 @@ function initItemOptionTagManager(optionList, itemData) {
 }
 
 // --- Group Configuration Manager ---
+function createRepeatField() {
+    const id = generateRuntimeID();
+    return { FieldKey:'field_'+id, FieldLabel:'New Field', FieldType:'NUMBER', OptionList:[], Unit:'', MinValue:null, MaxValue:null, IsRequired:false, GroupName:'', DisplayOrder:1 };
+}
+function renderRepeatEditor(item) {
+    item.Repeat = item.Repeat || { RepeatMode:'FIELDS', ColumnCount:3, ObjectLabel:'Object', CountMode:'FLEX', FixedCount:null, MinCount:1, MaxCount:null };
+    item.RepeatFields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
+    const cfg=item.Repeat, get=id=>document.getElementById(id), put=(id,v)=>{if(get(id))get(id).value=v==null?'':v;};
+    put('repeatMode',cfg.RepeatMode||'FIELDS'); put('repeatColumnCount',cfg.ColumnCount||3); put('repeatObjectLabel',cfg.ObjectLabel||'Object'); put('repeatCountMode',cfg.CountMode||'FLEX'); put('repeatFixedCount',cfg.FixedCount); put('repeatMinCount',cfg.MinCount==null?1:cfg.MinCount); put('repeatMaxCount',cfg.MaxCount);
+    const host=get('repeatFieldsHost'); if(!host)return;
+    host.innerHTML=item.RepeatFields.map((f,i)=>'<div class="border rounded p-2 mb-2"><div class="d-flex justify-content-between"><b class="small">Field '+(i+1)+'</b><button type="button" class="btn btn-sm btn-link text-danger repeat-remove-field" data-index="'+i+'" '+(isReadonlyMode?'disabled':'')+'>Remove</button></div><div class="row g-1">'+
+      '<div class="col-5"><label class="form-text">Field Key</label><input class="form-control form-control-sm" data-rfield="FieldKey" data-index="'+i+'" value="'+escapeHtml(f.FieldKey||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-7"><label class="form-text">Label</label><input class="form-control form-control-sm" data-rfield="FieldLabel" data-index="'+i+'" value="'+escapeHtml(f.FieldLabel||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-4"><label class="form-text">Type</label><select class="form-select form-select-sm" data-rfield="FieldType" data-index="'+i+'" '+(isReadonlyMode?'disabled':'')+'><option>NUMBER</option><option>RANGE</option><option>OPTION</option><option>TEXT</option></select></div>'+
+      '<div class="col-8"><label class="form-text">Options (; separated)</label><input class="form-control form-control-sm" data-rfield="OptionList" data-index="'+i+'" value="'+escapeHtml(Array.isArray(f.OptionList)?f.OptionList.join(';'):f.OptionList||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-4"><label class="form-text">Unit</label><input class="form-control form-control-sm" data-rfield="Unit" data-index="'+i+'" value="'+escapeHtml(f.Unit||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-4"><label class="form-text">Min</label><input type="number" step="any" class="form-control form-control-sm" data-rfield="MinValue" data-index="'+i+'" value="'+(f.MinValue==null?'':f.MinValue)+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-4"><label class="form-text">Max</label><input type="number" step="any" class="form-control form-control-sm" data-rfield="MaxValue" data-index="'+i+'" value="'+(f.MaxValue==null?'':f.MaxValue)+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-6"><label class="form-text">Group heading</label><input class="form-control form-control-sm" data-rfield="GroupName" data-index="'+i+'" value="'+escapeHtml(f.GroupName||'')+'" '+(isReadonlyMode?'disabled':'')+'></div>'+
+      '<div class="col-6 d-flex align-items-end"><label class="form-check mb-1"><input type="checkbox" class="form-check-input" data-rfield="IsRequired" data-index="'+i+'" '+(f.IsRequired?'checked':'')+' '+(isReadonlyMode?'disabled':'')+'> Required</label></div></div></div>').join('');
+    host.querySelectorAll('[data-rfield="FieldType"]').forEach(el=>el.value=item.RepeatFields[Number(el.dataset.index)].FieldType||'NUMBER');
+    const syncConfig=()=>{cfg.RepeatMode=get('repeatMode').value;cfg.ColumnCount=Math.max(1,Math.min(6,Number(get('repeatColumnCount').value||3)));cfg.ObjectLabel=get('repeatObjectLabel').value||'Object';cfg.CountMode=get('repeatCountMode').value;cfg.FixedCount=cfg.CountMode==='FIXED'?Math.max(1,Number(get('repeatFixedCount').value||1)):null;cfg.MinCount=cfg.CountMode==='FLEX'?(get('repeatMinCount').value===''?null:Number(get('repeatMinCount').value)):null;cfg.MaxCount=cfg.CountMode==='FLEX'?(get('repeatMaxCount').value===''?null:Number(get('repeatMaxCount').value)):null;get('repeatObjectConfig').style.display=cfg.RepeatMode==='OBJECTS'?'':'none';markCurrentVersionDirty();};
+    ['repeatMode','repeatColumnCount','repeatObjectLabel','repeatCountMode','repeatFixedCount','repeatMinCount','repeatMaxCount'].forEach(id=>get(id).addEventListener('change',syncConfig));
+    host.querySelectorAll('[data-rfield]').forEach(el=>el.addEventListener('change',()=>{const f=item.RepeatFields[Number(el.dataset.index)];if(!f)return;const k=el.dataset.rfield;let v=el.type==='checkbox'?el.checked:el.value;if(k==='OptionList')v=v.split(';').map(x=>x.trim()).filter(Boolean);if(k==='MinValue'||k==='MaxValue')v=v===''?null:Number(v);f[k]=v;f.DisplayOrder=Number(el.dataset.index)+1;markCurrentVersionDirty();}));
+    get('addRepeatFieldBtn').onclick=()=>{if(isReadonlyMode)return;item.RepeatFields.push(createRepeatField());renderRepeatEditor(item);markCurrentVersionDirty();};
+    host.querySelectorAll('.repeat-remove-field').forEach(el=>el.addEventListener('click',()=>{if(isReadonlyMode)return;item.RepeatFields.splice(Number(el.dataset.index),1);renderRepeatEditor(item);markCurrentVersionDirty();}));
+    const fixed=cfg.CountMode==='FIXED';get('repeatFixedCount').disabled=isReadonlyMode||!fixed;get('repeatMinCount').disabled=isReadonlyMode||fixed;get('repeatMaxCount').disabled=isReadonlyMode||fixed;
+}
 function addGroup()
 {
     if(!currentItem)
