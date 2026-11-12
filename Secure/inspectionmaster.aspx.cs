@@ -1674,7 +1674,7 @@ VALUES
                 new SqlParameter("@MapX", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateX.HasValue ? (object)coordinateX.Value : DBNull.Value },
                 new SqlParameter("@MapY", SqlDbType.Decimal) { Precision = 9, Scale = 4, Value = coordinateY.HasValue ? (object)coordinateY.Value : DBNull.Value },
                 new SqlParameter("@ShapeType", shapeType),
-                new SqlParameter("@SvgPathData", String.IsNullOrWhiteSpace(svgPathData) ? (object)DBNull.Value : svgPathData),
+                new SqlParameter("@SvgPathData", SqlDbType.NVarChar, -1) { Value = String.IsNullOrWhiteSpace(svgPathData) ? (object)DBNull.Value : svgPathData },
                 new SqlParameter("@ShapeAttributes", "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}"),
                 new SqlParameter("@StrokeWidth", SqlDbType.Decimal) { Precision = 10, Scale = 2, Value = 1.50m },
                 new SqlParameter("@DisplayOrder", order),
