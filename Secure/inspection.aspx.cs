@@ -436,6 +436,21 @@ ORDER BY G.DisplayOrder",
                                 new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
+                            DataTable versionRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
+                            DataTable versionRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.FieldKey,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.IsRequired
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder",
+                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
 
                             string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
                             JArray versionPointArray = record["Points"] as JArray ?? new JArray();
@@ -475,6 +490,68 @@ ORDER BY G.DisplayOrder",
                                     JObject values = answer == null ? null : answer["Values"] as JObject;
                                     string remark1 = answer == null ? "" : TokenString(answer, "Remark1");
                                     string remark2 = answer == null ? "" : TokenString(answer, "Remark2");
+
+                                    if (itemType == "REPEAT")
+                                    {
+                                        DataRow[] repeatConfigRows = versionRepeatConfig.Select("IDItem=" + itemId.ToString(CultureInfo.InvariantCulture));
+                                        DataRow[] repeatFields = versionRepeatFields.Select("IDItem=" + itemId.ToString(CultureInfo.InvariantCulture));
+                                        if (repeatConfigRows.Length != 1 || repeatFields.Length == 0)
+                                            throw new Exception(pointPrefix + "REPEAT " + itemLabel + " belum memiliki konfigurasi field yang valid.");
+                                        DataRow repeatConfig = repeatConfigRows[0];
+                                        string repeatMode = Convert.ToString(repeatConfig["RepeatMode"]).ToUpperInvariant();
+                                        JArray repeatObjects = answer == null ? null : answer["RepeatValues"] as JArray;
+                                        if (repeatObjects == null) repeatObjects = new JArray();
+                                        if (repeatMode == "FIELDS" && repeatObjects.Count != 1)
+                                            throw new Exception(pointPrefix + "REPEAT FIELDS " + itemLabel + " harus memiliki tepat satu record.");
+                                        if (repeatMode == "OBJECTS")
+                                        {
+                                            int objectCount = repeatObjects.Count;
+                                            string countMode = Convert.ToString(repeatConfig["CountMode"]).ToUpperInvariant();
+                                            int minCount = repeatConfig["MinCount"] == DBNull.Value ? 0 : Convert.ToInt32(repeatConfig["MinCount"]);
+                                            int maxCount = repeatConfig["MaxCount"] == DBNull.Value ? Int32.MaxValue : Convert.ToInt32(repeatConfig["MaxCount"]);
+                                            if (countMode == "FIXED" && objectCount != Convert.ToInt32(repeatConfig["FixedCount"]))
+                                                throw new Exception(pointPrefix + "Jumlah " + itemLabel + " harus " + Convert.ToString(repeatConfig["FixedCount"]) + ".");
+                                            if (countMode == "FLEX" && (objectCount < minCount || objectCount > maxCount))
+                                                throw new Exception(pointPrefix + "Jumlah " + itemLabel + " di luar batas yang ditentukan.");
+                                        }
+                                        var objectIndexes = new HashSet<int>();
+                                        foreach (JObject repeatObject in repeatObjects.OfType<JObject>())
+                                        {
+                                            int objectIndex = TokenInt(repeatObject, "ObjectIndex");
+                                            if (objectIndex < 0 || !objectIndexes.Add(objectIndex))
+                                                throw new Exception(pointPrefix + "ObjectIndex REPEAT " + itemLabel + " tidak valid atau duplikat.");
+                                            JObject childValues = repeatObject["Values"] as JObject;
+                                            foreach (JProperty submittedField in (childValues == null ? new JObject() : childValues).Properties())
+                                                if (!repeatFields.Any(f => String.Equals(Convert.ToString(f["FieldKey"]), submittedField.Name, StringComparison.Ordinal)))
+                                                    throw new Exception(pointPrefix + "Field REPEAT " + submittedField.Name + " tidak dikenal pada " + itemLabel + ".");
+                                            foreach (DataRow field in repeatFields)
+                                            {
+                                                string fieldKey = Convert.ToString(field["FieldKey"]);
+                                                JToken childValue = childValues == null ? null : childValues[fieldKey];
+                                                string childText = childValue == null || childValue.Type == JTokenType.Null ? "" : childValue.ToString().Trim();
+                                                if (Convert.ToBoolean(field["IsRequired"]) && childText.Length == 0)
+                                                    throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " wajib diisi.");
+                                                if (childText.Length == 0) continue;
+                                                string fieldType = Convert.ToString(field["FieldType"]).ToUpperInvariant();
+                                                if (fieldType == "OPTION")
+                                                {
+                                                    string options = Convert.ToString(field["OptionList"]);
+                                                    if (String.IsNullOrWhiteSpace(options) || !options.Split(';').Any(x => String.Equals(x.Trim(), childText, StringComparison.OrdinalIgnoreCase)))
+                                                        throw new Exception(pointPrefix + "Pilihan " + fieldKey + " pada " + itemLabel + " tidak valid.");
+                                                }
+                                                if (fieldType == "NUMBER" || fieldType == "RANGE")
+                                                {
+                                                    decimal numeric;
+                                                    if (!Decimal.TryParse(childText, NumberStyles.Any, CultureInfo.InvariantCulture, out numeric))
+                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " harus berupa angka.");
+                                                    if (field["MinValue"] != DBNull.Value && numeric < Convert.ToDecimal(field["MinValue"]))
+                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di bawah nilai minimum.");
+                                                    if (field["MaxValue"] != DBNull.Value && numeric > Convert.ToDecimal(field["MaxValue"]))
+                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " melebihi nilai maksimum.");
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     if (Convert.ToBoolean(templateItem["IsValueRequired"]))
                                     {
