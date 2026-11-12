@@ -56,6 +56,8 @@ BEGIN
         Unit NVARCHAR(30) NULL,
         MinValue DECIMAL(18,4) NULL,
         MaxValue DECIMAL(18,4) NULL,
+        MinInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MinInclusive DEFAULT (1),
+        MaxInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MaxInclusive DEFAULT (1),
         IsRequired BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_IsRequired DEFAULT (0),
         GroupName NVARCHAR(100) NULL,
         DisplayOrder INT NOT NULL,
@@ -66,6 +68,16 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_PIP_M_ItemRepeatField_Order
         ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,FieldKey);
 END;
+GO
+
+/* Add boundary semantics to existing REPEAT fields; legacy rows remain inclusive. */
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MinInclusive') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD MinInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MinInclusive DEFAULT (1);
+GO
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MaxInclusive') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD MaxInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MaxInclusive DEFAULT (1);
 GO
 
 /* Existing WO subvalues were numeric-only. Widen storage for OPTION/TEXT too. */
@@ -163,6 +175,26 @@ IF TYPE_ID('dbo.Type_Tbl_RepeatField') IS NULL
         C9 VARCHAR(8000) NULL, -- IsRequired
         C10 NVARCHAR(4000) NULL, -- GroupName
         C11 VARCHAR(8000) NULL  -- DisplayOrder
+    )');
+GO
+
+/* V2 adds explicit inclusive/exclusive flags without breaking the original TVP type. */
+IF TYPE_ID('dbo.Type_Tbl_RepeatFieldV2') IS NULL
+    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatFieldV2 AS TABLE
+    (
+        C1 VARCHAR(8000) NULL, -- RuntimeItemID
+        C2 VARCHAR(8000) NULL, -- FieldKey
+        C3 NVARCHAR(4000) NULL, -- FieldLabel
+        C4 VARCHAR(8000) NULL, -- FieldType
+        C5 NVARCHAR(4000) NULL, -- OptionList
+        C6 NVARCHAR(4000) NULL, -- Unit
+        C7 VARCHAR(8000) NULL, -- MinValue
+        C8 VARCHAR(8000) NULL, -- MaxValue
+        C9 VARCHAR(8000) NULL, -- IsRequired
+        C10 NVARCHAR(4000) NULL, -- GroupName
+        C11 VARCHAR(8000) NULL, -- DisplayOrder
+        C12 VARCHAR(8000) NULL, -- MinInclusive
+        C13 VARCHAR(8000) NULL  -- MaxInclusive
     )');
 GO
 
