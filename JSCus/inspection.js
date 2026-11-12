@@ -2000,7 +2000,7 @@ function validateInspectionItemsAll(items) {
                 fields.forEach(field=>{
                     const key=String(field.fieldKey||"");
                     const raw=values[key]==null?"":String(values[key]).trim();
-                    if(field.isRequired && !raw) invalid((field.fieldLabel||key)+" wajib diisi pada "+label,"repeat-value");
+                    if((field.isRequired||field.IsRequired) && !raw) invalid((field.fieldLabel||field.FieldLabel||key)+" wajib diisi pada "+label,"repeat-value");
                     if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||field.FieldType||"").toUpperCase())){
                         const number=Number(raw);
                         if(!Number.isFinite(number)) invalid((field.fieldLabel||key)+" harus berupa angka","repeat-value");
