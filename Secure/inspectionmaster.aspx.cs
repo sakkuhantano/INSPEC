@@ -504,6 +504,8 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             if (!String.IsNullOrWhiteSpace(hidMapID.Value)) BindEditorMaps();
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
+            ddlPointShapeType.SelectedValue = "CIRCLE";
+            hidSvgPathData.Value = "";
             hidSwapPointID.Value = "";
             btnSwapPosition.Visible = false;
             pnlEditor.Visible = false;
@@ -1670,7 +1672,8 @@ SELECT P.InspectionPointID,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN P.PointName ELSE 'Occupied by another Profit Center' END AS PointName,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN LEFT(P.PointCode,4) ELSE '•' END AS MarkerLabel,
        CASE WHEN @IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo THEN 1 ELSE 0 END AS CanSwap,
-       P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent
+       P.DisplayOrder,P.MapX AS XPercent,P.MapY AS YPercent,
+       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
  INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
@@ -1687,6 +1690,25 @@ ORDER BY P.DisplayOrder,P.PointCode",
                     });
             rptMapElements.DataSource = points;
             rptMapElements.DataBind();
+            System.Text.StringBuilder pathSvg = new System.Text.StringBuilder();
+            pathSvg.Append("<svg id='inspectionCoordinateSvgOverlay' class='inspection-coordinate-svg-overlay' viewBox='0 0 100 100' preserveAspectRatio='none' aria-label='Inspection point SVG paths'>");
+            foreach (DataRow point in points.Rows)
+            {
+                if (!String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase)) continue;
+                string d = Convert.ToString(point["SvgPathData"]);
+                if (String.IsNullOrWhiteSpace(d) || !System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$")) continue;
+                pathSvg.Append("<path class='inspection-coordinate-path' d='");
+                pathSvg.Append(HttpUtility.HtmlAttributeEncode(d));
+                pathSvg.Append("' data-point-id='");
+                pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
+                pathSvg.Append("' data-can-swap='");
+                pathSvg.Append(Convert.ToString(point["CanSwap"]));
+                pathSvg.Append("' title='");
+                pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
+                pathSvg.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' stroke-linejoin='round' vector-effect='non-scaling-stroke'></path>");
+            }
+            pathSvg.Append("</svg>");
+            litEditorSvgPaths.Text = pathSvg.ToString();
         }
 
         protected void btnClearCoordinate_Click(object sender, EventArgs e)
