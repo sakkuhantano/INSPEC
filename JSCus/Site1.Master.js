@@ -2208,6 +2208,7 @@ for (const itemData of rawItems) {
         wo,
     checklists: [],
     checklistgroups: [],
+    checklistrepeats: [],
     checklistsummarys: [{
     KeyHD: wo.KeyHD,
     Summary: data.Summary || "",
@@ -2245,7 +2246,21 @@ for (const itemData of rawItems) {
 });
 }
 }
-}
+            if (item.Type === "REPEAT" && Array.isArray(item.RepeatValues)) {
+                for (const objectRow of item.RepeatValues) {
+                    const objectValues = objectRow && objectRow.Values ? objectRow.Values : {};
+                    for (const fieldKey in objectValues) {
+                        itemPayload.checklistrepeats.push({
+                            KeyHD: data.KeyHD,
+                            IDItem: item.IDItem,
+                            ObjectIndex: Number(objectRow.ObjectIndex || 0),
+                            FieldKey: fieldKey,
+                            Value: objectValues[fieldKey] == null ? "" : objectValues[fieldKey]
+                        });
+                    }
+                }
+            }
+            }
 
         const requirementValue = String((wo.TemplateJSON && wo.TemplateJSON.PhotoRequirement) || "BOTH").toUpperCase();
         const photoRequirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
@@ -2283,6 +2298,7 @@ let batch = [];
 const payloadFor = items => ({
     checklists: items.flatMap(x => x.checklists),
     checklistgroups: items.flatMap(x => x.checklistgroups),
+    checklistrepeats: items.flatMap(x => x.checklistrepeats),
     photos: items.flatMap(x => x.photos),
     userid: login.employeeid,
     companyLocation: login.curcompany || "",
