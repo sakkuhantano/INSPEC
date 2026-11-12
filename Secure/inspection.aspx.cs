@@ -578,6 +578,21 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                                         " pada " + itemLabel + " wajib diisi.");
                                             }
                                         }
+                                        else if (itemType == "REPEAT")
+                                        {
+                                            JArray requiredRepeatValues = answer == null ? null : answer["RepeatValues"] as JArray;
+                                            bool hasRepeatValue = requiredRepeatValues != null && requiredRepeatValues
+                                                .OfType<JObject>()
+                                                .Any(repeatObject =>
+                                                {
+                                                    JObject childValues = repeatObject["Values"] as JObject;
+                                                    return childValues != null && childValues.Properties().Any(property =>
+                                                        property.Value != null && property.Value.Type != JTokenType.Null &&
+                                                        !String.IsNullOrWhiteSpace(property.Value.ToString()));
+                                                });
+                                            if (!hasRepeatValue)
+                                                throw new Exception(pointPrefix + "Minimal satu nilai pada REPEAT " + itemLabel + " wajib diisi.");
+                                        }
                                         else if (String.IsNullOrWhiteSpace(value))
                                         {
                                             throw new Exception(pointPrefix + "Checklist " + itemLabel + " wajib diisi.");
