@@ -3081,7 +3081,30 @@ function validateItem(item, container) {
             break;
 
         // =========================
-        // GROUP
+        // REPEAT
+        // =========================
+        case "REPEAT": {
+            const repeatObjects=Array.from(container.querySelectorAll(".repeat-object"));
+            for(const objectEl of repeatObjects){
+                const inputs=Array.from(objectEl.querySelectorAll("[data-role='repeat-value']"));
+                for(const input of inputs){
+                    const raw=String(input.value||"").trim();
+                    if(input.required && raw===""){error="Required: "+(input.dataset.fieldKey||"REPEAT field");break;}
+                    if(raw!=="" && input.type==="number" && !Number.isFinite(Number(raw))){error="Invalid number: "+input.dataset.fieldKey;break;}
+                }
+                if(error)break;
+            }
+            if(!error && item.repeat && String(item.repeat.repeatMode||"").toUpperCase()==="OBJECTS"){
+                const cfg=item.repeat, count=repeatObjects.length;
+                if(String(cfg.countMode||"").toUpperCase()==="FIXED" && count!==Number(cfg.fixedCount||0))error="Object count must be "+cfg.fixedCount;
+                if(cfg.minCount!=null && count<Number(cfg.minCount))error="Minimum object count is "+cfg.minCount;
+                if(cfg.maxCount!=null && count>Number(cfg.maxCount))error="Maximum object count is "+cfg.maxCount;
+            }
+            break;
+        }
+
+        // =========================
+        // GROUP (legacy)
         // =========================
         case "GROUP": {
 
