@@ -150,7 +150,6 @@
 
 
 /* SVG point geometry overlays use the same normalized coordinate plane as MapX/MapY. */
-.inspection-coordinate-content{position:relative}
 .inspection-coordinate-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2}
 .inspection-coordinate-path{pointer-events:visiblePainted;cursor:pointer;stroke-linejoin:round;stroke-linecap:round}
 .inspection-coordinate-path:hover{stroke-width:1.3;filter:drop-shadow(0 0 2px rgba(13,110,253,.6))}
