@@ -2501,11 +2501,17 @@ async function saveBatchInspectionPoint(status) {
         }
         point.Status = String(point.PointCondition || "").toUpperCase() === "ABNORMAL" ||
             items.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1" ||
-                /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()))
+                /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()) ||
+                (Array.isArray(item.RepeatValues) && item.RepeatValues.some(objectRow =>
+                    Object.keys((objectRow && objectRow.Values) || {}).some(key =>
+                        /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(objectRow.Values[key] == null ? "" : objectRow.Values[key]).trim().toUpperCase())))))
             ? "ABNORMAL" : "DONE";
     } else {
         point.Status = items.some(item => String(item.Value || "").trim() ||
-            Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim())) ||
+            Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim()) ||
+            (Array.isArray(item.RepeatValues) && item.RepeatValues.some(objectRow =>
+                Object.keys((objectRow && objectRow.Values) || {}).some(key =>
+                    String(objectRow.Values[key] == null ? "" : objectRow.Values[key]).trim()))) ||
             photos.length ? "INCOMPLETE" : "PENDING";
     }
     point.Items = items;
