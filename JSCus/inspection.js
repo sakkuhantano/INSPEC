@@ -1732,7 +1732,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                     input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
                 }else{
                     const textType=String(field.fieldType||"").toUpperCase()==="TEXT";
-                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"')+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
+                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+(field.min!=null?' min="'+escInspection(field.min)+'"':'')+(field.max!=null?' max="'+escInspection(field.max)+'"':''))+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
                 }
                 const col=mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):6;
                 return heading+'<div class="col-12 col-md-'+col+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
