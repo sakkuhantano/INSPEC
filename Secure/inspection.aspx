@@ -641,6 +641,13 @@
         #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:100%;max-height:100%}
     }
 
+    .inspection-map-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+    .inspection-map-svg-path{pointer-events:visiblePainted;cursor:pointer;stroke-linejoin:round;stroke-linecap:round}
+    .inspection-map-svg-path.pending{fill:rgba(100,116,139,.16);stroke:#64748b}
+    .inspection-map-svg-path.done{fill:rgba(25,135,84,.16);stroke:#198754}
+    .inspection-map-svg-path.abnormal{fill:rgba(220,53,69,.18);stroke:#dc3545}
+    .inspection-map-svg-path.incomplete{fill:rgba(255,193,7,.22);stroke:#b8860b}
+    .inspection-map-svg-path.selected{stroke-width:1.8!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.75))}
 </style>
 </asp:Content>
 
