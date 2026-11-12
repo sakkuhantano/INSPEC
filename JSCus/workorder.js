@@ -823,13 +823,21 @@ function renderWORepeatItem(item, saved, isEntryMode) {
             lastGroup=group;
             const value=values[key]==null?"":values[key];
             const required=f.isRequired?' required aria-required="true"':"";
+            const fieldType=String(f.fieldType||f.FieldType||"").toUpperCase();
+            const minValue=f.min!=null?f.min:f.MinValue;
+            const maxValue=f.max!=null?f.max:f.MaxValue;
+            const minInclusive=f.minInclusive!==undefined?f.minInclusive!==false:f.MinInclusive!==false;
+            const maxInclusive=f.maxInclusive!==undefined?f.maxInclusive!==false:f.MaxInclusive!==false;
             let input="";
-            if(String(f.fieldType).toUpperCase()==="OPTION"){
+            if(fieldType==="OPTION"){
                 const opts=Array.isArray(f.optionList)?f.optionList:String(f.optionList||"").split(";");
                 input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'"'+required+(!isEntryMode?' disabled':'')+'><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+escapeHtmlAttribute(o)+'" '+(String(value)===String(o)?'selected':'')+'>'+escapeHtmlAttribute(o)+'</option>').join("")+'</select>';
             } else {
-                const type=String(f.fieldType).toUpperCase()==="TEXT"?"text":"number";
-                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+(f.min!=null?'min="'+escapeHtmlAttribute(f.min)+'" ':'')+(f.max!=null?'max="'+escapeHtmlAttribute(f.max)+'" ':''):'maxlength="500"')+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
+                const type=fieldType==="TEXT"?"text":"number";
+                const constraints=type==="number"?
+                    (minValue!=null?' data-min-value="'+escapeHtmlAttribute(minValue)+'" data-min-inclusive="'+(minInclusive?'1':'0')+'"':'')+
+                    (maxValue!=null?' data-max-value="'+escapeHtmlAttribute(maxValue)+'" data-max-inclusive="'+(maxInclusive?'1':'0')+'"':''):'maxlength="500"';
+                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+constraints:constraints)+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
             }
             return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
         }).join("");
@@ -3092,8 +3100,12 @@ function validateItem(item, container) {
                     const raw=String(input.value||"").trim();
                     if(input.required && raw===""){error="Required: "+(input.dataset.fieldKey||"REPEAT field");break;}
                     if(raw!=="" && input.type==="number" && !Number.isFinite(Number(raw))){error="Invalid number: "+input.dataset.fieldKey;break;}
-                    if(raw!=="" && input.type==="number" && input.min!=="" && Number(raw)<Number(input.min)){error="Below minimum: "+input.dataset.fieldKey;break;}
-                    if(raw!=="" && input.type==="number" && input.max!=="" && Number(raw)>Number(input.max)){error="Above maximum: "+input.dataset.fieldKey;break;}
+                    if(raw!=="" && input.type==="number" && input.dataset.minValue!==undefined &&
+                        (Number(raw)<Number(input.dataset.minValue) ||
+                         (input.dataset.minInclusive==="0" && Number(raw)===Number(input.dataset.minValue)))){error="Below minimum: "+input.dataset.fieldKey;break;}
+                    if(raw!=="" && input.type==="number" && input.dataset.maxValue!==undefined &&
+                        (Number(raw)>Number(input.dataset.maxValue) ||
+                         (input.dataset.maxInclusive==="0" && Number(raw)===Number(input.dataset.maxValue)))){error="Above maximum: "+input.dataset.fieldKey;break;}
                 }
                 if(error)break;
             }
