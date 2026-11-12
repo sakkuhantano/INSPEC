@@ -291,6 +291,66 @@ namespace INSPEC.Secure
             }
         }
 
+        // WebMethod callers must pass the scope already established by server-side authorization.
+        // Do not depend on Page.Master: static ASP.NET WebMethods do not reliably expose it.
+        public static ReportFileResult GenerateInspectionXlsx(
+            DataTable selectedInspections, string companyId, string locationId, string userId)
+        {
+            try
+            {
+                if (selectedInspections == null)
+                    throw new ArgumentNullException("selectedInspections");
+                if (!selectedInspections.Columns.Contains("InspectionID"))
+                    throw new ArgumentException("DataTable harus memiliki kolom InspectionID.");
+                if (selectedInspections.Rows.Count == 0 || selectedInspections.Rows.Count > 500)
+                    throw new InvalidOperationException("Pilih 1 sampai 500 baris inspeksi.");
+                if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                    throw new ArgumentException("CompanyID/LocationID wajib diisi.");
+                if (String.IsNullOrWhiteSpace(userId))
+                    throw new ArgumentException("UserID folder export wajib diisi.", "userId");
+
+                List<string> ids = new List<string>();
+                HashSet<long> knownIds = new HashSet<long>();
+                for (int i = 0; i < selectedInspections.Rows.Count; i++)
+                {
+                    DataRow row = selectedInspections.Rows[i];
+                    if (row.RowState == DataRowState.Deleted) continue;
+
+                    long id;
+                    string rawId = Convert.ToString(row["InspectionID"], CultureInfo.InvariantCulture).Trim();
+                    if (!Int64.TryParse(rawId, NumberStyles.None, CultureInfo.InvariantCulture, out id) || id <= 0)
+                        throw new ArgumentException("InspectionID tidak valid pada baris " + (i + 1) + ".");
+                    if (knownIds.Add(id))
+                        ids.Add(id.ToString(CultureInfo.InvariantCulture));
+                }
+
+                if (ids.Count == 0)
+                    throw new InvalidOperationException("Tidak ada InspectionID aktif yang dipilih.");
+
+                Rpt.InspectionScope scope = Rpt.GetInspectionScope(ids);
+                if (!String.Equals(scope.CompanyID, companyId, StringComparison.OrdinalIgnoreCase) ||
+                    !String.Equals(scope.LocationID, locationId, StringComparison.OrdinalIgnoreCase))
+                    throw new UnauthorizedAccessException("InspectionID tidak sesuai scope CompanyID/LocationID yang telah diotorisasi.");
+
+                return GenerateInspectionXlsxCore(ids, companyId, locationId, userId);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("GenerateInspectionXlsx(DataTable, scope): " + ex);
+                bool isDebug = HttpContext.Current != null && HttpContext.Current.IsDebuggingEnabled;
+                string friendly = ex is ArgumentException || ex is InvalidOperationException ||
+                                  ex is UnauthorizedAccessException ? ex.Message : "Gagal memproses DataTable inspeksi. Periksa log server.";
+                return new ReportFileResult
+                {
+                    Success = false,
+                    Status = "FAILED",
+                    FileName = String.Empty,
+                    StoragePath = String.Empty,
+                    Message = isDebug ? ex.GetBaseException().Message : friendly
+                };
+            }
+        }
+
         private static void ValidateDataTableScope(string companyId, string locationId)
         {
             HttpContext context = HttpContext.Current;
