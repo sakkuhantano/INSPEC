@@ -1918,6 +1918,39 @@ function validateInspectionItemsAll(items) {
         const itemType = String(templateItem.type || answer.Type || "").toUpperCase();
         const label = answer.ItemLabel || templateItem.label || ("Item " + itemId);
         const invalid = (message, role) => errors.push({ message, itemId, role: role || "value" });
+        if (itemType === "REPEAT") {
+            const cfg=templateItem.repeat||{};
+            const fields=Array.isArray(templateItem.repeatFields)?templateItem.repeatFields:[];
+            const objects=Array.isArray(answer.RepeatValues)?answer.RepeatValues:[];
+            const mode=String(cfg.repeatMode||"FIELDS").toUpperCase();
+            if(!fields.length) invalid("REPEAT belum memiliki child field: "+label,"repeat-value");
+            if(mode==="FIELDS" && objects.length!==1) invalid("REPEAT FIELDS harus memiliki satu record: "+label,"repeat-value");
+            if(mode==="OBJECTS"){
+                if(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED" && objects.length!==Number(cfg.fixedCount||0))
+                    invalid("Jumlah object "+label+" harus "+cfg.fixedCount,"repeat-value");
+                if(cfg.minCount!=null && objects.length<Number(cfg.minCount)) invalid("Jumlah object "+label+" kurang dari minimum","repeat-value");
+                if(cfg.maxCount!=null && objects.length>Number(cfg.maxCount)) invalid("Jumlah object "+label+" melebihi maksimum","repeat-value");
+            }
+            objects.forEach((objectRow,index)=>{
+                const values=objectRow&&objectRow.Values?objectRow.Values:{};
+                fields.forEach(field=>{
+                    const key=String(field.fieldKey||"");
+                    const raw=values[key]==null?"":String(values[key]).trim();
+                    if(field.isRequired && !raw) invalid((field.fieldLabel||key)+" wajib diisi pada "+label,"repeat-value");
+                    if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||"").toUpperCase())){
+                        const number=Number(raw);
+                        if(!Number.isFinite(number)) invalid((field.fieldLabel||key)+" harus berupa angka","repeat-value");
+                        if(field.min!=null && number<Number(field.min)) invalid((field.fieldLabel||key)+" di bawah batas minimum","repeat-value");
+                        if(field.max!=null && number>Number(field.max)) invalid((field.fieldLabel||key)+" melebihi batas maksimum","repeat-value");
+                    }
+                    if(raw && String(field.fieldType||"").toUpperCase()==="OPTION"){
+                        const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
+                        if(!options.some(option=>String(option).trim().toUpperCase()===raw.toUpperCase()))
+                            invalid("Option "+(field.fieldLabel||key)+" tidak valid","repeat-value");
+                    }
+                });
+            });
+        }
         if (isInspectionFlagEnabled(templateItem.isValueRequired, false)) {
             if (itemType === "GROUP") {
                 const groups = templateItem.groups || [];
