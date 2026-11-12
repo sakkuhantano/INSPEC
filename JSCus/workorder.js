@@ -1020,7 +1020,7 @@ async function renderChecklist(template, isEntryMode) {
                 const rangeOptions = [
                     {
                         id: "1",
-                        label: `&lt; ${item.min}`,
+                        label: `&lt; ${item.min}` + (item.showUnitInRange && item.unit ? ` ${item.unit}` : ''),
                         // value: item.min,
                         value: "1",
                         isChecked: Number(V_Value) < Number(item.min) && V_Value != ""
@@ -1034,7 +1034,7 @@ async function renderChecklist(template, isEntryMode) {
                     },
                     {
                         id: "3",
-                        label: `&gt; ${item.max}`,
+                        label: `&gt; ${item.max}` + (item.showUnitInRange && item.unit ? ` ${item.unit}` : ''),
                         //value: item.max,
                         value: "3",
                         isChecked: Number(V_Value) > Number(item.max) && V_Value != ""
