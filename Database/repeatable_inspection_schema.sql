@@ -123,7 +123,8 @@ IF NOT EXISTS
         PRIMARY KEY CLUSTERED (InspectionResultID,ObjectIndex,FieldName);
 GO
 
-/* Dedicated TVPs keep existing GROUP/inspection contracts backward compatible. */
+/* Dedicated template/WO TVPs keep legacy GROUP contracts backward compatible.
+   Inspection STANDARD/BATCH reuse the existing Type_N_Tbl_C5 spare columns for ObjectIndex. */
 IF TYPE_ID('dbo.Type_Tbl_RepeatConfig') IS NULL
     EXEC('CREATE TYPE dbo.Type_Tbl_RepeatConfig AS TABLE
     (
@@ -167,13 +168,3 @@ IF TYPE_ID('dbo.Type_Tbl_WORepeatValue') IS NULL
     )');
 GO
 
-IF TYPE_ID('dbo.Type_N_Tbl_InspectionRepeatValue') IS NULL
-    EXEC('CREATE TYPE dbo.Type_N_Tbl_InspectionRepeatValue AS TABLE
-    (
-        C1 NVARCHAR(4000) NULL, -- ClientPointID; empty for STANDARD
-        C2 NVARCHAR(4000) NULL, -- IDItem
-        C3 NVARCHAR(4000) NULL, -- ObjectIndex
-        C4 NVARCHAR(4000) NULL, -- FieldKey
-        C5 NVARCHAR(MAX) NULL   -- Value
-    )');
-GO
