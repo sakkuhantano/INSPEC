@@ -82,9 +82,25 @@ IF EXISTS
        OR C.CountMode NOT IN ('FIXED','FLEX')
        OR (C.CountMode='FIXED' AND ISNULL(C.FixedCount,0)<1)
        OR (C.CountMode='FLEX' AND C.FixedCount IS NOT NULL)
+       OR (C.CountMode='FLEX' AND C.MinCount IS NOT NULL AND C.MaxCount IS NOT NULL AND C.MaxCount<C.MinCount)
        OR NOT EXISTS (SELECT 1 FROM @tbl_Item I WHERE I.RuntimeItemID=C.RuntimeItemID AND I.ItemType='REPEAT')
 )
 BEGIN RAISERROR('Invalid REPEAT configuration.',16,1); RETURN; END;
+
+IF EXISTS
+(
+    SELECT 1 FROM @tbl_Item I
+    WHERE I.ItemType='REPEAT'
+      AND NOT EXISTS (SELECT 1 FROM @tbl_RepeatConfig C WHERE C.RuntimeItemID=I.RuntimeItemID)
+)
+BEGIN RAISERROR('Every REPEAT item requires a REPEAT configuration.',16,1); RETURN; END;
+
+IF EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatConfig C
+    WHERE NOT EXISTS (SELECT 1 FROM @tbl_RepeatField F WHERE F.RuntimeItemID=C.RuntimeItemID)
+)
+BEGIN RAISERROR('Every REPEAT item requires at least one child field.',16,1); RETURN; END;
 
 IF EXISTS
 (
@@ -544,7 +560,7 @@ INTO @tbl_Identity (Entity, RuntimeID, ID);
 --- native REPEAT configuration and child fields
 DECLARE @tbl_ResolvedRepeat TABLE
 (
-    IDItem INT NOT NULL,
+    IDItem INT NULL,
     RuntimeItemID INT NOT NULL,
     RepeatMode VARCHAR(10) NOT NULL,
     ColumnCount INT NOT NULL,
