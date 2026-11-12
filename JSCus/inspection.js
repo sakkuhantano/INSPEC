@@ -1670,10 +1670,14 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                 if(!rows.length){
                     const itemId=Number(host.dataset.itemId);
                     const templateItem=findInspectionTemplateItem(itemId);
-                    const savedItems=collectInspectionItems();
-                    const savedItem=savedItems.find(x=>Number(x.IDItem)===itemId);
-                    if(!templateItem||!savedItem)return;
-                    savedItem.RepeatValues=[{ObjectIndex:0,Values:{}}];
+                    if(!templateItem)return;
+                    const savedItems=[{
+                        IDItem:itemId,
+                        Value:"",
+                        Remark1:host.querySelector('[data-role="remark1"]')?.value||"",
+                        Remark2:host.querySelector('[data-role="remark2"]')?.value||"",
+                        RepeatValues:[{ObjectIndex:0,Values:{}}]
+                    }];
                     const holder=document.createElement("div");
                     holder.innerHTML=renderInspectionItem(templateItem,savedItems,false,"inspection");
                     const replacement=holder.firstElementChild;
