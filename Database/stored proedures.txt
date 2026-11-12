@@ -1500,6 +1500,31 @@ BEGIN
     )
     BEGIN RAISERROR('A REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items V
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(V.C1 AS INT)
+        WHERE I.ItemType='OPTION' AND ISNULL(I.IsValueRequired,0)=1
+          AND ISNULL(LTRIM(RTRIM(V.C4)),'')=''
+    )
+    BEGIN RAISERROR('A required OPTION checklist item must be selected before Inspection sync.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items V
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(V.C1 AS INT) AND I.ItemType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
+          AND ISNULL(I.OptionList,'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(I.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.C4)))
+          )
+    )
+    BEGIN RAISERROR('An Inspection OPTION value is not in the configured option list.',16,1); RETURN; END;
+
     /* Drafts are device-local only. SQL may persist completed inspections only. */
     IF ISNULL(@p_Status, '') <> 'DONE'
     BEGIN
