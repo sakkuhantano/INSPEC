@@ -1954,7 +1954,7 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.
 
                 DataTable results = br.EQueryP(@"
 SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali,
-       V.FieldName, V.Value AS FieldValue, R.DisplayOrder
+       V.ObjectIndex, V.FieldName, V.Value AS FieldValue, R.DisplayOrder
 FROM dbo.PIP_T_InspectionResult R
 JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
@@ -1979,13 +1979,30 @@ new SqlParameter("@InspectionID", inspectionId) });
                             { "Remark2", row["Remark2"] == DBNull.Value ? "" : row["Remark2"].ToString() },
                             { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
                             { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
-                            { "Values", new Dictionary<string, object>() }
+                            { "Values", new Dictionary<string, object>() },
+                            { "RepeatValues", new List<Dictionary<string, object>>() }
                         };
                         groupedItems.Add(itemId, item);
                     }
                     if (row["FieldName"] != DBNull.Value)
-                        ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
-                            row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                    {
+                        if (String.Equals(Convert.ToString(item["ItemType"]), "REPEAT", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int objectIndex = row["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(row["ObjectIndex"]);
+                            var repeatRows = (List<Dictionary<string, object>>)item["RepeatValues"];
+                            var repeatRow = repeatRows.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
+                            if (repeatRow == null)
+                            {
+                                repeatRow = new Dictionary<string, object> { { "ObjectIndex", objectIndex }, { "Values", new Dictionary<string, object>() } };
+                                repeatRows.Add(repeatRow);
+                            }
+                            ((Dictionary<string, object>)repeatRow["Values"])[row["FieldName"].ToString()] =
+                                row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                        }
+                        else
+                            ((Dictionary<string, object>)item["Values"])[row["FieldName"].ToString()] =
+                                row["FieldValue"] == DBNull.Value ? "" : row["FieldValue"].ToString();
+                    }
                 }
                 var itemRows = groupedItems.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
 
@@ -2008,7 +2025,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
 
                     DataTable pointResultRows = br.EQueryP(@"
 SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
-       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.FieldName,V.Value AS FieldValue
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
 FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
 WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
@@ -2034,12 +2051,28 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "Remark2", GF.GetString(row["Remark2"]) },
                                 { "IsAnomali", row["IsAnomali"] != DBNull.Value && Convert.ToBoolean(row["IsAnomali"]) },
                                 { "DisplayOrder", row["DisplayOrder"] == DBNull.Value ? 0 : Convert.ToInt32(row["DisplayOrder"]) },
-                                { "Values", new Dictionary<string, object>() }
+                                { "Values", new Dictionary<string, object>() },
+                                { "RepeatValues", new List<Dictionary<string, object>>() }
                             };
                             pointItems[pointTransactionID].Add(itemID, item);
                         }
                         if (row["FieldName"] != DBNull.Value)
-                            ((Dictionary<string, object>)item["Values"])[GF.GetString(row["FieldName"])] = GF.GetString(row["FieldValue"]);
+                        {
+                            if (String.Equals(Convert.ToString(item["Type"]), "REPEAT", StringComparison.OrdinalIgnoreCase))
+                            {
+                                int objectIndex = row["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(row["ObjectIndex"]);
+                                var repeatRows = (List<Dictionary<string, object>>)item["RepeatValues"];
+                                var repeatRow = repeatRows.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
+                                if (repeatRow == null)
+                                {
+                                    repeatRow = new Dictionary<string, object> { { "ObjectIndex", objectIndex }, { "Values", new Dictionary<string, object>() } };
+                                    repeatRows.Add(repeatRow);
+                                }
+                                ((Dictionary<string, object>)repeatRow["Values"])[GF.GetString(row["FieldName"])] = GF.GetString(row["FieldValue"]);
+                            }
+                            else
+                                ((Dictionary<string, object>)item["Values"])[GF.GetString(row["FieldName"])] = GF.GetString(row["FieldValue"]);
+                        }
                     }
 
                     var mapIDs = new HashSet<long>();
