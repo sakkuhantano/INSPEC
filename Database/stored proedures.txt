@@ -15,7 +15,7 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_M_CheckListWOPM]
 	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
 	@p_dt_RepeatConfig AS [Type_Tbl_RepeatConfig] READONLY,
-	@p_dt_RepeatField AS [Type_Tbl_RepeatField] READONLY,
+	@p_dt_RepeatField AS [Type_Tbl_RepeatFieldV2] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
 	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
 	@p_UpdateUser VARCHAR(50),
@@ -67,12 +67,23 @@ FROM @p_dt_RepeatConfig;
 DECLARE @tbl_RepeatField TABLE
 (RuntimeItemID INT, FieldKey VARCHAR(50), FieldLabel NVARCHAR(100), FieldType VARCHAR(20),
  OptionList NVARCHAR(1000), Unit NVARCHAR(30), MinValue DECIMAL(18,4) NULL,
- MaxValue DECIMAL(18,4) NULL, IsRequired BIT, GroupName NVARCHAR(100), DisplayOrder INT)
+ MaxValue DECIMAL(18,4) NULL, IsRequired BIT, GroupName NVARCHAR(100), DisplayOrder INT,
+ MinInclusive BIT, MaxInclusive BIT)
 INSERT @tbl_RepeatField
 SELECT CAST(C1 AS INT), LTRIM(RTRIM(C2)), C3, UPPER(C4), NULLIF(C5,''), NULLIF(C6,''),
        NULLIF(C7,''), NULLIF(C8,''), CAST(ISNULL(NULLIF(C9,''),'0') AS BIT),
-       NULLIF(C10,''), CAST(ISNULL(NULLIF(C11,''),'0') AS INT)
+       NULLIF(C10,''), CAST(ISNULL(NULLIF(C11,''),'0') AS INT),
+       CAST(ISNULL(NULLIF(C12,''),'1') AS BIT), CAST(ISNULL(NULLIF(C13,''),'1') AS BIT)
 FROM @p_dt_RepeatField;
+
+IF EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatField F
+    WHERE (F.MinValue IS NOT NULL AND F.MaxValue IS NOT NULL AND F.MinValue>F.MaxValue)
+       OR (F.MinValue IS NOT NULL AND F.MaxValue IS NOT NULL AND F.MinValue=F.MaxValue
+           AND (F.MinInclusive=0 OR F.MaxInclusive=0))
+)
+BEGIN RAISERROR('Invalid REPEAT field range boundaries.',16,1); RETURN; END;
 
 IF EXISTS
 (
@@ -626,14 +637,15 @@ WHERE NOT EXISTS
 UPDATE F
 SET FieldLabel=S.FieldLabel, FieldType=S.FieldType, OptionList=S.OptionList, Unit=S.Unit,
     MinValue=S.MinValue, MaxValue=S.MaxValue, IsRequired=S.IsRequired,
-    GroupName=S.GroupName, DisplayOrder=S.DisplayOrder
+    GroupName=S.GroupName, DisplayOrder=S.DisplayOrder,
+    MinInclusive=S.MinInclusive, MaxInclusive=S.MaxInclusive
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
 JOIN @tbl_RepeatField S ON S.RuntimeItemID=R.RuntimeItemID AND S.FieldKey=F.FieldKey;
 
 INSERT dbo.PIP_M_CheckListWOPM_ItemRepeatField
-    (IDItem,FieldKey,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,IsRequired,GroupName,DisplayOrder)
-SELECT R.IDItem,S.FieldKey,S.FieldLabel,S.FieldType,S.OptionList,S.Unit,S.MinValue,S.MaxValue,S.IsRequired,S.GroupName,S.DisplayOrder
+    (IDItem,FieldKey,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,IsRequired,GroupName,DisplayOrder,MinInclusive,MaxInclusive)
+SELECT R.IDItem,S.FieldKey,S.FieldLabel,S.FieldType,S.OptionList,S.Unit,S.MinValue,S.MaxValue,S.IsRequired,S.GroupName,S.DisplayOrder,S.MinInclusive,S.MaxInclusive
 FROM @tbl_RepeatField S
 JOIN @tbl_ResolvedRepeat R ON R.RuntimeItemID=S.RuntimeItemID
 WHERE NOT EXISTS
@@ -1189,7 +1201,8 @@ BEGIN
     (
         SELECT 1 FROM @p_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
-        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND CONVERT(FLOAT,V.C4)<F.MinValue
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
+          AND (CONVERT(FLOAT,V.C4)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C4)=F.MinValue))
     )
     BEGIN RAISERROR('A BATCH REPEAT numeric value is below its minimum.',16,1); RETURN; END;
 
@@ -1197,7 +1210,8 @@ BEGIN
     (
         SELECT 1 FROM @p_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
-        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND CONVERT(FLOAT,V.C4)>F.MaxValue
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
+          AND (CONVERT(FLOAT,V.C4)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C4)=F.MaxValue))
     )
     BEGIN RAISERROR('A BATCH REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
@@ -1627,7 +1641,8 @@ BEGIN
     (
         SELECT 1 FROM @tbl_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
-        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND CONVERT(FLOAT,V.Value)<F.MinValue
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
+          AND (CONVERT(FLOAT,V.Value)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.Value)=F.MinValue))
     )
     BEGIN RAISERROR('A REPEAT numeric value is below its minimum.',16,1); RETURN; END;
 
@@ -1635,7 +1650,8 @@ BEGIN
     (
         SELECT 1 FROM @tbl_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.FieldKey=V.FieldName
-        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND CONVERT(FLOAT,V.Value)>F.MaxValue
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
+          AND (CONVERT(FLOAT,V.Value)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.Value)=F.MaxValue))
     )
     BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
@@ -2566,8 +2582,8 @@ BEGIN
           AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND
           (
-              (F.MinValue IS NOT NULL AND CONVERT(DECIMAL(18,4),V.C5)<F.MinValue)
-              OR (F.MaxValue IS NOT NULL AND CONVERT(DECIMAL(18,4),V.C5)>F.MaxValue)
+              (F.MinValue IS NOT NULL AND (CONVERT(DECIMAL(18,4),V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(DECIMAL(18,4),V.C5)=F.MinValue)))
+              OR (F.MaxValue IS NOT NULL AND (CONVERT(DECIMAL(18,4),V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(DECIMAL(18,4),V.C5)=F.MaxValue)))
           )
     )
     BEGIN RAISERROR('A REPEAT NUMBER/RANGE value is outside the configured limits in Work Order.',16,1); RETURN; END;
@@ -2599,7 +2615,8 @@ BEGIN
     (
         SELECT 1 FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
-        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND CONVERT(FLOAT,V.C5)<F.MinValue
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND (CONVERT(FLOAT,V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MinValue))
     )
     BEGIN RAISERROR('A REPEAT numeric value is below its minimum.',16,1); RETURN; END;
 
@@ -2607,7 +2624,8 @@ BEGIN
     (
         SELECT 1 FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C4
-        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND CONVERT(FLOAT,V.C5)>F.MaxValue
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND (CONVERT(FLOAT,V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MaxValue))
     )
     BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
