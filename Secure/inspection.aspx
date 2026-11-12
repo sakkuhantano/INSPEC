@@ -593,7 +593,9 @@
     #inspectionBatchValidationNavigator{border-left:4px solid var(--bs-warning)}
     .inspection-point-list-row.validation-has-issues{border-color:rgba(var(--bs-danger-rgb),.45)}
     @media(max-width:767.98px){
-        .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}\n        .inspection-map-content>.inspection-map-panel{width:100%;min-width:0}\n        .inspection-map-content>#inspectionPointList{display:none!important}
+        .inspection-map-content{grid-template-columns:minmax(0,1fr);gap:.5rem}
+        .inspection-map-content>.inspection-map-panel{width:100%;min-width:0}
+        .inspection-map-content>#inspectionPointList{display:none!important}
         .inspection-map-content>.inspection-map-panel>.inspection-map-canvas{height:42dvh;min-height:270px;max-height:440px}
         .inspection-map-content>.inspection-point-list{display:none!important;height:0;min-height:0;max-height:0;padding:0;overflow:hidden}
         .inspection-point-list-row{min-height:42px;padding:.38rem .42rem}
