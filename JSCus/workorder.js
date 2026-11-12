@@ -819,7 +819,7 @@ function renderWORepeatItem(item, saved, isEntryMode) {
             const label=String(f.fieldLabel||key);
             const group=String(f.groupName||"");
             const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escapeHtmlAttribute(group)+'</div>':"";
-            lastGroup=group||lastGroup;
+            lastGroup=group;
             const value=values[key]==null?"":values[key];
             const required=f.isRequired?' required aria-required="true"':"";
             let input="";
@@ -3129,6 +3129,14 @@ function validateItem(item, container) {
                 }
             }
 
+            break;
+        }
+        case "REPEAT": {
+            if (item.isValueRequired && isSaveDone) {
+                const hasRepeatValue = Array.from(container.querySelectorAll(".repeat-object")).some(objectEl =>
+                    Array.from(objectEl.querySelectorAll("[data-role='repeat-value']")).some(input => String(input.value || "").trim() !== ""));
+                if (!hasRepeatValue) error = "Minimal satu nilai pada REPEAT wajib diisi";
+            }
             break;
         }
     }
