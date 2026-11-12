@@ -1172,12 +1172,14 @@ WHERE a.SectionID = @SectionID
                                                 if (countMode != "FIXED" && countMode != "FLEX")
                                                     throw new Exception("Invalid REPEAT count mode.");
 
+                                                string repeatObjectLabel = repeat.ContainsKey("ObjectLabel") ? GF.GetString(repeat["ObjectLabel"]) : "Object";
+                                                if (repeatObjectLabel.Length > 100) throw new Exception("REPEAT object label is limited to 100 characters.");
                                                 DataRow repeatRow = dtRepeatConfig.NewRow();
                                                 repeatRow["C1"] = idItem.ToString(CultureInfo.InvariantCulture);
                                                 repeatRow["C2"] = runtimeItemID.ToString(CultureInfo.InvariantCulture);
                                                 repeatRow["C3"] = repeatMode;
                                                 repeatRow["C4"] = Convert.ToString(repeat.ContainsKey("ColumnCount") ? repeat["ColumnCount"] : 3);
-                                                repeatRow["C5"] = repeat.ContainsKey("ObjectLabel") ? GF.GetString(repeat["ObjectLabel"]) : "";
+                                                repeatRow["C5"] = repeatObjectLabel;
                                                 repeatRow["C6"] = countMode;
                                                 repeatRow["C7"] = repeat.ContainsKey("FixedCount") && repeat["FixedCount"] != null ? Convert.ToString(repeat["FixedCount"], CultureInfo.InvariantCulture) : "";
                                                 repeatRow["C8"] = repeat.ContainsKey("MinCount") && repeat["MinCount"] != null ? Convert.ToString(repeat["MinCount"], CultureInfo.InvariantCulture) : "";
