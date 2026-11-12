@@ -828,7 +828,7 @@ function renderWORepeatItem(item, saved, isEntryMode) {
                 input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'"'+required+(!isEntryMode?' disabled':'')+'><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+escapeHtmlAttribute(o)+'" '+(String(value)===String(o)?'selected':'')+'>'+escapeHtmlAttribute(o)+'</option>').join("")+'</select>';
             } else {
                 const type=String(f.fieldType).toUpperCase()==="TEXT"?"text":"number";
-                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any"':'maxlength="500"')+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
+                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+(f.min!=null?'min="'+escapeHtmlAttribute(f.min)+'" ':'')+(f.max!=null?'max="'+escapeHtmlAttribute(f.max)+'" ':''):'maxlength="500"')+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
             }
             return heading+'<div class="col-12 col-md-'+(mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):'6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
         }).join("");
@@ -3091,6 +3091,8 @@ function validateItem(item, container) {
                     const raw=String(input.value||"").trim();
                     if(input.required && raw===""){error="Required: "+(input.dataset.fieldKey||"REPEAT field");break;}
                     if(raw!=="" && input.type==="number" && !Number.isFinite(Number(raw))){error="Invalid number: "+input.dataset.fieldKey;break;}
+                    if(raw!=="" && input.type==="number" && input.min!=="" && Number(raw)<Number(input.min)){error="Below minimum: "+input.dataset.fieldKey;break;}
+                    if(raw!=="" && input.type==="number" && input.max!=="" && Number(raw)>Number(input.max)){error="Above maximum: "+input.dataset.fieldKey;break;}
                 }
                 if(error)break;
             }
