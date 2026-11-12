@@ -335,7 +335,20 @@ WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
 SELECT SS.IDSubSection, SS.IDSection, SS.SubSectionName, SS.DisplayOrder
 FROM PIP_M_CheckListWOPM_SubSection SS
 JOIN PIP_M_CheckListWOPM_Section SEC ON SEC.IDSection=SS.IDSection
-WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
+WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;
+
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion;
+
+SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
 "@IDVersion=" + idVersion);
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
@@ -344,6 +357,8 @@ WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;",
                 DataTable dtItems = ds.Tables[2];
                 DataTable dtGroups = ds.Tables[3];
                 DataTable dtSubSections = ds.Tables[4];
+                DataTable dtRepeat = ds.Tables[5];
+                DataTable dtRepeatFields = ds.Tables[6];
                 var result = new
                 {
                     VersionInfo = new
