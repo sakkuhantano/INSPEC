@@ -1353,7 +1353,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
             string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) ? "PATH" : "CIRCLE";
             string svgPathData = (hidSvgPathData.Value ?? "").Trim();
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
-                !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\\s+\\-]+$")))
+                !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$")))
             {
                 GF.MsgBox(this, "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup.", "BS-5.3.0");
                 SetTab("#tab-point");
@@ -1376,6 +1376,12 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 }
                 coordinateX = parsedX;
                 coordinateY = parsedY;
+            }
+            if (shapeType == "PATH" && (!coordinateX.HasValue || !coordinateY.HasValue))
+            {
+                GF.MsgBox(this, "Path harus memiliki anchor point. Gambar path melalui tombol Draw SVG Path.", "BS-5.3.0");
+                SetTab("#tab-point");
+                return;
             }
 
             long mapID;
