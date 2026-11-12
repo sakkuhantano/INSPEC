@@ -1749,8 +1749,14 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                     const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
                     input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
                 }else{
-                    const textType=String(field.fieldType||"").toUpperCase()==="TEXT";
-                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+(field.min!=null?' min="'+escInspection(field.min)+'"':'')+(field.max!=null?' max="'+escInspection(field.max)+'"':''))+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
+                    const textType=String(field.fieldType||field.FieldType||"").toUpperCase()==="TEXT";
+                    const minValue=field.min!=null?field.min:field.MinValue;
+                    const maxValue=field.max!=null?field.max:field.MaxValue;
+                    const minInclusive=field.minInclusive!==undefined?field.minInclusive!==false:field.MinInclusive!==false;
+                    const maxInclusive=field.maxInclusive!==undefined?field.maxInclusive!==false:field.MaxInclusive!==false;
+                    const constraints=(minValue!=null?' data-min-value="'+escInspection(minValue)+'" data-min-inclusive="'+(minInclusive?'1':'0')+'"':'')+
+                        (maxValue!=null?' data-max-value="'+escInspection(maxValue)+'" data-max-inclusive="'+(maxInclusive?'1':'0')+'"':'');
+                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+constraints)+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
                 }
                 return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
             }).join("");
@@ -1997,8 +2003,14 @@ function validateInspectionItemsAll(items) {
                     if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||"").toUpperCase())){
                         const number=Number(raw);
                         if(!Number.isFinite(number)) invalid((field.fieldLabel||key)+" harus berupa angka","repeat-value");
-                        if(field.min!=null && number<Number(field.min)) invalid((field.fieldLabel||key)+" di bawah batas minimum","repeat-value");
-                        if(field.max!=null && number>Number(field.max)) invalid((field.fieldLabel||key)+" melebihi batas maksimum","repeat-value");
+                        const minValue=field.min!=null?field.min:field.MinValue;
+                        const maxValue=field.max!=null?field.max:field.MaxValue;
+                        const minInclusive=field.minInclusive!==undefined?field.minInclusive!==false:field.MinInclusive!==false;
+                        const maxInclusive=field.maxInclusive!==undefined?field.maxInclusive!==false:field.MaxInclusive!==false;
+                        if(minValue!=null && (number<Number(minValue) || (!minInclusive && number===Number(minValue))))
+                            invalid((field.fieldLabel||field.FieldLabel||key)+" di bawah batas minimum","repeat-value");
+                        if(maxValue!=null && (number>Number(maxValue) || (!maxInclusive && number===Number(maxValue))))
+                            invalid((field.fieldLabel||field.FieldLabel||key)+" melebihi batas maksimum","repeat-value");
                     }
                     if(raw && String(field.fieldType||"").toUpperCase()==="OPTION"){
                         const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
