@@ -1737,16 +1737,17 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             const objectValues=old&&old.Values?old.Values:{};
             let lastGroup="";
             const fieldHtml=fields.map(field=>{
-                const key=String(field.fieldKey||"");
-                const label=String(field.fieldLabel||key);
-                const group=String(field.groupName||"");
+                const key=String(field.fieldKey||field.FieldKey||"");
+                const label=String(field.fieldLabel||field.FieldLabel||key);
+                const group=String(field.groupName||field.GroupName||"");
                 const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary" style="flex:0 0 100%;width:100%;max-width:100%">'+escInspection(group)+'</div>':"";
                 lastGroup=group;
                 const fieldValue=objectValues[key]==null?"":objectValues[key];
-                const fieldRequired=field.isRequired?' required aria-required="true"':"";
+                const fieldRequired=(field.isRequired||field.IsRequired)?' required aria-required="true"':"";
                 let input="";
-                if(String(field.fieldType||"").toUpperCase()==="OPTION"){
-                    const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
+                if(String(field.fieldType||field.FieldType||"").toUpperCase()==="OPTION"){
+                    const rawOptions=field.optionList!=null?field.optionList:field.OptionList;
+                    const options=Array.isArray(rawOptions)?rawOptions:String(rawOptions||"").split(";");
                     input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
                 }else{
                     const textType=String(field.fieldType||field.FieldType||"").toUpperCase()==="TEXT";
@@ -1758,7 +1759,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                         (maxValue!=null?' data-max-value="'+escInspection(maxValue)+'" data-max-inclusive="'+(maxInclusive?'1':'0')+'"':'');
                     input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+constraints)+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
                 }
-                return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="inspection-muted">'+escInspection(label+(field.unit?" ("+field.unit+")":""))+'</label>'+input+'</div>';
+                return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="inspection-muted">'+escInspection(label+((field.unit||field.Unit)?" ("+(field.unit||field.Unit)+")":""))+'</label>'+input+'</div>';
             }).join("");
             objects.push('<div class="inspection-repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2 inspection-repeat-object-title" data-label="'+escInspection(cfg.objectLabel||"Object")+'">'+escInspection((cfg.objectLabel||"Object")+" "+(oi+1))+'</div>':"")+'<div class="row g-2 '+(mode==="FIELDS"?'row-cols-1 row-cols-md-'+Math.max(1,Math.min(6,Number(cfg.columnCount||3))):'')+'">'+fieldHtml+'</div></div>');
         }
@@ -2000,7 +2001,7 @@ function validateInspectionItemsAll(items) {
                     const key=String(field.fieldKey||"");
                     const raw=values[key]==null?"":String(values[key]).trim();
                     if(field.isRequired && !raw) invalid((field.fieldLabel||key)+" wajib diisi pada "+label,"repeat-value");
-                    if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||"").toUpperCase())){
+                    if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||field.FieldType||"").toUpperCase())){
                         const number=Number(raw);
                         if(!Number.isFinite(number)) invalid((field.fieldLabel||key)+" harus berupa angka","repeat-value");
                         const minValue=field.min!=null?field.min:field.MinValue;
@@ -2012,7 +2013,7 @@ function validateInspectionItemsAll(items) {
                         if(maxValue!=null && (number>Number(maxValue) || (!maxInclusive && number===Number(maxValue))))
                             invalid((field.fieldLabel||field.FieldLabel||key)+" melebihi batas maksimum","repeat-value");
                     }
-                    if(raw && String(field.fieldType||"").toUpperCase()==="OPTION"){
+                    if(raw && String(field.fieldType||field.FieldType||"").toUpperCase()==="OPTION"){
                         const options=Array.isArray(field.optionList)?field.optionList:String(field.optionList||"").split(";");
                         if(!options.some(option=>String(option).trim().toUpperCase()===raw.toUpperCase()))
                             invalid("Option "+(field.fieldLabel||key)+" tidak valid","repeat-value");
