@@ -14,6 +14,8 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_M_CheckListWOPM]
 	@p_dt_SubSection AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
+	@p_dt_RepeatConfig AS [Type_Tbl_RepeatConfig] READONLY,
+	@p_dt_RepeatField AS [Type_Tbl_RepeatField] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
 	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
 	@p_UpdateUser VARCHAR(50),
@@ -51,6 +53,47 @@ INSERT @tbl_Item SELECT C1, C2, C3, C4, C5, C6, C7, C18, C8, C9, C10, C11, C12, 
 DECLARE @tbl_Group TABLE
 (IDGroup INT, RuntimeGroupID INT, RuntimeItemID INT, GroupName VARCHAR(100), FieldList VARCHAR(100), Unit VARCHAR(20), DisplayOrder INT)
 INSERT @tbl_Group SELECT C1, C2, C3, C4, C5, C6, ROW_NUMBER() OVER ( PARTITION BY C3 ORDER BY (SELECT NULL)) FROM @p_dt_Group
+
+DECLARE @tbl_RepeatConfig TABLE
+(IDItem INT, RuntimeItemID INT, RepeatMode VARCHAR(10), ColumnCount INT, ObjectLabel NVARCHAR(100),
+ CountMode VARCHAR(10), FixedCount INT NULL, MinCount INT NULL, MaxCount INT NULL)
+INSERT @tbl_RepeatConfig
+SELECT CAST(C1 AS INT), CAST(C2 AS INT), UPPER(C3),
+       ISNULL(NULLIF(C4,''), '3'), NULLIF(C5,''),
+       UPPER(ISNULL(NULLIF(C6,''),'FLEX')),
+       NULLIF(C7,''), NULLIF(C8,''), NULLIF(C9,'')
+FROM @p_dt_RepeatConfig;
+
+DECLARE @tbl_RepeatField TABLE
+(RuntimeItemID INT, FieldKey VARCHAR(50), FieldLabel NVARCHAR(100), FieldType VARCHAR(20),
+ OptionList NVARCHAR(1000), Unit NVARCHAR(30), MinValue DECIMAL(18,4) NULL,
+ MaxValue DECIMAL(18,4) NULL, IsRequired BIT, GroupName NVARCHAR(100), DisplayOrder INT)
+INSERT @tbl_RepeatField
+SELECT CAST(C1 AS INT), LTRIM(RTRIM(C2)), C3, UPPER(C4), NULLIF(C5,''), NULLIF(C6,''),
+       NULLIF(C7,''), NULLIF(C8,''), CAST(ISNULL(NULLIF(C9,''),'0') AS BIT),
+       NULLIF(C10,''), CAST(ISNULL(NULLIF(C11,''),'0') AS INT)
+FROM @p_dt_RepeatField;
+
+IF EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatConfig C
+    WHERE C.RepeatMode NOT IN ('FIELDS','OBJECTS')
+       OR C.ColumnCount NOT BETWEEN 1 AND 6
+       OR C.CountMode NOT IN ('FIXED','FLEX')
+       OR (C.CountMode='FIXED' AND ISNULL(C.FixedCount,0)<1)
+       OR (C.CountMode='FLEX' AND C.FixedCount IS NOT NULL)
+       OR NOT EXISTS (SELECT 1 FROM @tbl_Item I WHERE I.RuntimeItemID=C.RuntimeItemID AND I.ItemType='REPEAT')
+)
+BEGIN RAISERROR('Invalid REPEAT configuration.',16,1); RETURN; END;
+
+IF EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatField F
+    WHERE F.FieldKey='' OR LEN(F.FieldKey)>50
+       OR F.FieldType NOT IN ('NUMBER','RANGE','OPTION','TEXT')
+       OR NOT EXISTS (SELECT 1 FROM @tbl_RepeatConfig C WHERE C.RuntimeItemID=F.RuntimeItemID)
+)
+BEGIN RAISERROR('Invalid REPEAT field definition. Nested REPEAT fields are not supported.',16,1); RETURN; END;
 
 DECLARE @tbl_DelTemplate TABLE (IDTemplate INT)
 INSERT @tbl_DelTemplate SELECT C1 FROM @p_dt_DelTemplate
@@ -495,7 +538,79 @@ OUTPUT
 	'Group',
     source.RuntimeGroupID,  
     inserted.IDGroup
+
 INTO @tbl_Identity (Entity, RuntimeID, ID);
+
+--- native REPEAT configuration and child fields
+DECLARE @tbl_ResolvedRepeat TABLE
+(
+    IDItem INT NOT NULL,
+    RuntimeItemID INT NOT NULL,
+    RepeatMode VARCHAR(10) NOT NULL,
+    ColumnCount INT NOT NULL,
+    ObjectLabel NVARCHAR(100) NULL,
+    CountMode VARCHAR(10) NOT NULL,
+    FixedCount INT NULL,
+    MinCount INT NULL,
+    MaxCount INT NULL
+);
+INSERT INTO @tbl_ResolvedRepeat
+SELECT COALESCE(ItemIdentity.ID, ExistingItem.IDItem), C.RuntimeItemID, C.RepeatMode,
+       C.ColumnCount, C.ObjectLabel, C.CountMode, C.FixedCount, C.MinCount, C.MaxCount
+FROM @tbl_RepeatConfig C
+LEFT JOIN @tbl_Identity ItemIdentity ON ItemIdentity.Entity='Item' AND ItemIdentity.RuntimeID=C.RuntimeItemID
+LEFT JOIN @tbl_Item ExistingItem ON ExistingItem.RuntimeItemID=C.RuntimeItemID AND ExistingItem.IDItem>0;
+
+IF EXISTS (SELECT 1 FROM @tbl_ResolvedRepeat WHERE ISNULL(IDItem,0)<=0)
+BEGIN RAISERROR('A REPEAT item could not be resolved to a database Item ID.',16,1); RETURN; END;
+
+UPDATE R
+SET RepeatMode=S.RepeatMode, ColumnCount=S.ColumnCount, ObjectLabel=S.ObjectLabel,
+    CountMode=S.CountMode, FixedCount=S.FixedCount, MinCount=S.MinCount, MaxCount=S.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN @tbl_ResolvedRepeat S ON S.IDItem=R.IDItem;
+
+INSERT dbo.PIP_M_CheckListWOPM_ItemRepeat
+    (IDItem,RepeatMode,ColumnCount,ObjectLabel,CountMode,FixedCount,MinCount,MaxCount)
+SELECT S.IDItem,S.RepeatMode,S.ColumnCount,S.ObjectLabel,S.CountMode,S.FixedCount,S.MinCount,S.MaxCount
+FROM @tbl_ResolvedRepeat S
+WHERE NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=S.IDItem);
+
+DELETE F
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatField S
+    WHERE S.RuntimeItemID=R.RuntimeItemID AND S.FieldKey=F.FieldKey
+);
+
+UPDATE F
+SET FieldLabel=S.FieldLabel, FieldType=S.FieldType, OptionList=S.OptionList, Unit=S.Unit,
+    MinValue=S.MinValue, MaxValue=S.MaxValue, IsRequired=S.IsRequired,
+    GroupName=S.GroupName, DisplayOrder=S.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
+JOIN @tbl_RepeatField S ON S.RuntimeItemID=R.RuntimeItemID AND S.FieldKey=F.FieldKey;
+
+INSERT dbo.PIP_M_CheckListWOPM_ItemRepeatField
+    (IDItem,FieldKey,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,IsRequired,GroupName,DisplayOrder)
+SELECT R.IDItem,S.FieldKey,S.FieldLabel,S.FieldType,S.OptionList,S.Unit,S.MinValue,S.MaxValue,S.IsRequired,S.GroupName,S.DisplayOrder
+FROM @tbl_RepeatField S
+JOIN @tbl_ResolvedRepeat R ON R.RuntimeItemID=S.RuntimeItemID
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+    WHERE F.IDItem=R.IDItem AND F.FieldKey=S.FieldKey
+);
+
+-- Remove REPEAT definitions when an item is changed back to a scalar type.
+DELETE F
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN @tbl_Item I ON I.IDItem=F.IDItem AND I.ItemType<>'REPEAT';
+DELETE R
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN @tbl_Item I ON I.IDItem=R.IDItem AND I.ItemType<>'REPEAT';
 
 IF @p_IsPublished=1
 BEGIN
