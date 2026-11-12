@@ -712,7 +712,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     {
                         paths.Append("<path d='");
                         paths.Append(HttpUtility.HtmlAttributeEncode(d));
-                        paths.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' vector-effect='non-scaling-stroke'><title>");
+                        paths.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                        paths.Append((point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"])).ToString("0.##", CultureInfo.InvariantCulture));
+                        paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
                         paths.Append("</title></path>");
                     }
@@ -1728,7 +1730,9 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 pathSvg.Append(Convert.ToString(point["CanSwap"]));
                 pathSvg.Append("' title='");
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
-                pathSvg.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='0.8' stroke-linejoin='round' vector-effect='non-scaling-stroke'></path>");
+                pathSvg.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                pathSvg.Append((point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"])).ToString("0.##", CultureInfo.InvariantCulture));
+                pathSvg.Append("' stroke-linejoin='round' vector-effect='non-scaling-stroke'></path>");
             }
             pathSvg.Append("</svg>");
             litEditorSvgPaths.Text = pathSvg.ToString();
