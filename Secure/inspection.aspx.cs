@@ -551,6 +551,9 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                                 }
                                             }
                                         }
+                                        if (repeatMode == "OBJECTS" && objectIndexes.Count > 0 &&
+                                            (objectIndexes.Min() != 0 || objectIndexes.Max() != objectIndexes.Count - 1))
+                                            throw new Exception(pointPrefix + "ObjectIndex REPEAT " + itemLabel + " harus berurutan mulai dari 0.");
                                     }
 
                                     if (Convert.ToBoolean(templateItem["IsValueRequired"]))
