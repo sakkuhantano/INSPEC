@@ -2505,20 +2505,32 @@ async function saveBatchInspectionPoint(status) {
             }
             return;
         }
+        const isAbnormalRepeatValue = value =>
+            /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(value == null ? "" : value).trim().toUpperCase());
+        const hasAbnormalRepeatValue = items.some(item => {
+            if (isAbnormalRepeatValue(item.Value)) return true;
+            const repeatRows = Array.isArray(item.RepeatValues) ? item.RepeatValues : [];
+            return repeatRows.some(objectRow => {
+                const values = objectRow && objectRow.Values ? objectRow.Values : {};
+                return Object.keys(values).some(key => isAbnormalRepeatValue(values[key]));
+            });
+        });
+        const hasAnomalousItem = items.some(item =>
+            item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
         point.Status = String(point.PointCondition || "").toUpperCase() === "ABNORMAL" ||
-            items.some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1" ||
-                /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(item.Value || "").trim().toUpperCase()) ||
-                (Array.isArray(item.RepeatValues) && item.RepeatValues.some(objectRow =>
-                    Object.keys((objectRow && objectRow.Values) || {}).some(key =>
-                        /^(OFF|MATI|NO|RUSAK|ABNORMAL|TIDAK|NOT OK)$/.test(String(objectRow.Values[key] == null ? "" : objectRow.Values[key]).trim().toUpperCase())))))
-            ? "ABNORMAL" : "DONE";
+            hasAnomalousItem || hasAbnormalRepeatValue ? "ABNORMAL" : "DONE";
     } else {
-        point.Status = items.some(item => String(item.Value || "").trim() ||
-            Object.keys(item.Values || {}).some(key => String(item.Values[key] == null ? "" : item.Values[key]).trim()) ||
-            (Array.isArray(item.RepeatValues) && item.RepeatValues.some(objectRow =>
-                Object.keys((objectRow && objectRow.Values) || {}).some(key =>
-                    String(objectRow.Values[key] == null ? "" : objectRow.Values[key]).trim()))) ||
-            photos.length ? "INCOMPLETE" : "PENDING";
+        const hasAnyPointValue = items.some(item => {
+            if (String(item.Value || "").trim()) return true;
+            const values = item.Values || {};
+            if (Object.keys(values).some(key => String(values[key] == null ? "" : values[key]).trim())) return true;
+            const repeatRows = Array.isArray(item.RepeatValues) ? item.RepeatValues : [];
+            return repeatRows.some(objectRow => {
+                const repeatFields = objectRow && objectRow.Values ? objectRow.Values : {};
+                return Object.keys(repeatFields).some(key => String(repeatFields[key] == null ? "" : repeatFields[key]).trim());
+            });
+        });
+        point.Status = hasAnyPointValue || photos.length ? "INCOMPLETE" : "PENDING";
     }
     point.Items = items;
     let validationIssueCount = status === "DONE" ? errors.length : validateInspectionItemsAll(items).length;
