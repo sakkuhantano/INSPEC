@@ -1062,6 +1062,61 @@ BEGIN
         RETURN;
     END;
 
+    /* Validate native REPEAT values per submitted inspection point. */
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items I
+        WHERE UPPER(ISNULL(I.C4,''))='REPEAT'
+          AND (NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=CAST(I.C2 AS INT))
+               OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F WHERE F.IDItem=CAST(I.C2 AS INT)))
+    )
+    BEGIN RAISERROR('A BATCH REPEAT item has no master field configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_ItemValues V
+        JOIN @p_Items I ON I.C1=V.C1 AND I.C2=V.C2 AND UPPER(ISNULL(I.C4,''))='REPEAT'
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+            WHERE F.IDItem=CAST(V.C2 AS INT) AND F.FieldKey=V.C3
+        )
+    )
+    BEGIN RAISERROR('Unknown REPEAT child FieldKey submitted for BATCH inspection.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=CAST(I.C2 AS INT)
+        WHERE UPPER(ISNULL(I.C4,''))='REPEAT'
+          AND
+          (
+              (R.RepeatMode='FIELDS' AND
+                ((SELECT COUNT(DISTINCT CAST(V.C5 AS INT)) FROM @p_ItemValues V WHERE V.C1=I.C1 AND V.C2=I.C2)<>1
+                 OR EXISTS (SELECT 1 FROM @p_ItemValues V WHERE V.C1=I.C1 AND V.C2=I.C2 AND CAST(V.C5 AS INT)<>0)))
+              OR (R.RepeatMode='OBJECTS' AND R.CountMode='FIXED' AND
+                (SELECT COUNT(DISTINCT CAST(V.C5 AS INT)) FROM @p_ItemValues V WHERE V.C1=I.C1 AND V.C2=I.C2)<>R.FixedCount)
+              OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MinCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C5 AS INT)) FROM @p_ItemValues V WHERE V.C1=I.C1 AND V.C2=I.C2)<R.MinCount)
+              OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MaxCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C5 AS INT)) FROM @p_ItemValues V WHERE V.C1=I.C1 AND V.C2=I.C2)>R.MaxCount)
+          )
+    )
+    BEGIN RAISERROR('REPEAT object count does not match BATCH template configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Items I
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(I.C2 AS INT) AND F.IsRequired=1
+        JOIN (SELECT DISTINCT C1,C2,C5 FROM @p_ItemValues) O ON O.C1=I.C1 AND O.C2=I.C2
+        LEFT JOIN @p_ItemValues V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C5=O.C5 AND V.C3=F.FieldKey
+        WHERE UPPER(ISNULL(I.C4,''))='REPEAT' AND ISNULL(LTRIM(RTRIM(V.C4)),'')=''
+    )
+    BEGIN RAISERROR('A required REPEAT child field is missing in BATCH inspection.',16,1); RETURN; END;
+
     DECLARE @V_EntryTranCount INT;
     SET @V_EntryTranCount=@@TRANCOUNT;
 
