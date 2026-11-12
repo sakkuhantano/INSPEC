@@ -164,6 +164,11 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 {
                     V_tblTmp_2.Columns.Add("C" + i + "", typeof(System.String));
                 }
+                DataTable V_tblTmp_Repeat = new DataTable();
+                for (int i = 1; i <= 5; i++)
+                {
+                    V_tblTmp_Repeat.Columns.Add("C" + i + "", typeof(System.String));
+                }
                 DataTable V_tblTmp_3 = new DataTable();
                 for (int i = 1; i <= 4; i++)
                 {
@@ -189,6 +194,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
 
                 cmdToExecute.Parameters.AddWithValue("@p_dt1", V_tblTmp_1);
                 cmdToExecute.Parameters.AddWithValue("@p_dt2", V_tblTmp_2);
+                cmdToExecute.Parameters.AddWithValue("@p_DtRepeat", V_tblTmp_Repeat);
                 cmdToExecute.Parameters.AddWithValue("@p_dt3", V_tblTmp_3);
                 cmdToExecute.Parameters.AddWithValue("@p_dt4", V_tblTmp_4);
                 cmdToExecute.Parameters.AddWithValue("@p_UpdateUser", userId);
