@@ -649,7 +649,9 @@ function createNewItem()
         RemarkRequiredOptions:[],
         MinValue:0,
         MaxValue:0,
-        Groups:[]
+        Groups:[],
+        Repeat:{RepeatMode:'FIELDS',ColumnCount:3,ObjectLabel:'Object',CountMode:'FLEX',FixedCount:null,MinCount:1,MaxCount:null},
+        RepeatFields:[]
     };
 }
 function createNewVersion()
@@ -4228,9 +4230,8 @@ function showItemProperties(itemData)
                                 RANGE
                             </option>
 
-                            <option value="GROUP">
-                                GROUP
-                            </option>
+                            <option value="REPEAT">REPEAT</option>
+                            <option value="GROUP" disabled>GROUP (Legacy)</option>
 
                             <option value="TEXT">
                                 TEXT
