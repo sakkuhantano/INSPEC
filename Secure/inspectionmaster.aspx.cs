@@ -1685,6 +1685,7 @@ VALUES
 
         private void BindMapElements()
         {
+            litEditorSvgPaths.Text = "";
             if (String.IsNullOrWhiteSpace(hidMapID.Value)) return;
             DataTable points;
             using (var br = new WAL.BR.CF())
@@ -1737,6 +1738,8 @@ ORDER BY P.DisplayOrder,P.PointCode",
         {
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
+            hidSvgPathData.Value = "";
+            ddlPointShapeType.SelectedValue = "CIRCLE";
             //ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
             GF.MsgBox(this, "Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", "BS-5.3.0");
             pnlPointEditor.Visible = true;
