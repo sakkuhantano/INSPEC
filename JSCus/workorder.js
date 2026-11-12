@@ -802,6 +802,42 @@ function normalizeWOPhotoRequirement(value) {
     return ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirement) ? requirement : "BOTH";
 }
 
+function renderWORepeatItem(item, saved, isEntryMode) {
+    const cfg=item.repeat||{};
+    const fields=Array.isArray(item.repeatFields)?item.repeatFields:[];
+    const mode=String(cfg.repeatMode||"FIELDS").toUpperCase();
+    const oldValues=Array.isArray(saved.RepeatValues)?saved.RepeatValues:[];
+    let count=mode==="FIELDS"?1:(String(cfg.countMode||"FLEX").toUpperCase()==="FIXED"?Number(cfg.fixedCount||1):Math.max(Number(cfg.minCount||1),oldValues.length||1));
+    if(mode==="OBJECTS" && cfg.maxCount) count=Math.min(count,Number(cfg.maxCount));
+    const objects=[];
+    for(let oi=0;oi<count;oi++){
+        const old=oldValues.find(x=>Number(x.ObjectIndex)===oi);
+        const values=old&&old.Values?old.Values:{};
+        let lastGroup=null;
+        const controls=fields.map(f=>{
+            const key=String(f.fieldKey||"");
+            const label=String(f.fieldLabel||key);
+            const group=String(f.groupName||"");
+            const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary">'+escapeHtmlAttribute(group)+'</div>':"";
+            lastGroup=group||lastGroup;
+            const value=values[key]==null?"":values[key];
+            const required=f.isRequired?' required aria-required="true"':"";
+            let input="";
+            if(String(f.fieldType).toUpperCase()==="OPTION"){
+                const opts=Array.isArray(f.optionList)?f.optionList:String(f.optionList||"").split(";");
+                input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'"'+required+(!isEntryMode?' disabled':'')+'><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+escapeHtmlAttribute(o)+'" '+(String(value)===String(o)?'selected':'')+'>'+escapeHtmlAttribute(o)+'</option>').join("")+'</select>';
+            } else {
+                const type=String(f.fieldType).toUpperCase()==="TEXT"?"text":"number";
+                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any"':'maxlength="500"')+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
+            }
+            return heading+'<div class="col-12 col-md-'+(mode==="FIELDS"?Math.max(2,Math.floor(12/Math.max(1,Math.min(6,Number(cfg.columnCount||3))))):'6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
+        }).join("");
+        objects.push('<div class="repeat-object border rounded p-2 mb-2" data-object-index="'+oi+'">'+(mode==="OBJECTS"?'<div class="small fw-semibold mb-2">'+escapeHtmlAttribute(cfg.objectLabel||"Object")+' '+(oi+1)+'</div>':"")+'<div class="row g-2">'+controls+'</div></div>');
+    }
+    const actions=mode==="OBJECTS"&&String(cfg.countMode||"FLEX").toUpperCase()==="FLEX"&&isEntryMode
+        ?'<div class="d-flex gap-2 mb-2"><button type="button" class="btn btn-sm btn-outline-primary" data-repeat-action="add" data-item-id="'+item.idItem+'">+ Add '+escapeHtmlAttribute(cfg.objectLabel||"Object")+'</button>'+(count>Number(cfg.minCount||0)?'<button type="button" class="btn btn-sm btn-outline-secondary" data-repeat-action="remove" data-item-id="'+item.idItem+'">Remove last</button>':"")+'</div>':"";
+    return objects.join("")+actions;
+}
 async function renderChecklist(template, isEntryMode) {
     
     let html = `
@@ -1095,7 +1131,16 @@ async function renderChecklist(template, isEntryMode) {
             }
 
             // =========================
-            // GROUP
+            // REPEAT
+            // =========================
+            else if (item.type === "REPEAT") {
+                html += '<div class="col-12" data-item-id="'+item.idItem+'"><label class="compact-label">'+escapeHtmlAttribute(item.label)+'</label>' +
+                    renderWORepeatItem(item, (currentWO.DataCheckListJSON?.Items||[]).find(x=>Number(x.IDItem)===Number(item.idItem))||{}, isEntryMode) +
+                    '<div class="row mt-1" data-role="remark-panel"><div class="col-12"><input class="form-control form-control-sm" data-role="remark1" maxlength="500" placeholder="Remark" value="'+escapeHtmlAttribute(V_Remark1)+'" '+(!isEntryMode?'disabled':'')+'><input class="form-control form-control-sm mt-1" data-role="remark2" maxlength="500" placeholder="Remark" value="'+escapeHtmlAttribute(V_Remark2)+'" '+(!isEntryMode?'disabled':'')+'></div></div></div>';
+            }
+
+            // =========================
+            // GROUP (legacy)
             // =========================
             else if (item.type === "GROUP") {
 
@@ -1641,6 +1686,30 @@ if (currentWO.ReasonVoid != "") {
 }
 
     document.getElementById("containerCheckList").innerHTML = html;
+    const repeatHost=document.getElementById("containerCheckList");
+    if(repeatHost && !repeatHost.dataset.repeatActionsBound){
+        repeatHost.dataset.repeatActionsBound="1";
+        repeatHost.addEventListener("click",async function(e){
+            const btn=e.target.closest("[data-repeat-action]");
+            if(!btn || currentMode!=="entry")return;
+            const itemId=Number(btn.dataset.itemId);
+            const data=collectData(currentTemplate,currentWO);
+            const saved=data.Items.find(x=>Number(x.IDItem)===itemId);
+            if(!saved)return;
+            const item=currentTemplate.sections.flatMap(x=>x.items||[]).find(x=>Number(x.idItem)===itemId);
+            if(!item)return;
+            const cfg=item.repeat||{};
+            let rows=Array.isArray(saved.RepeatValues)?saved.RepeatValues:[];
+            if(btn.dataset.repeatAction==="add"){
+                const max=cfg.maxCount?Number(cfg.maxCount):99;
+                if(rows.length>=max)return;
+                rows.push({ObjectIndex:rows.length,Values:{}});
+            } else if(rows.length>Number(cfg.minCount||0)) rows.pop();
+            saved.RepeatValues=rows;
+            currentWO.DataCheckListJSON=data;
+            await renderChecklist(currentTemplate,true);
+        });
+    }
     const remarkRoot = document.getElementById("containerCheckList");
     remarkRoot.onchange = function(event) { if (event.target && event.target.matches('[data-role="option"]')) updateWorkOrderRemarkPanels(template); };
     updateWorkOrderRemarkPanels(template);
@@ -2632,6 +2701,15 @@ function collectData(template, wo) {
                 // =====================================
                 // GROUP
                 // =====================================
+                case "REPEAT":
+                    obj.RepeatValues = Array.from(container.querySelectorAll(".repeat-object")).map(objectEl => {
+                        const values = {};
+                        objectEl.querySelectorAll("[data-role='repeat-value']").forEach(input => {
+                            values[input.dataset.fieldKey] = input.value === "" ? null : input.value;
+                        });
+                        return { ObjectIndex:Number(objectEl.dataset.objectIndex||0), Values:values };
+                    });
+                    break;
                 case "GROUP":
                     let values = {};
                     let inputs =
