@@ -2073,7 +2073,8 @@ CREATE PROCEDURE [dbo].[spUTL_WO_CheckList]
 (
 --DECLARE
 	@p_Dt1 [dbo].[Type_N_Tbl_C13] READONLY,	-- item checklist
-	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- item checklist group
+	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- legacy GROUP values
+	@p_DtRepeat [dbo].[Type_Tbl_WORepeatValue] READONLY,	-- native REPEAT values
 	@p_Dt3 [dbo].[Type_Tbl_C4] READONLY,	-- photos
 	@p_Dt4 [dbo].[Type_N_Tbl_C10] READONLY,	-- summary
 	@p_UpdateUser VARCHAR(50)=''
@@ -2180,6 +2181,45 @@ BEGIN
 END
 CLOSE tamp
 DEALLOCATE tamp
+
+IF @V_IsApprovalSPV=0
+BEGIN
+    /* Replace only native REPEAT child values for the submitted WOs. Legacy GROUP
+       rows remain untouched and continue to use the original @p_Dt2 contract. */
+    DELETE SV
+    FROM dbo.PIP_T_WO_CheckList_SubValue SV
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.IDResult=SV.IDResult
+    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+    JOIN @p_Dt4 WO ON WO.C1=CL.KeyHD;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat R
+        WHERE ISNULL(R.C1,'')='' OR ISNUMERIC(R.C2)=0 OR ISNUMERIC(R.C3)=0
+           OR CAST(R.C3 AS INT)<0 OR ISNULL(R.C4,'')=''
+           OR NOT EXISTS
+           (
+               SELECT 1
+               FROM dbo.PIP_T_WO_CheckList CL
+               JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+               JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.FieldKey=R.C4
+               WHERE CL.KeyHD=CAST(R.C1 AS INT) AND CL.IDItem=CAST(R.C2 AS INT)
+           )
+    )
+    BEGIN RAISERROR('Invalid REPEAT values submitted for Work Order.',16,1); RETURN; END;
+
+    DECLARE @V_NextRepeatSubValueID INT;
+    SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
+    FROM dbo.PIP_T_WO_CheckList_SubValue WITH (UPDLOCK,HOLDLOCK);
+
+    INSERT dbo.PIP_T_WO_CheckList_SubValue
+        (IDSubValue,IDResult,ObjectIndex,FieldName,Value)
+    SELECT @V_NextRepeatSubValueID+ROW_NUMBER() OVER (ORDER BY R.C1,R.C2,CAST(R.C3 AS INT),R.C4),
+           CL.IDResult,CAST(R.C3 AS INT),R.C4,ISNULL(R.C5,'')
+    FROM @p_DtRepeat R
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.KeyHD=CAST(R.C1 AS INT) AND CL.IDItem=CAST(R.C2 AS INT);
+END;
 
 IF @V_IsApprovalSPV=1
 BEGIN
