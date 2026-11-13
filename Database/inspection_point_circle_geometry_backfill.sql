@@ -15,7 +15,7 @@ UPDATE P
 SET ShapeAttributes =
     N'{"cx":' + CONVERT(VARCHAR(30), CONVERT(DECIMAL(9,4), P.MapX)) +
     N',"cy":' + CONVERT(VARCHAR(30), CONVERT(DECIMAL(9,4), P.MapY)) +
-    N',"r":2.0}'
+    N',"r":0.45}'
 FROM dbo.PIP_M_InspectionPoint P
 WHERE ISNULL(P.ShapeType, 'CIRCLE') = 'CIRCLE'
   AND P.MapX IS NOT NULL
