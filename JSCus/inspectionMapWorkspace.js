@@ -866,6 +866,7 @@
                 : map.PointCount) + " inspection points";
         closePoint();
         resetMapView();
+        switchMapList();
         listPage = 1;
         renderList();
         updateSummary();
