@@ -672,6 +672,27 @@
 @media(max-width:575.98px){.inspection-map-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.inspection-map-choice-card{min-height:145px;padding:.75rem}.inspection-map-choice-title{font-size:.85rem}.inspection-map-choice-description{font-size:.7rem}}
 @media(max-width:360px){.inspection-map-choice-grid{grid-template-columns:1fr}}
 
+
+    /* Compact inspection map selector: keep the map as the visual priority. */
+    .inspection-map-picker{padding:.55rem .7rem!important}
+    .inspection-map-picker-heading{margin-bottom:.4rem!important}
+    .inspection-map-picker-heading .inspection-map-eyebrow{font-size:.58rem}
+    .inspection-map-picker-heading .small{font-size:.7rem}
+    .inspection-map-choice-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:.4rem}
+    .inspection-map-choice-card{min-height:0;padding:.45rem .55rem;gap:.16rem;border-radius:.55rem;box-shadow:none;transition:border-color .12s ease,background-color .12s ease}
+    .inspection-map-choice-card:hover,.inspection-map-choice-card:focus{transform:none;box-shadow:0 2px 7px rgba(15,23,42,.08)}
+    .inspection-map-choice-icon{width:25px;height:25px;border-radius:.4rem;font-size:.82rem}
+    .inspection-map-choice-title{font-size:.78rem;line-height:1.15}
+    .inspection-map-choice-code{font-size:.61rem;line-height:1.1}
+    .inspection-map-choice-description{font-size:.65rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+    .inspection-map-choice-meta{padding-top:.2rem;margin-top:.08rem;gap:.25rem;font-size:.58rem;line-height:1.15}
+    @media(max-width:575.98px){
+        .inspection-map-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.35rem}
+        .inspection-map-choice-card{padding:.4rem .45rem}
+        .inspection-map-choice-title{font-size:.73rem}
+        .inspection-map-choice-meta{font-size:.54rem}
+    }
+
 </style>
 </asp:Content>
 
