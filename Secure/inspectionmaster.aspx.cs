@@ -484,6 +484,9 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             Master.TB_VisibleButton(ToolbarItem_2.Next, false);
             txtMapName.Text = "";
             txtMapDescription.Text = "";
+            txtMapGroupCode.Text = "";
+            txtMapGroupName.Text = "";
+            txtMapGroupDescription.Text = "";
             if (ddlInspectionType.Items.Count > 0) ddlInspectionType.SelectedIndex = 0;
             BindInspectionDetails();
             chkRequireAllPoints.Checked = true;
@@ -594,9 +597,12 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             using (var br = new WAL.BR.CF())
                 return br.EQueryP(@"
 SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.Description,
-       M.InspectionTypeCode, M.InspectionTypeDetailCode,
+       M.InspectionTypeCode, M.InspectionTypeDetailCode, M.MapGroupID,
+       ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
 FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
       (SELECT 1 FROM dbo.PIP_M_InspectionType IT
@@ -788,6 +794,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
             bool uploadedThisRequest = false;
             try
             {
+                long? mapGroupID = SaveOrGetMapGroup();
                 if (fuMapPdf.HasFile)
                 {
                     savedPath = SaveMapFile(fuMapPdf);
@@ -808,7 +815,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         {
                             br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionMap
-SET MapCode=@MapCode, MapName=@MapName, Description=@Description,
+SET MapCode=@MapCode, MapName=@MapName, Description=@Description, MapGroupID=@MapGroupID,
     InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
@@ -819,7 +826,7 @@ WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                             string imagePath = savedPath == "" ? Convert.ToString(old.Rows[0]["ImagePath"]) : savedPath;
                             br.EQueryP(@"
 UPDATE dbo.PIP_M_InspectionMap
-SET MapCode=@MapCode, MapName=@MapName, ImagePath=@ImagePath, Description=@Description,
+SET MapCode=@MapCode, MapName=@MapName, ImagePath=@ImagePath, Description=@Description, MapGroupID=@MapGroupID,
     InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
@@ -848,15 +855,15 @@ SET IsCurrentVersion=0, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapGroupID,MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
-(@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
+(@NewMapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,@MapGroupID,
  @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser);
 UPDATE dbo.PIP_M_InspectionPoint SET MapID=@NewMapID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@OldMapID;
 ",
                                 new SqlParameter[] {
-                                    new SqlParameter("@OldMapID", oldID), new SqlParameter("@NewMapID", newID),
+                                    new SqlParameter("@OldMapID", oldID), new SqlParameter("@NewMapID", newID), new SqlParameter("@MapGroupID", (object)mapGroupID ?? DBNull.Value),
                                     new SqlParameter("@CompanyID", Master.Mn_CompanyID), new SqlParameter("@LocationID", Master.Mn_LocationID),
                                     new SqlParameter("@MapCode", code), new SqlParameter("@MapName", name),
                                     new SqlParameter("@ImagePath", savedPath), new SqlParameter("@MapVersion", version),
@@ -897,7 +904,7 @@ VALUES
 (@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
  @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UpdateUser,@UpdateUser)",
                             new SqlParameter[] {
-                                new SqlParameter("@MapID", newID), new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                                new SqlParameter("@MapID", newID), new SqlParameter("@MapGroupID", (object)mapGroupID ?? DBNull.Value), new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                                 new SqlParameter("@LocationID", Master.Mn_LocationID), new SqlParameter("@MapCode", code),
                                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", savedPath),
                                 new SqlParameter("@MapVersion", version), new SqlParameter("@Description", txtMapDescription.Text.Trim()),
@@ -966,12 +973,60 @@ WHERE IT.InspectionTypeCode=@TypeCode
             }
         }
 
+        private long? SaveOrGetMapGroup()
+        {
+            string groupCode = (txtMapGroupCode.Text ?? "").Trim().ToUpperInvariant();
+            string groupName = (txtMapGroupName.Text ?? "").Trim();
+            string groupDescription = (txtMapGroupDescription.Text ?? "").Trim();
+            if (groupCode == "" && groupName == "" && groupDescription == "") return null;
+            if (groupCode == "" || groupName == "")
+                throw new Exception("Map Group Code dan Map Group Name harus diisi bersama-sama.");
+
+            long newID = NextId("dbo.PIP_M_InspectionMapGroup", "MapGroupID");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP(@"
+DECLARE @MapGroupID BIGINT;
+SELECT @MapGroupID=MapGroupID
+FROM dbo.PIP_M_InspectionMapGroup
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND GroupCode=@GroupCode;
+IF @MapGroupID IS NULL
+BEGIN
+    SET @MapGroupID=@NewMapGroupID;
+    INSERT INTO dbo.PIP_M_InspectionMapGroup
+    (MapGroupID,CompanyID,LocationID,GroupCode,GroupName,Description,DisplayOrder,IsActive,EntryUser,UpdateUser)
+    VALUES
+    (@MapGroupID,@CompanyID,@LocationID,@GroupCode,@GroupName,@Description,0,1,@UpdateUser,@UpdateUser);
+END
+ELSE
+BEGIN
+    UPDATE dbo.PIP_M_InspectionMapGroup
+    SET GroupName=@GroupName, Description=@Description, IsActive=1,
+        UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+    WHERE MapGroupID=@MapGroupID AND CompanyID=@CompanyID AND LocationID=@LocationID;
+END
+SELECT @MapGroupID AS MapGroupID;",
+                    new SqlParameter[] {
+                        new SqlParameter("@NewMapGroupID", newID),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@GroupCode", groupCode),
+                        new SqlParameter("@GroupName", groupName),
+                        new SqlParameter("@Description", groupDescription),
+                        new SqlParameter("@UpdateUser", Master.Mn_EmployeeID)
+                    });
+                if (saved == null || saved.Rows.Count == 0) throw new Exception("Map Group gagal disimpan.");
+                return Convert.ToInt64(saved.Rows[0]["MapGroupID"]);
+            }
+        }
+
         private SqlParameter[] MapParameters(long mapID, string code, string name, string imagePath)
         {
             return new SqlParameter[] {
                 new SqlParameter("@MapID", mapID), new SqlParameter("@MapCode", code),
                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", imagePath),
                 new SqlParameter("@Description", txtMapDescription.Text.Trim()),
+                new SqlParameter("@MapGroupID", (object)SaveOrGetMapGroup() ?? DBNull.Value),
                 new SqlParameter("@TypeCode", ddlInspectionType.SelectedValue),
                 new SqlParameter("@DetailCode", ddlInspectionDetail.SelectedValue),
                 new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
@@ -1073,9 +1128,12 @@ WHERE IT.InspectionTypeCode=@TypeCode
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath,
-       InspectionTypeCode, InspectionTypeDetailCode, RequireAllPoints
+SELECT TOP 1 M.MapID, M.MapCode, M.MapName, M.Description, M.MapVersion, M.ImagePath,
+       M.InspectionTypeCode, M.InspectionTypeDetailCode, M.RequireAllPoints, M.MapGroupID,
+       ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription
 FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
@@ -1114,6 +1172,9 @@ ORDER BY M.MapVersion DESC",
                 Master.TB_VisibleButton(ToolbarItem_2.Next, true);
                 txtMapName.Text = Convert.ToString(row["MapName"]);
                 txtMapDescription.Text = Convert.ToString(row["Description"]);
+                txtMapGroupCode.Text = Convert.ToString(row["GroupCode"]);
+                txtMapGroupName.Text = Convert.ToString(row["GroupName"]);
+                txtMapGroupDescription.Text = Convert.ToString(row["GroupDescription"]);
                 lblMapVersion.Text = "Current version: " + Convert.ToString(row["MapVersion"]);
                 GF.SelectListItem(ref ddlInspectionType, GF.GetString(row["InspectionTypeCode"]));
                 BindInspectionDetails();
