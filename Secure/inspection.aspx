@@ -601,6 +601,20 @@
         .point-info-button{width:28px;height:28px;flex-basis:28px}
         .inspection-point-option-controls{margin-left:1.6rem!important}
     }
+
+.inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
+.inspection-map-picker-heading h5{font-size:1.05rem}
+.inspection-map-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
+.inspection-map-choice-card{display:flex;flex-direction:column;gap:.45rem;min-height:150px;padding:1rem;text-align:left;border:1px solid var(--bs-border-color);border-radius:.8rem;background:var(--bs-body-bg);color:var(--bs-body-color);box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.inspection-map-choice-card:hover,.inspection-map-choice-card:focus{border-color:var(--bs-primary);box-shadow:0 8px 22px rgba(15,23,42,.10);transform:translateY(-2px);outline:0}
+.inspection-map-choice-icon{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:.65rem;background:var(--bs-primary-bg-subtle);color:var(--bs-primary);font-size:1.15rem}
+.inspection-map-choice-title{font-weight:800;font-size:.95rem;line-height:1.25}
+.inspection-map-choice-code{font-size:.68rem;color:var(--bs-secondary-color);letter-spacing:.035em}
+.inspection-map-choice-description{font-size:.76rem;color:var(--bs-secondary-color);line-height:1.4;flex:1}
+.inspection-map-choice-meta{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding-top:.45rem;border-top:1px solid var(--bs-border-color);font-size:.7rem;color:var(--bs-secondary-color)}
+.inspection-map-choice-arrow{margin-left:auto;color:var(--bs-primary)}
+@media(max-width:575.98px){.inspection-map-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.inspection-map-choice-card{min-height:145px;padding:.75rem}.inspection-map-choice-title{font-size:.85rem}.inspection-map-choice-description{font-size:.7rem}}
+@media(max-width:360px){.inspection-map-choice-grid{grid-template-columns:1fr}}
 </style>
 </asp:Content>
 
