@@ -1103,5 +1103,5 @@
 <script type="text/javascript" src="../JSCus/inspection.js?v=20261112-report-progress-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261113-mapcards-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261113-mapcards-2"></script>
 </asp:Content>
