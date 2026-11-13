@@ -233,7 +233,8 @@
             try { shape = typeof point.ShapeAttributes === "string" ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {}); } catch (_) { shape = {}; }
             var cx = isFinite(Number(shape.cx)) ? Math.max(0, Math.min(100, Number(shape.cx))) : x;
             var cy = isFinite(Number(shape.cy)) ? Math.max(0, Math.min(100, Number(shape.cy))) : y;
-            var radius = isFinite(Number(shape.r)) && Number(shape.r) > 0 ? Math.max(0.2, Math.min(8, Number(shape.r))) : 2.0;
+            // CIRCLE is a point dot; use PATH for larger vector areas.
+            var radius = 0.45;
             var circleAspect = host.clientWidth && host.clientHeight ? host.clientWidth / host.clientHeight : 1;
             var circleTransform = 'translate(' + cx + ' ' + cy + ') scale(1 ' + circleAspect + ') translate(' + (-cx) + ' ' + (-cy) + ')';
             svg.push('<circle class="inspection-map-svg-circle ' + pointClass(status) + '" cx="' + cx + '" cy="' + cy + '" r="' + radius + '" transform="' + circleTransform + '" data-point-id="' + esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' + esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></circle>');
