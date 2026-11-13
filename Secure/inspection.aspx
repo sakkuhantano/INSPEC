@@ -2,6 +2,14 @@
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
+    .inspection-map-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.55rem}
+    .inspection-map-choice-card{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;width:100%;min-width:0;padding:.7rem .8rem;border:1px solid var(--bs-border-color);border-radius:.65rem;background:var(--bs-body-bg);color:var(--bs-body-color);text-align:left}
+    .inspection-map-choice-card.active{border-color:var(--bs-primary);box-shadow:0 0 0 .15rem rgba(var(--bs-primary-rgb),.12);background:var(--bs-primary-bg-subtle)}
+    .inspection-map-choice-title{font-weight:750;font-size:.88rem}
+    .inspection-map-choice-code{font-size:.68rem;font-weight:800;color:var(--bs-primary);letter-spacing:.04em}
+    .inspection-map-choice-description{font-size:.74rem;color:var(--bs-secondary-color)}
+    .inspection-map-choice-meta{display:flex;align-items:center;justify-content:space-between;gap:.4rem;width:100%;margin-top:.25rem;font-size:.66rem;color:var(--bs-secondary-color)}
+    .inspection-map-picker{border-bottom:1px solid var(--bs-border-color)}
     .inspection-card { border: 1px solid var(--bs-border-color); border-radius: .75rem; background: var(--bs-body-bg); }
 .inspection-map-workspace{position:relative;min-height:calc(100dvh - 150px);border:1px solid var(--bs-border-color);border-radius:.9rem;background:var(--bs-body-bg);overflow:hidden}.inspection-map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem .9rem;border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-title-wrap{min-width:0}.inspection-map-eyebrow{font-size:.65rem;font-weight:800;letter-spacing:.09em;color:var(--bs-primary)}.inspection-map-title{font-weight:800;font-size:1rem;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.inspection-map-subtitle{color:var(--bs-secondary-color);font-size:.72rem;margin-top:.15rem}.inspection-map-actions{display:flex;align-items:center;gap:.35rem;flex:0 0 auto}.inspection-map-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg)}.inspection-map-stat{min-width:0;padding:.45rem .2rem;text-align:center;border-right:1px solid var(--bs-border-color);font-size:.58rem;color:var(--bs-secondary-color);text-transform:uppercase;letter-spacing:0}.inspection-map-stat:last-child{border-right:0}.inspection-map-stat-value{display:block;font-size:1.05rem;font-weight:900;color:var(--bs-body-color);line-height:1.15;margin-bottom:2px}.inspection-map-stat-label{display:block;line-height:1.15;min-height:1.35em}
 .inspection-map-point.pending .inspection-map-point-dot{background:#64748b;color:#fff}
@@ -950,22 +958,11 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
-            <div class="inspection-map-picker-heading mb-3">
-                <div class="inspection-map-eyebrow">PILIH LOKASI INSPEKSI</div>
-                <h5 class="mb-1 fw-bold">Pilih Group Area</h5>
-                <div class="small text-muted">Pilih kelompok lokasi terlebih dahulu, kemudian pilih denah area yang akan diperiksa.</div>
+            <div class="inspection-map-picker-heading mb-2">
+                <div class="inspection-map-eyebrow">LOKASI INSPEKSI</div>
+                <div class="small text-muted">Pilih map yang akan diperiksa. Denah map pertama otomatis ditampilkan.</div>
             </div>
-            <div id="inspectionMapGroupCards" class="inspection-map-choice-grid"></div>
-            <div id="inspectionMapMapSection" class="d-none mt-3">
-                <div class="d-flex align-items-center gap-2 mb-3">
-                    <button type="button" id="btnInspectionMapBackToGroups" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Group</button>
-                    <div class="min-w-0">
-                        <div class="small text-muted">GROUP TERPILIH</div>
-                        <div id="inspectionMapSelectedGroupName" class="fw-bold text-truncate"></div>
-                    </div>
-                </div>
-                <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
-            </div>
+            <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
         </div>
         <div class="inspection-map-content d-none" id="inspectionMapContent">
             <div class="inspection-map-panel">
