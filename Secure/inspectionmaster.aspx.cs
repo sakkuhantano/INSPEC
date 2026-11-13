@@ -1692,9 +1692,9 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND MapCode=@MapCode",
                 br.EQueryP(@"
 INSERT INTO dbo.PIP_M_InspectionMap
 (MapID,CompanyID,LocationID,MapCode,MapName,ImagePath,ViewBoxX,ViewBoxY,ViewBoxWidth,ViewBoxHeight,
- MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
+ MapGroupID,MapVersion,InspectionTypeCode,InspectionTypeDetailCode,RequireAllPoints,IsCurrentVersion,IsActive,Description,EntryUser,UpdateUser)
 VALUES
-(@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,
+(@MapID,@CompanyID,@LocationID,@MapCode,@MapName,@ImagePath,0,0,100,100,@MapGroupID,
  @MapVersion,@TypeCode,@DetailCode,@RequireAllPoints,1,1,@Description,@UserID,@UserID)",
                     new SqlParameter[] {
                         new SqlParameter("@MapID", newMapID),
