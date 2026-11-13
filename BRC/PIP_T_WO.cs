@@ -10,7 +10,7 @@ using System.Data.SqlClient;
 using System.Collections.Generic;
 using WAL;
 
-namespace UTL1.BRC
+namespace INSPEC.BRC
 {
     public class PIP_T_WO : WAL.BR.BRInteractionBase
     {
