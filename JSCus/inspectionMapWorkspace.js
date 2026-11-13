@@ -782,25 +782,6 @@
             if (message) { message.textContent = 'Denah gagal dimuat: ' + (error && error.message ? error.message : 'periksa file map.'); message.classList.remove('d-none'); }
         }
     }
-    function renderMapOptions() {
-        var wrap = document.getElementById("inspectionMapSelectWrap");
-        var select = document.getElementById("inspectionMapSelect");
-        if (!select || !wrap) return;
-        var maps = currentMaps.filter(function (map) { return !!map.MapUrl; });
-        wrap.classList.toggle("d-none", maps.length <= 1);
-        select.innerHTML = maps.map(function (map) {
-            return '<option value="' + esc(map.MapID) + '">' + esc(map.MapCode + " - " + map.MapName + " (v" + map.MapVersion + ")") + '</option>';
-        }).join("");
-        if (maps.length) {
-            if (!maps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
-                currentMapId = String(maps[0].MapID);
-            select.value = currentMapId;
-        } else {
-            currentMapId = "";
-            select.innerHTML = '<option value="">Tanpa denah</option>';
-        }
-    }
-
     function normalizeMapGroups() {
         if (Array.isArray(currentGroups) && currentGroups.length) return;
         var grouped = {};
