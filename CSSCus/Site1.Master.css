@@ -792,3 +792,126 @@ body {
         font-size: 9px;
     }
 }
+
+/* =========================================================
+   GLOBAL COMPACT MASTER LAYOUT
+   Shared by every page using Site1.Master.
+   Keep navigation accessible while returning vertical space
+   to the page content.
+   ========================================================= */
+#masterHeader.top-navbar {
+    padding: .2rem .75rem !important;
+    min-height: 48px;
+}
+#masterHeader > .container-fluid > .d-flex {
+    min-height: 40px;
+}
+#masterHeader #sidebarCollapse {
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: .55rem;
+}
+#masterHeader #sidebarCollapse .bi {
+    font-size: 1.2rem !important;
+}
+#masterHeader .master-app-name {
+    font-size: 12px;
+    line-height: 1.05;
+}
+#masterHeader .master-app-company {
+    font-size: 8px;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+#masterHeader #btnSync {
+    width: 40px;
+    height: 36px;
+    padding: 0 !important;
+    justify-content: center;
+}
+#masterHeader #btnSync > .bi {
+    font-size: 1rem;
+}
+#masterHeader #btnProfileTopBar {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    font-size: 1rem;
+}
+#pageStickyBar {
+    margin-top: 0 !important;
+}
+#pageStickyBar:empty {
+    display: none;
+}
+#pageStickyBar .sticky-bar-wrapper {
+    padding: .25rem 0 !important;
+    min-height: 0 !important;
+}
+#pageStickyBar .sticky-bar-wrapper > :first-child {
+    margin-top: 0 !important;
+}
+#pageStickyBar .mt-2 {
+    margin-top: .25rem !important;
+}
+#contentbody {
+    padding: .5rem .75rem !important;
+    flex: 1 0 auto;
+}
+.master-footer {
+    padding: 4px 2px 0;
+    font-size: 9px;
+}
+.master-footer-line {
+    min-height: 18px;
+    padding-top: 4px;
+    gap: 4px 14px;
+}
+@media (max-width: 767.98px) {
+    #masterHeader.top-navbar {
+        min-height: 44px;
+        padding: .15rem .5rem !important;
+    }
+    #masterHeader > .container-fluid > .d-flex {
+        min-height: 38px;
+    }
+    #masterHeader .master-app-name-mobile {
+        font-size: 11px;
+    }
+    #masterHeader #sidebarCollapse {
+        width: 34px;
+        height: 34px;
+    }
+    #masterHeader #btnSync {
+        width: 36px;
+        height: 34px;
+    }
+    #masterHeader #btnProfileTopBar {
+        width: 34px !important;
+        height: 34px !important;
+    }
+    #contentbody {
+        padding: .35rem .45rem !important;
+    }
+    #pageStickyBar .sticky-bar-wrapper {
+        padding: .2rem 0 !important;
+    }
+}
+@media (max-width: 380px) {
+    #masterHeader .master-app-name-mobile {
+        font-size: 10px;
+    }
+    #masterHeader > .container-fluid > .d-flex {
+        gap: .35rem !important;
+    }
+    #masterHeader #btnSync,
+    #masterHeader #btnProfileTopBar {
+        flex: 0 0 32px;
+        width: 32px !important;
+        height: 32px !important;
+    }
+}
