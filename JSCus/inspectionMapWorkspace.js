@@ -728,9 +728,13 @@
         var canvas = document.getElementById('inspectionMapPdfCanvas');
         if (!canvas) return;
         var sequence = ++pdfCanvasRenderSequence;
-        if (pdfCanvasRenderTask && pdfCanvasRenderTask.cancel) {
-            try { pdfCanvasRenderTask.cancel(); } catch (_) { }
+        var previousTask = pdfCanvasRenderTask;
+        if (previousTask && previousTask.cancel) {
+            try { previousTask.cancel(); } catch (_) { }
+            try { await previousTask.promise; } catch (_) { }
         }
+        if (sequence !== pdfCanvasRenderSequence) return;
+        pdfCanvasRenderTask = null;
         var ratio = Math.min(window.devicePixelRatio || 1, 2);
         var renderScale = currentPdfFitScale * mapZoom * ratio;
         var viewport = currentPdfPage.getViewport({ scale: renderScale });
