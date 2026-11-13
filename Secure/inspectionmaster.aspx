@@ -48,6 +48,21 @@
                                     <asp:TextBox ID="txtMapDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
                                 </div>
                             </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Map Group Code</div>
+                                <div class="col-sm-8"><asp:TextBox ID="txtMapGroupCode" runat="server" MaxLength="50" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Map Group Name</div>
+                                <div class="col-sm-8"><asp:TextBox ID="txtMapGroupName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Group Description</div>
+                                <div class="col-sm-8">
+                                    <asp:TextBox ID="txtMapGroupDescription" runat="server" MaxLength="500" CssClass="form-control form-control-sm rounded fz-custom1" />
+                                    <div class="form-text small">Group dapat mewakili lantai/level atau area bebas. Map dengan Group Code yang sama akan tampil dalam satu kelompok saat inspeksi.</div>
+                                </div>
+                            </div>
                                         <div class="row mt-1">
                                             <div class="col-sm-4 d-flex align-items-center">
                                                 <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
