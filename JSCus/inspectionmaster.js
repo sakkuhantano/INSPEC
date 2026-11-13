@@ -549,6 +549,88 @@
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
+            // Action-based Undo/Redo for unsaved map geometry edits.
+            var redoButton = document.getElementById('btnRedoPath');
+            var pathUndoStack = [], pathRedoStack = [];
+            function capturePathEditorState() {
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                var preview = document.getElementById('inspectionCoordinatePreview');
+                return {
+                    points: pathPoints.map(function (p) { return { x: p.x, y: p.y }; }),
+                    path: pathField ? pathField.value : '',
+                    shape: shapeSelect ? shapeSelect.value : 'CIRCLE',
+                    attributes: shapeAttributesField ? shapeAttributesField.value : '{}',
+                    x: markerX ? markerX.value : '', y: markerY ? markerY.value : '',
+                    drawMode: drawMode, svgHtml: svg ? svg.innerHTML : null,
+                    previewHtml: preview ? preview.outerHTML : null
+                };
+            }
+            function updatePathHistoryButtons() {
+                if (undoButton) undoButton.disabled = pathUndoStack.length === 0;
+                if (redoButton) redoButton.disabled = pathRedoStack.length === 0;
+            }
+            function recordPathEditorAction() {
+                pathUndoStack.push(capturePathEditorState());
+                if (pathUndoStack.length > 40) pathUndoStack.shift();
+                pathRedoStack = [];
+                updatePathHistoryButtons();
+            }
+            function restorePathEditorState(state) {
+                if (!state) return;
+                pathPoints = state.points || []; drawMode = !!state.drawMode; drawingPath = false;
+                if (pathField) pathField.value = state.path || '';
+                if (shapeSelect) shapeSelect.value = state.shape || 'CIRCLE';
+                if (shapeAttributesField) shapeAttributesField.value = state.attributes || '{}';
+                if (markerX) markerX.value = state.x || '';
+                if (markerY) markerY.value = state.y || '';
+                board.classList.toggle('path-drawing', drawMode);
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (state.svgHtml !== null) {
+                    if (!svg) {
+                        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                        svg.id = 'inspectionCoordinateSvgOverlay';
+                        svg.setAttribute('class', 'inspection-coordinate-svg-overlay');
+                        svg.setAttribute('viewBox', '0 0 100 100');
+                        svg.setAttribute('preserveAspectRatio', 'none');
+                        content.appendChild(svg);
+                    }
+                    svg.innerHTML = state.svgHtml;
+                } else if (svg && svg.parentNode) svg.parentNode.removeChild(svg);
+                var oldPreview = document.getElementById('inspectionCoordinatePreview');
+                if (oldPreview && oldPreview.parentNode) oldPreview.parentNode.removeChild(oldPreview);
+                if (state.previewHtml) {
+                    var holder = document.createElement('div');
+                    holder.innerHTML = state.previewHtml;
+                    content.appendChild(holder.firstChild);
+                }
+                pathPreview = document.getElementById('inspectionCoordinatePathPreview');
+                if (pathPreview) renderPathPreview(!!(pathField && pathField.value));
+                pathStatusText(pathField && pathField.value
+                    ? 'SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.'
+                    : (drawMode ? 'Draw mode aktif: drag mengikuti batas area.' : 'Perubahan geometri dipulihkan.'));
+                updatePathHistoryButtons();
+            }
+            function undoPathAction() {
+                if (!pathUndoStack.length) return;
+                pathRedoStack.push(capturePathEditorState());
+                restorePathEditorState(pathUndoStack.pop());
+            }
+            function redoPathAction() {
+                if (!pathRedoStack.length) return;
+                pathUndoStack.push(capturePathEditorState());
+                restorePathEditorState(pathRedoStack.pop());
+            }
+            document.addEventListener('keydown', function (event) {
+                if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+                var target = event.target;
+                if (target && (target.matches('input, textarea, select') || target.isContentEditable)) return;
+                var key = String(event.key || '').toLowerCase();
+                if (key === 'z' && !event.shiftKey && pathUndoStack.length) {
+                    event.preventDefault(); undoPathAction();
+                } else if ((key === 'y' || (key === 'z' && event.shiftKey)) && pathRedoStack.length) {
+                    event.preventDefault(); redoPathAction();
+                }
+            });
             var drawButton = document.getElementById('btnStartPathDraw');
             var undoButton = document.getElementById('btnUndoPath');
             var clearPathButton = document.getElementById('btnClearPath');
@@ -598,6 +680,7 @@
                 path.setAttribute('d', d);
             }
             function startPathDrawing() {
+                recordPathEditorAction();
                 if (shapeSelect) shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; pathPoints = [];
                 if (pathField) pathField.value = '';
@@ -633,44 +716,13 @@
                 pathStatusText('SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.');
             }
             if (drawButton) drawButton.addEventListener('click', startPathDrawing);
-            if (undoButton) undoButton.addEventListener('click', function () {
-                if (pathPoints.length) {
-                    pathPoints.pop();
-                    if (!drawingPath && pathPoints.length >= 3) {
-                        renderPathPreview(true);
-                        var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
-                        for (var p = 1; p < pathPoints.length; p++)
-                            d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
-                        d += ' Z';
-                        if (pathField) pathField.value = d;
-                        var sx = 0, sy = 0;
-                        pathPoints.forEach(function (point) { sx += point.x; sy += point.y; });
-                        if (markerX) markerX.value = (sx / pathPoints.length).toFixed(2);
-                        if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
-                    } else {
-                        renderPathPreview(false);
-                        if (pathField) pathField.value = '';
-                        if (!drawingPath && shapeSelect) shapeSelect.value = 'CIRCLE';
-                    }
-                    pathStatusText('Titik terakhir dibatalkan.');
-                } else {
-                    drawMode = false; drawingPath = false;
-                    board.classList.remove('path-drawing');
-                    if (pathField) pathField.value = '';
-                    if (shapeSelect) shapeSelect.value = 'CIRCLE';
-                    if (pathPreview) pathPreview.setAttribute('d', '');
-                    var activeId = document.getElementById('hidPointID');
-                    var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                    if (svg && activeId && activeId.value) {
-                        var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
-                        if (oldPath) oldPath.style.display = 'none';
-                    }
-                    pathStatusText('Path dikosongkan.');
-                }
-            });
+            updatePathHistoryButtons();
+            if (undoButton) undoButton.addEventListener('click', undoPathAction);
+            if (redoButton) redoButton.addEventListener('click', redoPathAction);
             if (clearPathButton) clearPathButton.addEventListener('click', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                recordPathEditorAction();
                 drawMode = false;
                 drawingPath = false;
                 pathPoints = [];
@@ -704,6 +756,7 @@
                 pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
+                recordPathEditorAction();
                 if (this.value === 'CIRCLE') {
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
