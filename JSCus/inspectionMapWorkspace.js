@@ -233,7 +233,7 @@
             try { shape = typeof point.ShapeAttributes === "string" ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {}); } catch (_) { shape = {}; }
             var cx = isFinite(Number(shape.cx)) ? Math.max(0, Math.min(100, Number(shape.cx))) : x;
             var cy = isFinite(Number(shape.cy)) ? Math.max(0, Math.min(100, Number(shape.cy))) : y;
-            var radius = isFinite(Number(shape.r)) && Number(shape.r) > 0 ? Math.max(0.2, Math.min(8, Number(shape.r))) : 1.25;
+            var radius = isFinite(Number(shape.r)) && Number(shape.r) > 0 ? Math.max(0.2, Math.min(8, Number(shape.r))) : 2.0;
             svg.push('<circle class="inspection-map-svg-circle ' + pointClass(status) + '" cx="' + cx + '" cy="' + cy + '" r="' + radius + '" data-point-id="' + esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' + esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></circle>');
             circleMarkers.push('<button type="button" class="inspection-map-point ' + pointClass(status) + '" ' +
                 'style="left:' + x + '%;top:' + y + '%" data-point-id="' + esc(point.InspectionPointID) +
