@@ -14,7 +14,7 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_M_CheckListWOPM]
 	@p_dt_SubSection AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
-	@p_dt_RepeatConfig AS [Type_N_Tbl_C13] READONLY,
+	@p_dt_RepeatConfig AS [Type_N_Tbl_C10] READONLY,
 	@p_dt_RepeatField AS [Type_N_Tbl_C13] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
 	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
