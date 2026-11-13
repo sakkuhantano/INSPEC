@@ -904,10 +904,6 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
-        <div id="inspectionMapSelectWrap" class="px-3 pt-2 d-none">
-            <label for="inspectionMapSelect" class="form-label small fw-semibold mb-1">Floor Plan</label>
-            <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
-        </div>
         <div class="inspection-map-content d-none" id="inspectionMapContent">
             <div class="inspection-map-panel">
                 <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
@@ -929,7 +925,7 @@
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"></div>
-        <div class="d-flex justify-content-end gap-2 p-2 border-top">
+        <div id="inspectionMapSubmitBar" class="d-flex justify-content-end gap-2 p-2 border-top d-none">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
         <div id="inspectionMapPointSheet" class="inspection-map-point-sheet d-none">
