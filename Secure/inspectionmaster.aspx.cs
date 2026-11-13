@@ -732,7 +732,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                 }
                 decimal cx = Convert.ToDecimal(point["MapX"], CultureInfo.InvariantCulture);
                 decimal cy = Convert.ToDecimal(point["MapY"], CultureInfo.InvariantCulture);
-                decimal radius = 1.25m;
+                decimal radius = 2.0m;
                 try
                 {
                     var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
@@ -1756,7 +1756,7 @@ VALUES
         {
             if (shapeType == "PATH") return "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}";
             if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
-            decimal radius = 1.25m;
+            decimal radius = 2.0m;
             try
             {
                 var saved = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
@@ -1840,7 +1840,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 {
                     decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
                     decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
-                    decimal radius = 1.25m;
+                    decimal radius = 2.0m;
                     try
                     {
                         var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
