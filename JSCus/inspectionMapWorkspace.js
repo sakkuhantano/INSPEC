@@ -67,7 +67,16 @@
         return normalizedStatus(transaction && transaction.Status);
     }
 
+    function isNormalAbnormalRequired(point) {
+        var value = point && point.IsNormalAbnormalRequired;
+        return value === true || value === 1 || value === "1" ||
+            String(value || "").trim().toUpperCase() === "Y" ||
+            String(value || "").trim().toUpperCase() === "TRUE";
+    }
+
     function getPointVisualStatus(point) {
+        // The master-map flag controls whether this point may be classified as abnormal.
+        if (!isNormalAbnormalRequired(point)) return getPointStatus(point);
         var transaction = getPointTransaction(point);
         if (transaction && String(transaction.AbnormalRemark || "").trim()) return "ABNORMAL";
         var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
@@ -437,7 +446,10 @@
             : [];
         var isOnOffTemplate = binaryOptions.indexOf("ON") >= 0 && binaryOptions.indexOf("OFF") >= 0;
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
-        var abnormal = points.filter(function (p) { return getPointVisualStatus(p) === "ABNORMAL"; }).length;
+        var hasNormalAbnormal = points.some(isNormalAbnormalRequired);
+        var abnormal = hasNormalAbnormal
+            ? points.filter(function (p) { return getPointVisualStatus(p) === "ABNORMAL"; }).length
+            : 0;
         var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
         var pending = points.filter(function (p) { return getPointStatus(p) === "PENDING"; }).length;
         var set = function (id, value) {
@@ -455,6 +467,11 @@
             if (label) label.textContent = value;
         };
         set("inspectionMapTotalCount", points.length);
+        var abnormalStat = document.getElementById("inspectionMapAbnormalCount");
+        var abnormalLegend = document.getElementById("inspectionMapAbnormalLegendItem");
+        if (abnormalStat && abnormalStat.parentElement)
+            abnormalStat.parentElement.classList.toggle("d-none", !hasNormalAbnormal);
+        if (abnormalLegend) abnormalLegend.classList.toggle("d-none", !hasNormalAbnormal);
         if (isOnOffTemplate) {
             var onCount = 0, offCount = 0, pendingCount = 0;
             points.forEach(function (masterPoint) {
