@@ -12,6 +12,9 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.TextBox txtMapCode;
         protected global::System.Web.UI.WebControls.TextBox txtMapName;
         protected global::System.Web.UI.WebControls.TextBox txtMapDescription;
+        protected global::System.Web.UI.WebControls.TextBox txtMapGroupCode;
+        protected global::System.Web.UI.WebControls.TextBox txtMapGroupName;
+        protected global::System.Web.UI.WebControls.TextBox txtMapGroupDescription;
         protected global::System.Web.UI.WebControls.FileUpload fuMapPdf;
         
         /// <summary>
