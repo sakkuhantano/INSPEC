@@ -812,12 +812,7 @@
             }).length;
             var hasPlan = !!String(map.MapUrl || "").trim();
             return '<button type="button" class="inspection-map-choice-card" data-inspection-map-id="' + esc(map.MapID) + '">' +
-                '<span class="inspection-map-choice-icon"><i class="bi bi-map-fill"></i></span>' +
                 '<span class="inspection-map-choice-title">' + esc(map.MapName || "Inspection Map") + '</span>' +
-                '<span class="inspection-map-choice-code">' + esc(map.MapCode || "") + '</span>' +
-                '<span class="inspection-map-choice-description">' + esc(map.Description || "Tidak ada deskripsi tambahan untuk area ini.") + '</span>' +
-                '<span class="inspection-map-choice-meta"><span><i class="bi bi-geo-alt me-1"></i>' + esc(pointCount) + ' inspection points</span>' +
-                '<span>' + (hasPlan ? '<i class="bi bi-file-earmark-check me-1 text-success"></i>Denah tersedia' : '<i class="bi bi-file-earmark-x me-1"></i>Tanpa denah') + '</span></span>' +
                 '</button>';
         }).join("");
         host.querySelectorAll("[data-inspection-map-id]").forEach(function (button) {
