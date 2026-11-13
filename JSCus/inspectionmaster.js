@@ -154,6 +154,51 @@
             window.bootstrap.Tab.getOrCreateInstance(tab).show();
         }
     }
+    var inspectionMapPreviewPage = null;
+    var inspectionMapPreviewFitScale = 1;
+    var inspectionMapPreviewRenderTask = null;
+    var inspectionMapPreviewRenderTimer = null;
+    var inspectionMapPreviewRenderVersion = 0;
+    var inspectionMapPreviewZoom = 1;
+
+    function renderMapPreviewCanvasAtZoom() {
+        var canvas = document.getElementById('inspectionMapPreviewCanvas');
+        if (!canvas || !inspectionMapPreviewPage) return;
+        var version = ++inspectionMapPreviewRenderVersion;
+        var previousTask = inspectionMapPreviewRenderTask;
+        inspectionMapPreviewRenderTask = null;
+        var waitForPrevious = Promise.resolve();
+        if (previousTask && previousTask.cancel) {
+            try { previousTask.cancel(); } catch (ignore) { }
+            waitForPrevious = previousTask.promise.catch(function () { });
+        }
+        waitForPrevious.then(function () {
+            if (version !== inspectionMapPreviewRenderVersion) return;
+            var ratio = Math.min(window.devicePixelRatio || 1, 2);
+            var scale = inspectionMapPreviewFitScale * inspectionMapPreviewZoom * ratio;
+            var viewport = inspectionMapPreviewPage.getViewport({ scale: scale });
+            canvas.width = Math.max(1, Math.floor(viewport.width));
+            canvas.height = Math.max(1, Math.floor(viewport.height));
+            var context = canvas.getContext('2d');
+            inspectionMapPreviewRenderTask = inspectionMapPreviewPage.render({ canvasContext: context, viewport: viewport });
+            return inspectionMapPreviewRenderTask.promise;
+        }).then(function () {
+            if (version !== inspectionMapPreviewRenderVersion) return;
+            inspectionMapPreviewRenderTask = null;
+        }).catch(function (error) {
+            if (version !== inspectionMapPreviewRenderVersion || (error && error.name === 'RenderingCancelledException')) return;
+            inspectionMapPreviewRenderTask = null;
+            if (window.console && console.error) console.error('Inspection map preview render error:', error);
+        });
+    }
+    function scheduleMapPreviewCanvasRender() {
+        if (!inspectionMapPreviewPage) return;
+        if (inspectionMapPreviewRenderTimer) clearTimeout(inspectionMapPreviewRenderTimer);
+        inspectionMapPreviewRenderTimer = setTimeout(function () {
+            inspectionMapPreviewRenderTimer = null;
+            renderMapPreviewCanvasAtZoom();
+        }, 140);
+    }
     function renderMapPreviewPdf() {
         var canvas = document.getElementById('inspectionMapPreviewCanvas');
         if (!canvas) return;
@@ -174,17 +219,15 @@
             var width = stage.clientWidth;
             var height = stage.clientHeight;
             if (!width || !height) throw new Error('Area preview denah belum terlihat.');
-            var fitScale = Math.min(width / base.width, height / base.height);
-            var viewport = page.getViewport({ scale: fitScale });
-            media.style.width = viewport.width + 'px';
-            media.style.height = viewport.height + 'px';
-            canvas.width = Math.floor(viewport.width * window.devicePixelRatio);
-            canvas.height = Math.floor(viewport.height * window.devicePixelRatio);
+            inspectionMapPreviewFitScale = Math.min(width / base.width, height / base.height);
+            var fitted = page.getViewport({ scale: inspectionMapPreviewFitScale });
+            inspectionMapPreviewPage = page;
+            inspectionMapPreviewZoom = 1;
+            media.style.width = fitted.width + 'px';
+            media.style.height = fitted.height + 'px';
             canvas.style.width = '100%';
             canvas.style.height = '100%';
-            var context = canvas.getContext('2d');
-            context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-            return page.render({ canvasContext: context, viewport: viewport }).promise;
+            renderMapPreviewCanvasAtZoom();
         }).then(function () {
             if (status) status.style.display = 'none';
         }).catch(function (error) {
@@ -222,57 +265,59 @@
         function apply() {
             media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
             if (label) label.textContent = Math.round(zoom * 100) + '%';
-            stage.classList.toggle('inspection-map-preview-zoomed', zoom > 1);
-        }
-        function setZoom(next, cx, cy) {
-            next = Math.max(1, Math.min(5, next));
-            if (next === zoom) return;
-            var rect = stage.getBoundingClientRect();
-            var x = cx == null ? rect.width / 2 : cx;
-            var y = cy == null ? rect.height / 2 : cy;
-            var ratio = next / zoom;
-            panX = x - (x - panX) * ratio;
-            panY = y - (y - panY) * ratio;
-            zoom = next;
-            if (zoom === 1) { panX = 0; panY = 0; }
-            apply();
-        }
-        var zoomIn = document.getElementById('btnMapPreviewZoomIn');
-        var zoomOut = document.getElementById('btnMapPreviewZoomOut');
-        var fit = document.getElementById('btnMapPreviewZoomFit');
-        if (zoomIn) zoomIn.addEventListener('click', function () { setZoom(zoom + 0.25); });
-        if (zoomOut) zoomOut.addEventListener('click', function () { setZoom(zoom - 0.25); });
-        if (fit) fit.addEventListener('click', function () { zoom = 1; panX = 0; panY = 0; apply(); });
-        stage.addEventListener('wheel', function (event) {
-            if (!event.ctrlKey && !event.shiftKey) return;
-            event.preventDefault();
-            var rect = stage.getBoundingClientRect();
-            setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
-        }, { passive: false });
-        stage.addEventListener('pointerdown', function (event) {
-            if (zoom <= 1 || event.button !== 0) return;
-            dragging = true; moved = false;
-            startX = event.clientX - panX; startY = event.clientY - panY;
-            stage.setPointerCapture(event.pointerId);
-        });
-        stage.addEventListener('pointermove', function (event) {
-            if (!dragging) return;
-            var nx = event.clientX - startX, ny = event.clientY - startY;
-            if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
-            panX = nx; panY = ny; apply();
-        });
-        stage.addEventListener('pointerup', function () { dragging = false; });
-        stage.addEventListener('pointercancel', function () { dragging = false; });
-        apply();
-    }
-    var inspectionPdfRenderVersion = 0;
+            stage.classList.toggle('inspection-map-p    var inspectionPdfRenderVersion = 0;
     var inspectionPdfRenderTask = null;
-    function renderInspectionPdf() {
+    var inspectionPdfRenderTimer = null;
+    var inspectionPdfPage = null;
+    var inspectionPdfFitScale = 1;
+    var inspectionCoordinateZoom = 1;
+
+    function renderInspectionPdfCanvasAtZoom() {
+        var media = document.getElementById('inspectionPdfCanvas');
+        if (!media || media.tagName !== 'CANVAS' || !inspectionPdfPage) return;
         var renderVersion = ++inspectionPdfRenderVersion;
-        if (inspectionPdfRenderTask && inspectionPdfRenderTask.cancel) {
-            try { inspectionPdfRenderTask.cancel(); } catch (ignore) { }
-            inspectionPdfRenderTask = null;
+        var previousTask = inspectionPdfRenderTask;
+        inspectionPdfRenderTask = null;
+        var waitForPrevious = Promise.resolve();
+        if (previousTask && previousTask.cancel) {
+            try { previousTask.cancel(); } catch (ignore) { }
+            waitForPrevious = previousTask.promise.catch(function () { });
         }
+        waitForPrevious.then(function () {
+            if (renderVersion !== inspectionPdfRenderVersion) return;
+            var ratio = Math.min(window.devicePixelRatio || 1, 2);
+            var viewport = inspectionPdfPage.getViewport({
+                scale: inspectionPdfFitScale * inspectionCoordinateZoom * ratio
+            });
+            media.width = Math.max(1, Math.floor(viewport.width));
+            media.height = Math.max(1, Math.floor(viewport.height));
+            media.style.width = '100%';
+            media.style.height = '100%';
+            var context = media.getContext('2d');
+            inspectionPdfRenderTask = inspectionPdfPage.render({ canvasContext: context, viewport: viewport });
+            return inspectionPdfRenderTask.promise;
+        }).then(function () {
+            if (renderVersion !== inspectionPdfRenderVersion) return;
+            inspectionPdfRenderTask = null;
+            var status = document.getElementById('inspectionPdfStatus');
+            if (status) status.style.display = 'none';
+        }).catch(function (error) {
+            if (renderVersion !== inspectionPdfRenderVersion || (error && error.name === 'RenderingCancelledException')) return;
+            inspectionPdfRenderTask = null;
+            var status = document.getElementById('inspectionPdfStatus');
+            if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat denah: ' + (error && error.message ? error.message : error); }
+            if (window.console && console.error) console.error('Inspection map render error:', error);
+        });
+    }
+    function scheduleInspectionPdfRender() {
+        if (!inspectionPdfPage) return;
+        if (inspectionPdfRenderTimer) clearTimeout(inspectionPdfRenderTimer);
+        inspectionPdfRenderTimer = setTimeout(function () {
+            inspectionPdfRenderTimer = null;
+            renderInspectionPdfCanvasAtZoom();
+        }, 140);
+    }
+    function renderInspectionPdf() {
         var media = document.getElementById('inspectionPdfCanvas');
         if (!media) return;
         var url = media.getAttribute('data-map-url') || media.getAttribute('data-pdf-url');
@@ -281,9 +326,32 @@
         var content = document.getElementById('inspectionCoordinateContent');
         var status = document.getElementById('inspectionPdfStatus');
         if (media.tagName === 'IMG') {
+            inspectionPdfPage = null;
             media.onload = function () { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; };
             media.onerror = function () { if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat gambar denah JPG/JPEG.'; } };
             media.src = url;
+            if (media.complete && media.naturalWidth) { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; }
+            return;
+        }
+        if (!window.pdfjsLib) { if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa file JSCus/pdf.min.js.'; return; }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
+        window.pdfjsLib.getDocument({ url: url }).promise.then(function (pdf) { return pdf.getPage(1); }).then(function (page) {
+            var base = page.getViewport({ scale: 1 });
+            var width = board.clientWidth;
+            if (!width) throw new Error('Area denah belum terlihat.');
+            inspectionPdfFitScale = width / base.width;
+            inspectionPdfPage = page;
+            inspectionCoordinateZoom = 1;
+            board.style.aspectRatio = base.width + ' / ' + base.height;
+            content.style.width = '100%';
+            content.style.height = '100%';
+            renderInspectionPdfCanvasAtZoom();
+        }).catch(function (error) {
+            if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat denah: ' + (error && error.message ? error.message : error); }
+            if (window.console && console.error) console.error('Inspection map render error:', error);
+        });
+    }
+dia.src = url;
             if (media.complete && media.naturalWidth) { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; }
             return;
         }
@@ -423,8 +491,10 @@
                 panX = cx - (cx - panX) * ratio;
                 panY = cy - (cy - panY) * ratio;
                 zoom = next;
+                inspectionCoordinateZoom = zoom;
                 if (zoom === 1) { panX = 0; panY = 0; }
                 applyView();
+                scheduleInspectionPdfRender();
             }
             var shapeSelect = document.getElementById('ddlPointShapeType');
             var pathField = document.getElementById('hidSvgPathData');
@@ -607,7 +677,7 @@
 
             document.getElementById('btnMapZoomIn').addEventListener('click', function () { setZoom(zoom + 0.25); });
             document.getElementById('btnMapZoomOut').addEventListener('click', function () { setZoom(zoom - 0.25); });
-            document.getElementById('btnMapZoomFit').addEventListener('click', function () { zoom = 1; panX = 0; panY = 0; applyView(); });
+            document.getElementById('btnMapZoomFit').addEventListener('click', function () { zoom = 1; inspectionCoordinateZoom = 1; panX = 0; panY = 0; applyView(); scheduleInspectionPdfRender(); });
             board.addEventListener('wheel', function (event) {
                 if (!event.ctrlKey && !event.shiftKey) return;
                 event.preventDefault();
