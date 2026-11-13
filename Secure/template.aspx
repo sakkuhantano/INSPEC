@@ -4,6 +4,11 @@
     <link rel="Stylesheet" type="text/css" href="../CSSCus/template.css" />
 
     <script type="text/javascript">window.INSPEC_CONTEXT = <%= ClientContextJson ?? "{}" %>;</script>
+    <script type="text/javascript">
+        // Site_BS_5 starts the shared timer before this page head content runs.
+        // Stop it here so only Template Builder is exempt from timed postbacks.
+        if (typeof stopTimer === "function") stopTimer();
+    </script>
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
