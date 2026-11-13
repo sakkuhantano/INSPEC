@@ -1512,6 +1512,10 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                         { "MapID", mapId },
                         { "MapX", row["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapX"]) },
                         { "MapY", row["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MapY"]) },
+                        { "ShapeType", GF.GetString(row["ShapeType"]) },
+                        { "SvgPathData", GF.GetString(row["SvgPathData"]) },
+                        { "ShapeAttributes", GF.GetString(row["ShapeAttributes"]) },
+                        { "StrokeWidth", row["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(row["StrokeWidth"]) },
                         { "DisplayOrder", Convert.ToInt32(row["DisplayOrder"]) },
                         { "MapCode", GF.GetString(row["MapCode"]) },
                         { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) },
@@ -2067,6 +2071,7 @@ SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
        TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
        P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.MapID, P.MapX, P.MapY,
+       P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
        M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
 FROM dbo.PIP_T_InspectionPoint TP
 JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
@@ -2148,6 +2153,10 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             { "MapID", mapID },
                             { "MapX", pointRow["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapX"]) },
                             { "MapY", pointRow["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapY"]) },
+                            { "ShapeType", GF.GetString(pointRow["ShapeType"]) },
+                            { "SvgPathData", GF.GetString(pointRow["SvgPathData"]) },
+                            { "ShapeAttributes", GF.GetString(pointRow["ShapeAttributes"]) },
+                            { "StrokeWidth", pointRow["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(pointRow["StrokeWidth"]) },
                             { "MapCode", GF.GetString(pointRow["MapCode"]) },
                             { "Items", pointItems.ContainsKey(pointTransactionID) ? (object)pointItems[pointTransactionID].Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList() : new List<Dictionary<string, object>>() }
                         };
@@ -2414,7 +2423,8 @@ new SqlParameter("@InspectionID", id) });
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
        TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
        P.PointCode,P.PointName,P.PointObjectType,
-       P.PointDescription,P.MapID,P.MapX,P.MapY
+       P.PointDescription,P.MapID,P.MapX,P.MapY,
+       P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_T_InspectionPoint TP
 JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
 WHERE TP.InspectionID=@InspectionID
@@ -2484,6 +2494,10 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "MapID", pointRow["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapID"]) },
                                 { "MapX", pointRow["MapX"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapX"]) },
                                 { "MapY", pointRow["MapY"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(pointRow["MapY"]) },
+                                { "ShapeType", GF.GetString(pointRow["ShapeType"]) },
+                                { "SvgPathData", GF.GetString(pointRow["SvgPathData"]) },
+                                { "ShapeAttributes", GF.GetString(pointRow["ShapeAttributes"]) },
+                                { "StrokeWidth", pointRow["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(pointRow["StrokeWidth"]) },
                                 { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
                                 { "Status", GF.GetString(pointRow["Status"]) },
                                 { "Items", pointGroups.ContainsKey(pointTransactionID) ? (object)pointGroups[pointTransactionID].Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList() : new List<Dictionary<string, object>>() }
