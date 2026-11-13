@@ -1762,19 +1762,9 @@ VALUES
         {
             if (shapeType == "PATH") return "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}";
             if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
-            decimal radius = 2.0m;
-            try
-            {
-                var saved = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
-                object radiusValue;
-                decimal parsedRadius;
-                if (saved != null && saved.TryGetValue("r", out radiusValue) &&
-                    Decimal.TryParse(Convert.ToString(radiusValue, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedRadius))
-                    radius = parsedRadius;
-            }
-            catch { }
-            if (radius < 0.2m) radius = 0.2m;
-            if (radius > 8m) radius = 8m;
+            // Circle means a compact point dot, not a large map area.
+            // Keep the vector radius consistent regardless of legacy JSON values.
+            const decimal radius = 0.45m;
             return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
                 { "cx", coordinateX.Value }, { "cy", coordinateY.Value }, { "r", radius }
             });
@@ -1846,18 +1836,15 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 {
                     decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
                     decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
-                    decimal radius = 2.0m;
+                    const decimal radius = 0.45m;
                     try
                     {
                         var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
                         object value;
-                        decimal parsed;
                         if (attributes != null && attributes.TryGetValue("cx", out value)) cx = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
                         if (attributes != null && attributes.TryGetValue("cy", out value)) cy = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
-                        if (attributes != null && attributes.TryGetValue("r", out value) && Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)) radius = parsed;
                     }
                     catch { }
-                    radius = Math.Max(0.2m, Math.Min(8m, radius));
                     bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
                     pathSvg.Append("<circle class='inspection-coordinate-circle");
                     if (isCurrent) pathSvg.Append(" inspection-coordinate-circle-current");
@@ -1900,6 +1887,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
             hidSvgPathData.Value = "";
+            hidShapeAttributes.Value = "{}";
             ddlPointShapeType.SelectedValue = "CIRCLE";
             //ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
             GF.MsgBox(this, "Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", "BS-5.3.0");
