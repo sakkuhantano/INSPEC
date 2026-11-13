@@ -20,7 +20,7 @@
 .inspection-map-point.incomplete .inspection-map-point-dot{background:#ffc107;color:#212529}
 .inspection-map-point-dot{font-size:.62rem;font-weight:900}
 .inspection-map-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2}
-.inspection-map-svg-circle{pointer-events:visiblePainted;cursor:pointer;fill:rgba(108,117,125,.12);stroke:#6c757d;stroke-width:.45;vector-effect:non-scaling-stroke}
+.inspection-map-svg-circle{pointer-events:visiblePainted;cursor:pointer;fill:rgba(108,117,125,.12);stroke:#6c757d;stroke-width:1.5;vector-effect:non-scaling-stroke}
 .inspection-map-svg-circle.done{fill:rgba(25,135,84,.12);stroke:#198754}
 .inspection-map-svg-circle.abnormal{fill:rgba(220,53,69,.14);stroke:#dc3545}
 .inspection-map-svg-circle.incomplete{fill:rgba(255,193,7,.16);stroke:#b58100}
