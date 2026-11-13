@@ -1453,7 +1453,7 @@ WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
                 DataTable points = br.EQueryP(@"
 SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
-       P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY,
+       P.ObjectReferenceCode, M.MapID AS MapID, P.MapX, P.MapY,
        ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,P.DisplayOrder,
        M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl, M.MapVersion,
        M.MapGroupID, ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
@@ -1496,6 +1496,8 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                             { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
                         });
                     }
+
+                    if (row["InspectionPointID"] == DBNull.Value) continue;
 
                     pointRows.Add(new Dictionary<string, object> {
                         { "InspectionPointID", Convert.ToInt64(row["InspectionPointID"]) },
