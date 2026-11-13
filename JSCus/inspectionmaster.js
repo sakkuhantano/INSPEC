@@ -225,6 +225,7 @@
             inspectionMapPreviewZoom = 1;
             media.style.width = fitted.width + 'px';
             media.style.height = fitted.height + 'px';
+            updatePreviewVectorCircleAspect();
             canvas.style.width = '100%';
             canvas.style.height = '100%';
             renderMapPreviewCanvasAtZoom();
@@ -263,6 +264,7 @@
                 var height = Math.max(1, Math.round(image.naturalHeight * scale));
                 media.style.width = width + 'px';
                 media.style.height = height + 'px';
+                updatePreviewVectorCircleAspect();
                 image.style.width = width + 'px';
                 image.style.height = height + 'px';
                 image.style.maxWidth = 'none';
