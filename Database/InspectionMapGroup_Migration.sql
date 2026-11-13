@@ -46,6 +46,24 @@ BEGIN
 END;
 GO
 
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.check_constraints
+    WHERE name = 'CK_PIP_M_InspectionMapGroup_Required'
+      AND parent_object_id = OBJECT_ID('dbo.PIP_M_InspectionMapGroup')
+)
+BEGIN
+    ALTER TABLE dbo.PIP_M_InspectionMapGroup
+        ADD CONSTRAINT CK_PIP_M_InspectionMapGroup_Required
+        CHECK
+        (
+            LEN(LTRIM(RTRIM(GroupCode))) > 0
+            AND LEN(LTRIM(RTRIM(GroupName))) > 0
+        );
+END;
+GO
+
 IF COL_LENGTH('dbo.PIP_M_InspectionMap', 'MapGroupID') IS NULL
 BEGIN
     ALTER TABLE dbo.PIP_M_InspectionMap
