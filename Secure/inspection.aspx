@@ -237,7 +237,22 @@
         }
         .inspection-map-canvas {
             min-height: 0;
-            padding: 4px;
+            padding: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .inspection-map-zoom-tools {
+            position: absolute !important;
+            top: 4px !important;
+            right: 4px !important;
+            z-index: 20;
+            margin: 0 !important;
+        }
+
+        .inspection-map-pdf-stage {
+            margin: 0 auto !important;
         }
         .inspection-map-zoom-tools {
             top: 6px;
