@@ -1460,12 +1460,13 @@ SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        ISNULL(G.Description,'') AS GroupDescription,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
-FROM dbo.PIP_M_InspectionPoint P
-INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.MapID=M.MapID AND P.IsActive=1
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.InspectionTypeCode=@TypeCode
   AND M.InspectionTypeDetailCode=@DetailCode
-  AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1
+  AND M.IsCurrentVersion=1 AND M.IsActive=1
 ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", companyId),
