@@ -1153,6 +1153,13 @@ ORDER BY M.MapVersion DESC",
                 if (dt.Rows.Count == 0)
                 {
                     hidMapID.Value = "";
+                    txtMapName.Text = "";
+                    txtMapDescription.Text = "";
+                    txtMapGroupCode.Text = "";
+                    txtMapGroupName.Text = "";
+                    txtMapGroupDescription.Text = "";
+                    lblMapVersion.Text = "New map · version will start at 1";
+                    pnlMapPreview.Visible = false;
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
