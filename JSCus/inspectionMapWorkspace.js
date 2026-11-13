@@ -657,7 +657,7 @@
         }, { passive: false });
 
         viewport.addEventListener("pointerdown", function (event) {
-            if ((!currentPdfDocument && !document.querySelector("#inspectionMapPdfStage img.inspection-map-image")) || (event.target.closest && event.target.closest(".inspection-map-point"))) return;
+            if ((!currentPdfDocument && !document.querySelector("#inspectionMapPdfStage img.inspection-map-image")) || (event.target.closest && (event.target.closest(".inspection-map-point") || event.target.closest(".inspection-map-zoom-tools")))) return;
             if (event.pointerType === "mouse" && event.button !== 0) return;
             try { viewport.setPointerCapture(event.pointerId); } catch (_) { }
             mapPointers[event.pointerId] = { x: event.clientX, y: event.clientY };
