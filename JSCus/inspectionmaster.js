@@ -545,12 +545,8 @@
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
-                var radius = 2.0;
-                try {
-                    var saved = JSON.parse(shapeAttributesField.value || '{}');
-                    if (saved && isFinite(Number(saved.r)) && Number(saved.r) > 0) radius = Number(saved.r);
-                } catch (_) { }
-                radius = Math.max(0.2, Math.min(8, radius));
+                // CIRCLE is a small point dot; area geometry belongs to PATH.
+                var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
             var drawButton = document.getElementById('btnStartPathDraw');
@@ -672,21 +668,29 @@
                     pathStatusText('Path dikosongkan.');
                 }
             });
-            if (clearPathButton) clearPathButton.addEventListener('click', function () {
-                drawMode = false; drawingPath = false; pathPoints = [];
+            if (clearPathButton) clearPathButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                drawMode = false;
+                drawingPath = false;
+                pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
-                var shapeAttributesField = document.getElementById('hidShapeAttributes');
                 if (shapeAttributesField) shapeAttributesField.value = '{}';
+                board.classList.remove('path-drawing');
+
+                // Remove both the persisted path overlay and the temporary drawing.
                 var activeId = document.getElementById('hidPointID');
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                if (svg && activeId && activeId.value) {
-                    var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
-                    if (oldPath) oldPath.style.display = 'none';
+                if (svg) {
+                    var selector = activeId && activeId.value
+                        ? '.inspection-coordinate-path[data-point-id="' + activeId.value + '"]'
+                        : '#inspectionCoordinatePathPreview';
+                    svg.querySelectorAll(selector).forEach(function (oldPath) { oldPath.parentNode.removeChild(oldPath); });
                 }
-                board.classList.remove('path-drawing');
-                if (pathPreview) pathPreview.setAttribute('d', '');
-                pathStatusText('Path dihapus. Circle marker dapat ditempatkan dengan klik map.');
+                if (pathPreview && pathPreview.parentNode) pathPreview.parentNode.removeChild(pathPreview);
+                pathPreview = null;
+                pathStatusText('Path dihapus. Klik map untuk menempatkan titik circle, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 if (this.value === 'CIRCLE') {
