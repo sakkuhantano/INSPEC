@@ -812,7 +812,7 @@
         host.innerHTML = currentGroups.map(function (group) {
             return '<button type="button" class="inspection-map-choice-card" data-map-group-id="' + esc(group.MapGroupID) + '">' +
                 '<span class="inspection-map-choice-icon"><i class="bi bi-grid-1x2-fill"></i></span>' +
-                '<span class="inspection-map-choice-title">' + esc(group.GroupName || "Inspection Group") + '</span>' +
+                '<span class="inspection-map-choice-title">' + esc(group.GroupName || (Number(group.MapGroupID || 0) === 0 ? "Other Maps" : "Inspection Group")) + '</span>' +
                 '<span class="inspection-map-choice-code">' + esc(group.GroupCode || "") + '</span>' +
                 '<span class="inspection-map-choice-description">' + esc(group.Description || "Pilih untuk melihat denah di dalam kelompok ini.") + '</span>' +
                 '<span class="inspection-map-choice-meta"><span><i class="bi bi-map me-1"></i>' + esc(group.MapCount || 0) + ' map</span><i class="bi bi-arrow-right-circle inspection-map-choice-arrow"></i></span>' +
