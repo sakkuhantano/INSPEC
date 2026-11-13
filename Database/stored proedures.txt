@@ -14,8 +14,8 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_M_CheckListWOPM]
 	@p_dt_SubSection AS [Type_N_Tbl_C5] READONLY,
 	@p_dt_Item AS [Type_N_Tbl_C25] READONLY,
 	@p_dt_Group AS [Type_Tbl_C7] READONLY,
-	@p_dt_RepeatConfig AS [Type_Tbl_RepeatConfig] READONLY,
-	@p_dt_RepeatField AS [Type_Tbl_RepeatFieldV2] READONLY,
+	@p_dt_RepeatConfig AS [Type_N_Tbl_C13] READONLY,
+	@p_dt_RepeatField AS [Type_N_Tbl_C13] READONLY,
 	@p_dt_DelTemplate AS [Type_Tbl_C2] READONLY, 
 	@p_dt_DelVersion AS [Type_Tbl_C2] READONLY,
 	@p_UpdateUser VARCHAR(50),
@@ -2336,7 +2336,7 @@ CREATE PROCEDURE [dbo].[spUTL_WO_CheckList]
 --DECLARE
 	@p_Dt1 [dbo].[Type_N_Tbl_C13] READONLY,	-- item checklist
 	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- legacy GROUP values
-	@p_DtRepeat [dbo].[Type_Tbl_WORepeatValue] READONLY,	-- native REPEAT values
+	@p_DtRepeat [dbo].[Type_N_Tbl_C5] READONLY,	-- native REPEAT values
 	@p_Dt3 [dbo].[Type_Tbl_C4] READONLY,	-- photos
 	@p_Dt4 [dbo].[Type_N_Tbl_C10] READONLY,	-- summary
 	@p_UpdateUser VARCHAR(50)=''
