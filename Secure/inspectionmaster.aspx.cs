@@ -509,6 +509,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             txtMarkerY.Text = "";
             ddlPointShapeType.SelectedValue = "CIRCLE";
             hidSvgPathData.Value = "";
+            hidShapeAttributes.Value = "{}";
             hidSwapPointID.Value = "";
             btnSwapPosition.Visible = false;
             pnlEditor.Visible = false;
@@ -696,7 +697,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
 SELECT P.MapX, P.MapY, P.PointCode, P.PointName,
-       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.StrokeWidth
+       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
@@ -729,16 +730,32 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     }
                     continue;
                 }
-                markers.Append("<span class='inspection-map-preview-marker' data-bs-toggle='tooltip' data-bs-placement='top' title='");
-                markers.Append(HttpUtility.HtmlAttributeEncode(pointLabel));
-                markers.Append("' style='left:");
-                markers.Append(Convert.ToDecimal(point["MapX"]).ToString("0.####", CultureInfo.InvariantCulture));
-                markers.Append("%;top:");
-                markers.Append(Convert.ToDecimal(point["MapY"]).ToString("0.####", CultureInfo.InvariantCulture));
-                markers.Append("%'></span>");
+                decimal cx = Convert.ToDecimal(point["MapX"], CultureInfo.InvariantCulture);
+                decimal cy = Convert.ToDecimal(point["MapY"], CultureInfo.InvariantCulture);
+                decimal radius = 1.25m;
+                try
+                {
+                    var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
+                    object value;
+                    decimal parsed;
+                    if (attributes != null && attributes.TryGetValue("cx", out value)) cx = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                    if (attributes != null && attributes.TryGetValue("cy", out value)) cy = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                    if (attributes != null && attributes.TryGetValue("r", out value) && Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)) radius = parsed;
+                }
+                catch { }
+                radius = Math.Max(0.2m, Math.Min(8m, radius));
+                markers.Append("<circle class='inspection-map-preview-circle' cx='");
+                markers.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
+                markers.Append("' cy='");
+                markers.Append(cy.ToString("0.####", CultureInfo.InvariantCulture));
+                markers.Append("' r='");
+                markers.Append(radius.ToString("0.####", CultureInfo.InvariantCulture));
+                markers.Append("'><title>");
+                markers.Append(HttpUtility.HtmlEncode(pointLabel));
+                markers.Append("</title></circle>");
             }
             return "<svg class='inspection-map-preview-svg' viewBox='0 0 100 100' preserveAspectRatio='none' aria-hidden='true'>" +
-                paths.ToString() + "</svg>" + markers.ToString();
+                paths.ToString() + markers.ToString() + "</svg>";
         }
 
         private void LoadEditorMapPdf()
@@ -1397,6 +1414,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 string savedShapeType = row.Table.Columns.Contains("ShapeType") ? Convert.ToString(row["ShapeType"]) : "CIRCLE";
                 if (ddlPointShapeType.Items.FindByValue(savedShapeType) != null) ddlPointShapeType.SelectedValue = savedShapeType;
                 hidSvgPathData.Value = row.Table.Columns.Contains("SvgPathData") ? Convert.ToString(row["SvgPathData"]) : "";
+                hidShapeAttributes.Value = row.Table.Columns.Contains("ShapeAttributes") ? Convert.ToString(row["ShapeAttributes"]) : "{}";
                 BindEditorMaps();
                 LoadEditorMapPdf();
                 BindMapElements();
@@ -1495,6 +1513,9 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 SetTab("#tab-map");
                 return;
             }
+
+            string shapeAttributes = BuildPointShapeAttributes(shapeType, coordinateX, coordinateY, hidShapeAttributes.Value);
+            hidShapeAttributes.Value = shapeAttributes;
 
             object mapValue = mapID;
             long pointID;
@@ -1618,7 +1639,7 @@ SET PointCode=@PointCode, PointName=@PointName, PointObjectType=@ObjectType,
 WHERE InspectionPointID=@PointID AND MapID=@MapID AND IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionMap M WHERE M.MapID=@MapID
               AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID)",
-                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData));
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData, shapeAttributes));
                     }
                     else
                     {
@@ -1632,7 +1653,7 @@ VALUES
 (@PointID,@PointCode,@PointName,@ObjectType,@Description,
  @ObjectType,'',@ReferenceCode,@MapID,@MapX,@MapY,@ShapeType,@SvgPathData,@ShapeAttributes,@StrokeWidth,@DisplayOrder,
  1,@IsNormalAbnormalRequired,@UserID,@UserID)",
-                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData));
+                            PointParameters(pointID, mapValue, code, name, order, coordinateX, coordinateY, shapeType, svgPathData, shapeAttributes));
                     }
                 }
                 hidPointID.Value = pointID.ToString(CultureInfo.InvariantCulture);
@@ -1731,13 +1752,32 @@ VALUES
             return newMapID;
         }
 
+        private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson)
+        {
+            if (shapeType == "PATH") return "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}";
+            if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
+            decimal radius = 1.25m;
+            try
+            {
+                var saved = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
+                object radiusValue;
+                decimal parsedRadius;
+                if (saved != null && saved.TryGetValue("r", out radiusValue) &&
+                    Decimal.TryParse(Convert.ToString(radiusValue, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsedRadius))
+                    radius = parsedRadius;
+            }
+            catch { }
+            if (radius < 0.2m) radius = 0.2m;
+            if (radius > 8m) radius = 8m;
+            return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
+                { "cx", coordinateX.Value }, { "cy", coordinateY.Value }, { "r", radius }
+            });
+        }
+
         private SqlParameter[] PointParameters(long pointID, object mapValue,
             string code, string name, int order, decimal? coordinateX, decimal? coordinateY,
-            string shapeType, string svgPathData)
+            string shapeType, string svgPathData, string shapeAttributes)
         {
-            string shapeAttributes = shapeType == "PATH"
-                ? "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}"
-                : "{\"coordinateSpace\":\"PERCENT_100\",\"marker\":\"circle\"}";
             return new SqlParameter[] {
                 new SqlParameter("@PointID", pointID),
                 // These parameters validate the owning Map; they are not Point columns.
@@ -1792,10 +1832,39 @@ ORDER BY P.DisplayOrder,P.PointCode",
             rptMapElements.DataSource = points;
             rptMapElements.DataBind();
             System.Text.StringBuilder pathSvg = new System.Text.StringBuilder();
-            pathSvg.Append("<svg id='inspectionCoordinateSvgOverlay' class='inspection-coordinate-svg-overlay' viewBox='0 0 100 100' preserveAspectRatio='none' aria-label='Inspection point SVG paths'>");
+            pathSvg.Append("<svg id='inspectionCoordinateSvgOverlay' class='inspection-coordinate-svg-overlay' viewBox='0 0 100 100' preserveAspectRatio='none' aria-label='Inspection point vector geometry'>");
             foreach (DataRow point in points.Rows)
             {
-                if (!String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase)) continue;
+                string shapeType = Convert.ToString(point["ShapeType"]);
+                if (String.Equals(shapeType, "CIRCLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
+                    decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
+                    decimal radius = 1.25m;
+                    try
+                    {
+                        var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
+                        object value;
+                        decimal parsed;
+                        if (attributes != null && attributes.TryGetValue("cx", out value)) cx = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                        if (attributes != null && attributes.TryGetValue("cy", out value)) cy = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                        if (attributes != null && attributes.TryGetValue("r", out value) && Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)) radius = parsed;
+                    }
+                    catch { }
+                    radius = Math.Max(0.2m, Math.Min(8m, radius));
+                    bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
+                    pathSvg.Append("<circle class='inspection-coordinate-circle");
+                    if (isCurrent) pathSvg.Append(" inspection-coordinate-circle-current");
+                    pathSvg.Append("' cx='"); pathSvg.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
+                    pathSvg.Append("' cy='"); pathSvg.Append(cy.ToString("0.####", CultureInfo.InvariantCulture));
+                    pathSvg.Append("' r='"); pathSvg.Append(radius.ToString("0.####", CultureInfo.InvariantCulture));
+                    pathSvg.Append("' data-point-id='"); pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
+                    pathSvg.Append("' data-can-swap='"); pathSvg.Append(Convert.ToString(point["CanSwap"]));
+                    pathSvg.Append("' title='"); pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
+                    pathSvg.Append("'></circle>");
+                    continue;
+                }
+                if (!String.Equals(shapeType, "PATH", StringComparison.OrdinalIgnoreCase)) continue;
                 string d = Convert.ToString(point["SvgPathData"]);
                 if (String.IsNullOrWhiteSpace(d) || !System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$")) continue;
                 pathSvg.Append("<path class='inspection-coordinate-path' d='");
@@ -1808,7 +1877,13 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
                 pathSvg.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
                 pathSvg.Append((point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"])).ToString("0.##", CultureInfo.InvariantCulture));
-                pathSvg.Append("' stroke-linejoin='round' vector-effect='non-scaling-stroke'></path>");
+                pathSvg.Append("' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
+                pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
+                pathSvg.Append("' data-can-swap='");
+                pathSvg.Append(Convert.ToString(point["CanSwap"]));
+                pathSvg.Append("' title='");
+                pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
+                pathSvg.Append("'></path>");
             }
             pathSvg.Append("</svg>");
             litEditorSvgPaths.Text = pathSvg.ToString();
