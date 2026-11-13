@@ -1457,7 +1457,7 @@ SELECT M.MapID, M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl,
         FROM dbo.PIP_M_InspectionPoint PC
         WHERE PC.MapID=M.MapID AND PC.IsActive=1) AS PointCount
 FROM dbo.PIP_M_InspectionMap M
-LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.InspectionTypeCode=@TypeCode
   AND M.InspectionTypeDetailCode=@DetailCode
