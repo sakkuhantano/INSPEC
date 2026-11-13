@@ -915,3 +915,33 @@ body {
         height: 32px !important;
     }
 }
+
+
+/* Sync pending badge: keep the notification dot fully visible on compact/mobile header. */
+#masterHeader #btnSync #badgePendingSync {
+    top: -3px !important;
+    right: -3px !important;
+    left: auto !important;
+    transform: none !important;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    line-height: 16px;
+    border: 2px solid var(--bs-body-bg);
+    z-index: 3;
+}
+@media (max-width: 575.98px) {
+    #masterHeader #badgePendingSync {
+        min-width: 15px;
+        width: 15px;
+        height: 15px;
+        font-size: 7px;
+        line-height: 15px;
+        top: -2px !important;
+        right: -2px !important;
+    }
+}
