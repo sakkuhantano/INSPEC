@@ -770,9 +770,18 @@
     #inspectionMapWorkspace .inspection-map-panel{min-height:0;overflow:hidden}
     #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
         flex:1 1 auto;height:auto!important;min-height:0!important;max-height:none!important;
-        padding:4px!important;display:flex;align-items:center;justify-content:center;
+        padding:4px!important;display:flex;align-items:flex-start;justify-content:center;
+        position:relative;
     }
-    #inspectionMapWorkspace .inspection-map-pdf-stage{flex:0 0 auto;max-width:100%;max-height:100%;margin:auto}
+    /* Keep zoom controls floating over the map area without taking layout space. */
+    #inspectionMapWorkspace .inspection-map-zoom-tools{
+        position:absolute!important;top:6px!important;right:6px!important;
+        z-index:20;margin:0!important;pointer-events:auto;
+    }
+    /* Start the floor plan at the top edge instead of vertically centering it. */
+    #inspectionMapWorkspace .inspection-map-pdf-stage{
+        flex:0 0 auto;align-self:flex-start;max-width:100%;max-height:100%;margin:0 auto!important;
+    }
     #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
     #inspectionMapWorkspace .inspection-map-pdf-stage img{max-width:100%;max-height:100%;height:auto;object-fit:contain}
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
