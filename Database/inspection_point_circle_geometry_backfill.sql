@@ -2,10 +2,10 @@
     Backfill normalized SVG circle geometry for existing Inspection Points.
 
     New CIRCLE records are saved as ShapeAttributes JSON:
-      {"cx":35.00,"cy":45.30,"r":2.0}
+      {"cx":35.00,"cy":45.30,"r":0.45}
 
     MapX/MapY remain as compatibility anchors for existing queries, validation,
-    and point-position swapping. Existing valid cx/cy geometry is preserved.
+    and point-position swapping. CIRCLE center is normalized from MapX/MapY.
     SQL Server 2008 compatible; safe to execute more than once.
 */
 SET NOCOUNT ON;
@@ -20,11 +20,7 @@ FROM dbo.PIP_M_InspectionPoint P
 WHERE ISNULL(P.ShapeType, 'CIRCLE') = 'CIRCLE'
   AND P.MapX IS NOT NULL
   AND P.MapY IS NOT NULL
-  AND (
-      P.ShapeAttributes IS NULL
-      OR P.ShapeAttributes NOT LIKE N'%"cx"%'
-      OR P.ShapeAttributes NOT LIKE N'%"cy"%'
-  );
+;
 
-PRINT 'Existing Inspection Point circle geometry JSON backfill completed.';
+PRINT 'Existing Inspection Point circle geometry JSON normalized to compact dots.';
 GO
