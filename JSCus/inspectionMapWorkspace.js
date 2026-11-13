@@ -799,6 +799,13 @@
             if (message) { message.textContent = 'Denah gagal dimuat: ' + (error && error.message ? error.message : 'periksa file map.'); message.classList.remove('d-none'); }
         }
     }
+    function hasMapGroups() {
+        return currentMaps.some(function (map) {
+            var groupId = map.MapGroupID;
+            return groupId !== null && groupId !== undefined && String(groupId).trim() !== "";
+        });
+    }
+
     function renderMapCards() {
         var host = document.getElementById("inspectionMapCards");
         if (!host) return;
@@ -807,10 +814,6 @@
             return;
         }
         host.innerHTML = currentMaps.map(function (map) {
-            var pointCount = currentPoints.filter(function (point) {
-                return Number(point.MapID) === Number(map.MapID);
-            }).length;
-            var hasPlan = !!String(map.MapUrl || "").trim();
             return '<button type="button" class="inspection-map-choice-card" data-inspection-map-id="' + esc(map.MapID) + '">' +
                 '<span class="inspection-map-choice-title">' + esc(map.MapName || "Inspection Map") + '</span>' +
                 '</button>';
@@ -840,7 +843,7 @@
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
         var nextButton = document.getElementById("btnInspectionNextPending");
-        if (picker) picker.classList.remove("d-none");
+        if (picker) picker.classList.toggle("d-none", !hasMapGroups());
         if (summary) summary.classList.add("d-none");
         if (content) content.classList.add("d-none");
         if (summaryHost) summaryHost.classList.add("d-none");
