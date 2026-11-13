@@ -649,6 +649,21 @@
     .inspection-map-svg-path.abnormal{fill:rgba(220,53,69,.18);stroke:#dc3545}
     .inspection-map-svg-path.incomplete{fill:rgba(255,193,7,.22);stroke:#b8860b}
     .inspection-map-svg-path.selected{stroke-width:1.8!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.75))}
+
+.inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
+.inspection-map-picker-heading h5{font-size:1.05rem}
+.inspection-map-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
+.inspection-map-choice-card{display:flex;flex-direction:column;gap:.45rem;min-height:150px;padding:1rem;text-align:left;border:1px solid var(--bs-border-color);border-radius:.8rem;background:var(--bs-body-bg);color:var(--bs-body-color);box-shadow:0 2px 8px rgba(15,23,42,.05);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.inspection-map-choice-card:hover,.inspection-map-choice-card:focus{border-color:var(--bs-primary);box-shadow:0 8px 22px rgba(15,23,42,.10);transform:translateY(-2px);outline:0}
+.inspection-map-choice-icon{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:.65rem;background:var(--bs-primary-bg-subtle);color:var(--bs-primary);font-size:1.15rem}
+.inspection-map-choice-title{font-weight:800;font-size:.95rem;line-height:1.25}
+.inspection-map-choice-code{font-size:.68rem;color:var(--bs-secondary-color);letter-spacing:.035em}
+.inspection-map-choice-description{font-size:.76rem;color:var(--bs-secondary-color);line-height:1.4;flex:1}
+.inspection-map-choice-meta{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding-top:.45rem;border-top:1px solid var(--bs-border-color);font-size:.7rem;color:var(--bs-secondary-color)}
+.inspection-map-choice-arrow{margin-left:auto;color:var(--bs-primary)}
+@media(max-width:575.98px){.inspection-map-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}.inspection-map-choice-card{min-height:145px;padding:.75rem}.inspection-map-choice-title{font-size:.85rem}.inspection-map-choice-description{font-size:.7rem}}
+@media(max-width:360px){.inspection-map-choice-grid{grid-template-columns:1fr}}
+
 </style>
 </asp:Content>
 
@@ -920,24 +935,39 @@
             <div class="inspection-map-actions">
 
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
+                <button type="button" id="btnInspectionChangeMap" class="btn btn-sm btn-outline-primary d-none" title="Pilih area atau denah lain"><i class="bi bi-grid me-1"></i>Ganti Area / Map</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
                     <i class="bi bi-trash me-1"></i>Delete Draft Batch
                 </button>
             </div>
         </div>
-        <div class="inspection-map-summary" aria-label="Ringkasan status semua titik">
+        <div class="inspection-map-summary d-none" id="inspectionMapSummary" aria-label="Ringkasan status semua titik">
             <div class="inspection-map-stat"><span class="inspection-map-stat-value" id="inspectionMapTotalCount">0</span><span class="inspection-map-stat-label">Total</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-success" id="inspectionMapDoneCount">0</span><span class="inspection-map-stat-label">Selesai</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span class="inspection-map-stat-label">Abnormal</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
-        <div id="inspectionMapSelectWrap" class="px-3 pt-2 d-none">
-            <label for="inspectionMapSelect" class="form-label small fw-semibold mb-1">Floor Plan</label>
-            <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
+        <div id="inspectionMapPicker" class="inspection-map-picker p-3">
+            <div class="inspection-map-picker-heading mb-3">
+                <div class="inspection-map-eyebrow">PILIH LOKASI INSPEKSI</div>
+                <h5 class="mb-1 fw-bold">Pilih Group Area</h5>
+                <div class="small text-muted">Pilih kelompok lokasi terlebih dahulu, kemudian pilih denah area yang akan diperiksa.</div>
+            </div>
+            <div id="inspectionMapGroupCards" class="inspection-map-choice-grid"></div>
+            <div id="inspectionMapMapSection" class="d-none mt-3">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button type="button" id="btnInspectionMapBackToGroups" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Group</button>
+                    <div class="min-w-0">
+                        <div class="small text-muted">GROUP TERPILIH</div>
+                        <div id="inspectionMapSelectedGroupName" class="fw-bold text-truncate"></div>
+                    </div>
+                </div>
+                <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
+            </div>
         </div>
-        <div class="inspection-map-content">
+        <div class="inspection-map-content d-none" id="inspectionMapContent">
             <div class="inspection-map-panel">
                 <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
                     <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
@@ -957,8 +987,8 @@
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
-        <div class="d-flex justify-content-end gap-2 p-2 border-top">
+        <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"></div>
+        <div id="inspectionMapSubmitBar" class="d-flex justify-content-end gap-2 p-2 border-top d-none">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
         <div id="inspectionMapPointSheet" class="inspection-map-point-sheet d-none">
