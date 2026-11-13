@@ -21,10 +21,8 @@
 
     <link rel="Stylesheet" type="text/css" href="../../WebFolder/Css/styles_2.css" />
     <script type="text/javascript" src="../../WebFolder/Scripts/JScript.js"></script>
-    <% if (!Request.AppRelativeCurrentExecutionFilePath.Equals("~/Secure/template.aspx", StringComparison.OrdinalIgnoreCase)) { %>
     <script type="text/javascript" src="../../WebFolder/Scripts/SetTimeoutPostbackPage.js"></script>
     <script type="text/javascript"> stopTimer(); startTimer("''"); </script>
-    <% } %>
 
     <style>
         /*
