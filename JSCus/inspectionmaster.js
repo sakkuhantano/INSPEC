@@ -244,6 +244,16 @@
         if (!stage || !media) return;
         var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
         var label = document.getElementById('lblMapPreviewZoom');
+        function updatePreviewVectorCircleAspect() {
+            var svg = media.querySelector('.inspection-map-preview-svg');
+            if (!svg || !media.clientWidth || !media.clientHeight) return;
+            var aspect = media.clientWidth / media.clientHeight;
+            svg.querySelectorAll('.inspection-map-preview-circle').forEach(function (circle) {
+                var cx = Number(circle.getAttribute('cx')) || 0;
+                var cy = Number(circle.getAttribute('cy')) || 0;
+                circle.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(1 ' + aspect + ') translate(' + (-cx) + ' ' + (-cy) + ')');
+            });
+        }
         var image = media.querySelector('.inspection-image-preview');
         if (image) {
             var sizeImage = function () {
@@ -264,6 +274,7 @@
         }
         function apply() {
             media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+            updatePreviewVectorCircleAspect();
             if (label) label.textContent = Math.round(zoom * 100) + '%';
             stage.classList.toggle('inspection-map-preview-zoomed', zoom > 1);
         }
@@ -498,6 +509,15 @@
             }
             function applyView() {
                 content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+                var vectorSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (vectorSvg && content.clientWidth && content.clientHeight) {
+                    var vectorAspect = content.clientWidth / content.clientHeight;
+                    vectorSvg.querySelectorAll('.inspection-coordinate-circle').forEach(function (circle) {
+                        var cx = Number(circle.getAttribute('cx')) || 0;
+                        var cy = Number(circle.getAttribute('cy')) || 0;
+                        circle.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(1 ' + vectorAspect + ') translate(' + (-cx) + ' ' + (-cy) + ')');
+                    });
+                }
                 updateMarkerScale();
                 if (zoomLabel) zoomLabel.textContent = Math.round(zoom * 100) + '%';
                 board.classList.toggle('inspection-map-zoomed', zoom > 1);
