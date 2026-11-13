@@ -602,7 +602,7 @@ SELECT M.MapID, M.MapCode, M.MapName, M.ImagePath, M.MapVersion, M.IsActive, M.D
        ISNULL(G.Description,'') AS GroupDescription,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints
 FROM dbo.PIP_M_InspectionMap M
-LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
       (SELECT 1 FROM dbo.PIP_M_InspectionType IT
@@ -1133,7 +1133,7 @@ SELECT TOP 1 M.MapID, M.MapCode, M.MapName, M.Description, M.MapVersion, M.Image
        ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
        ISNULL(G.Description,'') AS GroupDescription
 FROM dbo.PIP_M_InspectionMap M
-LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
