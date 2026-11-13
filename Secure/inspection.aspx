@@ -22,6 +22,133 @@
 .inspection-point-list-row .inspection-map-point-dot{font-size:.75rem}
 @media(max-width:575.98px){.inspection-map-stat{padding:.4rem .1rem;font-size:.52rem}.inspection-map-stat-value{font-size:1rem}.inspection-map-stat-label{font-size:.52rem}}.inspection-map-canvas{position:relative;min-height:520px;overflow:hidden;background:linear-gradient(135deg,#eef3f2,#f8faf9)}[data-bs-theme=dark] .inspection-map-canvas{background:linear-gradient(135deg,#151a1b,#202528)}.inspection-map-floorplan{position:absolute;inset:18px;border:2px solid rgba(4,93,93,.35);border-radius:18px;background:rgba(255,255,255,.72);box-shadow:inset 0 0 0 10px rgba(4,93,93,.035)}[data-bs-theme=dark] .inspection-map-floorplan{background:rgba(25,30,31,.82);border-color:rgba(32,201,151,.28)}.inspection-map-room{position:absolute;border:2px solid rgba(4,93,93,.25);border-radius:10px;display:flex;align-items:flex-start;justify-content:flex-start;padding:9px;font-size:.58rem;font-weight:800;color:rgba(4,93,93,.55);letter-spacing:.06em}[data-bs-theme=dark] .inspection-map-room{border-color:rgba(32,201,151,.22);color:rgba(32,201,151,.55)}.room-a{left:4%;top:5%;width:37%;height:30%}.room-b{left:47%;top:5%;width:48%;height:42%}.room-c{left:4%;top:42%;width:37%;height:51%}.room-d{left:47%;top:54%;width:48%;height:39%}.inspection-map-corridor{position:absolute;background:rgba(4,93,93,.08);border-radius:8px}.corridor-a{left:41%;top:8%;width:6%;height:84%}.corridor-b{left:8%;top:35%;width:84%;height:8%}.corridor-c{left:41%;top:47%;width:6%;height:8%}.inspection-map-points{position:absolute;inset:0}.inspection-map-point{position:absolute;transform:translate(-50%,-50%);width:34px;height:34px;border:0;padding:0;background:transparent;z-index:3;cursor:pointer}.inspection-map-point-dot{display:flex;width:28px;height:28px;margin:auto;border-radius:50%;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);font-size:.58rem;font-weight:800;color:#fff}.inspection-map-point.pending .inspection-map-point-dot{background:#6c757d}.inspection-map-point.done .inspection-map-point-dot{background:#198754}.inspection-map-point.selected .inspection-map-point-dot{outline:4px solid rgba(13,110,253,.25);transform:scale(1.12)}.inspection-map-point-label{position:absolute;left:50%;top:30px;transform:translateX(-50%);white-space:nowrap;font-size:.58rem;font-weight:800;color:var(--bs-body-color);background:rgba(255,255,255,.9);border-radius:4px;padding:2px 4px;box-shadow:0 1px 4px rgba(0,0,0,.12)}[data-bs-theme=dark] .inspection-map-point-label{background:rgba(20,24,26,.9)}.inspection-map-north{position:absolute;right:14px;top:12px;width:38px;height:38px;border-radius:50%;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.6rem;color:var(--bs-danger);box-shadow:0 2px 8px rgba(0,0,0,.12)}.inspection-map-north i{font-size:1rem}.inspection-map-legend{position:absolute;left:14px;bottom:14px;display:flex;gap:.55rem;flex-wrap:wrap;padding:.45rem .6rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:rgba(255,255,255,.92);font-size:.62rem;box-shadow:0 2px 8px rgba(0,0,0,.08)}[data-bs-theme=dark] .inspection-map-legend{background:rgba(20,24,26,.94)}.inspection-map-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:2px}.inspection-map-dot.pending{background:#6c757d}.inspection-map-dot.done{background:#198754}.inspection-map-hint{position:absolute;right:14px;bottom:14px;padding:.45rem .6rem;border-radius:.55rem;background:rgba(4,93,93,.94);color:#fff;font-size:.62rem;box-shadow:0 3px 12px rgba(0,0,0,.16)}.inspection-map-point-sheet{position:absolute;z-index:10;left:50%;bottom:16px;transform:translateX(-50%);width:min(460px,calc(100% - 32px));padding:1rem;border:1px solid var(--bs-border-color);border-radius:1rem;background:var(--bs-body-bg);box-shadow:0 18px 45px rgba(0,0,0,.22)}.inspection-map-sheet-handle{width:42px;height:4px;border-radius:99px;background:var(--bs-secondary-bg);margin:0 auto .7rem}.inspection-map-point-code{font-size:.68rem;color:var(--bs-primary);font-weight:900;letter-spacing:.08em}.inspection-map-point-name{font-weight:800;font-size:1rem}.inspection-map-point-status{display:inline-flex;padding:.35rem .55rem;border-radius:99px;background:var(--bs-tertiary-bg);font-size:.7rem;font-weight:700}.inspection-point-list{padding:.75rem;background:var(--bs-tertiary-bg);min-height:520px}.inspection-point-list-row{display:flex;align-items:center;gap:.7rem;padding:.75rem;margin-bottom:.55rem;border:1px solid var(--bs-border-color);border-radius:.7rem;background:var(--bs-body-bg);cursor:pointer}.inspection-point-list-row:last-child{margin-bottom:0}.inspection-point-list-row .inspection-map-point-dot{flex:0 0 28px}.inspection-point-list-row .point-main{min-width:0;flex:1}.inspection-point-list-row .point-code{font-size:.68rem;color:var(--bs-primary);font-weight:800}.inspection-point-list-row .point-name{font-weight:700;font-size:.85rem}@media(max-width:575.98px){.inspection-map-workspace{min-height:calc(100dvh - 118px);border-radius:.7rem}.inspection-map-toolbar{padding:.65rem;align-items:flex-start}.inspection-map-toolbar .inspection-map-actions{flex-wrap:wrap;justify-content:flex-end}.inspection-map-canvas{min-height:calc(100dvh - 300px)}.inspection-map-floorplan{inset:10px}.inspection-map-hint{display:none}.inspection-map-legend{left:10px;bottom:10px}.inspection-map-point-sheet{bottom:10px;width:calc(100% - 20px)}}
 
+    /* Mobile map UX: keep controls compact so the actual inspection area gets the space. */
+    @media (max-width: 575.98px) {
+        .inspection-map-toolbar {
+            padding: .4rem .5rem;
+            gap: .35rem;
+        }
+        .inspection-map-toolbar .inspection-map-title-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .inspection-map-toolbar .inspection-map-eyebrow {
+            font-size: .52rem;
+        }
+        .inspection-map-toolbar .inspection-map-title {
+            font-size: .78rem;
+        }
+        .inspection-map-toolbar .inspection-map-subtitle {
+            font-size: .58rem;
+            margin-top: 0;
+        }
+        .inspection-map-actions {
+            flex: 0 0 auto;
+            width: auto;
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            gap: .2rem !important;
+        }
+        .inspection-map-actions > .btn,
+        .inspection-map-actions > .btn-group > .btn {
+            min-height: 28px !important;
+            height: 28px;
+            width: auto !important;
+            min-width: 28px !important;
+            padding: .15rem .35rem !important;
+            font-size: .62rem;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .inspection-map-actions .bi {
+            font-size: .72rem;
+            margin-right: 0 !important;
+        }
+        .inspection-map-actions #btnInspectionNextPending {
+            font-size: 0;
+        }
+        .inspection-map-actions #btnInspectionNextPending .bi {
+            font-size: .78rem;
+        }
+        .inspection-map-actions #btnDeleteInspectionBatchDraft {
+            font-size: 0;
+        }
+        .inspection-map-actions #btnDeleteInspectionBatchDraft .bi {
+            font-size: .78rem;
+            margin-right: 0 !important;
+        }
+
+        .inspection-map-summary {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        .inspection-map-stat {
+            padding: .22rem .05rem;
+            font-size: .42rem;
+            line-height: 1;
+        }
+        .inspection-map-stat-value {
+            font-size: .72rem;
+            line-height: 1;
+            margin-bottom: 1px;
+        }
+        .inspection-map-stat-label {
+            font-size: .42rem;
+            line-height: 1.05;
+            min-height: 0;
+        }
+
+        .inspection-map-picker {
+            padding: .45rem !important;
+        }
+        .inspection-map-picker-heading {
+            margin-bottom: .35rem !important;
+        }
+        .inspection-map-picker-heading .inspection-map-eyebrow {
+            font-size: .52rem;
+        }
+        .inspection-map-picker-heading .small {
+            font-size: .58rem !important;
+        }
+
+        .inspection-map-zoom-tools {
+            top: 5px;
+            right: 5px;
+            gap: 2px;
+            padding: 2px;
+            border-radius: .4rem;
+            opacity: .9;
+        }
+        .inspection-map-zoom-tools .btn {
+            width: 25px;
+            min-width: 25px;
+            height: 25px;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .68rem;
+        }
+        .inspection-map-zoom-label {
+            min-width: 32px;
+            font-size: .58rem;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .inspection-map-toolbar .inspection-map-title-wrap {
+            max-width: 42%;
+        }
+        .inspection-map-actions > .btn,
+        .inspection-map-actions > .btn-group > .btn {
+            min-width: 26px !important;
+            width: 26px !important;
+            height: 26px;
+        }
+        .inspection-map-summary .inspection-map-stat-label {
+            font-size: .38rem;
+        }
+    }
+
     /* Real PDF floor plan and compact map markers. */
     .inspection-map-canvas{min-height:320px;padding:12px;background:var(--bs-tertiary-bg);overflow:hidden;touch-action:none;position:relative}
     .inspection-map-pdf-stage{position:relative;width:max-content;max-width:100%;min-width:min(100%,320px);margin:0 auto;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.16);line-height:0;will-change:transform}
