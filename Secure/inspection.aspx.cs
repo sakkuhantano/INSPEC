@@ -1445,6 +1445,32 @@ WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
                 if (detail == null || detail.Rows.Count == 0)
                     throw new HttpException(404, "Inspection Type Detail is not active for this company/location.");
 
+                DataTable maps = br.EQueryP(@"
+SELECT M.MapID, M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl,
+       M.MapVersion, M.MapGroupID,
+       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+       ISNULL(G.GroupCode,'') AS GroupCode,
+       ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription,
+       ISNULL(G.DisplayOrder,0) AS GroupDisplayOrder,
+       (SELECT COUNT(1)
+        FROM dbo.PIP_M_InspectionPoint PC
+        WHERE PC.MapID=M.MapID AND PC.IsActive=1) AS PointCount
+FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND M.InspectionTypeCode=@TypeCode
+  AND M.InspectionTypeDetailCode=@DetailCode
+  AND M.IsCurrentVersion=1 AND M.IsActive=1
+ORDER BY CASE WHEN M.MapGroupID IS NULL THEN 1 ELSE 0 END,
+         ISNULL(G.DisplayOrder,0), ISNULL(G.GroupName,''), M.MapCode",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@TypeCode", typeCode),
+                        new SqlParameter("@DetailCode", detailCode)
+                    });
+
                 DataTable points = br.EQueryP(@"
 SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
@@ -1467,23 +1493,52 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                     });
 
                 var mapRows = new List<Dictionary<string, object>>();
-                var mapIds = new HashSet<long>();
+                var groupRows = new List<Dictionary<string, object>>();
+                var groupIds = new HashSet<long>();
+                foreach (DataRow row in maps.Rows)
+                {
+                    long mapGroupId = row["MapGroupID"] == DBNull.Value ? 0 : Convert.ToInt64(row["MapGroupID"]);
+                    string groupCode = mapGroupId == 0 ? "UNGROUPED" : GF.GetString(row["GroupCode"]);
+                    string groupName = mapGroupId == 0 ? "Other Maps" : GF.GetString(row["GroupName"]);
+                    string groupDescription = mapGroupId == 0
+                        ? "Maps not assigned to an inspection group."
+                        : GF.GetString(row["GroupDescription"]);
+
+                    if (groupIds.Add(mapGroupId))
+                    {
+                        groupRows.Add(new Dictionary<string, object> {
+                            { "MapGroupID", mapGroupId },
+                            { "GroupCode", groupCode },
+                            { "GroupName", groupName },
+                            { "Description", groupDescription },
+                            { "DisplayOrder", Convert.ToInt32(row["GroupDisplayOrder"]) },
+                            { "MapCount", 0 }
+                        });
+                    }
+
+                    Dictionary<string, object> group = groupRows.First(g =>
+                        Convert.ToInt64(g["MapGroupID"]) == mapGroupId);
+                    group["MapCount"] = Convert.ToInt32(group["MapCount"]) + 1;
+
+                    mapRows.Add(new Dictionary<string, object> {
+                        { "MapID", Convert.ToInt64(row["MapID"]) },
+                        { "MapGroupID", mapGroupId },
+                        { "GroupCode", groupCode },
+                        { "GroupName", groupName },
+                        { "MapCode", GF.GetString(row["MapCode"]) },
+                        { "MapName", GF.GetString(row["MapName"]) },
+                        { "Description", GF.GetString(row["Description"]) },
+                        { "PointCount", Convert.ToInt32(row["PointCount"]) },
+                        { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"]), companyId, locationId) },
+                        { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) },
+                        { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
+                    });
+                }
+
                 var pointRows = new List<Dictionary<string, object>>();
                 foreach (DataRow row in points.Rows)
                 {
                     long mapId = row["MapID"] == DBNull.Value ? 0 : Convert.ToInt64(row["MapID"]);
-                    if (mapId > 0 && mapIds.Add(mapId))
-                    {
-                        mapRows.Add(new Dictionary<string, object> {
-                            { "MapID", mapId },
-                            { "MapCode", GF.GetString(row["MapCode"]) },
-                            { "MapName", GF.GetString(row["MapName"]) },
-                            { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"]), companyId, locationId) },
-                            { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) },
-                            { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
-                        });
-                    }
-
                     pointRows.Add(new Dictionary<string, object> {
                         { "InspectionPointID", Convert.ToInt64(row["InspectionPointID"]) },
                         { "PointCode", GF.GetString(row["PointCode"]) },
@@ -1517,6 +1572,7 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                         InspectionTypeDetailName = GF.GetString(d["InspectionTypeDetailName"]),
                         ScheduleTime = GF.GetString(d["ScheduleTime"])
                     },
+                    groups = groupRows,
                     maps = mapRows,
                     points = pointRows
                 };
