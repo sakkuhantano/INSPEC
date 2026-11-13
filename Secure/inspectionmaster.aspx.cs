@@ -1152,9 +1152,12 @@ SELECT @MapGroupID AS MapGroupID;",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT TOP 1 MapID, MapCode, MapName, Description, MapVersion, ImagePath,
-       InspectionTypeCode, InspectionTypeDetailCode, RequireAllPoints
+SELECT TOP 1 M.MapID, M.MapCode, M.MapName, M.Description, M.MapVersion, M.ImagePath,
+       M.InspectionTypeCode, M.InspectionTypeDetailCode, M.RequireAllPoints, M.MapGroupID,
+       ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription
 FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.MapCode=@MapCode AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.IsCurrentVersion=1
   AND (@IsAdmin=1 OR M.EntryUser=@EmployeeID OR EXISTS
@@ -1174,6 +1177,13 @@ ORDER BY M.MapVersion DESC",
                 if (dt.Rows.Count == 0)
                 {
                     hidMapID.Value = "";
+                    txtMapName.Text = "";
+                    txtMapDescription.Text = "";
+                    txtMapGroupCode.Text = "";
+                    txtMapGroupName.Text = "";
+                    txtMapGroupDescription.Text = "";
+                    lblMapVersion.Text = "New map · version will start at 1";
+                    pnlMapPreview.Visible = false;
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
