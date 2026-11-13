@@ -802,13 +802,22 @@
     function hasMapGroups() {
         return currentMaps.some(function (map) {
             var groupId = map.MapGroupID;
-            return groupId !== null && groupId !== undefined && String(groupId).trim() !== "";
+            if (groupId === null || groupId === undefined) return false;
+            var value = String(groupId).trim();
+            return value !== "" && value !== "0" && value.toLowerCase() !== "null" && value.toLowerCase() !== "undefined";
         });
     }
 
     function renderMapCards() {
         var host = document.getElementById("inspectionMapCards");
+        var picker = document.getElementById("inspectionMapPicker");
         if (!host) return;
+        if (!hasMapGroups()) {
+            host.innerHTML = "";
+            if (picker) picker.classList.add("d-none");
+            return;
+        }
+        if (picker) picker.classList.remove("d-none");
         if (!currentMaps.length) {
             host.innerHTML = '<div class="alert alert-light border small mb-0">Belum ada Inspection Map untuk Inspection Detail Code ini.</div>';
             return;
