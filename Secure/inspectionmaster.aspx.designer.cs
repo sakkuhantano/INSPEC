@@ -67,6 +67,11 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.Literal litEditorSvgPaths;
         protected global::System.Web.UI.WebControls.HiddenField hidSwapPointID;
         protected global::System.Web.UI.WebControls.HiddenField hidSvgPathData;
+
+        /// <summary>
+        /// hidShapeAttributes control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.HiddenField hidShapeAttributes;
         protected global::System.Web.UI.WebControls.DropDownList ddlPointShapeType;
         protected global::System.Web.UI.WebControls.Label lblPointMapCode;
         protected global::System.Web.UI.WebControls.LinkButton btnClearCoordinate;
