@@ -265,7 +265,54 @@
         function apply() {
             media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
             if (label) label.textContent = Math.round(zoom * 100) + '%';
-            stage.classList.toggle('inspection-map-p    var inspectionPdfRenderVersion = 0;
+            stage.classList.toggle('inspection-map-preview-zoomed', zoom > 1);
+        }
+        function setZoom(next, cx, cy) {
+            next = Math.max(1, Math.min(5, next));
+            if (next === zoom) return;
+            var rect = stage.getBoundingClientRect();
+            var x = cx == null ? rect.width / 2 : cx;
+            var y = cy == null ? rect.height / 2 : cy;
+            var ratio = next / zoom;
+            panX = x - (x - panX) * ratio;
+            panY = y - (y - panY) * ratio;
+            zoom = next;
+            inspectionMapPreviewZoom = zoom;
+            if (zoom === 1) { panX = 0; panY = 0; }
+            apply();
+            scheduleMapPreviewCanvasRender();
+        }
+        var zoomIn = document.getElementById('btnMapPreviewZoomIn');
+        var zoomOut = document.getElementById('btnMapPreviewZoomOut');
+        var fit = document.getElementById('btnMapPreviewZoomFit');
+        if (zoomIn) zoomIn.addEventListener('click', function () { setZoom(zoom + 0.25); });
+        if (zoomOut) zoomOut.addEventListener('click', function () { setZoom(zoom - 0.25); });
+        if (fit) fit.addEventListener('click', function () {
+            zoom = 1; inspectionMapPreviewZoom = 1; panX = 0; panY = 0; apply(); scheduleMapPreviewCanvasRender();
+        });
+        stage.addEventListener('wheel', function (event) {
+            if (!event.ctrlKey && !event.shiftKey) return;
+            event.preventDefault();
+            var rect = stage.getBoundingClientRect();
+            setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
+        }, { passive: false });
+        stage.addEventListener('pointerdown', function (event) {
+            if (zoom <= 1 || event.button !== 0) return;
+            dragging = true; moved = false;
+            startX = event.clientX - panX; startY = event.clientY - panY;
+            stage.setPointerCapture(event.pointerId);
+        });
+        stage.addEventListener('pointermove', function (event) {
+            if (!dragging) return;
+            var nx = event.clientX - startX, ny = event.clientY - startY;
+            if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
+            panX = nx; panY = ny; apply();
+        });
+        stage.addEventListener('pointerup', function () { dragging = false; });
+        stage.addEventListener('pointercancel', function () { dragging = false; });
+        apply();
+    }
+    var inspectionPdfRenderVersion = 0;
     var inspectionPdfRenderTask = null;
     var inspectionPdfRenderTimer = null;
     var inspectionPdfPage = null;
