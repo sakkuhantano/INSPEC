@@ -943,7 +943,6 @@
             <div class="inspection-map-actions">
 
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
-                <button type="button" id="btnInspectionChangeMap" class="btn btn-sm btn-outline-primary d-none" title="Pilih area atau denah lain"><i class="bi bi-grid me-1"></i>Ganti Area / Map</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
                     <i class="bi bi-trash me-1"></i>Delete Draft Batch
@@ -1083,5 +1082,5 @@
 <script type="text/javascript" src="../JSCus/inspection.js?v=20261112-report-progress-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261113-mapgroup-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261113-mapcards-1"></script>
 </asp:Content>
