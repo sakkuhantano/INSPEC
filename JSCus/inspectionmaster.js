@@ -522,7 +522,7 @@
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
-                var radius = 1.25;
+                var radius = 2.0;
                 try {
                     var saved = JSON.parse(shapeAttributesField.value || '{}');
                     if (saved && isFinite(Number(saved.r)) && Number(saved.r) > 0) radius = Number(saved.r);
