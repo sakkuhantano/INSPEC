@@ -5,6 +5,10 @@
 
     SVG coordinates use a normalized 0..100 x/y coordinate space that matches
     MapX/MapY and the map image's aspect-ratio-preserving display stage.
+
+    CIRCLE geometry is stored in ShapeAttributes JSON as {cx,cy,r}; cx/cy
+    use the normalized 0..100 plane and r is the circle radius in that plane.
+    MapX/MapY remain compatibility anchors. PATH geometry stays in SvgPathData.
 */
 SET NOCOUNT ON;
 GO
