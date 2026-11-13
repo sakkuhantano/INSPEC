@@ -834,6 +834,8 @@
         if (summaryHost) summaryHost.classList.add("d-none");
         if (submitBar) submitBar.classList.add("d-none");
         if (changeButton) changeButton.classList.add("d-none");
+        var nextPendingButton = document.getElementById("btnInspectionNextPending");
+        if (nextPendingButton) nextPendingButton.classList.add("d-none");
         currentMapId = "";
         selectedGroupId = "";
         renderMapGroupCards();
@@ -857,6 +859,8 @@
         if (summaryHost) summaryHost.classList.remove("d-none");
         if (submitBar) submitBar.classList.remove("d-none");
         if (changeButton) changeButton.classList.remove("d-none");
+        var nextPendingButton = document.getElementById("btnInspectionNextPending");
+        if (nextPendingButton) nextPendingButton.classList.toggle("d-none", String(currentMapRecord && currentMapRecord.Status || "").toUpperCase() === "DONE");
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = map.MapName || "Inspection Map";
