@@ -5,8 +5,6 @@
     var selectedPoint = null;
     var currentMapRecord = null;
     var currentMaps = [];
-    var currentGroups = [];
-    var selectedGroupId = "";
     var currentPoints = [];
     var currentMapId = "";
     var currentPdfDocument = null;
@@ -782,63 +780,14 @@
             if (message) { message.textContent = 'Denah gagal dimuat: ' + (error && error.message ? error.message : 'periksa file map.'); message.classList.remove('d-none'); }
         }
     }
-    function normalizeMapGroups() {
-        if (Array.isArray(currentGroups) && currentGroups.length) return;
-        var grouped = {};
-        currentMaps.forEach(function (map) {
-            var id = Number(map.MapGroupID || 0);
-            var key = String(id);
-            if (!grouped[key]) grouped[key] = {
-                MapGroupID: id,
-                GroupCode: map.GroupCode || (id ? "" : "UNGROUPED"),
-                GroupName: map.GroupName || (id ? "Inspection Area" : "Other Maps"),
-                Description: map.GroupDescription || (id ? "" : "Maps not assigned to a group."),
-                MapCount: 0
-            };
-            grouped[key].MapCount++;
-        });
-        currentGroups = Object.keys(grouped).map(function (key) { return grouped[key]; });
-    }
-
-    function renderMapGroupCards() {
-        var host = document.getElementById("inspectionMapGroupCards");
-        var mapSection = document.getElementById("inspectionMapMapSection");
+    function renderMapCards() {
+        var host = document.getElementById("inspectionMapCards");
         if (!host) return;
-        if (mapSection) mapSection.classList.add("d-none");
-        if (!currentGroups.length) {
-            host.innerHTML = '<div class="alert alert-light border small mb-0">Belum ada Inspection Map yang tersedia untuk jenis inspeksi ini.</div>';
+        if (!currentMaps.length) {
+            host.innerHTML = '<div class="alert alert-light border small mb-0">Belum ada Inspection Map untuk Inspection Detail Code ini.</div>';
             return;
         }
-        host.innerHTML = currentGroups.map(function (group) {
-            return '<button type="button" class="inspection-map-choice-card" data-map-group-id="' + esc(group.MapGroupID) + '">' +
-                '<span class="inspection-map-choice-icon"><i class="bi bi-grid-1x2-fill"></i></span>' +
-                '<span class="inspection-map-choice-title">' + esc(group.GroupName || (Number(group.MapGroupID || 0) === 0 ? "Other Maps" : "Inspection Group")) + '</span>' +
-                '<span class="inspection-map-choice-code">' + esc(group.GroupCode || "") + '</span>' +
-                '<span class="inspection-map-choice-description">' + esc(group.Description || "Pilih untuk melihat denah di dalam kelompok ini.") + '</span>' +
-                '<span class="inspection-map-choice-meta"><span><i class="bi bi-map me-1"></i>' + esc(group.MapCount || 0) + ' map</span><i class="bi bi-arrow-right-circle inspection-map-choice-arrow"></i></span>' +
-            '</button>';
-        }).join("");
-        host.querySelectorAll("[data-map-group-id]").forEach(function (button) {
-            button.addEventListener("click", function () {
-                selectedGroupId = String(this.getAttribute("data-map-group-id") || "0");
-                renderMapCards(selectedGroupId);
-            });
-        });
-    }
-
-    function renderMapCards(groupId) {
-        var section = document.getElementById("inspectionMapMapSection");
-        var host = document.getElementById("inspectionMapCards");
-        var groupName = document.getElementById("inspectionMapSelectedGroupName");
-        if (!section || !host) return;
-        var group = currentGroups.find(function (item) {
-            return String(item.MapGroupID || 0) === String(groupId || "0");
-        });
-        var maps = currentMaps.filter(function (map) {
-            return String(map.MapGroupID || 0) === String(groupId || "0");
-        });
-        if (groupName) groupName.textContent = group ? (group.GroupName || "Inspection Group") : "Inspection Group";
-        host.innerHTML = maps.map(function (map) {
+        host.innerHTML = currentMaps.map(function (map) {
             var pointCount = currentPoints.filter(function (point) {
                 return Number(point.MapID) === Number(map.MapID);
             }).length;
@@ -849,16 +798,24 @@
                 '<span class="inspection-map-choice-code">' + esc(map.MapCode || "") + '</span>' +
                 '<span class="inspection-map-choice-description">' + esc(map.Description || "Tidak ada deskripsi tambahan untuk area ini.") + '</span>' +
                 '<span class="inspection-map-choice-meta"><span><i class="bi bi-geo-alt me-1"></i>' + esc(pointCount) + ' inspection points</span>' +
-                '<span>' + (hasPlan ? '<i class="bi bi-file-earmark-check me-1 text-success"></i>Denah tersedia' : '<i class="bi bi-file-earmark-x me-1"></i>Tanpa denah') + '</span>' +
-                '<i class="bi bi-arrow-right-circle inspection-map-choice-arrow"></i></span>' +
-            '</button>';
+                '<span>' + (hasPlan ? '<i class="bi bi-file-earmark-check me-1 text-success"></i>Denah tersedia' : '<i class="bi bi-file-earmark-x me-1"></i>Tanpa denah') + '</span></span>' +
+                '</button>';
         }).join("");
-        if (!maps.length) host.innerHTML = '<div class="alert alert-light border small mb-0">Belum ada map dalam group ini.</div>';
-        section.classList.remove("d-none");
         host.querySelectorAll("[data-inspection-map-id]").forEach(function (button) {
             button.addEventListener("click", function () {
                 showSelectedInspectionMap(this.getAttribute("data-inspection-map-id"));
             });
+        });
+        updateSelectedMapCard();
+    }
+
+    function updateSelectedMapCard() {
+        var host = document.getElementById("inspectionMapCards");
+        if (!host) return;
+        host.querySelectorAll("[data-inspection-map-id]").forEach(function (button) {
+            var selected = String(button.getAttribute("data-inspection-map-id")) === String(currentMapId);
+            button.classList.toggle("active", selected);
+            button.setAttribute("aria-pressed", selected ? "true" : "false");
         });
     }
 
@@ -868,47 +825,41 @@
         var content = document.getElementById("inspectionMapContent");
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
-        var changeButton = document.getElementById("btnInspectionChangeMap");
         var nextButton = document.getElementById("btnInspectionNextPending");
         if (picker) picker.classList.remove("d-none");
         if (summary) summary.classList.add("d-none");
         if (content) content.classList.add("d-none");
         if (summaryHost) summaryHost.classList.add("d-none");
         if (submitBar) submitBar.classList.add("d-none");
-        if (changeButton) changeButton.classList.add("d-none");
         if (nextButton) nextButton.classList.add("d-none");
         currentMapId = "";
-        selectedGroupId = "";
-        renderMapGroupCards();
+        renderMapCards();
         closePoint();
         resetMapView();
+        if (currentMaps.length) showSelectedInspectionMap(currentMaps[0].MapID);
     }
 
     function showSelectedInspectionMap(mapId) {
         var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(mapId); });
         if (!map) return;
         currentMapId = String(map.MapID);
-        var picker = document.getElementById("inspectionMapPicker");
         var summary = document.getElementById("inspectionMapSummary");
         var content = document.getElementById("inspectionMapContent");
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
-        var changeButton = document.getElementById("btnInspectionChangeMap");
         var nextButton = document.getElementById("btnInspectionNextPending");
-        if (picker) picker.classList.add("d-none");
         if (summary) summary.classList.remove("d-none");
         if (content) content.classList.remove("d-none");
         if (summaryHost) summaryHost.classList.remove("d-none");
         if (submitBar) submitBar.classList.remove("d-none");
-        if (changeButton) changeButton.classList.remove("d-none");
         if (nextButton) nextButton.classList.toggle("d-none", String(currentMapRecord && currentMapRecord.Status || "").toUpperCase() === "DONE");
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = map.MapName || "Inspection Map";
-        if (subtitle) subtitle.textContent = (map.GroupName ? map.GroupName + " · " : "") +
-            (map.MapCode || "") + " · " + currentPoints.filter(function (point) {
+        if (subtitle) subtitle.textContent = (map.MapCode || "") + " · " + currentPoints.filter(function (point) {
                 return Number(point.MapID) === Number(map.MapID);
             }).length + " inspection points";
+        updateSelectedMapCard();
         closePoint();
         switchMapList();
         resetMapView();
@@ -929,8 +880,6 @@
     window.resetInspectionMapWorkspace = async function () {
         currentMapRecord = null;
         currentMaps = [];
-        currentGroups = [];
-        selectedGroupId = "";
         currentPoints = [];
         currentMapId = "";
         selectedPoint = null;
@@ -980,9 +929,7 @@
 
         var setup = record.BatchMapSetup || {};
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
-        currentGroups = Array.isArray(setup.groups) ? setup.groups : [];
         currentPoints = Array.isArray(setup.points) ? setup.points : [];
-        normalizeMapGroups();
         if (!currentPoints.length && Array.isArray(record.PointMaster)) currentPoints = record.PointMaster;
         if (!currentMaps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
             currentMapId = "";
@@ -1097,13 +1044,6 @@
             resetMapView();
         });
 
-        var changeMapButton = document.getElementById("btnInspectionChangeMap");
-        if (changeMapButton) changeMapButton.addEventListener("click", showMapPicker);
-        var backGroupsButton = document.getElementById("btnInspectionMapBackToGroups");
-        if (backGroupsButton) backGroupsButton.addEventListener("click", function () {
-            selectedGroupId = "";
-            renderMapGroupCards();
-        });
 
         var openChecklist = document.getElementById("btnOpenInspectionPointChecklist");
         if (openChecklist) openChecklist.addEventListener("click", function () {
