@@ -59,6 +59,10 @@ namespace INSPEC.Secure
                 "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             txtMapCode.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
                 "155", "Master Inspection Map", txtMapCode.ClientID, true, mapSearchArgs);
+            lBtnMapGroupCode.Attributes["onclick"] = GF.JSOpenSearchList_2(
+                "156", "Master Inspection Group Map", txtMapGroupCode.ClientID, false, mapSearchArgs);
+            txtMapGroupCode.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
+                "156", "Master Inspection Group Map", txtMapGroupCode.ClientID, true, mapSearchArgs);
             //txtMapCode.Attributes["ondblclick"] = GF.JSOpenSearchList_2(
             //    "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             btnClearMapFile.Visible = String.IsNullOrWhiteSpace(hidMapID.Value);
