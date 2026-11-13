@@ -872,13 +872,32 @@
             <div class="inspection-map-actions">
 
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
+                <button type="button" id="btnInspectionChangeMap" class="btn btn-sm btn-outline-primary d-none" title="Pilih area atau denah lain"><i class="bi bi-grid me-1"></i>Ganti Area / Map</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
                     <i class="bi bi-trash me-1"></i>Delete Draft Batch
                 </button>
             </div>
         </div>
-        <div class="inspection-map-summary" aria-label="Ringkasan status semua titik">
+        <div id="inspectionMapPicker" class="inspection-map-picker p-3">
+            <div class="inspection-map-picker-heading mb-3">
+                <div class="inspection-map-eyebrow">PILIH LOKASI INSPEKSI</div>
+                <h5 class="mb-1 fw-bold">Pilih Group Area</h5>
+                <div class="small text-muted">Pilih kelompok lokasi terlebih dahulu, kemudian pilih denah area yang akan diperiksa.</div>
+            </div>
+            <div id="inspectionMapGroupCards" class="inspection-map-choice-grid"></div>
+            <div id="inspectionMapMapSection" class="d-none mt-3">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <button type="button" id="btnInspectionMapBackToGroups" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Group</button>
+                    <div class="min-w-0">
+                        <div class="small text-muted">GROUP TERPILIH</div>
+                        <div id="inspectionMapSelectedGroupName" class="fw-bold text-truncate"></div>
+                    </div>
+                </div>
+                <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
+            </div>
+        </div>
+        <div class="inspection-map-summary d-none" id="inspectionMapSummary" aria-label="Ringkasan status semua titik">
             <div class="inspection-map-stat"><span class="inspection-map-stat-value" id="inspectionMapTotalCount">0</span><span class="inspection-map-stat-label">Total</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-success" id="inspectionMapDoneCount">0</span><span class="inspection-map-stat-label">Selesai</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span class="inspection-map-stat-label">Abnormal</span></div>
@@ -889,7 +908,7 @@
             <label for="inspectionMapSelect" class="form-label small fw-semibold mb-1">Floor Plan</label>
             <select id="inspectionMapSelect" class="form-select form-select-sm"></select>
         </div>
-        <div class="inspection-map-content">
+        <div class="inspection-map-content d-none" id="inspectionMapContent">
             <div class="inspection-map-panel">
                 <div id="inspectionMapCanvas" class="inspection-map-canvas" aria-label="Inspection map">
                     <div class="inspection-map-zoom-tools" aria-label="Map zoom controls">
@@ -909,7 +928,7 @@
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-3"></div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"></div>
         <div class="d-flex justify-content-end gap-2 p-2 border-top">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
