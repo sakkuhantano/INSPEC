@@ -709,6 +709,7 @@ SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND M.InspectionTypeCode=@InspectionTypeCode
   AND M.InspectionTypeDetailCode=@InspectionTypeDetailCode
@@ -1454,7 +1455,9 @@ SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
        P.ObjectReferenceCode, P.MapID, P.MapX, P.MapY,
        ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,P.DisplayOrder,
-       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion,
+       M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl, M.MapVersion,
+       M.MapGroupID, ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription,
        ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
 FROM dbo.PIP_M_InspectionPoint P
@@ -1483,6 +1486,11 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                             { "MapID", mapId },
                             { "MapCode", GF.GetString(row["MapCode"]) },
                             { "MapName", GF.GetString(row["MapName"]) },
+                            { "Description", GF.GetString(row["Description"]) },
+                            { "MapGroupID", row["MapGroupID"] == DBNull.Value ? 0 : Convert.ToInt64(row["MapGroupID"]) },
+                            { "GroupCode", GF.GetString(row["GroupCode"]) },
+                            { "GroupName", GF.GetString(row["GroupName"]) },
+                            { "GroupDescription", GF.GetString(row["GroupDescription"]) },
                             { "MapUrl", ResolveInspectionMapUrl(GF.GetString(row["MapUrl"]), companyId, locationId) },
                             { "MapVersion", row["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(row["MapVersion"]) },
                             { "RequireAllPoints", Convert.ToBoolean(row["RequireAllPoints"]) }
@@ -1508,6 +1516,23 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                     });
                 }
 
+                var groupRows = new List<Dictionary<string, object>>();
+                var groupIds = new HashSet<long>();
+                foreach (var map in mapRows)
+                {
+                    long groupId = Convert.ToInt64(map["MapGroupID"]);
+                    if (groupIds.Add(groupId))
+                    {
+                        groupRows.Add(new Dictionary<string, object> {
+                            { "MapGroupID", groupId },
+                            { "GroupCode", Convert.ToString(map["GroupCode"]) },
+                            { "GroupName", Convert.ToString(map["GroupName"]) },
+                            { "Description", Convert.ToString(map["GroupDescription"]) },
+                            { "MapCount", mapRows.Count(m => Convert.ToInt64(m["MapGroupID"]) == groupId) }
+                        });
+                    }
+                }
+
                 DataRow t = type.Rows[0];
                 DataRow d = detail.Rows[0];
                 return new {
@@ -1522,6 +1547,7 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                         InspectionTypeDetailName = GF.GetString(d["InspectionTypeDetailName"]),
                         ScheduleTime = GF.GetString(d["ScheduleTime"])
                     },
+                    groups = groupRows,
                     maps = mapRows,
                     points = pointRows
                 };
