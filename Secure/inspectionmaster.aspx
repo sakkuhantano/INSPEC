@@ -10,7 +10,7 @@
     <asp:HiddenField ID="hidActiveTab" runat="server" ClientIDMode="Static" Value="#tab-map" />
     <asp:HiddenField ID="hidMapID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hidMapIsDraft" runat="server" ClientIDMode="Static" Value="0" />
-    <asp:HiddenField ID="hidPointID" runat="server" />
+    <asp:HiddenField ID="hidPointID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hidElementID" runat="server" />
     <div class="d-none">
         <asp:DropDownList ID="ddlPointObjectType" runat="server"><asp:ListItem Value="GENERAL" Selected="True">General</asp:ListItem></asp:DropDownList>
