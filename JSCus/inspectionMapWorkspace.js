@@ -472,7 +472,9 @@
         if (abnormalStat && abnormalStat.parentElement)
             abnormalStat.parentElement.classList.toggle("d-none", !hasNormalAbnormal);
         if (abnormalLegend) abnormalLegend.classList.toggle("d-none", !hasNormalAbnormal);
-        if (isOnOffTemplate) {
+        if (isOnOffTemplate && hasNormalAbnormal) {
+            // ON/OFF is only presented as a two-state result when the master point
+            // explicitly allows Normal/Abnormal classification.
             var onCount = 0, offCount = 0, pendingCount = 0;
             points.forEach(function (masterPoint) {
                 var transaction = getPointTransaction(masterPoint);
