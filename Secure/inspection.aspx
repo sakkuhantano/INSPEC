@@ -722,6 +722,94 @@
         .inspection-map-choice-code{font-size:.55rem}
     }
 
+
+    /* Phone-first compact controls: keep the floor plan, not its chrome, dominant. */
+    @media (max-width: 575.98px) {
+        #inspectionMapWorkspace > .inspection-map-toolbar {
+            display: flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .3rem .45rem;
+        }
+        #inspectionMapWorkspace .inspection-map-title-wrap { flex: 1 1 auto; min-width: 0; }
+        #inspectionMapWorkspace .inspection-map-eyebrow { font-size: .55rem; line-height: 1.1; }
+        #inspectionMapWorkspace .inspection-map-title { font-size: .78rem; line-height: 1.1; }
+        #inspectionMapWorkspace .inspection-map-subtitle { font-size: .58rem; margin-top: .08rem; }
+        #inspectionMapWorkspace .inspection-map-actions {
+            display: grid;
+            grid-template-columns: minmax(0,1fr) 30px minmax(0,1fr);
+            flex: 0 0 58%;
+            width: 58%;
+            gap: .2rem;
+        }
+        #inspectionMapWorkspace .inspection-map-actions > .btn {
+            width: 100%;
+            min-width: 0;
+            min-height: 28px;
+            height: 28px;
+            padding: .15rem .2rem;
+            font-size: .58rem;
+            line-height: 1;
+            white-space: nowrap;
+            border-radius: .35rem;
+        }
+        #inspectionMapWorkspace #btnInspectionMapReset {
+            grid-column: 2;
+            width: 30px;
+            padding: .1rem;
+        }
+        #inspectionMapWorkspace #btnDeleteInspectionBatchDraft {
+            grid-column: 3;
+        }
+        #inspectionMapWorkspace .inspection-map-summary {
+            min-height: 34px;
+            grid-template-columns: repeat(5,minmax(0,1fr));
+        }
+        #inspectionMapWorkspace .inspection-map-stat {
+            padding: .18rem .08rem;
+            font-size: .43rem;
+            line-height: 1;
+        }
+        #inspectionMapWorkspace .inspection-map-stat-value {
+            font-size: .78rem;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+        #inspectionMapWorkspace .inspection-map-stat-label {
+            min-height: 0;
+            font-size: .42rem;
+            line-height: 1.05;
+        }
+        #inspectionMapWorkspace .inspection-map-zoom-tools {
+            top: 4px;
+            right: 4px;
+            gap: 1px;
+            padding: 2px;
+            border-radius: .4rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,.12);
+        }
+        #inspectionMapWorkspace .inspection-map-zoom-tools .btn {
+            width: 25px;
+            min-width: 25px;
+            height: 25px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .68rem;
+            border-radius: .3rem;
+        }
+        #inspectionMapWorkspace .inspection-map-zoom-label {
+            min-width: 31px;
+            font-size: .58rem;
+        }
+        #inspectionMapWorkspace .inspection-map-legend {
+            gap: .25rem .4rem;
+            font-size: .48rem;
+            padding: .2rem .3rem;
+        }
+    }
+
 </style>
 </asp:Content>
 
@@ -1022,7 +1110,7 @@
                         <div id="inspectionMapPdfMessage" class="inspection-map-pdf-message">Pilih map untuk menampilkan denah.</div>
                     </div>
                 </div>
-                <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
+                <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span id="inspectionMapAbnormalLegendItem"><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
                 <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pada HP, tap marker untuk membuka checklist langsung. Pada desktop, marker menyorot point di daftar.</div>
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
