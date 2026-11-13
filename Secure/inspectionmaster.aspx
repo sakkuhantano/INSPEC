@@ -150,6 +150,7 @@
                                 </div>
                                 <asp:HiddenField ID="hidSwapPointID" runat="server" ClientIDMode="Static" />
                                 <asp:HiddenField ID="hidSvgPathData" runat="server" ClientIDMode="Static" />
+                                <asp:HiddenField ID="hidShapeAttributes" runat="server" ClientIDMode="Static" />
                                 <asp:Panel ID="pnlEditor" runat="server" Visible="false" CssClass="mt-2">
                                     <div class="border rounded p-2">
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
@@ -181,7 +182,7 @@
                                             <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
                                                 <asp:Literal ID="litEditorPdfBackground" runat="server" />
                                                 <div class="inspection-coordinate-grid"></div>
-                                                <asp:Repeater ID="rptMapElements" runat="server">
+                                                <asp:Repeater ID="rptMapElements" runat="server" Visible="false">
                                                     <ItemTemplate>
                                                         <button type="button" class='inspection-coordinate-marker <%# Convert.ToString(Eval("InspectionPointID")) == hidPointID.Value ? "inspection-coordinate-marker-current" : "" %>'
                                                             style='left:<%# Eval("XPercent") %>%;top:<%# Eval("YPercent") %>%;display:<%# Convert.ToString(Eval("ShapeType")) == "PATH" ? "none" : "flex" %>;'
