@@ -10,7 +10,7 @@
       - MapGroupID is nullable so existing standalone Maps remain valid.
       - Inspection Points continue to belong to MapID; no Point schema change.
       - No Work Order tables or workflows are changed.
-      - Deliberately no dependency on PIP_M_InspectionMapElement.
+      - No legacy drawing-object table is used.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
