@@ -178,7 +178,7 @@
     }
 
     function findNextPendingPoint() {
-        var pending = currentPoints.filter(function (point) {
+        var pending = getVisiblePoints().filter(function (point) {
             var status = getPointStatus(point);
             return status === "INCOMPLETE" || (status === "PENDING" && pointRequiresInspection(point));
         });
@@ -834,6 +834,7 @@
         if (summaryHost) summaryHost.classList.add("d-none");
         if (submitBar) submitBar.classList.add("d-none");
         if (changeButton) changeButton.classList.add("d-none");
+        currentMapId = "";
         selectedGroupId = "";
         renderMapGroupCards();
         closePoint();
@@ -870,25 +871,6 @@
         updateSummary();
         renderPoints();
         window.requestAnimationFrame(function () { renderPdf(map); });
-    }
-
-    function renderMapOptions() {
-        var wrap = document.getElementById("inspectionMapSelectWrap");
-        var select = document.getElementById("inspectionMapSelect");
-        if (!select || !wrap) return;
-        var maps = currentMaps.filter(function (map) { return !!map.MapUrl; });
-        wrap.classList.toggle("d-none", maps.length <= 1);
-        select.innerHTML = maps.map(function (map) {
-            return '<option value="' + esc(map.MapID) + '">' + esc(map.MapCode + " - " + map.MapName + " (v" + map.MapVersion + ")") + '</option>';
-        }).join("");
-        if (maps.length) {
-            if (!maps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
-                currentMapId = String(maps[0].MapID);
-            select.value = currentMapId;
-        } else {
-            currentMapId = "";
-            select.innerHTML = '<option value="">Tanpa denah</option>';
-        }
     }
 
     function setInspectionSectionNavForTab(tabName) {
@@ -1073,17 +1055,6 @@
             switchMapList();
             closePoint();
             resetMapView();
-        });
-
-        var mapSelect = document.getElementById("inspectionMapSelect");
-        if (mapSelect) mapSelect.addEventListener("change", function () {
-            currentMapId = this.value;
-            resetMapView();
-            listPage = 1;
-            renderList();
-            updateSummary();
-            var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(currentMapId); });
-            renderPdf(map || null);
         });
 
         var openChecklist = document.getElementById("btnOpenInspectionPointChecklist");
