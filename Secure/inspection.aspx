@@ -967,6 +967,21 @@
         }
     }
 
+
+    /* Keep the mobile map hint above the legend so it stays inside the S25 viewport. */
+    @media (max-width: 575.98px) {
+        .inspection-map-panel > .inspection-map-canvas { order: 0; }
+        .inspection-map-panel > .inspection-map-hint {
+            order: 1;
+            align-self: flex-start;
+            margin: 0 0 .1rem;
+            padding: .32rem .48rem;
+            font-size: .6rem;
+            line-height: 1.25;
+        }
+        .inspection-map-panel > .inspection-map-legend { order: 2; }
+    }
+
 </style>
 </asp:Content>
 
