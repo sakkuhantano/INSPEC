@@ -398,34 +398,6 @@
             if (window.console && console.error) console.error('Inspection map render error:', error);
         });
     }
-dia.src = url;
-            if (media.complete && media.naturalWidth) { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; }
-            return;
-        }
-        if (!window.pdfjsLib) { if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa file JSCus/pdf.min.js.'; return; }
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
-        window.pdfjsLib.getDocument({ url: url }).promise.then(function (pdf) { return pdf.getPage(1); }).then(function (page) {
-            if (renderVersion !== inspectionPdfRenderVersion) return null;
-            var base = page.getViewport({ scale: 1 }); var width = board.clientWidth;
-            if (!width) throw new Error('Area denah belum terlihat.');
-            var viewport = page.getViewport({ scale: width / base.width });
-            board.style.aspectRatio = base.width + ' / ' + base.height; content.style.width = '100%'; content.style.height = '100%';
-            media.width = Math.floor(viewport.width * window.devicePixelRatio); media.height = Math.floor(viewport.height * window.devicePixelRatio);
-            media.style.width = '100%'; media.style.height = '100%';
-            var context = media.getContext('2d'); context.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-            inspectionPdfRenderTask = page.render({ canvasContext: context, viewport: viewport });
-            return inspectionPdfRenderTask.promise;
-        }).then(function () {
-            if (renderVersion !== inspectionPdfRenderVersion) return;
-            inspectionPdfRenderTask = null;
-            if (status) status.style.display = 'none';
-        }).catch(function (error) {
-            if (renderVersion !== inspectionPdfRenderVersion || (error && error.name === 'RenderingCancelledException')) return;
-            inspectionPdfRenderTask = null;
-            if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat denah: ' + (error && error.message ? error.message : error); }
-            if (window.console && console.error) console.error('Inspection map render error:', error);
-        });
-    }
     document.addEventListener('DOMContentLoaded', function () {
         var draftInput = document.getElementById('fuMapPdf');
         if (draftInput) {
