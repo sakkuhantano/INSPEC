@@ -54,7 +54,10 @@
                             </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Map Group Name</div>
-                                <div class="col-sm-8"><asp:TextBox ID="txtMapGroupName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                <div class="col-sm-8">
+                                    <asp:TextBox ID="txtMapGroupName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" />
+                                    <div class="form-text small">Opsional. Kosongkan Group Code dan Name jika map tidak perlu dikelompokkan.</div>
+                                </div>
                             </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Group Description</div>
