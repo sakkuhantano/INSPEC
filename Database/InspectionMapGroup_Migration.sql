@@ -56,16 +56,33 @@ GO
 IF NOT EXISTS
 (
     SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID('dbo.PIP_M_InspectionMapGroup')
+      AND name = 'UX_PIP_M_InspectionMapGroup_MapScope'
+)
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_M_InspectionMapGroup_MapScope
+        ON dbo.PIP_M_InspectionMapGroup (MapGroupID, CompanyID, LocationID);
+END;
+GO
+
+IF EXISTS
+(
+    SELECT 1
     FROM sys.foreign_keys
     WHERE name = 'FK_PIP_M_InspectionMap_MapGroup'
       AND parent_object_id = OBJECT_ID('dbo.PIP_M_InspectionMap')
 )
 BEGIN
     ALTER TABLE dbo.PIP_M_InspectionMap
-        ADD CONSTRAINT FK_PIP_M_InspectionMap_MapGroup
-        FOREIGN KEY (MapGroupID)
-        REFERENCES dbo.PIP_M_InspectionMapGroup(MapGroupID);
+        DROP CONSTRAINT FK_PIP_M_InspectionMap_MapGroup;
 END;
+GO
+
+ALTER TABLE dbo.PIP_M_InspectionMap
+    ADD CONSTRAINT FK_PIP_M_InspectionMap_MapGroup
+    FOREIGN KEY (MapGroupID, CompanyID, LocationID)
+    REFERENCES dbo.PIP_M_InspectionMapGroup(MapGroupID, CompanyID, LocationID);
 GO
 
 IF NOT EXISTS
