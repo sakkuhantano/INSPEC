@@ -474,6 +474,8 @@
                 var yField = document.getElementById('txtMarkerY');
                 if (xField) xField.value = '';
                 if (yField) yField.value = '';
+                var shapeAttributesField = document.getElementById('hidShapeAttributes');
+                if (shapeAttributesField) shapeAttributesField.value = '{}';
                 var preview = document.getElementById('inspectionCoordinatePreview');
                 if (preview && preview.parentNode) preview.parentNode.removeChild(preview);
                 var swapTargetField = document.getElementById('hidSwapPointID');
@@ -517,6 +519,17 @@
             }
             var shapeSelect = document.getElementById('ddlPointShapeType');
             var pathField = document.getElementById('hidSvgPathData');
+            var shapeAttributesField = document.getElementById('hidShapeAttributes');
+            function updateCircleShapeAttributes(x, y) {
+                if (!shapeAttributesField) return;
+                var radius = 1.25;
+                try {
+                    var saved = JSON.parse(shapeAttributesField.value || '{}');
+                    if (saved && isFinite(Number(saved.r)) && Number(saved.r) > 0) radius = Number(saved.r);
+                } catch (_) { }
+                radius = Math.max(0.2, Math.min(8, radius));
+                shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
+            }
             var drawButton = document.getElementById('btnStartPathDraw');
             var undoButton = document.getElementById('btnUndoPath');
             var clearPathButton = document.getElementById('btnClearPath');
@@ -640,6 +653,8 @@
                 drawMode = false; drawingPath = false; pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
+                var shapeAttributesField = document.getElementById('hidShapeAttributes');
+                if (shapeAttributesField) shapeAttributesField.value = '{}';
                 var activeId = document.getElementById('hidPointID');
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (svg && activeId && activeId.value) {
@@ -704,7 +719,7 @@
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
-                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker')) || zoom <= 1 || event.button !== 0) return;
+                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
@@ -717,7 +732,7 @@
             board.addEventListener('pointerup', function () { dragging = false; });
             board.addEventListener('pointercancel', function () { dragging = false; });
             content.addEventListener('click', function (event) {
-                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-path') : null;
+                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path') : null;
                 if (marker) {
                     event.preventDefault(); event.stopPropagation();
                     var activeId = document.getElementById('hidPointID');
@@ -743,6 +758,7 @@
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
+                if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
                 var preview = document.getElementById('inspectionCoordinatePreview');
