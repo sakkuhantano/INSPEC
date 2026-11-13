@@ -11,6 +11,7 @@
     var currentPdfPage = null;
     var currentPdfFitScale = 1;
     var pdfCanvasRenderTask = null;
+    var pdfCanvasRenderTimer = null;
     var pdfCanvasRenderSequence = 0;
     var pdfRenderSequence = 0;
     var listPage = 1;
@@ -645,7 +646,7 @@
         mapPanY = (mapPanY - localY) * ratio + localY;
         mapZoom = next;
         applyMapTransform();
-        renderPdfCanvasAtZoom();
+        schedulePdfCanvasRender();
     }
 
     function wireMapGestures() {
@@ -713,6 +714,15 @@
         viewport.addEventListener("lostpointercapture", finishPointer);
     }
 
+    function schedulePdfCanvasRender() {
+        if (!currentPdfPage) return;
+        if (pdfCanvasRenderTimer) clearTimeout(pdfCanvasRenderTimer);
+        pdfCanvasRenderTimer = setTimeout(function () {
+            pdfCanvasRenderTimer = null;
+            renderPdfCanvasAtZoom();
+        }, 140);
+    }
+
     async function renderPdfCanvasAtZoom() {
         if (!currentPdfPage) return;
         var canvas = document.getElementById('inspectionMapPdfCanvas');
@@ -759,6 +769,7 @@
         resetMapView();
         currentPdfPage = null;
         currentPdfFitScale = 1;
+        if (pdfCanvasRenderTimer) { clearTimeout(pdfCanvasRenderTimer); pdfCanvasRenderTimer = null; }
         pdfCanvasRenderSequence++;
         if (pdfCanvasRenderTask && pdfCanvasRenderTask.cancel) { try { pdfCanvasRenderTask.cancel(); } catch (_) { } pdfCanvasRenderTask = null; }
         if (currentPdfDocument && currentPdfDocument.destroy) { try { await currentPdfDocument.destroy(); } catch (_) { } currentPdfDocument = null; }
