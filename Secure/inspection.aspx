@@ -236,8 +236,8 @@
             grid-template-columns: repeat(5, minmax(0, 1fr));
         }
         .inspection-map-canvas {
-            min-height: 380px;
-            padding: 6px;
+            min-height: 0;
+            padding: 4px;
         }
         .inspection-map-zoom-tools {
             top: 6px;
