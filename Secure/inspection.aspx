@@ -693,27 +693,40 @@
         .inspection-map-choice-meta{font-size:.54rem}
     }
 
+
+    /* Inspection editor header and compact map selector */
+    .inspection-form-header{padding:.35rem .55rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
+    .inspection-entry-header-actions{margin-left:auto}
+    .inspection-entry-heading{font-size:.76rem;line-height:1.15;white-space:nowrap}
+    .inspection-entry-heading .inspection-muted{font-size:.66rem}
+    .inspection-form-header #inspectionFormTitle{font-size:.95rem;max-width:min(42vw,420px)}
+    .inspection-map-picker{padding:.35rem .5rem!important}
+    .inspection-map-picker-heading{display:none}
+    .inspection-map-choice-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,205px),230px));gap:.35rem;justify-content:start}
+    .inspection-map-choice-card{display:grid;grid-template-columns:25px minmax(0,1fr);grid-template-rows:auto auto;column-gap:.4rem;row-gap:.08rem;align-items:center;min-height:0;height:52px;padding:.35rem .45rem;border-radius:.5rem;box-shadow:none}
+    .inspection-map-choice-card:hover,.inspection-map-choice-card:focus{transform:none;box-shadow:0 2px 6px rgba(15,23,42,.08)}
+    .inspection-map-choice-icon{grid-column:1;grid-row:1/3;width:23px;height:23px;font-size:.78rem}
+    .inspection-map-choice-title{grid-column:2;grid-row:1;font-size:.73rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .inspection-map-choice-code{grid-column:2;grid-row:2;font-size:.6rem;line-height:1.1}
+    .inspection-map-choice-description,.inspection-map-choice-meta{display:none}
+    @media(max-width:575.98px){
+        .inspection-form-header{align-items:flex-start!important;padding:.35rem}
+        .inspection-form-header #inspectionFormTitle{max-width:38vw;font-size:.82rem}
+        .inspection-entry-heading{font-size:.68rem}
+        .inspection-entry-heading .inspection-muted{font-size:.58rem}
+        .inspection-entry-header-actions{gap:.3rem!important}
+        .inspection-entry-header-actions .btn{font-size:.68rem;padding:.22rem .4rem}
+        .inspection-map-choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem}
+        .inspection-map-choice-card{height:48px;padding:.3rem}
+        .inspection-map-choice-title{font-size:.67rem}
+        .inspection-map-choice-code{font-size:.55rem}
+    }
+
 </style>
 </asp:Content>
 
 <asp:Content ID="Content3" ContentPlaceHolderID="stickybar" runat="server">
-<div class="sticky-bar-wrapper w-100">
-    <div class="d-flex align-items-center justify-content-between gap-2 p-2">
-        <div class="flex-grow-1 text-center">
-            <div class="fw-bold">Inspection Entry</div>
-            <div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div>
-        </div>
-        <div class="d-flex align-items-center justify-content-end gap-2 flex-shrink-0">
-            <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap">
-                <i class="bi bi-arrow-left"></i> Back to List
-            </button>
-            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary d-none text-nowrap">
-                <i class="bi bi-arrow-left"></i> Back to List
-            </button>
-            
-        </div>
-    </div>
-</div>
+<div class="sticky-bar-wrapper w-100"></div>
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
@@ -900,7 +913,17 @@
     </div>
 
     <div id="inspectionInputPanel" class="d-none">
-    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center gap-2 mb-2"><h6 id="inspectionFormTitle" class="mb-0 text-truncate flex-shrink-1">Checklist</h6><button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button></div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
+    <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+            <h6 id="inspectionFormTitle" class="mb-0 text-truncate">Checklist</h6>
+            <button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button>
+        </div>
+        <div class="inspection-entry-header-actions d-flex align-items-center justify-content-end flex-wrap gap-2">
+            <div class="inspection-entry-heading text-end"><div class="fw-semibold">Inspection Entry</div><div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div></div>
+            <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
+            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
+        </div>
+    </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
