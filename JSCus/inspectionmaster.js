@@ -683,14 +683,25 @@
                 var activeId = document.getElementById('hidPointID');
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (svg) {
-                    var selector = activeId && activeId.value
-                        ? '.inspection-coordinate-path[data-point-id="' + activeId.value + '"]'
-                        : '#inspectionCoordinatePathPreview';
-                    svg.querySelectorAll(selector).forEach(function (oldPath) { oldPath.parentNode.removeChild(oldPath); });
+                    // Clear both shape types belonging to the active point.
+                    // The orange circle is a separately-rendered current-point overlay,
+                    // so removing only the PATH leaves that old dot visible.
+                    if (activeId && activeId.value) {
+                        svg.querySelectorAll(
+                            '.inspection-coordinate-path[data-point-id="' + activeId.value + '"],' +
+                            '.inspection-coordinate-circle[data-point-id="' + activeId.value + '"]'
+                        ).forEach(function (oldShape) {
+                            if (oldShape.parentNode) oldShape.parentNode.removeChild(oldShape);
+                        });
+                    }
+                    var previewPath = svg.querySelector('#inspectionCoordinatePathPreview');
+                    if (previewPath && previewPath.parentNode) previewPath.parentNode.removeChild(previewPath);
                 }
                 if (pathPreview && pathPreview.parentNode) pathPreview.parentNode.removeChild(pathPreview);
                 pathPreview = null;
-                pathStatusText('Path dihapus. Klik map untuk menempatkan titik circle, lalu Save Inspection Point.');
+                var coordinatePreview = document.getElementById('inspectionCoordinatePreview');
+                if (coordinatePreview && coordinatePreview.parentNode) coordinatePreview.parentNode.removeChild(coordinatePreview);
+                pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 if (this.value === 'CIRCLE') {
