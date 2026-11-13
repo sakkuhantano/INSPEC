@@ -819,7 +819,7 @@ SET MapCode=@MapCode, MapName=@MapName, Description=@Description, MapGroupID=@Ma
     InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"])));
+                                MapParameters(oldID, code, name, Convert.ToString(old.Rows[0]["ImagePath"]), mapGroupID));
                         }
                         else if (hidMapIsDraft.Value == "1")
                         {
@@ -830,7 +830,7 @@ SET MapCode=@MapCode, MapName=@MapName, ImagePath=@ImagePath, Description=@Descr
     InspectionTypeCode=@TypeCode, InspectionTypeDetailCode=@DetailCode,
     RequireAllPoints=@RequireAllPoints, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
 WHERE MapID=@MapID AND CompanyID=@CompanyID AND LocationID=@LocationID",
-                                MapParameters(oldID, code, name, imagePath));
+                                MapParameters(oldID, code, name, imagePath, mapGroupID));
                         }
                         else
                         {
@@ -1020,13 +1020,13 @@ SELECT @MapGroupID AS MapGroupID;",
             }
         }
 
-        private SqlParameter[] MapParameters(long mapID, string code, string name, string imagePath)
+        private SqlParameter[] MapParameters(long mapID, string code, string name, string imagePath, long? mapGroupID)
         {
             return new SqlParameter[] {
                 new SqlParameter("@MapID", mapID), new SqlParameter("@MapCode", code),
                 new SqlParameter("@MapName", name), new SqlParameter("@ImagePath", imagePath),
                 new SqlParameter("@Description", txtMapDescription.Text.Trim()),
-                new SqlParameter("@MapGroupID", (object)SaveOrGetMapGroup() ?? DBNull.Value),
+                new SqlParameter("@MapGroupID", (object)mapGroupID ?? DBNull.Value),
                 new SqlParameter("@TypeCode", ddlInspectionType.SelectedValue),
                 new SqlParameter("@DetailCode", ddlInspectionDetail.SelectedValue),
                 new SqlParameter("@RequireAllPoints", chkRequireAllPoints.Checked),
