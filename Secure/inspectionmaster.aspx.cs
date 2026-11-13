@@ -1001,7 +1001,7 @@ END
 ELSE
 BEGIN
     UPDATE dbo.PIP_M_InspectionMapGroup
-    SET GroupName=@GroupName, Description=@Description, IsActive=1,
+    SET GroupName=@GroupName, Description=CASE WHEN @Description='' THEN Description ELSE @Description END, IsActive=1,
         UpdateUser=@UpdateUser, UpdateDate=GETDATE()
     WHERE MapGroupID=@MapGroupID AND CompanyID=@CompanyID AND LocationID=@LocationID;
 END
