@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionmaster.aspx.cs" Inherits="INSPEC.Secure.inspectionmaster" %>
+<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionmaster.aspx.cs" Inherits="INSPEC.Secure.inspectionmaster" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <%@ Register Src="~/UserControls/UC_FilterSearchList_2.ascx" TagPrefix="uc1" TagName="UC_FilterSearchList_2" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -66,20 +66,22 @@
                                 </div>
                             </div>
                             </div>
-                                        <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">
-                                                <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
-                                            </div>
-                                            <div class="col-sm-8">
-                                                <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
-                                            </div>
-                                        </div>
-                                        <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">Inspection Detail</div>
-                                            <div class="col-sm-8">
-                                                <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" />
-                                            </div>
-                                        </div>
+                        </div>
+                        <div class="col-sm-6 mb-1">
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">
+                                    <asp:LinkButton ID="lBtnInspectionType" runat="server" Text="Inspection Type" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" />
+                                </div>
+                                <div class="col-sm-8">
+                                    <asp:DropDownList ID="ddlInspectionType" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" AutoPostBack="true" OnSelectedIndexChanged="ddlInspectionType_SelectedIndexChanged" />
+                                </div>
+                            </div>
+                            <div class="row mt-1">
+                                <div class="col-sm-4 d-flex align-items-center">Inspection Detail</div>
+                                <div class="col-sm-8">
+                                    <asp:DropDownList ID="ddlInspectionDetail" runat="server" CssClass="form-select form-select-sm rounded fz-custom1" />
+                                </div>
+                            </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Inspection Coverage</div>
                                 <div class="col-sm-8">
@@ -87,8 +89,6 @@
                                     <div class="form-text small">Centang untuk lampu dan objek yang seluruhnya harus dites. Kosongkan untuk car park: hanya titik yang ada kendaraan perlu diinspeksi.</div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-sm-6 mb-1">
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Floor Plan (PDF / JPG) <span class="text-muted small">(optional)</span></div>
                                 <div class="col-sm-8">
