@@ -8,6 +8,10 @@
     var currentPoints = [];
     var currentMapId = "";
     var currentPdfDocument = null;
+    var currentPdfPage = null;
+    var currentPdfFitScale = 1;
+    var pdfCanvasRenderTask = null;
+    var pdfCanvasRenderSequence = 0;
     var pdfRenderSequence = 0;
     var listPage = 1;
     var listPageSize = 20;
@@ -641,6 +645,7 @@
         mapPanY = (mapPanY - localY) * ratio + localY;
         mapZoom = next;
         applyMapTransform();
+        renderPdfCanvasAtZoom();
     }
 
     function wireMapGestures() {
@@ -708,6 +713,43 @@
         viewport.addEventListener("lostpointercapture", finishPointer);
     }
 
+    async function renderPdfCanvasAtZoom() {
+        if (!currentPdfPage) return;
+        var canvas = document.getElementById('inspectionMapPdfCanvas');
+        if (!canvas) return;
+        var sequence = ++pdfCanvasRenderSequence;
+        if (pdfCanvasRenderTask && pdfCanvasRenderTask.cancel) {
+            try { pdfCanvasRenderTask.cancel(); } catch (_) { }
+        }
+        var ratio = Math.min(window.devicePixelRatio || 1, 2);
+        var renderScale = currentPdfFitScale * mapZoom * ratio;
+        var viewport = currentPdfPage.getViewport({ scale: renderScale });
+        var displayViewport = currentPdfPage.getViewport({ scale: currentPdfFitScale });
+        canvas.width = Math.max(1, Math.floor(viewport.width));
+        canvas.height = Math.max(1, Math.floor(viewport.height));
+        canvas.style.width = Math.floor(displayViewport.width) + 'px';
+        canvas.style.height = Math.floor(displayViewport.height) + 'px';
+        var stage = document.getElementById('inspectionMapPdfStage');
+        if (stage) {
+            stage.style.width = canvas.style.width;
+            stage.style.minHeight = '0';
+        }
+        var context = canvas.getContext('2d');
+        try {
+            var task = currentPdfPage.render({ canvasContext: context, viewport: viewport });
+            pdfCanvasRenderTask = task;
+            await task.promise;
+            if (sequence !== pdfCanvasRenderSequence) return;
+            pdfCanvasRenderTask = null;
+        } catch (error) {
+            if (sequence !== pdfCanvasRenderSequence) return;
+            pdfCanvasRenderTask = null;
+            if (!(error && (error.name === 'RenderingCancelledException' || /cancel/i.test(error.message || '')))) {
+                console.error('Inspection map PDF zoom render failed:', error);
+            }
+        }
+    }
+
     async function renderPdf(map) {
         var requestId = ++pdfRenderSequence;
         var message = document.getElementById('inspectionMapPdfMessage');
@@ -715,6 +757,10 @@
         var stage = document.getElementById('inspectionMapPdfStage');
         if (!canvas || !stage) return;
         resetMapView();
+        currentPdfPage = null;
+        currentPdfFitScale = 1;
+        pdfCanvasRenderSequence++;
+        if (pdfCanvasRenderTask && pdfCanvasRenderTask.cancel) { try { pdfCanvasRenderTask.cancel(); } catch (_) { } pdfCanvasRenderTask = null; }
         if (currentPdfDocument && currentPdfDocument.destroy) { try { await currentPdfDocument.destroy(); } catch (_) { } currentPdfDocument = null; }
         if (requestId !== pdfRenderSequence) return;
         var previousImage = stage.querySelector('img.inspection-map-image');
@@ -779,18 +825,16 @@
             currentPdfDocument = loadedDocument;
             var page = await currentPdfDocument.getPage(1);
             if (requestId !== pdfRenderSequence) return;
+            currentPdfPage = page;
             var base = page.getViewport({ scale: 1 });
             var mapViewport = document.getElementById('inspectionMapCanvas');
             var width = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
             var height = Math.max(260, mapViewport.clientHeight - 16);
             var fitScale = Math.min(width / base.width, height / base.height);
-            // Fit the full PDF page into the larger map viewport without stretching.
-            // Render at high backing resolution for crisp markers and floor-plan detail.
-            var ratio = Math.min(window.devicePixelRatio || 1, 2); var viewport = page.getViewport({ scale: fitScale * ratio });
-            canvas.width = Math.floor(viewport.width); canvas.height = Math.floor(viewport.height);
-            canvas.style.width = Math.floor(viewport.width / ratio) + 'px'; canvas.style.height = Math.floor(viewport.height / ratio) + 'px';
-            stage.style.width = canvas.style.width; stage.style.minHeight = '0';
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            // Keep the canvas at its fitted CSS size, but render enough backing pixels
+            // for the current zoom level. Zoom changes trigger a fresh PDF.js render.
+            currentPdfFitScale = fitScale;
+            await renderPdfCanvasAtZoom();
             if (requestId !== pdfRenderSequence) return;
             if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
         } catch (error) {
