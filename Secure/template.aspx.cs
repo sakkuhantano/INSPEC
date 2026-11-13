@@ -897,7 +897,7 @@ WHERE a.SectionID = @SectionID
                 for (int i = 1; i <= 7; i++)
                     dtGroup.Columns.Add("C" + i + "", typeof(System.String));
                 DataTable dtRepeatConfig = new DataTable();
-                for (int i = 1; i <= 9; i++)
+                for (int i = 1; i <= 10; i++)
                     dtRepeatConfig.Columns.Add("C" + i, typeof(System.String));
                 DataTable dtRepeatField = new DataTable();
                 for (int i = 1; i <= 13; i++)
