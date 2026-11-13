@@ -4,7 +4,7 @@
 
     This is an additive schema change. It intentionally does NOT migrate or drop
     the legacy ItemGroup table: existing GROUP records are left untouched.
-    New templates use ItemType='REPEAT' and the tables/types below.
+    New templates use ItemType='REPEAT' and the tables below.
 
     REPEAT modes:
       FIELDS  = one logical object (ObjectIndex 0), many dynamic child fields.
@@ -70,7 +70,7 @@ BEGIN
 END;
 GO
 
-/* Add boundary semantics to existing REPEAT fields; legacy rows remain inclusive. */
+/* Add boundary semantics to REPEAT fields; existing rows remain inclusive. */
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MinInclusive') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
         ADD MinInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MinInclusive DEFAULT (1);
@@ -157,69 +157,3 @@ IF NOT EXISTS
         ADD CONSTRAINT PK_PIP_T_InspectionResultValue
         PRIMARY KEY CLUSTERED (InspectionResultID,ObjectIndex,FieldName);
 GO
-
-/* Dedicated template/WO TVPs keep legacy GROUP contracts backward compatible.
-   Inspection STANDARD/BATCH reuse the existing Type_N_Tbl_C5 spare columns for ObjectIndex. */
-IF TYPE_ID('dbo.Type_Tbl_RepeatConfig') IS NULL
-    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatConfig AS TABLE
-    (
-        C1 VARCHAR(8000) NULL, -- IDItem
-        C2 VARCHAR(8000) NULL, -- RuntimeItemID
-        C3 VARCHAR(8000) NULL, -- RepeatMode
-        C4 VARCHAR(8000) NULL, -- ColumnCount
-        C5 NVARCHAR(4000) NULL, -- ObjectLabel
-        C6 VARCHAR(8000) NULL, -- CountMode
-        C7 VARCHAR(8000) NULL, -- FixedCount
-        C8 VARCHAR(8000) NULL, -- MinCount
-        C9 VARCHAR(8000) NULL  -- MaxCount
-    )');
-GO
-
-IF TYPE_ID('dbo.Type_Tbl_RepeatField') IS NULL
-    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatField AS TABLE
-    (
-        C1 VARCHAR(8000) NULL, -- RuntimeItemID
-        C2 VARCHAR(8000) NULL, -- FieldKey
-        C3 NVARCHAR(4000) NULL, -- FieldLabel
-        C4 VARCHAR(8000) NULL, -- FieldType
-        C5 NVARCHAR(4000) NULL, -- OptionList
-        C6 NVARCHAR(4000) NULL, -- Unit
-        C7 VARCHAR(8000) NULL, -- MinValue
-        C8 VARCHAR(8000) NULL, -- MaxValue
-        C9 VARCHAR(8000) NULL, -- IsRequired
-        C10 NVARCHAR(4000) NULL, -- GroupName
-        C11 VARCHAR(8000) NULL  -- DisplayOrder
-    )');
-GO
-
-/* V2 adds explicit inclusive/exclusive flags without breaking the original TVP type. */
-IF TYPE_ID('dbo.Type_Tbl_RepeatFieldV2') IS NULL
-    EXEC('CREATE TYPE dbo.Type_Tbl_RepeatFieldV2 AS TABLE
-    (
-        C1 VARCHAR(8000) NULL, -- RuntimeItemID
-        C2 VARCHAR(8000) NULL, -- FieldKey
-        C3 NVARCHAR(4000) NULL, -- FieldLabel
-        C4 VARCHAR(8000) NULL, -- FieldType
-        C5 NVARCHAR(4000) NULL, -- OptionList
-        C6 NVARCHAR(4000) NULL, -- Unit
-        C7 VARCHAR(8000) NULL, -- MinValue
-        C8 VARCHAR(8000) NULL, -- MaxValue
-        C9 VARCHAR(8000) NULL, -- IsRequired
-        C10 NVARCHAR(4000) NULL, -- GroupName
-        C11 VARCHAR(8000) NULL, -- DisplayOrder
-        C12 VARCHAR(8000) NULL, -- MinInclusive
-        C13 VARCHAR(8000) NULL  -- MaxInclusive
-    )');
-GO
-
-IF TYPE_ID('dbo.Type_Tbl_WORepeatValue') IS NULL
-    EXEC('CREATE TYPE dbo.Type_Tbl_WORepeatValue AS TABLE
-    (
-        C1 VARCHAR(8000) NULL, -- KeyHD
-        C2 VARCHAR(8000) NULL, -- IDItem
-        C3 VARCHAR(8000) NULL, -- ObjectIndex
-        C4 VARCHAR(8000) NULL, -- FieldKey
-        C5 NVARCHAR(4000) NULL  -- Value
-    )');
-GO
-
