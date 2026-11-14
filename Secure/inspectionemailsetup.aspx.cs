@@ -118,8 +118,8 @@ ORDER BY S.SectionID",
 
         private void BindChiefEmployees()
         {
-            BindEmployees(ddlChiefEng, null, ddlChiefEngSection.SelectedValue);
-            BindEmployees(ddlChiefSec, null, ddlChiefSecSection.SelectedValue);
+            BindEmployees(ddlChiefEng, ddlChiefEngSection.SelectedValue);
+            BindEmployees(ddlChiefSec, ddlChiefSecSection.SelectedValue);
         }
 
         private void BindSPVEmployees()
@@ -127,36 +127,17 @@ ORDER BY S.SectionID",
             BindEmployees(ddlSPV, null, ddlSection.SelectedValue);
         }
 
-        private void BindEmployees(DropDownList target, string profitCenterNo, string sectionID)
+        private void BindEmployees(DropDownList target, string sectionID)
         {
             target.Items.Clear();
             target.Items.Add(new ListItem("-- Pilih Employee --", ""));
+            if (String.IsNullOrWhiteSpace(sectionID)) return;
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt;
-                if (!String.IsNullOrWhiteSpace(profitCenterNo))
-                {
-                    dt = br.EQueryP(@"
-SELECT DISTINCT E.EmployeeID, E.Name, ISNULL(E.emailaddress,'') AS EmailAddress
+                DataTable dt = br.EQueryP(@"
+SELECT E.EmployeeID,E.Name,ISNULL(E.emailaddress,'') AS EmailAddress
 FROM dbo.M_HRD_Employee E
-INNER JOIN dbo.PIP_M_Section S ON S.SectionID=E.SectionID
-WHERE E.CompanyID=@CompanyID
-  AND S.ProfitCenterNo=@ProfitCenterNo
-  AND ISNULL(E.TerminationDate,'')=''
-ORDER BY E.Name, E.EmployeeID",
-                        new SqlParameter[] {
-                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                            new SqlParameter("@ProfitCenterNo", profitCenterNo)
-                        });
-                }
-                else
-                {
-                    if (String.IsNullOrWhiteSpace(sectionID)) return;
-                    dt = br.EQueryP(@"
-SELECT E.EmployeeID, E.Name, ISNULL(E.emailaddress,'') AS EmailAddress
-FROM dbo.M_HRD_Employee E
-WHERE E.CompanyID=@CompanyID
-  AND E.SectionID=@SectionID
+WHERE E.CompanyID=@CompanyID AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
               WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
@@ -164,14 +145,12 @@ WHERE E.CompanyID=@CompanyID
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
               WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
                 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-ORDER BY E.Name, E.EmployeeID",
-                        new SqlParameter[] {
-                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                            new SqlParameter("@LocationID", Master.Mn_LocationID),
-                            new SqlParameter("@SectionID", sectionID)
-                        });
-                }
-
+ORDER BY E.Name,E.EmployeeID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@SectionID", sectionID)
+                    });
                 foreach (DataRow row in dt.Rows)
                 {
                     string employeeID = Convert.ToString(row["EmployeeID"]);
@@ -248,12 +227,12 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
 
         protected void ddlChiefEngSection_SelectedIndexChanged(object sender, EventArgs e)
         {
-            BindEmployees(ddlChiefEng, null, ddlChiefEngSection.SelectedValue);
+            BindEmployees(ddlChiefEng, ddlChiefEngSection.SelectedValue);
         }
 
         protected void ddlChiefSecSection_SelectedIndexChanged(object sender, EventArgs e)
         {
-            BindEmployees(ddlChiefSec, null, ddlChiefSecSection.SelectedValue);
+            BindEmployees(ddlChiefSec, ddlChiefSecSection.SelectedValue);
         }
 
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
