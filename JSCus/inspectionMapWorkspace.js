@@ -1174,7 +1174,7 @@
 
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
         if (checklistTab) checklistTab.addEventListener("click", function () {
-            if (currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
+            if (currentMapRecord && ["BATCH", "LIGHTNING"].indexOf(String(currentMapRecord.InspectionMode || "").toUpperCase()) >= 0 &&
                 !Number(currentMapRecord.ActiveInspectionPointID || 0)) {
                 if (typeof showToast === "function")
                     showToast("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
