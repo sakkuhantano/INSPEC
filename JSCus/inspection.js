@@ -484,6 +484,10 @@ async function loadInspectionCache(includeAllTemplates) {
         )
     );
 
+    if (navigator.onLine) {
+        await cacheInspectionMapSetupsForOfflineUse();
+    }
+
     const typeSelect = document.getElementById("selInspectionType");
     typeSelect.innerHTML = '<option value="">Pilih Inspection Type...</option>' +
         inspectionTypes.map(type =>
@@ -491,6 +495,64 @@ async function loadInspectionCache(includeAllTemplates) {
             escInspection(type.InspectionTypeCode + " - " + type.InspectionTypeName) + '</option>'
         ).join("");
     resetDetailAndTemplateOptions();
+}
+
+async function cacheInspectionMapSetupsForOfflineUse() {
+    const storeName = db.objectStoreNames.contains("inspection_types_scoped")
+        ? "inspection_types_scoped" : "inspection_types";
+    let changed = false;
+    for (const type of inspectionTypes) {
+        if (!isInspectionMapMode(type.InspectionMode)) continue;
+        type.BatchMapSetups = type.BatchMapSetups || {};
+        const details = inspectionDetails.filter(detail =>
+            String(detail.InspectionTypeCode || "") === String(type.InspectionTypeCode || ""));
+        for (const detail of details) {
+            const key = String(detail.InspectionTypeDetailCode || "").toUpperCase();
+            if (!key) continue;
+            try {
+                const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({
+                        inspectionTypeCode: type.InspectionTypeCode,
+                        inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+                        employeeId: inspectionLogin.employeeid,
+                        companyId: inspectionCompanyID,
+                        locationId: inspectionLocationID
+                    })
+                });
+                const payload = await response.json();
+                if (!response.ok) throw new Error((payload && (payload.Message || payload.ExceptionMessage)) || "Map setup request failed.");
+                const setup = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+                if (!setup || setup.success !== true || !Array.isArray(setup.points)) continue;
+                for (const map of (setup.maps || [])) {
+                    if (!map.MapUrl || map.MapBlob || map.PdfBlob) continue;
+                    try {
+                        const mapResponse = await fetch(map.MapUrl, { cache: "no-store" });
+                        if (!mapResponse.ok) continue;
+                        map.MapBlob = await mapResponse.blob();
+                    } catch (mapError) {
+                        console.warn("Inspection map could not be cached for offline use:", map.MapName, mapError);
+                    }
+                }
+                type.BatchMapSetups[key] = setup;
+                changed = true;
+            } catch (error) {
+                console.warn("Inspection map setup cache refresh failed:", type.InspectionTypeCode, key, error);
+            }
+        }
+    }
+    if (!changed) return;
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        inspectionTypes.forEach(type => {
+            if (isInspectionMapMode(type.InspectionMode)) store.put(type);
+        });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan cache Inspection Map."));
+        tx.onabort = () => reject(tx.error || new Error("Penyimpanan cache Inspection Map dibatalkan."));
+    });
 }
 
 function readInspectionStore(storeName) {
