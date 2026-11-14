@@ -18,6 +18,9 @@
     <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert mb-3">
         <asp:Literal ID="litMessage" runat="server" />
     </asp:Panel>
+    <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">
+        Email routing dan outbox sudah tersedia, tetapi SMTP belum siap mengirim. Isi <strong>smtpFrom</strong> pada Web.config dan pastikan relay SMTP menerima sender tersebut. Notifikasi akan tetap tersimpan di outbox dan dicoba ulang.
+    </asp:Panel>
 
     <div class="card email-setup-card mb-3">
         <div class="card-header py-3"><i class="bi bi-diagram-3 me-2"></i>Approval recipients per Company + Location</div>
