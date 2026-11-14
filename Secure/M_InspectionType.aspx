@@ -268,6 +268,17 @@
             </div>
 
             <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">Inspection Mode</div>
+                <div class="col-sm-8">
+                    <asp:DropDownList ID="ddlInspectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
+                        <asp:ListItem Text="Batch Map" Value="BATCH"></asp:ListItem>
+                        <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
+                    </asp:DropDownList>
+                    <small class="text-muted d-block mx-1">Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian.</small>
+                </div>
+            </div>
+            <div class="row mt-1">
                 <div class="col-sm-4 d-flex align-items-center">
                     Grouping By
                 </div>
