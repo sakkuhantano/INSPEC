@@ -16,6 +16,7 @@ let inspectionPhotoBaseline = null;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionBatchValidationState = { errors: [], index: -1 };
 let activeInspectionScheduleTime = "";
+let returnedInspectionDeepLinkHandled = false;
 
 function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
@@ -3285,6 +3286,18 @@ async function refreshSavedInspectionList() {
 
     renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
     renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
+
+    if (!returnedInspectionDeepLinkHandled && window.location && window.location.search) {
+        const query = new URLSearchParams(window.location.search);
+        const requestedInspectionId = Number(query.get("inspectionId") || 0);
+        if (requestedInspectionId > 0) {
+            const returned = returnedServerInspectionRecords.find(item => Number(item.InspectionID) === requestedInspectionId);
+            if (returned) {
+                returnedInspectionDeepLinkHandled = true;
+                window.setTimeout(() => openServerReturnedInspection(requestedInspectionId), 120);
+            }
+        }
+    }
 }
 
 async function openServerReturnedInspection(inspectionId) {
