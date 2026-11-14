@@ -5146,8 +5146,15 @@ function renderVersionStructure(data, isNewTemplate=false)
     );
     initTooltips();
     groupData = [];
-    // version properties panel
-        showVersionProperties(data.VersionInfo, isNewTemplate);
+    // Keep Template + Version properties combined while the Template is still unsaved.
+    // Once a persisted Template is selected, the normal Version-only panel is used.
+        showVersionProperties(
+            data.VersionInfo,
+            isNewTemplate || (
+                currentTemplate &&
+                Number(currentTemplate.IDTemplate) === 0
+            )
+        );
         // readonly mode
         captureOriginalState();
     if (!isNewTemplate) {
