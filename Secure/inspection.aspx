@@ -188,124 +188,33 @@
     .inspection-map-point-sheet{position:fixed;z-index:1085;bottom:1rem}
     @media(max-width:575.98px){.inspection-map-canvas{min-height:260px;padding:6px}.inspection-map-point-sheet{bottom:.5rem}}
 
-    /* Batch map workspace: compact, touch-friendly layout on phones. */
+    /* Lightning approval schedule tabs only. Do not override shared map/layout
+       selectors here: Batch and Standard inspection use the same stylesheet. */
     @media (max-width: 575.98px) {
-    .inspection-lightning-schedule-tabs {
-        display: flex;
-        flex-wrap: nowrap;
-        gap: .35rem;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding: .25rem .1rem .45rem;
-        scrollbar-width: thin;
-    }
-    .inspection-lightning-schedule-tabs .nav-link {
-        display: inline-flex;
-        align-items: center;
-        gap: .4rem;
-        flex: 0 0 auto;
-        white-space: nowrap;
-        border: 1px solid var(--bs-border-color);
-        border-radius: .5rem;
-        padding: .45rem .75rem;
-        font-size: .84rem;
-    }
-    .inspection-lightning-schedule-tabs .nav-link.active {
-        font-weight: 700;
-        background: var(--bs-primary-bg-subtle);
-        border-color: var(--bs-primary-border-subtle);
-    }
-
-    .inspection-map-workspace {
-            min-height: calc(100dvh - 105px);
-            overflow: visible;
+        .inspection-lightning-schedule-tabs {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: .35rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: .25rem .1rem .45rem;
+            scrollbar-width: thin;
         }
-        .inspection-map-toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr);
-            align-items: stretch;
-            gap: .55rem;
-            padding: .65rem;
-        }
-        .inspection-map-title-wrap {
-            width: 100%;
-            min-width: 0;
-        }
-        .inspection-map-title {
-            white-space: normal;
-            overflow-wrap: anywhere;
-        }
-        .inspection-map-actions {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            width: 100%;
-            min-width: 0;
+        .inspection-lightning-schedule-tabs .nav-link {
+            display: inline-flex;
+            align-items: center;
             gap: .4rem;
-        }
-        .inspection-map-actions > .btn-group {
-            display: flex;
-            width: 100%;
-            min-width: 0;
-        }
-        .inspection-map-actions > .btn-group > .btn {
-            flex: 1 1 50%;
-            min-width: 0;
-            padding: .42rem .3rem;
+            flex: 0 0 auto;
             white-space: nowrap;
+            border: 1px solid var(--bs-border-color);
+            border-radius: .5rem;
+            padding: .45rem .75rem;
+            font-size: .84rem;
         }
-        .inspection-map-actions > .btn {
-            width: 100%;
-            min-width: 0;
-            min-height: 36px;
-            padding: .38rem .35rem;
-            white-space: normal;
-            line-height: 1.15;
-        }
-        #btnDeleteInspectionBatchDraft {
-            grid-column: 1 / -1;
-        }
-        .inspection-map-summary {
-            grid-template-columns: repeat(5, minmax(0, 1fr));
-        }
-        .inspection-map-canvas {
-            min-height: 0;
-            padding: 0;
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-        }
-
-        .inspection-map-zoom-tools {
-            position: absolute !important;
-            top: 4px !important;
-            right: 4px !important;
-            z-index: 20;
-            margin: 0 !important;
-        }
-
-        .inspection-map-pdf-stage {
-            margin: 0 auto !important;
-        }
-        .inspection-map-zoom-tools {
-            top: 6px;
-            right: 6px;
-            max-width: calc(100% - 12px);
-        }
-        .inspection-map-legend {
-            display: flex;
-            flex-wrap: wrap;
-            position: absolute;
-            left: 6px;
-            right: 6px;
-            bottom: 6px;
-            max-width: none;
-            font-size: .58rem;
-        }
-        .inspection-map-point-sheet {
-            left: 8px;
-            right: 8px;
-            width: auto;
-            bottom: max(.5rem, env(safe-area-inset-bottom));
+        .inspection-lightning-schedule-tabs .nav-link.active {
+            font-weight: 700;
+            background: var(--bs-primary-bg-subtle);
+            border-color: var(--bs-primary-border-subtle);
         }
     }
 
