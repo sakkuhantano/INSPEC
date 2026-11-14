@@ -1736,6 +1736,8 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string inspectionTypeDetailCode, string templateId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
+            try { DispatchInspectionEmailOutbox(10); }
+            catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
@@ -2033,6 +2035,8 @@ ORDER BY P.SeqNo",
             string inspectionTypeDetailCode, string templateId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
+            try { DispatchInspectionEmailOutbox(10); }
+            catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Chief Engineering / Chief Security identity is required.");
