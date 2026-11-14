@@ -5109,17 +5109,35 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
             photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
 };
 
-async function renderInspectionApprovalBatchMap(maps, points) {
+async function renderInspectionApprovalBatchMap(maps, points, schedules) {
     const host = document.getElementById("inspectionApprovalBatchMap");
     if (!host) return;
     maps = Array.isArray(maps) ? maps : [];
     points = Array.isArray(points) ? points : [];
+    schedules = Array.isArray(schedules) ? schedules : [];
+    const isLightning = schedules.length > 0;
+    let activeScheduleTime = isLightning ? String(schedules[0].ScheduleTime || schedules[0]) : "";
+    const visiblePoints = function () {
+        return isLightning ? points.filter(point => String(point.ScheduleTime || "") === activeScheduleTime) : points;
+    };
     if (!points.length) { host.innerHTML = ""; return; }
 
     const hasAnyFloorPlan = maps.some(map => !!String(map.MapUrl || "").trim());
     host.innerHTML = '<div class="border rounded-3 p-3 mb-3">' +
+        (isLightning ? '<div id="inspectionApprovalLightningSchedules" class="inspection-lightning-schedule-tabs nav nav-tabs mb-3" role="tablist" aria-label="Jadwal Lightning">' +
+            schedules.map(item => {
+                const time = String(item.ScheduleTime || item);
+                const count = points.filter(point => String(point.ScheduleTime || "") === time &&
+                    ["DONE", "ABNORMAL"].indexOf(String(point.Status || "").toUpperCase()) >= 0).length;
+                return '<button type="button" class="nav-link' + (time === activeScheduleTime ? ' active' : '') +
+                    '" data-approval-schedule="' + escInspection(time) + '">' + escInspection(time) +
+                    ' <span class="small opacity-75">' + count + '/' +
+                    points.filter(point => String(point.ScheduleTime || "") === time).length + '</span></button>';
+            }).join("") + '</div>' : '') +
         '<div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">' +
-            '<div><div class="fw-bold"><i class="bi bi-clipboard2-check me-2"></i>BATCH INSPECTION REVIEW</div><small class="text-muted">' + points.length + ' inspected point(s)</small></div>' +
+            '<div><div class="fw-bold"><i class="bi bi-clipboard2-check me-2"></i>' +
+                (isLightning ? 'LIGHTNING DAILY REVIEW' : 'BATCH INSPECTION REVIEW') +
+                '</div><small class="text-muted">' + (isLightning ? schedules.length + ' schedule(s)' : points.length + ' inspected point(s)') + '</small></div>' +
             (maps.length > 1 ? '<select id="inspectionApprovalMapSelect" class="form-select form-select-sm" style="max-width:260px">' +
                 maps.map(map => '<option value="' + escInspection(map.MapID) + '">' + escInspection(map.MapCode + " - " + map.MapName) + '</option>').join("") +
              '</select>' : '') +
@@ -5142,7 +5160,7 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         ? window._inspectionApprovalBatchData.photos : [];
     let approvalPage = 1;
     let approvalFilter = "ALL";
-    let selectedPointId = points.length ? String(points[0].InspectionPointTransactionID) : "";
+    let selectedPointId = visiblePoints().length ? String(visiblePoints()[0].InspectionPointTransactionID) : "";
     const approvalPageSize = 30;
 
     const pointState = function (point) {
@@ -5182,7 +5200,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     const renderList = function () {
         const searchInput = document.getElementById("inspectionApprovalPointSearch");
         const q = String(searchInput ? searchInput.value : "").trim().toLowerCase();
-        const filtered = points.filter(point => {
+        const schedulePoints = visiblePoints();
+        const filtered = schedulePoints.filter(point => {
             const state = pointState(point);
             const matchesFilter = approvalFilter === "ALL" || state.status === approvalFilter;
             const matchesSearch = !q ||
@@ -5194,13 +5213,13 @@ async function renderInspectionApprovalBatchMap(maps, points) {
         approvalPage = Math.min(Math.max(1, approvalPage), pageCount);
         const startIndex = (approvalPage - 1) * approvalPageSize;
         const rows = filtered.slice(startIndex, startIndex + approvalPageSize);
-        const counters = { ALL: points.length, ABNORMAL: 0, NORMAL: 0, DONE: 0, INCOMPLETE: 0 };
-        points.forEach(point => counters[pointState(point).status]++);
+        const counters = { ALL: schedulePoints.length, ABNORMAL: 0, NORMAL: 0, DONE: 0, INCOMPLETE: 0 };
+        schedulePoints.forEach(point => counters[pointState(point).status]++);
 
         const counterHost = document.getElementById("inspectionApprovalPointCounters");
         if (counterHost) {
-            const hasNormalAbnormal = points.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
-            const hasDoneOnly = points.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
+            const hasNormalAbnormal = schedulePoints.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
+            const hasDoneOnly = schedulePoints.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false));
             counterHost.innerHTML =
                 '<div class="row g-2 mb-2">' +
                 '<div class="col-6 col-md-3"><div class="border rounded p-2 h-100"><small class="text-muted d-block">TOTAL POINT</small><strong>' + counters.ALL + '</strong></div></div>' +
@@ -5267,8 +5286,8 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     if (typeof window.renderInspectionApprovalSelectedPoint === "function")
         window.renderInspectionApprovalSelectedPoint(selectedPointId);
 
-    if (!maps.length || !hasAnyFloorPlan) return;
     const select = document.getElementById("inspectionApprovalMapSelect");
+    const canRenderMap = maps.length > 0 && hasAnyFloorPlan;
     const renderMap = async function (map) {
         const canvas = document.getElementById("inspectionApprovalMapCanvas");
         const overlay = document.getElementById("inspectionApprovalMapPoints");
@@ -5343,7 +5362,7 @@ async function renderInspectionApprovalBatchMap(maps, points) {
                 height = base.height;
             }
             stage.style.aspectRatio = width + " / " + height;
-            const mapPoints = points.filter(point =>
+            const mapPoints = visiblePoints().filter(point =>
                 Number(point.MapID) === Number(map.MapID) && point.MapX != null && point.MapY != null);
             overlay.innerHTML = mapPoints.map(point => {
                 const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
@@ -5376,8 +5395,21 @@ async function renderInspectionApprovalBatchMap(maps, points) {
     };
     const selectedMap = () =>
         maps.find(map => Number(map.MapID) === Number(select ? select.value : maps[0].MapID)) || maps[0];
-    if (select) select.addEventListener("change", function () { renderMap(selectedMap()); });
-    await renderMap(selectedMap());
+    if (select) select.addEventListener("change", function () { if (canRenderMap) renderMap(selectedMap()); });
+    const scheduleHost = document.getElementById("inspectionApprovalLightningSchedules");
+    if (scheduleHost) scheduleHost.querySelectorAll("[data-approval-schedule]").forEach(button =>
+        button.addEventListener("click", function () {
+            activeScheduleTime = String(this.getAttribute("data-approval-schedule") || "");
+            selectedPointId = visiblePoints().length ? String(visiblePoints()[0].InspectionPointTransactionID) : "";
+            approvalPage = 1;
+            scheduleHost.querySelectorAll("[data-approval-schedule]").forEach(item =>
+                item.classList.toggle("active", item === this));
+            renderList();
+            if (typeof window.renderInspectionApprovalSelectedPoint === "function")
+                window.renderInspectionApprovalSelectedPoint(selectedPointId);
+            if (canRenderMap) renderMap(selectedMap());
+        }));
+    if (canRenderMap) await renderMap(selectedMap());
 }
 
 async function loadInspectionApprovalDetail(inspectionId) {
@@ -5514,7 +5546,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             : "";
         checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
             (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
-        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints);
+        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || []);
         document.getElementById("btnApproveInspection").disabled = isApproved ||
             (isBatchApproval && (!batchPoints.length || !templateAvailable));
         document.getElementById("btnVoidInspection").disabled = isApproved;
