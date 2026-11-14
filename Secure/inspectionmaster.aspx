@@ -22,6 +22,10 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </asp:Panel>
 
+    <div class="d-flex justify-content-end mb-2">
+        <a class="btn btn-outline-primary btn-sm" href="inspectionemailsetup.aspx"><i class="bi bi-envelope-gear me-1"></i>Email & Approval Routing</a>
+    </div>
+
     <table border="0" cellspacing="0" cellpadding="0" style="width:100%;">
         <tr><td>
             <div class="row border rounded shadow-sm" style="margin:auto;">
