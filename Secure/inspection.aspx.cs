@@ -1987,9 +1987,8 @@ WHERE I.ClientInspectionID=@ClientInspectionID
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
         AND EXISTS (
-      SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
-      WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
-        AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+      SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S
+      WHERE S.val=I.SectionID
   )
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
