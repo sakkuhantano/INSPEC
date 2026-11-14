@@ -294,11 +294,11 @@ BEGIN
         )
             RAISERROR('The saved daily header is not configured as LIGHTNING mode.',16,1);
 
-        UPDATE dbo.PIP_T_InspectionLightningSchedule
-        SET ScheduleStatus='SUBMITTED',SubmittedDate=GETDATE(),
-            UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
+        DELETE FROM dbo.PIP_T_InspectionLightningSchedule
         WHERE InspectionID=@V_InspectionID
-          AND NOT EXISTS (SELECT 1 FROM @p_Schedules S WHERE S.C1=ScheduleTime);
+          AND NOT EXISTS
+          (SELECT 1 FROM @p_Schedules S
+           WHERE S.C1=dbo.PIP_T_InspectionLightningSchedule.ScheduleTime);
 
         UPDATE T
         SET T.ScheduleStatus='SUBMITTED',T.SubmittedDate=GETDATE(),
