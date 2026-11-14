@@ -3179,7 +3179,24 @@ WHERE I.InspectionID=@InspectionID
                 }, true, true);
                 string followUpWONo = saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
-                return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId, followUpWONo = followUpWONo };
+                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
+                    inspectionId.ToString(CultureInfo.InvariantCulture);
+                br.EQueryP("spUTL_PIP_T_Inspection_ApprovalWorkflow", new SqlParameter[] {
+                    new SqlParameter("@p_InspectionID", inspectionId),
+                    new SqlParameter("@p_ActorEmployeeID", employeeId),
+                    new SqlParameter("@p_Action", action.ToUpperInvariant()),
+                    new SqlParameter("@p_Remark", String.IsNullOrWhiteSpace(remark) ? "" : remark),
+                    new SqlParameter("@p_CorrectionUrl", correctionUrl)
+                }, true, true);
+                object emailDispatch;
+                try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+                catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
+                return new {
+                    success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId,
+                    followUpWONo = followUpWONo, emailDispatch = emailDispatch
+                };
             }
         }
 
