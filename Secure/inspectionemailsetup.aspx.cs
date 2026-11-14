@@ -66,7 +66,18 @@ SELECT CASE WHEN EXISTS
 SELECT DISTINCT S.SectionID
 FROM dbo.PIP_M_Section S
 WHERE EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT WHERE IT.SectionID=S.SectionID)
-ORDER BY S.SectionID");
+  AND EXISTS (
+      SELECT 1 FROM dbo.M_HRD_Employee E
+      WHERE E.SectionID=S.SectionID AND E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
+        AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                    WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                      AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+  )
+ORDER BY S.SectionID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    });
                 ddlSection.Items.Clear();
                 ddlSection.Items.Add(new ListItem("-- Pilih Section --", ""));
                 foreach (DataRow row in dt.Rows)
