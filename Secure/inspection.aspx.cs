@@ -3271,7 +3271,7 @@ WHERE TP.InspectionID=@InspectionID
 ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrder,P.PointCode",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     DataTable results = br.EQueryP(@"
-SELECT R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
+SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
 FROM dbo.PIP_T_InspectionResult R
 WHERE R.InspectionID=@InspectionID
 ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
