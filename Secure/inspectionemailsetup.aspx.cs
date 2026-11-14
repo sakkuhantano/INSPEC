@@ -292,15 +292,9 @@ IF NOT EXISTS
       AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
                   WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
-                    AND CL.LocationID=@LocationID)
-      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
-                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
-    RAISERROR('Chief Engineering harus employee aktif pada section Engineering dan memiliki email.',16,1);
+    RAISERROR('Chief Engineering harus employee aktif pada section terpilih dan memiliki akses approval serta email.',16,1);
     RETURN;
 END;
 IF NOT EXISTS
@@ -311,9 +305,15 @@ IF NOT EXISTS
       AND E.SectionID=@ChiefSecSectionID AND S.SectionID=@ChiefSecSectionID
       AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID)
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
-    RAISERROR('Chief Security harus employee aktif pada section Security dan memiliki email.',16,1);
+    RAISERROR('Chief Security harus employee aktif pada section terpilih dan memiliki akses approval serta email.',16,1);
     RETURN;
 END;
 
