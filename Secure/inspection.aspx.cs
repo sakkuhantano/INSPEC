@@ -2141,8 +2141,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
 
             string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
             string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
-                inspectionId.ToString(CultureInfo.InvariantCulture);
+            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval";
             string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
                 inspectionId.ToString(CultureInfo.InvariantCulture);
 
