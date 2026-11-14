@@ -97,6 +97,9 @@ WHERE E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
               WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                 AND CL.LocationID=@LocationID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+              WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 ORDER BY S.SectionID",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -158,6 +161,9 @@ WHERE E.CompanyID=@CompanyID
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
               WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                 AND CL.LocationID=@LocationID)
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+              WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 ORDER BY E.Name, E.EmployeeID",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -283,9 +289,15 @@ IF NOT EXISTS
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
     RAISERROR('Chief Engineering harus employee aktif pada section Engineering dan memiliki email.',16,1);
@@ -355,6 +367,9 @@ IF NOT EXISTS
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
     RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki email.',16,1);
