@@ -62,6 +62,12 @@ BEGIN
    INSERT dbo.PIP_T_InspectionWorkflow(EntityType,EntityID,CompanyID,LocationID,SectionID,WorkflowStatus,CurrentStageCode,
     SubmittedBy,SubmittedDate,LastActorEmployeeID,LastActionDate,LastRemark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SUBMITTED','SPV',@p_ActorEmployeeID,GETDATE(),@p_ActorEmployeeID,GETDATE(),NULL);
+  UPDATE dbo.PIP_T_Inspection
+  SET Status='DONE',IsApprove=0,ApprovedBy='',
+      ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',ReasonVoid='',
+      UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+  WHERE InspectionID=@p_InspectionID;
+
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'TECHNICIAN',@Action,@p_ActorEmployeeID,GETDATE(),NULL);
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
