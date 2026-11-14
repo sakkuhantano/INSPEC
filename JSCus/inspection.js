@@ -300,7 +300,7 @@ function wireInspectionEvents() {
     });
     document.getElementById("btnDeleteInspectionBatchDraft").addEventListener("click", async () => {
         if (!currentInspectionRecord ||
-            String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH") return;
+            !isInspectionMapMode(currentInspectionRecord.InspectionMode)) return;
         await deleteLocalInspectionDraft(currentInspectionRecord.LocalInspectionID);
     });
     document.getElementById("btnCompleteInspection").addEventListener("click", () => saveInspection("DONE"));
@@ -1162,8 +1162,8 @@ async function cleanupInspectionPhotosByRequirement(localInspectionId, requireme
 }
 function getBatchPointQuickOptionBlockReason(point) {
     const record = currentInspectionRecord;
-    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
-        return "Batch inspection tidak sedang aktif.";
+    if (!record || !isInspectionMapMode(record.InspectionMode))
+        return "Batch/Lightning inspection tidak sedang aktif.";
     const requirement = getInspectionPhotoRequirement(record);
     // Quick OPTION selection is blocked only when BEFORE is mandatory,
     // because the full checklist is also gated only by the BEFORE photo.
@@ -1337,7 +1337,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     document.getElementById("inspectionEditorTabs").classList.remove("d-none");
     const mapTabButton = document.getElementById("btnInspectionMapTab");
     if (mapTabButton && mapTabButton.closest("li"))
-        mapTabButton.closest("li").classList.toggle("d-none", String(record.InspectionMode || "STANDARD").toUpperCase() !== "BATCH");
+        mapTabButton.closest("li").classList.toggle("d-none", !isInspectionMapMode(record.InspectionMode));
     document.getElementById("inspectionStartButtonRow").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
@@ -1350,7 +1350,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         record.SyncStatus !== "CONFLICT" && record.SyncStatus !== "DELETE_PENDING" &&
         inspectionRecords.some(item => item.LocalInspectionID === record.LocalInspectionID));
     document.getElementById("btnDeleteInspectionDraft").classList.toggle("d-none", !canDeleteDraft);
-    const canDeleteBatchDraft = String(record.InspectionMode || "").toUpperCase() === "BATCH" &&
+    const canDeleteBatchDraft = isInspectionMapMode(record.InspectionMode) &&
         !currentInspectionReadOnly && record.Status === "DRAFT" &&
         record.SyncStatus !== "SYNCED" && record.SyncStatus !== "CONFLICT" &&
         record.SyncStatus !== "DELETE_PENDING" &&
@@ -1850,7 +1850,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
     const versionRemark2Text = versionRemark2Enabled ? (item.versionRemark2Text || item.VersionRemark2Text || "Remark") : "";
     const remark1Text = selectedOptionRequiresRemark && !itemRemark1Required ? versionRemark1Text : itemRemark1Text;
     const remark2Text = selectedOptionRequiresRemark && !itemRemark2Required ? versionRemark2Text : itemRemark2Text;
-    const isBatchRemarkMode = String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+    const isBatchRemarkMode = isInspectionMapMode(currentInspectionRecord && currentInspectionRecord.InspectionMode);
     // Batch item-level required flags are already version-aware in the server snapshot.
     // Preserve the existing version gate for standard inspections.
     const showRemark1 = (isBatchRemarkMode && itemRemark1Required) ||
@@ -2180,7 +2180,7 @@ function getActiveInspectionPointPhotoID() {
 async function getCurrentInspectionPhotos() {
     if (!currentInspectionRecord) return [];
     return getInspectionPhotos(currentInspectionRecord.LocalInspectionID,
-        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH"
+        isInspectionMapMode(currentInspectionRecord.InspectionMode)
             ? getActiveInspectionPointPhotoID() : null);
 }
 
@@ -2364,8 +2364,8 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNumber, value) {
     const record = currentInspectionRecord;
-    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
-        throw new Error("Batch inspection tidak sedang aktif.");
+    if (!record || !isInspectionMapMode(record.InspectionMode))
+        throw new Error("Batch/Lightning inspection tidak sedang aktif.");
     if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
         throw new Error("Batch yang sudah disubmit bersifat read-only.");
 
@@ -3562,7 +3562,7 @@ function showInspectionEditorTab(tab) {
         if (mapWorkspace) mapWorkspace.classList.add("d-none");
     }
     const isBatch = currentInspectionRecord &&
-        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        isInspectionMapMode(currentInspectionRecord.InspectionMode);
     if (!p && isBatch && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)) {
         document.getElementById("inspectionParamsPane").classList.add("d-none");
         document.getElementById("inspectionChecklistPane").classList.add("d-none");
@@ -3859,7 +3859,7 @@ async function applyInspectionParameters() {
     await updateInspectionChecklistGate();
     // Selecting/changing parameters while starting a new BATCH is not a save action.
     // Existing locally-saved batch drafts may still be updated when parameters change.
-    if (String(record.InspectionMode || "").toUpperCase() !== "BATCH" ||
+    if (!isInspectionMapMode(record.InspectionMode) ||
         await isInspectionRecordPersisted(record.LocalInspectionID)) {
         await persistInspectionRecord(record);
     }
@@ -5358,7 +5358,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const photos = result.photos || [];
         const batchPoints = result.points || [];
         const batchMaps = result.maps || [];
-        const isBatchApproval = String(h.InspectionMode || "").toUpperCase() === "BATCH";
+        const isBatchApproval = isInspectionMapMode(h.InspectionMode);
         const approvalTabButton = document.getElementById(isBatchApproval
             ? "inspectionApprovalChecklistTab" : "inspectionApprovalParamTab");
         if (approvalTabButton && window.bootstrap && bootstrap.Tab)
