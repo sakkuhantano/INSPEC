@@ -3146,6 +3146,192 @@ WHERE I.InspectionID=@InspectionID
             }
         }
 
+        private static AlternateView CreateLightningInspectionEmailView(long inspectionId, string baseHtml)
+        {
+            var html = new StringBuilder();
+            var view = AlternateView.CreateAlternateViewFromString("", Encoding.UTF8, "text/html");
+            try
+            {
+                using (var br = new WAL.BR.CF())
+                {
+                    DataTable header = br.EQueryP(@"
+SELECT CompanyID,LocationID,InspectionDate,InspectionNo,InspectionTypeName,InspectionTypeDetailName,OwnerEmployeeID
+FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    if (header.Rows.Count == 0)
+                    {
+                        html.Append(baseHtml ?? "");
+                        view = AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
+                        return view;
+                    }
+                    string companyId = GF.GetString(header.Rows[0]["CompanyID"]);
+                    string locationId = GF.GetString(header.Rows[0]["LocationID"]);
+                    string inspectionNo = GF.GetString(header.Rows[0]["InspectionNo"]);
+                    DateTime inspectionDate = Convert.ToDateTime(header.Rows[0]["InspectionDate"]);
+
+                    DataTable schedules = br.EQueryP(@"
+SELECT ScheduleTime FROM dbo.PIP_T_InspectionLightningSchedule
+WHERE InspectionID=@InspectionID ORDER BY ScheduleTime",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable points = br.EQueryP(@"
+SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
+       P.PointCode,P.PointName,P.MapID,P.MapX,P.MapY,P.DisplayOrder,
+       M.MapCode,M.MapName,M.ImagePath,M.MapGroupID,G.GroupName,G.Sequence GroupSequence
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrder,P.PointCode",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable results = br.EQueryP(@"
+SELECT R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
+FROM dbo.PIP_T_InspectionResult R
+WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable photos = br.EQueryP(@"
+SELECT InspectionPointTransactionID,PhotoType,FileName,FileType,SeqNo
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID AND InspectionPointTransactionID IS NOT NULL
+ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+
+                    html.Append(baseHtml ?? "");
+                    html.Append("<hr/><h2>LIGHTNING DAILY INSPECTION REVIEW</h2>");
+                    html.Append("<p><strong>").Append(HttpUtility.HtmlEncode(inspectionNo))
+                        .Append("</strong> · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeName"])))
+                        .Append(" · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeDetailName"])))
+                        .Append(" · ").Append(inspectionDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)).Append("</p>");
+
+                    foreach (DataRow schedule in schedules.Rows)
+                    {
+                        string scheduleTime = GF.GetString(schedule["ScheduleTime"]);
+                        DataRow[] schedulePoints = points.Select("ScheduleTime='" + scheduleTime.Replace("'", "''") + "'");
+                        html.Append("<section style='margin:18px 0;padding:12px;border:1px solid #ddd;border-radius:8px'>")
+                            .Append("<h3>Schedule ").Append(HttpUtility.HtmlEncode(scheduleTime)).Append("</h3>");
+
+                        var mapGroups = schedulePoints.Where(row => row["MapID"] != DBNull.Value)
+                            .GroupBy(row => Convert.ToInt64(row["MapID"]));
+                        if (!mapGroups.Any())
+                            html.Append("<p>No floor plan assigned. Point results are listed below.</p>");
+
+                        var renderedGroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var mapGroup in mapGroups)
+                        {
+                            DataRow map = mapGroup.First();
+                            string groupName = GF.GetString(map["GroupName"]);
+                            string mapName = GF.GetString(map["MapName"]);
+                            if (groupName != "" && renderedGroupNames.Add(groupName))
+                                html.Append("<h4>Group Map: ").Append(HttpUtility.HtmlEncode(groupName)).Append("</h4>");
+                            html.Append("<div style='margin:10px 0;padding:10px;border:1px solid #eee'>")
+                                .Append("<h4>").Append(HttpUtility.HtmlEncode(GF.GetString(map["MapCode"])))
+                                .Append(" - ").Append(HttpUtility.HtmlEncode(mapName)).Append("</h4>");
+
+                            string mapPath = "";
+                            string mapFile = Path.GetFileName(GF.GetString(map["ImagePath"]).Replace('/', '\\'));
+                            string webRoot = (PB.Path_WebFolder1 ?? "").Trim();
+                            if (mapFile != "" && webRoot != "")
+                                mapPath = Path.Combine(webRoot, "PIP", "PIP_M_InspectionMap",
+                                    SafeInspectionMapPathPart(companyId) + "_" + SafeInspectionMapPathPart(locationId), mapFile);
+                            string mapCid = "lightning-map-" + Convert.ToInt64(map["MapID"]).ToString(CultureInfo.InvariantCulture);
+                            if (mapPath != "" && File.Exists(mapPath))
+                            {
+                                var linkedMap = new LinkedResource(mapPath, GetInspectionEmailMimeType(mapFile));
+                                linkedMap.ContentId = mapCid;
+                                linkedMap.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
+                                view.LinkedResources.Add(linkedMap);
+                                html.Append("<img src='cid:").Append(mapCid).Append("' alt='")
+                                    .Append(HttpUtility.HtmlEncode(mapName))
+                                    .Append("' style='max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0'/>");
+                            }
+                            else if (!String.IsNullOrWhiteSpace(GF.GetString(map["ImagePath"])))
+                            {
+                                string mapUrl = ResolveInspectionMapUrl(GF.GetString(map["ImagePath"]), companyId, locationId);
+                                html.Append("<img src='").Append(HttpUtility.HtmlAttributeEncode(mapUrl))
+                                    .Append("' alt='").Append(HttpUtility.HtmlEncode(mapName))
+                                    .Append("' style='max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0'/>");
+                            }
+
+                            html.Append("<table cellpadding='5' cellspacing='0' style='width:100%;border-collapse:collapse'>")
+                                .Append("<tr><th align='left' style='border-bottom:1px solid #ddd'>Point</th>")
+                                .Append("<th align='left' style='border-bottom:1px solid #ddd'>Status / Finding</th></tr>");
+                            foreach (DataRow point in mapGroup)
+                            {
+                                long pointTransactionId = Convert.ToInt64(point["InspectionPointTransactionID"]);
+                                string status = GF.GetString(point["Status"]);
+                                string remark = GF.GetString(point["AbnormalRemark"]);
+                                html.Append("<tr><td style='border-bottom:1px solid #eee'><strong>")
+                                    .Append(HttpUtility.HtmlEncode(GF.GetString(point["PointCode"]))).Append("</strong><br/>")
+                                    .Append(HttpUtility.HtmlEncode(GF.GetString(point["PointName"]))).Append("</td><td style='border-bottom:1px solid #eee'>")
+                                    .Append(HttpUtility.HtmlEncode(status));
+                                if (remark != "") html.Append("<br/>").Append(HttpUtility.HtmlEncode(remark));
+
+                                foreach (DataRow result in results.Select("InspectionPointTransactionID=" + pointTransactionId.ToString(CultureInfo.InvariantCulture)))
+                                {
+                                    string label = GF.GetString(result["ItemLabel"]);
+                                    string value = GF.GetString(result["Value"]);
+                                    string remark1 = GF.GetString(result["Remark1"]);
+                                    string remark2 = GF.GetString(result["Remark2"]);
+                                    if (value != "" || remark1 != "" || remark2 != "")
+                                        html.Append("<br/><small>").Append(HttpUtility.HtmlEncode(label)).Append(": ")
+                                            .Append(HttpUtility.HtmlEncode(value))
+                                            .Append(remark1 != "" ? " · " + HttpUtility.HtmlEncode(remark1) : "")
+                                            .Append(remark2 != "" ? " · " + HttpUtility.HtmlEncode(remark2) : "")
+                                            .Append("</small>");
+                                }
+
+                                foreach (DataRow photo in photos.Select("InspectionPointTransactionID=" + pointTransactionId.ToString(CultureInfo.InvariantCulture)))
+                                {
+                                    string fileName = GF.GetString(photo["FileName"]);
+                                    string fileType = GF.GetString(photo["FileType"]);
+                                    string photoPath = "";
+                                    try { photoPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionNo, fileName, fileType); }
+                                    catch { }
+                                    if (photoPath == "" || !File.Exists(photoPath)) continue;
+                                    string cid = "lightning-photo-" + pointTransactionId.ToString(CultureInfo.InvariantCulture) + "-" +
+                                        Convert.ToString(photo["PhotoType"]).ToLowerInvariant() + "-" +
+                                        Convert.ToString(photo["SeqNo"]);
+                                    var linkedPhoto = new LinkedResource(photoPath, GetInspectionEmailMimeType(fileName + "." + fileType));
+                                    linkedPhoto.ContentId = cid;
+                                    linkedPhoto.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
+                                    view.LinkedResources.Add(linkedPhoto);
+                                    html.Append("<br/><img src='cid:").Append(cid)
+                                        .Append("' alt='").Append(HttpUtility.HtmlEncode(GF.GetString(photo["PhotoType"])))
+                                        .Append("' style='max-width:220px;height:auto;margin:4px;border:1px solid #ddd'/>");
+                                }
+                                html.Append("</td></tr>");
+                            }
+                            html.Append("</table></div>");
+                        }
+                        html.Append("</section>");
+                    }
+                }
+                view.Dispose();
+                return AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
+            }
+            catch
+            {
+                view.Dispose();
+                return AlternateView.CreateAlternateViewFromString(baseHtml ?? "", Encoding.UTF8, "text/html");
+            }
+        }
+
+        private static string GetInspectionEmailMimeType(string fileName)
+        {
+            string extension = Path.GetExtension(fileName ?? "").ToLowerInvariant();
+            switch (extension)
+            {
+                case ".png": return "image/png";
+                case ".gif": return "image/gif";
+                case ".webp": return "image/webp";
+                case ".bmp": return "image/bmp";
+                case ".jpg":
+                case ".jpeg": return "image/jpeg";
+                default: return "application/octet-stream";
+            }
+        }
+
         private static void RequireSameOriginPost()
         {
             HttpRequest request = HttpContext.Current == null ? null : HttpContext.Current.Request;
@@ -3198,8 +3384,8 @@ WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
 )
 UPDATE EmailQueue
 SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1
-OUTPUT inserted.EmailOutboxID,inserted.RecipientEmail,inserted.EmailSubject,
-       inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
+OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
+       inserted.RecipientEmail,inserted.EmailSubject,inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
                     new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, true, true);
 
                 int sent = 0, failed = 0;
@@ -3215,11 +3401,17 @@ OUTPUT inserted.EmailOutboxID,inserted.RecipientEmail,inserted.EmailSubject,
                             message.Subject = Convert.ToString(row["EmailSubject"]);
                             message.SubjectEncoding = Encoding.UTF8;
                             message.BodyEncoding = Encoding.UTF8;
-                            message.IsBodyHtml = true;
-                            message.Body = Convert.ToString(row["HtmlBody"]);
-                            if (row["PlainBody"] != DBNull.Value && !String.IsNullOrWhiteSpace(Convert.ToString(row["PlainBody"])))
-                                message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
-                                    Convert.ToString(row["PlainBody"]), Encoding.UTF8, "text/plain"));
+                            string plainBody = row["PlainBody"] == DBNull.Value ? "" : Convert.ToString(row["PlainBody"]);
+                            message.Body = plainBody;
+                            message.IsBodyHtml = false;
+                            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+                                plainBody, Encoding.UTF8, "text/plain"));
+                            AlternateView htmlView;
+                            if (String.Equals(Convert.ToString(row["EntityType"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                                htmlView = CreateLightningInspectionEmailView(Convert.ToInt64(row["EntityID"]), Convert.ToString(row["HtmlBody"]));
+                            else
+                                htmlView = AlternateView.CreateAlternateViewFromString(Convert.ToString(row["HtmlBody"]), Encoding.UTF8, "text/html");
+                            message.AlternateViews.Add(htmlView);
 
                             using (var smtp = new SmtpClient(host, port))
                             {
