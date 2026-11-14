@@ -2451,8 +2451,8 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
 
 window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     const record = currentInspectionRecord;
-    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH")
-        throw new Error("Batch inspection tidak sedang aktif.");
+    if (!record || !isInspectionMapMode(record.InspectionMode))
+        throw new Error("Batch/Lightning inspection tidak sedang aktif.");
     if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
         throw new Error("Batch yang sudah disubmit bersifat read-only.");
 
@@ -3617,7 +3617,7 @@ function updateInspectionParameterTabGate() {
     const button = document.getElementById("btnInspectionChecklistTab");
     if (!button) return;
     const isBatch = currentInspectionRecord &&
-        String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        isInspectionMapMode(currentInspectionRecord.InspectionMode);
     const hasSelectedPoint = !isBatch || Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0;
     const complete = (currentInspectionReadOnly || isInspectionParameterSelectionComplete()) && hasSelectedPoint;
     button.disabled = !complete;
