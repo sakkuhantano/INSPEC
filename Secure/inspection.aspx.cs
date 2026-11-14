@@ -2106,11 +2106,14 @@ new SqlParameter("@InspectionID", inspectionId) });
 
                 var batchPointRows = new List<Dictionary<string, object>>();
                 var batchMapRows = new List<Dictionary<string, object>>();
-                if (String.Equals(Convert.ToString(header.Rows[0]["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase))
+                var batchScheduleRows = new List<Dictionary<string, object>>();
+                string approvalInspectionMode = Convert.ToString(header.Rows[0]["InspectionMode"]);
+                if (String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) ||
+                    String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                 {
                     DataTable pointMasterRows = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
-       TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
+       TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
        P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.MapID, P.MapX, P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
@@ -2183,6 +2186,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             { "InspectionPointTransactionID", pointTransactionID },
                             { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
                             { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
+                            { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                             { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
                             { "Status", GF.GetString(pointRow["Status"]) },
                             { "AbnormalRemark", GF.GetString(pointRow["AbnormalRemark"]) },
@@ -2213,6 +2217,22 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "MapVersion", pointRow["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapVersion"]) }
                             });
                         }
+                    }
+
+                    if (String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                    {
+                        DataTable scheduleRows = br.EQueryP(@"
+SELECT ScheduleTime,ScheduleStatus,SubmittedDate
+FROM dbo.PIP_T_InspectionLightningSchedule
+WHERE InspectionID=@InspectionID
+ORDER BY ScheduleTime",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                        foreach (DataRow scheduleRow in scheduleRows.Rows)
+                            batchScheduleRows.Add(new Dictionary<string, object> {
+                                { "ScheduleTime", GF.GetString(scheduleRow["ScheduleTime"]) },
+                                { "ScheduleStatus", GF.GetString(scheduleRow["ScheduleStatus"]) },
+                                { "SubmittedDate", scheduleRow["SubmittedDate"] == DBNull.Value ? "" : Convert.ToDateTime(scheduleRow["SubmittedDate"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) }
+                            });
                     }
                 }
 
@@ -2363,7 +2383,7 @@ ORDER BY P.SeqNo",
                     });
                 }
                 return new { success = true, header = h, items = itemRows, photos = photos, template = approvalTemplateSnapshot,
-                    points = batchPointRows, maps = batchMapRows };
+                    points = batchPointRows, maps = batchMapRows, schedules = batchScheduleRows };
             }
         }
 
