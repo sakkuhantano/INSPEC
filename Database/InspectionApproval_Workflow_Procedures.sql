@@ -31,6 +31,17 @@ BEGIN
  SELECT @SPV=SPVEmployeeID FROM dbo.PIP_M_InspectionEmailSetupSection
  WHERE CompanyID=@C AND LocationID=@L AND SectionID=@S AND IsActive=1;
  IF ISNULL(@SPV,'')='' BEGIN RAISERROR('SPV routing is not configured for this Company, Location, and Section.',16,1); RETURN; END;
+ IF NOT EXISTS
+ (
+  SELECT 1 FROM dbo.M_HRD_Employee E
+  WHERE E.EmployeeID=@SPV AND E.CompanyID=@C AND E.SectionID=@S
+    AND ISNULL(E.TerminationDate,'')=''
+    AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+      AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+    AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+      WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+ )
+ BEGIN RAISERROR('Configured SPV is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
  SELECT @SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
  SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')='' BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
