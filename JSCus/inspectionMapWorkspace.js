@@ -4,6 +4,7 @@
     var wired = false;
     var selectedPoint = null;
     var currentMapRecord = null;
+    var currentScheduleTime = "";
     var currentMaps = [];
     var currentPoints = [];
     var currentMapId = "";
@@ -60,10 +61,63 @@
         return value === "DONE" ? "✓" : value === "INCOMPLETE" ? "…" : "·";
     }
 
+    function getActiveScheduleTime() {
+        if (!currentMapRecord || String(currentMapRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "";
+        var schedules = Array.isArray(currentMapRecord.Schedules) ? currentMapRecord.Schedules : [];
+        var active = currentScheduleTime || String(currentMapRecord.ActiveScheduleTime || "");
+        if (!schedules.some(function (item) { return String(item.ScheduleTime || item) === active; }))
+            active = String(schedules.length ? (schedules[0].ScheduleTime || schedules[0]) : "");
+        currentScheduleTime = active;
+        return active;
+    }
+
+    function renderLightningScheduleTabs() {
+        var host = document.getElementById("inspectionLightningScheduleTabs");
+        if (!host) return;
+        var lightning = currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "LIGHTNING";
+        host.classList.toggle("d-none", !lightning);
+        if (!lightning) { host.innerHTML = ""; currentScheduleTime = ""; return; }
+        var schedules = Array.isArray(currentMapRecord.Schedules) ? currentMapRecord.Schedules : [];
+        if (!currentScheduleTime || !schedules.some(function (item) { return String(item.ScheduleTime || item) === currentScheduleTime; }))
+            currentScheduleTime = String(currentMapRecord.ActiveScheduleTime || (schedules.length ? (schedules[0].ScheduleTime || schedules[0]) : ""));
+        host.innerHTML = schedules.map(function (item) {
+            var time = String(item.ScheduleTime || item);
+            var count = (currentMapRecord.Points || []).filter(function (point) {
+                return String(point.ScheduleTime || "") === time &&
+                    ["DONE", "ABNORMAL"].indexOf(String(point.Status || "").toUpperCase()) >= 0;
+            }).length;
+            var total = (currentMapRecord.BatchMapSetup && currentMapRecord.BatchMapSetup.points || []).length;
+            return '<button type="button" class="nav-link' + (time === currentScheduleTime ? ' active' : '') +
+                '" data-lightning-schedule="' + esc(time) + '" aria-current="' + (time === currentScheduleTime ? 'page' : 'false') + '">' +
+                '<span class="fw-semibold">' + esc(time) + '</span> <span class="small opacity-75">' + count + '/' + total + '</span></button>';
+        }).join("");
+        host.querySelectorAll("[data-lightning-schedule]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                var next = button.getAttribute("data-lightning-schedule");
+                if (!next || next === currentScheduleTime) return;
+                currentScheduleTime = next;
+                if (typeof window.setInspectionActiveScheduleTime === "function")
+                    window.setInspectionActiveScheduleTime(next);
+                else if (currentMapRecord) currentMapRecord.ActiveScheduleTime = next;
+                closePoint();
+                listPage = 1;
+                listKeyword = "";
+                renderLightningScheduleTabs();
+                renderList();
+                updateSummary();
+                renderPoints();
+                var subtitle = document.getElementById("inspectionMapSubtitle");
+                if (subtitle) subtitle.textContent = "Jadwal " + next + " · " + currentPoints.length + " titik inspeksi";
+            });
+        });
+    }
+
     function getPointTransaction(point) {
         if (!currentMapRecord || !Array.isArray(currentMapRecord.Points)) return null;
+        var scheduleTime = getActiveScheduleTime();
         return currentMapRecord.Points.find(function (item) {
-            return Number(item.InspectionPointID) === Number(point.InspectionPointID);
+            return Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
+                String(item.ScheduleTime || "") === scheduleTime;
         }) || null;
     }
 
@@ -973,6 +1027,9 @@
 
     window.resetInspectionMapWorkspace = async function () {
         currentMapRecord = null;
+        currentScheduleTime = "";
+        var scheduleTabs = document.getElementById("inspectionLightningScheduleTabs");
+        if (scheduleTabs) { scheduleTabs.innerHTML = ""; scheduleTabs.classList.add("d-none"); }
         currentMaps = [];
         currentPoints = [];
         currentMapId = "";
@@ -1007,6 +1064,7 @@
         var isDifferentRecord = !!record && (!currentMapRecord ||
             String(currentMapRecord.LocalInspectionID || "") !== String(record.LocalInspectionID || ""));
         if (isDifferentRecord) {
+            currentScheduleTime = "";
             currentMapId = "";
             selectedPoint = null;
             listPage = 1;
@@ -1023,6 +1081,15 @@
 
         var setup = record.BatchMapSetup || {};
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
+        if (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+            if (!currentScheduleTime || !Array.isArray(record.Schedules) ||
+                !record.Schedules.some(function (item) { return String(item.ScheduleTime || item) === currentScheduleTime; }))
+                currentScheduleTime = String(record.ActiveScheduleTime || (record.Schedules && record.Schedules.length
+                    ? (record.Schedules[0].ScheduleTime || record.Schedules[0]) : ""));
+            if (typeof window.setInspectionActiveScheduleTime === "function")
+                window.setInspectionActiveScheduleTime(currentScheduleTime);
+        } else currentScheduleTime = "";
+        renderLightningScheduleTabs();
         currentPoints = Array.isArray(setup.points) ? setup.points : [];
         if (!currentPoints.length && Array.isArray(record.PointMaster)) currentPoints = record.PointMaster;
         if (!currentMaps.some(function (map) { return Number(map.MapID) === Number(currentMapId); }))
@@ -1039,8 +1106,9 @@
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = typeName + (detailName ? " · " + detailName : "");
-        if (subtitle) subtitle.textContent = "Batch " + (record.InspectionNo || "baru") +
-            " · " + currentPoints.length + " Unit Inspeksi";
+        if (subtitle) subtitle.textContent = (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+            ? "Jadwal " + getActiveScheduleTime() + " · "
+            : "Batch " + (record.InspectionNo || "baru") + " · ") + currentPoints.length + " Unit Inspeksi";
 
         var selectedMap = currentMaps.find(function (map) {
             return Number(map.MapID) === Number(currentMapId);
