@@ -5333,7 +5333,7 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                     ' <span class="small opacity-75">' + count + '/' +
                     points.filter(point => String(point.ScheduleTime || "") === time).length + '</span></button>';
             }).join("") + '</div>' : '') +
-        '<div class="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">' +
+        '<div class="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">' +
             '<div><div class="fw-bold"><i class="bi bi-clipboard2-check me-2"></i>' +
                 (isLightning ? 'LIGHTNING DAILY REVIEW' : 'BATCH INSPECTION REVIEW') +
                 '</div><small class="text-muted">' + (isLightning ? schedules.length + ' schedule(s)' : points.length + ' inspected point(s)') + '</small></div>' +
@@ -5347,17 +5347,24 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                         '</option>').join("") +
              '</select>' : '') +
         '</div>' +
-        (hasAnyFloorPlan ? '<details class="mb-3" open><summary class="small fw-semibold text-primary py-2">Denah inspeksi (opsional)</summary><div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mt-2"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div></details>' :
-            '<div class="alert alert-light small">Batch ini tidak menggunakan file denah. Seluruh hasil diperiksa melalui daftar Inspection Point.</div>') +
-        '<div id="inspectionApprovalPointCounters"></div>' +
-        '<div class="d-flex flex-wrap gap-2 align-items-center mb-2"><div class="btn-group btn-group-sm flex-wrap" id="inspectionApprovalPointFilters" role="group" aria-label="Filter status point">' +
-            '<button type="button" class="btn btn-outline-secondary active" data-approval-filter="ALL" aria-pressed="true">Semua</button>' +
-            (points.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-danger" data-approval-filter="ABNORMAL" aria-pressed="false">Abnormal</button><button type="button" class="btn btn-outline-success" data-approval-filter="NORMAL" aria-pressed="false">Normal</button>' : '') +
-            (points.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-primary" data-approval-filter="DONE" aria-pressed="false">Selesai</button>' : '') +
-            '<button type="button" class="btn btn-outline-warning" data-approval-filter="INCOMPLETE" aria-pressed="false">Belum lengkap</button>' +
-        '</div><div class="inspection-point-list-tools flex-grow-1"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div></div>' +
-        '<div id="inspectionApprovalPointList" class="border rounded overflow-hidden"></div>' +
-        '<div class="mt-3" id="inspectionApprovalSelectedPointHost"></div>' +
+        '<div class="row g-3 align-items-start">' +
+            '<div class="col-12 col-lg-7">' +
+                (hasAnyFloorPlan
+                    ? '<div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div>'
+                    : '<div class="alert alert-light small">Batch ini tidak menggunakan file denah. Seluruh hasil diperiksa melalui daftar Inspection Point.</div>') +
+            '</div>' +
+            '<div class="col-12 col-lg-5">' +
+                '<div id="inspectionApprovalPointCounters"></div>' +
+                '<div class="d-flex flex-wrap gap-2 align-items-center mb-2"><div class="btn-group btn-group-sm flex-wrap" id="inspectionApprovalPointFilters" role="group" aria-label="Filter status point">' +
+                    '<button type="button" class="btn btn-outline-secondary active" data-approval-filter="ALL" aria-pressed="true">Semua</button>' +
+                    (points.some(point => isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-danger" data-approval-filter="ABNORMAL" aria-pressed="false">Abnormal</button><button type="button" class="btn btn-outline-success" data-approval-filter="NORMAL" aria-pressed="false">Normal</button>' : '') +
+                    (points.some(point => !isInspectionFlagEnabled(point.IsNormalAbnormalRequired, false)) ? '<button type="button" class="btn btn-outline-primary" data-approval-filter="DONE" aria-pressed="false">Selesai</button>' : '') +
+                    '<button type="button" class="btn btn-outline-warning" data-approval-filter="INCOMPLETE" aria-pressed="false">Belum lengkap</button>' +
+                '</div><div class="inspection-point-list-tools flex-grow-1"><input type="search" id="inspectionApprovalPointSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Name..."></div></div>' +
+                '<div id="inspectionApprovalPointList" class="border rounded overflow-hidden"></div>' +
+                '<div class="mt-3" id="inspectionApprovalSelectedPointHost"></div>' +
+            '</div>' +
+        '</div>' +
     '</div>';
 
     const listHost = document.getElementById("inspectionApprovalPointList");
