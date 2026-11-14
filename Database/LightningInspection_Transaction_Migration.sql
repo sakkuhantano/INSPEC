@@ -20,6 +20,39 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
 
+/*
+    Enable LIGHTNING as a first-class mode in both the inspection type master
+    and the canonical transaction header. Preserve existing STANDARD/BATCH/MAP
+    values; do not normalize existing data.
+*/
+IF COL_LENGTH('dbo.PIP_M_InspectionType','InspectionMode') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionType ADD InspectionMode VARCHAR(10) NOT NULL
+        CONSTRAINT DF_PIP_M_InspectionType_InspectionMode DEFAULT ('STANDARD');
+GO
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+             AND name='CK_PIP_M_InspectionType_InspectionMode')
+    ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT CK_PIP_M_InspectionType_InspectionMode;
+GO
+ALTER TABLE dbo.PIP_M_InspectionType
+    ADD CONSTRAINT CK_PIP_M_InspectionType_InspectionMode
+    CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING'));
+GO
+
+IF COL_LENGTH('dbo.PIP_T_Inspection','InspectionMode') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD InspectionMode VARCHAR(10) NOT NULL
+        CONSTRAINT DF_PIP_T_Inspection_InspectionMode DEFAULT ('STANDARD');
+GO
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection')
+             AND name='CK_PIP_T_Inspection_InspectionMode')
+    ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT CK_PIP_T_Inspection_InspectionMode;
+GO
+ALTER TABLE dbo.PIP_T_Inspection
+    ADD CONSTRAINT CK_PIP_T_Inspection_InspectionMode
+    CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING','MAP'));
+GO
+
 IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_T_InspectionLightningSchedule
