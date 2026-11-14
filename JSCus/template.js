@@ -7037,6 +7037,13 @@ function refreshGroupEquipmentCaption(template)
 }
 async function loadGroupEquipment(forceReload)
 {
+    // Inspection templates do not use the legacy PM/WO Group Equipment master.
+    // Keep this guard here as well as in the dropdown binder so no caller can
+    // accidentally trigger the unrelated WebMethod while cloning/editing Type I.
+    const templateType = String(currentTemplate && currentTemplate.TemplateType || "W").trim().toUpperCase();
+    if (templateType === "I")
+        return [];
+
     if (!forceReload &&
         groupEquipmentCache.length > 0)
     {
@@ -7078,15 +7085,29 @@ async function loadGroupEquipment(forceReload)
 }
 async function bindGroupEquipmentDropdown(selectedValue)
 {
-    await loadGroupEquipment();
-
     const ddl =
         document.getElementById(
             "propTemplateGroupEquipment"
         );
 
+    // Type I uses Inspection Type / Detail metadata, not Master Equipment.
+    // Do not call GetGroupEquipment during inspection-template clone or render.
+    const templateType = String(currentTemplate && currentTemplate.TemplateType || "W").trim().toUpperCase();
+    if (templateType === "I") {
+        if (ddl) {
+            ddl.innerHTML = "";
+            ddl.disabled = true;
+        }
+        const groupField = document.getElementById("versionGroupEquipmentField");
+        if (groupField) groupField.style.display = "none";
+        return;
+    }
+
     if(!ddl)
         return;
+
+    ddl.disabled = isReadonlyMode;
+    await loadGroupEquipment();
 
     ddl.innerHTML="";
 
