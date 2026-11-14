@@ -2836,10 +2836,12 @@ async function cloneActiveVersion(idTemplate)
         renderTemplateVersions(currentVersions, container);
     }
 
-    await loadVersionStructure(
-        currentTemplate.RuntimeTemplateID,
-        clone.VersionInfo.RuntimeVersionID
+    await showTemplateRootProperties(
+        currentTemplate,
+        clone.VersionInfo
     );
+    renderVersionStructure(clone);
+    switchMobileTab('builder');
     evaluateDirtyState();
 }
 function showVersionPropertiesEvent(version) {
