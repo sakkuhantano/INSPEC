@@ -3506,7 +3506,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                     br.EQuery(@"
 UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET LastError='SMTP host or smtpFrom is not configured. Configure Web.config before email dispatch.',
-    NextAttemptDate=DATEADD(MINUTE,15,GETDATE())
+    NextAttemptDate=GETDATE()
 WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
                     DataTable pendingRows = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')");
                     int pending = pendingRows.Rows.Count > 0 ? Convert.ToInt32(pendingRows.Rows[0]["PendingCount"]) : 0;
