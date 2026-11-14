@@ -70,8 +70,8 @@ WHERE EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT WHERE IT.SectionID=S.Sec
       SELECT 1 FROM dbo.M_HRD_Employee E
       WHERE E.SectionID=S.SectionID AND E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
         AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-                    WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                      AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+                    WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                      AND CL.LocationID=@LocationID)
   )
 ORDER BY S.SectionID",
                     new SqlParameter[] {
@@ -95,8 +95,8 @@ FROM dbo.PIP_M_Section S
 INNER JOIN dbo.M_HRD_Employee E ON E.SectionID=S.SectionID
 WHERE E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-              WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                AND CL.LocationID=@LocationID)
 ORDER BY S.SectionID",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -156,8 +156,8 @@ WHERE E.CompanyID=@CompanyID
   AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-              WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                AND CL.LocationID=@LocationID)
 ORDER BY E.Name, E.EmployeeID",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -281,11 +281,11 @@ IF NOT EXISTS
       AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID)
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID)
 )
 BEGIN
     RAISERROR('Chief Engineering harus employee aktif pada section Engineering dan memiliki email.',16,1);
@@ -353,8 +353,8 @@ IF NOT EXISTS
       AND E.SectionID=@SectionID AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
-                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID)
 )
 BEGIN
     RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki email.',16,1);
