@@ -4688,7 +4688,7 @@ async function loadInspectionApprovalQueue() {
     try {
         const dateFrom = document.getElementById("txtApprovalDateFrom");
         const dateThru = document.getElementById("txtApprovalDateThru");
-        const result = await inspectionApprovalPost("GetInspectionApprovalQueue", {
+        const queueParameters = {
             employeeId: inspectionLogin.employeeid,
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID,
@@ -4698,10 +4698,21 @@ async function loadInspectionApprovalQueue() {
             inspectionTypeCode: document.getElementById("selApprovalType").value,
             inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
             templateId: document.getElementById("selApprovalTemplate").value
-        });
+        };
+        const queueResults = await Promise.all([
+            inspectionApprovalPost("GetInspectionApprovalQueue", queueParameters),
+            inspectionApprovalPost("GetLightningInspectionApprovalQueue", queueParameters)
+        ]);
         if (requestSequence !== inspectionApprovalLoadSequence) return;
-        inspectionApprovalRows = result.data || [];
-        populateInspectionApprovalFilters(result.filters || []);
+        const standardResult = queueResults[0] || {};
+        const lightningResult = queueResults[1] || {};
+        inspectionApprovalRows = (standardResult.data || []).concat(lightningResult.data || []);
+        const filterMap = new Map();
+        (standardResult.filters || []).concat(lightningResult.filters || []).forEach(row => {
+            const key = [row.InspectionTypeCode,row.InspectionTypeDetailCode,row.IDTemplate].join("|");
+            if (!filterMap.has(key)) filterMap.set(key, row);
+        });
+        populateInspectionApprovalFilters(Array.from(filterMap.values()));
         updateInspectionApprovalCounts();
         renderInspectionApprovalQueue();
     } catch (err) {
