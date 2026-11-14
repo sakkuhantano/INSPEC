@@ -7,7 +7,10 @@ Run the scripts below in SQL Server Management Studio against the target INSPEC 
 1. Existing prerequisites (only if not already applied):
    - `inspection_mode_migration.sql`
    - `inspection_batch_transaction_migration.sql`
-   - `inspection_location_map_schema.sql` (only if the current Group Map / MapX / MapY schema is not already deployed)
+   - `InspectionMapGroup_Migration.sql`
+   - `InspectionPoint_Coordinate_Consolidation.sql`
+   - `InspectionPoint_RemoveCompanyLocation_Migration.sql`
+     (only if the current Group Map / direct MapX+MapY schema and point scope are not already deployed)
 2. `InspectionEmailApproval_Schema.sql`
 3. `LightningInspection_Transaction_Migration.sql`
 4. `LightningInspection_Approval_Workflow.sql`
