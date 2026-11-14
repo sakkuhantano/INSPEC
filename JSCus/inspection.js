@@ -5139,7 +5139,7 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
             photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
 };
 
-async function renderInspectionApprovalBatchMap(maps, points, schedules) {
+async function renderInspectionApprovalBatchMap(maps, points, schedules, workflowStatus) {
     const host = document.getElementById("inspectionApprovalBatchMap");
     if (!host) return;
     maps = Array.isArray(maps) ? maps : [];
@@ -5150,10 +5150,30 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules) {
     const visiblePoints = function () {
         return isLightning ? points.filter(point => String(point.ScheduleTime || "") === activeScheduleTime) : points;
     };
+    const workflow = String(workflowStatus || "CHECKED").toUpperCase();
+    const workflowCards = isLightning ? (function () {
+        const stages = [
+            { status: "CHECKED", label: "CHECKED", description: "Technician submitted" },
+            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved" },
+            { status: "ACKNOWLEDGE", label: "ACKNOWLEDGE", description: "Chief Security approved" }
+        ];
+        const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 1 : 0;
+        return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
+            const done = index < completed;
+            const current = index === completed && workflow !== "ACKNOWLEDGE" && workflow !== "VOID";
+            const returned = workflow === "VOID";
+            return '<div class="col-12 col-md-4"><div class="border rounded-3 p-2 h-100 ' +
+                (done ? 'border-success' : current ? 'border-primary' : returned ? 'border-warning' : '') + '">' +
+                '<div class="small fw-bold">' + escInspection(stage.label) + '</div>' +
+                '<div class="small text-muted">' + escInspection(returned ? "Returned for correction" :
+                    done ? "Completed" : current ? "Waiting for this stage" : stage.description) + '</div></div></div>';
+        }).join("") + '</div>';
+    })() : "";
     if (!points.length) { host.innerHTML = ""; return; }
 
     const hasAnyFloorPlan = maps.some(map => !!String(map.MapUrl || "").trim());
     host.innerHTML = '<div class="border rounded-3 p-3 mb-3">' +
+        workflowCards +
         (isLightning ? '<div id="inspectionApprovalLightningSchedules" class="inspection-lightning-schedule-tabs nav nav-tabs mb-3" role="tablist" aria-label="Jadwal Lightning">' +
             schedules.map(item => {
                 const time = String(item.ScheduleTime || item);
@@ -5500,9 +5520,12 @@ async function loadInspectionApprovalDetail(inspectionId) {
         window.currentInspectionApprovalPhotos = photos;
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
+        const scheduleSummary = (result.schedules || []).map(item => String(item.ScheduleTime || item)).join(", ");
+        const scheduledLabel = String(h.InspectionMode || "").toUpperCase() === "LIGHTNING"
+            ? (scheduleSummary || h.ScheduledTime || "-") : (h.ScheduledTime || "-");
         document.getElementById("inspectionApprovalDetailSubtitle").textContent =
             (h.InspectionNo || ("Inspection #" + h.InspectionID)) + " • " +
-            formatInspectionDateDMY(h.InspectionDate) + " • " + (h.ScheduledTime || "-") + " • " + start + " – " + end;
+            formatInspectionDateDMY(h.InspectionDate) + " • " + scheduledLabel + " • " + start + " – " + end;
         document.getElementById("inspectionApprovalParameters").innerHTML =
             '<div class="row g-3">' +
             '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Parameters</div>' +
@@ -5510,7 +5533,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Inspection Type:</strong> ' + escInspection(h.InspectionTypeName || "-") + '</div>' +
             '<div><strong>Type Detail:</strong> ' + escInspection(h.InspectionTypeDetailName || "-") + '</div>' +
             '<div><strong>Date:</strong> ' + escInspection(formatInspectionDateDMY(h.InspectionDate) || "-") + '</div>' +
-            '<div><strong>Scheduled:</strong> ' + escInspection(h.ScheduledTime || "-") + '</div>' +
+            '<div><strong>Scheduled:</strong> ' + escInspection(scheduledLabel) + '</div>' +
             '<div><strong>Start – End:</strong> ' + escInspection(start) + ' – ' + escInspection(end) + '</div>' +
             '<div><strong>Technician:</strong> ' + escInspection(h.TechnicianName || h.OwnerEmployeeName || h.OwnerEmployeeID || "-") + '</div>' +
             '<div><strong>Section:</strong> ' + escInspection(h.SectionID || "-") + '</div></div></div>' +
@@ -5576,7 +5599,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             : "";
         checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
             (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
-        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || []);
+        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h.WorkflowStatus);
         document.getElementById("btnApproveInspection").disabled = isApproved ||
             (isBatchApproval && (!batchPoints.length || !templateAvailable));
         document.getElementById("btnVoidInspection").disabled = isApproved;
