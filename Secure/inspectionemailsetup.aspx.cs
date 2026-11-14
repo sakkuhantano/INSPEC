@@ -21,14 +21,14 @@ namespace INSPEC.Secure
 
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (base.AllowRead(MenuID) == 2)
+                throw new HttpException(403, WAL.GF.MSG_ACCESS_DENIED);
+            GFC.RequireCompanyLocation(Master.Mn_EmployeeID, Master.Mn_CompanyID, Master.Mn_LocationID);
+            if (!IsAdministrator())
+                throw new HttpException(403, "Only INSPEC administrators can change inspection email routing.");
+
             if (!IsPostBack)
             {
-                if (base.AllowRead(MenuID) == 2)
-                    throw new HttpException(403, WAL.GF.MSG_ACCESS_DENIED);
-                GFC.RequireCompanyLocation(Master.Mn_EmployeeID, Master.Mn_CompanyID, Master.Mn_LocationID);
-                if (!IsAdministrator())
-                    throw new HttpException(403, "Only INSPEC administrators can change inspection email routing.");
-
                 Master.Mn_lit_Title = WAL.PB.AppID + " -> Inspection Email & Approval Routing";
                 BindPage();
             }
