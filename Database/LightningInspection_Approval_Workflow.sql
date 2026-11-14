@@ -37,6 +37,7 @@ BEGIN
     DECLARE @V_OwnerEmployeeID VARCHAR(50), @V_InspectionNo VARCHAR(10);
     DECLARE @V_InspectionTypeName VARCHAR(100), @V_InspectionDetailName VARCHAR(100);
     DECLARE @V_ChiefEngID VARCHAR(50), @V_ChiefSecID VARCHAR(50);
+    DECLARE @V_ChiefEngSectionID VARCHAR(10),@V_ChiefSecSectionID VARCHAR(10);
     DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200);
     DECLARE @V_ChiefEngEmail VARCHAR(320), @V_ChiefEngName VARCHAR(200);
     DECLARE @V_ChiefSecEmail VARCHAR(320), @V_ChiefSecName VARCHAR(200);
@@ -58,12 +59,40 @@ BEGIN
     IF @V_OwnerEmployeeID<>@p_ActorEmployeeID
     BEGIN RAISERROR('Only the inspection owner can submit a Lightning daily inspection.',16,1); RETURN; END;
 
-    SELECT @V_ChiefEngID=ChiefEngEmployeeID,@V_ChiefSecID=ChiefSecEmployeeID
+    SELECT @V_ChiefEngID=ChiefEngEmployeeID,@V_ChiefSecID=ChiefSecEmployeeID,
+           @V_ChiefEngSectionID=ChiefEngSectionID,@V_ChiefSecSectionID=ChiefSecSectionID
     FROM dbo.PIP_M_InspectionEmailSetup
     WHERE CompanyID=@V_CompanyID AND LocationID=@V_LocationID AND IsActive=1;
 
-    IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')=''
-    BEGIN RAISERROR('Chief Engineering / Chief Security routing is not configured for this Company and Location.',16,1); RETURN; END;
+    IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')='' OR
+       ISNULL(@V_ChiefEngSectionID,'')='' OR ISNULL(@V_ChiefSecSectionID,'')=''
+    BEGIN RAISERROR('Chief Engineering / Chief Security routing and section selections are not configured for this Company and Location.',16,1); RETURN; END;
+    IF @V_ChiefEngID=@V_ChiefSecID
+    BEGIN RAISERROR('Chief Engineering and Chief Security must be different employees.',16,1); RETURN; END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1 FROM dbo.M_HRD_Employee E
+        WHERE E.EmployeeID=@V_ChiefEngID AND E.CompanyID=@V_CompanyID
+          AND E.SectionID=@V_ChiefEngSectionID AND ISNULL(E.TerminationDate,'')=''
+          AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+              AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+          AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+    )
+    BEGIN RAISERROR('Configured Chief Engineering employee is not active, not in the selected section, or lacks approval access for this location.',16,1); RETURN; END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1 FROM dbo.M_HRD_Employee E
+        WHERE E.EmployeeID=@V_ChiefSecID AND E.CompanyID=@V_CompanyID
+          AND E.SectionID=@V_ChiefSecSectionID AND ISNULL(E.TerminationDate,'')=''
+          AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+              AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+          AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+    )
+    BEGIN RAISERROR('Configured Chief Security employee is not active, not in the selected section, or lacks approval access for this location.',16,1); RETURN; END;
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
