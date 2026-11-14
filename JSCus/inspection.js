@@ -3318,7 +3318,7 @@ async function openServerReturnedInspection(inspectionId) {
         const local = inspectionRecords.find(item =>
             (serverRecord.ClientInspectionID && String(item.ClientInspectionID || "") === String(serverRecord.ClientInspectionID)) ||
             Number(item.ServerInspectionID || item.InspectionID || 0) === Number(inspectionId));
-        if (local && (local.SyncStatus !== "SYNCED" || local.Status === "DRAFT")) {
+        if (local && local.SyncStatus !== "SYNCED") {
             await openSavedInspection(local.LocalInspectionID);
             return;
         }
