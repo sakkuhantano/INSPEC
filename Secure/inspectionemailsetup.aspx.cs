@@ -1,4 +1,5 @@
 using System;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Web;
@@ -26,6 +27,10 @@ namespace INSPEC.Secure
             GFC.RequireCompanyLocation(Master.Mn_EmployeeID, Master.Mn_CompanyID, Master.Mn_LocationID);
             if (!IsAdministrator())
                 throw new HttpException(403, "Only INSPEC administrators can change inspection email routing.");
+
+            pnlSmtpWarning.Visible =
+                String.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["smtpHost"]) ||
+                String.IsNullOrWhiteSpace(ConfigurationManager.AppSettings["smtpFrom"]);
 
             if (!IsPostBack)
             {
