@@ -2781,147 +2781,65 @@ async function cloneActiveVersion(idTemplate)
 {
     removeExistingContextMenu();
 
-    if (!currentVersionData)
-    {
-        showToast(
-            "Open the version first."
-        );
+    if (!currentVersionData || !currentVersionData.VersionInfo) {
+        showToast("Open the version first.");
         return;
     }
-    let result = await showConfirmation({
-                        title: 'Clone Version',
-                        message: 'Clone active version to new draft version ?'
-                    })
 
-    if (!result)
-        return;
+    const confirmed = await showConfirmation({
+        title: "Clone Version",
+        message: "Clone active version to new draft version?"
+    });
+    if (!confirmed) return;
 
-    // =====================================
-    // Clone current active version
-    // =====================================
-
-    const clone =
-        JSON.parse(
-            JSON.stringify(
-                currentVersionData
-            )
-        );
-
-    // =====================================
-    // Version Info
-    // =====================================
-
-    clone.VersionInfo.IDVersion = 0;
-    clone.VersionInfo.RuntimeVersionID =
-        generateRuntimeID();
-    clone.VersionInfo.Version += ' (Copy)';
-
-    clone.VersionInfo.Status =
-        "Draft";
-
-    clone.VersionInfo.Remark =
-        "";
+    // Use the shared clone routine so every persisted/runtime identity is reset,
+    // including Sub-sections. The older inline implementation missed Sub-section IDs.
+    const sourceVersionName = String(
+        (currentVersion && currentVersion.Version) ||
+        currentVersionData.VersionInfo.Version ||
+        "Version"
+    );
+    const clone = cloneVersionStructureForTemplate(
+        currentVersionData,
+        currentVersion || currentVersionData.VersionInfo
+    );
+    clone.VersionInfo.Version = sourceVersionName + " (Copy)";
+    clone.VersionInfo.Status = "Draft";
+    clone.VersionInfo.Remark = "";
+    clone.VersionInfo.EffectiveDate = "";
     clone.VersionInfo.Dirty = true;
 
-    // =====================================
-    // Sections
-    // =====================================
-
-    clone.Sections.forEach(
-        sec =>
-        {
-            sec.IDSection = 0;
-            sec.RuntimeSectionID =
-                generateRuntimeID();
-
-            sec.Items.forEach(
-                item =>
-                {
-                    item.IDItem = 0;
-                    item.RuntimeItemID = generateRuntimeID();
-                    if(item.Groups)
-                    {
-                        item.Groups.forEach(
-                            g =>
-                            {
-                                g.IDGroup = 0;
-                                g.RuntimeGroupID =
-                                    generateRuntimeID();
-                            }
-                        );
-                    }                    
-                }
-            );
-        }
+    const tpl = getTemplateCache(
+        currentTemplate.SectionID,
+        currentTemplate.RuntimeTemplateID
     );
-
-    // =====================================
-    // Insert into cache
-    // =====================================
-
-    const tpl =
-        getTemplateCache(
-            currentTemplate.SectionID,
-            currentTemplate.RuntimeTemplateID
-        );
-    tpl.Versions
-    tpl.Template.Dirty = true;
-    tpl.Versions[
-        clone.VersionInfo
-            .RuntimeVersionID
-    ] =
-    {
-        VersionInfo:
-            clone.VersionInfo,
-
-        Structure:
-            clone,
-
-        Info: getVersionCache(currentTemplate.SectionID,
-                              currentTemplate.RuntimeTemplateID,
-                              currentVersion.RuntimeVersionID).Info
-    };
-    tpl.Versions[clone.VersionInfo.RuntimeVersionID].Info.IDVersion=0;
-    tpl.Versions[clone.VersionInfo.RuntimeVersionID].Info.RuntimeVersionID=clone.VersionInfo.RuntimeVersionID;
-    currentVersions =
-        Object.values(
-            tpl.Versions
-        );
-    templateCache.sections[tpl.Template.SectionID].Dirty=true;
-    templateCache.Dirty =
-        true;
-
-    // =====================================
-    // Refresh explorer
-    // =====================================
-
-    const container =
-        document.querySelector(
-            `.template-version-container[data-template-id="${currentTemplate.RuntimeTemplateID}"]`
-        );
-
-    if(container)
-    {
-        renderTemplateVersions(
-            Object.values(
-                tpl.Versions
-            ),
-            container
-        );
+    if (!tpl) {
+        showToast("Template cache could not be found.");
+        return;
     }
 
-    // =====================================
-    // Open new draft
-    // =====================================
+    tpl.Template.Dirty = true;
+    tpl.Versions[clone.VersionInfo.RuntimeVersionID] = {
+        Info: clone.VersionInfo,
+        VersionInfo: clone.VersionInfo,
+        Structure: clone
+    };
 
-    // loadVersionStructure(
-    //     clone.VersionInfo
-    //         .RuntimeVersionID
-    // );
-    loadVersionStructure(
+    currentVersions = Object.values(tpl.Versions);
+    templateCache.sections[tpl.Template.SectionID].Dirty = true;
+    templateCache.Dirty = true;
+
+    const container = document.querySelector(
+        `.template-version-container[data-template-id="${currentTemplate.RuntimeTemplateID}"]`
+    );
+    if (container) {
+        renderTemplateVersions(currentVersions, container);
+    }
+
+    await loadVersionStructure(
         currentTemplate.RuntimeTemplateID,
         clone.VersionInfo.RuntimeVersionID
-    );    
+    );
     evaluateDirtyState();
 }
 function showVersionPropertiesEvent(version) {
