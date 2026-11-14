@@ -266,6 +266,8 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
                     String.IsNullOrWhiteSpace(ddlChiefEng.SelectedValue) ||
                     String.IsNullOrWhiteSpace(ddlChiefSec.SelectedValue))
                     throw new InvalidOperationException("Pilih section dan employee Chief Engineering serta Chief Security.");
+                if (String.Equals(ddlChiefEng.SelectedValue, ddlChiefSec.SelectedValue, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Chief Engineering dan Chief Security harus dua employee yang berbeda.");
 
                 using (var br = new WAL.BR.CF())
                 {
