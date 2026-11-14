@@ -907,7 +907,8 @@ SELECT ID FROM @AutoNumResult;",
                             {
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                                string lightningApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
+                                string lightningApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
+                                    TokenLong(record, "InspectionID").ToString(CultureInfo.InvariantCulture);
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
                                         new SqlParameter("@p_ApprovalUrl", lightningApprovalUrl),
@@ -952,7 +953,8 @@ SELECT ID FROM @AutoNumResult;",
                             {
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                                string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
+                                string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
+                                    inspectionId.ToString(CultureInfo.InvariantCulture);
                                 br.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
                                     new SqlParameter("@p_InspectionID", inspectionId),
                                     new SqlParameter("@p_ActorEmployeeID", userId),
@@ -2140,7 +2142,8 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
 
             string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
             string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval";
+            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
+                inspectionId.ToString(CultureInfo.InvariantCulture);
             string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
                 inspectionId.ToString(CultureInfo.InvariantCulture);
 
