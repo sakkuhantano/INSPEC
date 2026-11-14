@@ -121,6 +121,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
         {
             txtIsNew.Text = "1";
             txtDetailOriginalCode.Text = "";
+            ddlInspectionMode.SelectedValue = "STANDARD";
             hidGroupingBy.Value = "";
             GF.SelectListItem(ref ddlGroupingBy, "");
             GF.SelectListItem(ref ddlReportLayout, "");
@@ -153,6 +154,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                 txtInspectionTypeName.Text = dt.Rows[0]["InspectionTypeName"].ToString();
                 txtSectionID.Text = dt.Rows[0]["SectionID"].ToString();
                 GF.SelectListItem(ref ddlReportLayout, dt.Rows[0]["ReportLayout"].ToString());
+                GF.SelectListItem(ref ddlInspectionMode, dt.Rows[0]["InspectionMode"].ToString());
                 hidGroupingBy.Value = NormalizeGroupingBy(dt.Rows[0]["GroupingBy"].ToString());
                 _OpenSection();
                 Master.TB_VisibleButton(ToolbarItem_2.Save, true);
@@ -175,6 +177,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
             else if (txtInspectionTypeName.Text.Trim() == "") message = "Inspection Type Name cannot be empty.";
             else if (txtSectionID.Text.Trim() == "") message = "Section ID cannot be empty.";
             else if (ddlReportLayout.SelectedValue == "") message = "Report Layout cannot be empty.";
+            else if (!new[] { "STANDARD", "BATCH", "LIGHTNING" }.Contains(ddlInspectionMode.SelectedValue)) message = "Inspection Mode is invalid.";
             if (message != "") GF.MsgBox(this, message, "BS-5.3.0");
             return message == "";
         }
@@ -199,12 +202,13 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                 }, true);
             using (var br = new WAL.BR.CF())
                 br.EQueryP(@"UPDATE dbo.PIP_M_InspectionType
-SET GroupingBy=@GroupingBy
+SET GroupingBy=@GroupingBy, InspectionMode=@InspectionMode
 WHERE InspectionTypeCode=@InspectionTypeCode
   AND CompanyID=@CompanyID
   AND LocationID=@LocationID",
                     new SqlParameter[] {
                         new SqlParameter("@GroupingBy", NormalizeGroupingBy(hidGroupingBy.Value)),
+                        new SqlParameter("@InspectionMode", ddlInspectionMode.SelectedValue),
                         new SqlParameter("@InspectionTypeCode", txtInspectionTypeCode.Text.Trim().ToUpperInvariant()),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID)
@@ -355,7 +359,7 @@ ORDER BY InspectionTypeDetailCode, ScheduleTime",
                     p_MaxRecord = "1";
                 }
 
-                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy " +
+                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy, ISNULL(InspectionMode,'STANDARD') InspectionMode " +
                 "FROM pip_m_inspectiontype h WHERE h.isActive=1 " +
                 (p_Condition != string.Empty ? " AND " + p_Condition : "") + _Condition +
                 " Order By InspectionTypeCode"));
