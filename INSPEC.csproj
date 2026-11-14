@@ -94,6 +94,7 @@
     <Content Include="Secure\workorder.aspx" />
     <Content Include="Secure\inspection.aspx" />
     <Content Include="Secure\inspectionmaster.aspx" />
+    <Content Include="Secure\inspectionemailsetup.aspx" />
     <Content Include="Secure\profilesetting.aspx" />
     <Content Include="JSCus\GFC_FO.js" />
     <Content Include="JSCus\Login.js" />
@@ -163,6 +164,13 @@
     <Compile Include="Secure\workorder.aspx.cs" />
     <Compile Include="Secure\workorder.aspx.designer.cs" />
     <Compile Include="Secure\inspection.aspx.cs" />
+    <Compile Include="Secure\inspectionemailsetup.aspx.cs">
+      <DependentUpon>inspectionemailsetup.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\inspectionemailsetup.aspx.designer.cs">
+      <DependentUpon>inspectionemailsetup.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Secure\inspectionmaster.aspx.cs">
       <DependentUpon>inspectionmaster.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
