@@ -1974,7 +1974,11 @@ WHERE I.ClientInspectionID=@ClientInspectionID
       SELECT 1 FROM dbo.SysWebUser SU
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+        AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
+      WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
+        AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+  )
         AND (
             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                     WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
@@ -2204,7 +2208,11 @@ WHERE I.InspectionID=@InspectionID
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND (
-          EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+          EXISTS (
+              SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
+              WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
+                AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+          )
           OR EXISTS (
               SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
               JOIN dbo.PIP_M_InspectionEmailSetup ES
@@ -3132,7 +3140,11 @@ WHERE I.InspectionID=@InspectionID
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
+      WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
+        AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+  )
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
 ",
                     new SqlParameter[] {
