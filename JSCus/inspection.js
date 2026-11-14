@@ -3454,6 +3454,9 @@ function renderInspectionRecordTable(records, host, submitted) {
                   (record.DeleteArchiveError ? '<div class="text-danger">Sync terakhir: ' + escInspection(record.DeleteArchiveError) + '</div>' : '') +
                   '</div>'
                 : "";
+        const returnedHtml = record.ReturnedServerOnly && String(record.ReasonVoid || "").trim()
+            ? '<div class="text-warning small mt-1"><strong>Returned:</strong> ' + escInspection(record.ReasonVoid) + '</div>'
+            : "";
         const deleteHtml = record.SyncStatus === "CONFLICT"
             ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
             : (record.SyncStatus === "DELETE_PENDING" && record.DeleteOriginalSyncStatus === "VOIDED"
@@ -3470,8 +3473,8 @@ function renderInspectionRecordTable(records, host, submitted) {
             '<td data-label="Location/Area">' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
             '<td data-label="Technician">' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
             '</tr>';
-        const messageRow = conflictHtml
-            ? '<tr class="inspection-grid-message-row"><td colspan="6" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + '</td></tr>'
+        const messageRow = conflictHtml || returnedHtml
+            ? '<tr class="inspection-grid-message-row"><td colspan="6" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + returnedHtml + '</td></tr>'
             : "";
         return mainRow + messageRow;
     }).join("");
