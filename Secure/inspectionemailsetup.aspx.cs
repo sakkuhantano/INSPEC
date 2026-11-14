@@ -124,7 +124,7 @@ ORDER BY S.SectionID",
 
         private void BindSPVEmployees()
         {
-            BindEmployees(ddlSPV, null, ddlSection.SelectedValue);
+            BindEmployees(ddlSPV, ddlSection.SelectedValue);
         }
 
         private void BindEmployees(DropDownList target, string sectionID)
