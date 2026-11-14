@@ -1025,7 +1025,10 @@ SELECT ID FROM @AutoNumResult;",
             }
 
             bool allSuccess = outcomes.All(x => Convert.ToBoolean(x.GetType().GetProperty("success").GetValue(x, null)));
-            return new { success = allSuccess, results = outcomes };
+            object emailDispatch;
+            try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+            catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
+            return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
         }
 
         private static string GetInspectionPhotoFolder(string companyId, string locationId, DateTime inspectionDate, string inspectionNo)
@@ -2135,12 +2138,16 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                     new SqlParameter("@p_ApprovalUrl", approvalUrl),
                     new SqlParameter("@p_CorrectionUrl", correctionUrl)
                 }, true, true);
+                object emailDispatch;
+                try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+                catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
                 return new {
                     success = true,
                     action = action.ToUpperInvariant(),
                     inspectionId = inspectionId,
                     workflowStatus = saved != null && saved.Rows.Count > 0 ? Convert.ToString(saved.Rows[0]["WorkflowStatus"]) : "",
-                    currentStageCode = saved != null && saved.Rows.Count > 0 ? Convert.ToString(saved.Rows[0]["CurrentStageCode"]) : ""
+                    currentStageCode = saved != null && saved.Rows.Count > 0 ? Convert.ToString(saved.Rows[0]["CurrentStageCode"]) : "",
+                    emailDispatch = emailDispatch
                 };
             }
         }
@@ -3150,8 +3157,8 @@ WHERE I.InspectionID=@InspectionID
 UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET LastError='SMTP host or smtpFrom is not configured. Configure Web.config before email dispatch.',
     NextAttemptDate=DATEADD(MINUTE,15,GETDATE())
-WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();", true);
-                    DataTable pendingRows = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')");
+WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();", new SqlParameter[0], true);
+                    DataTable pendingRows = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')", new SqlParameter[0]);
                     int pending = pendingRows.Rows.Count > 0 ? Convert.ToInt32(pendingRows.Rows[0]["PendingCount"]) : 0;
                     return new { attempted = 0, sent = 0, failed = 0, pending = pending, configured = false };
                 }
@@ -3226,7 +3233,7 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                         failed++;
                     }
                 }
-                DataTable pending = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
+                DataTable pending = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')", new SqlParameter[0]);
                 return new {
                     attempted = queue.Rows.Count,
                     sent = sent,
