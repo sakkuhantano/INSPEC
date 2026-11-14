@@ -1003,3 +1003,97 @@ body {
         flex-basis: 265px;
     }
 }
+
+/* Mobile Template Builder: keep the three panels usable and context menus inside the viewport. */
+@media (max-width: 991.98px) {
+    .module-header {
+        min-width: 0;
+        padding-left: .6rem;
+        padding-right: .6rem;
+    }
+
+    .module-header > .d-flex {
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .module-header .btn-compact {
+        white-space: nowrap;
+    }
+
+    .mobile-nav-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
+
+    .mobile-nav-tab {
+        min-width: 0;
+        padding: .55rem .35rem;
+        font-size: .78rem;
+    }
+
+    .module-body {
+        height: calc(100dvh - 140px);
+        max-height: calc(100dvh - 140px);
+        overflow: hidden;
+    }
+
+    .panel {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .panel-header {
+        min-width: 0;
+        gap: .35rem;
+        padding-left: .55rem;
+        padding-right: .55rem;
+    }
+
+    .panel-header > div {
+        min-width: 0;
+    }
+
+    #addSectionBtn {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #panel-properties .panel-content,
+    #panel-builder .panel-content,
+    #panel-explorer .panel-content {
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .prop-group,
+    .prop-group-body,
+    .form-control,
+    .form-select,
+    .tag-input-container {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .custom-context-menu {
+        position: fixed;
+        z-index: 10000;
+        width: max-content;
+        max-width: min(280px, calc(100vw - 16px));
+        min-width: min(200px, calc(100vw - 16px));
+        box-sizing: border-box;
+    }
+
+    .custom-context-menu .context-item {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.25;
+        padding: .65rem .75rem;
+    }
+}
