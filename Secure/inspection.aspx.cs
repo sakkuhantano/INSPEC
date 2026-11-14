@@ -2112,6 +2112,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
         public static object ProcessLightningInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
         {
+            RequireSameOriginPost();
             employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
@@ -3089,6 +3090,7 @@ ORDER BY I.InspectionID";
         public static object ProcessInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark)
         {
+            RequireSameOriginPost();
             employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
@@ -3141,6 +3143,22 @@ WHERE I.InspectionID=@InspectionID
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
                 return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId, followUpWONo = followUpWONo };
             }
+        }
+
+        private static void RequireSameOriginPost()
+        {
+            HttpRequest request = HttpContext.Current == null ? null : HttpContext.Current.Request;
+            if (request == null || !String.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(405, "Approval actions require POST.");
+
+            string origin = (request.Headers["Origin"] ?? "").Trim();
+            Uri source = null;
+            if (origin != "" && !Uri.TryCreate(origin, UriKind.Absolute, out source))
+                throw new HttpException(403, "Invalid request origin.");
+            if (source == null && request.UrlReferrer != null) source = request.UrlReferrer;
+            if (source == null || !String.Equals(source.Scheme, request.Url.Scheme, StringComparison.OrdinalIgnoreCase) ||
+                !String.Equals(source.Authority, request.Url.Authority, StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(403, "Cross-origin approval requests are not allowed.");
         }
 
         private static object DispatchInspectionEmailOutbox(int batchSize)
