@@ -36,7 +36,8 @@ BEGIN
  IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')='' BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  SELECT @OldStatus=WorkflowStatus FROM dbo.PIP_T_InspectionWorkflow WITH (UPDLOCK,HOLDLOCK)
  WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
- IF @OldStatus IN ('SUBMITTED','APPROVED') BEGIN RAISERROR('Inspection is already in SPV approval workflow.',16,1); RETURN; END;
+ IF @OldStatus='SUBMITTED' RETURN;
+ IF @OldStatus='APPROVED' BEGIN RAISERROR('Inspection has already been finally approved.',16,1); RETURN; END;
  SET @Action=CASE WHEN @OldStatus='VOID' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
  SET @TranCount=@@TRANCOUNT;
  BEGIN TRY
