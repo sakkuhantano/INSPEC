@@ -948,6 +948,18 @@ SELECT ID FROM @AutoNumResult;",
                             if (inspectionId <= 0)
                                 throw new Exception("Inspection header was not saved.");
 
+                            if (!isLightningInspection)
+                            {
+                                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                                string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                                string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
+                                br.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
+                                    new SqlParameter("@p_InspectionID", inspectionId),
+                                    new SqlParameter("@p_ActorEmployeeID", userId),
+                                    new SqlParameter("@p_ApprovalUrl", approvalUrl)
+                                }, true, true);
+                            }
+
                             /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely. */
                             if (oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
                             {
