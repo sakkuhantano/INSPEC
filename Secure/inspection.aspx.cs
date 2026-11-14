@@ -903,8 +903,12 @@ SELECT ID FROM @AutoNumResult;",
                             DataTable saved;
                             if (isLightningInspection)
                             {
+                                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                                string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                                string lightningApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
+                                        new SqlParameter("@p_ApprovalUrl", lightningApprovalUrl),
                                         new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
                                         new SqlParameter("@p_Points", batchPoints),
                                         new SqlParameter("@p_Schedules", lightningSchedules),
