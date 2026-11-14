@@ -336,7 +336,9 @@ BEGIN
             RAISERROR('LIGHTNING header was not saved by the canonical Inspection sync procedure.',16,1);
 
         UPDATE dbo.PIP_T_Inspection
-        SET InspectionMode='LIGHTNING',UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
+        SET InspectionMode='LIGHTNING',Status='DONE',IsApprove=0,ApprovedBy='',
+            ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',ReasonVoid='',
+            UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
         WHERE InspectionID=@V_InspectionID;
 
         IF NOT EXISTS
