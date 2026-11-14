@@ -269,7 +269,7 @@ function wireInspectionEvents() {
     if (typeof wireInspectionMapWorkspace === "function") wireInspectionMapWorkspace();
     document.getElementById("btnInspectionChecklistTab").addEventListener("click", async () => {
         const isBatch = currentInspectionRecord &&
-            String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+            isInspectionMapMode(currentInspectionRecord.InspectionMode);
         if (isBatch && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)) {
             updateInspectionParameterTabGate();
             if (typeof showInspectionMapWorkspace === "function")
@@ -1292,7 +1292,7 @@ window.mountInspectionBatchSummary = function (record) {
     const summary = document.getElementById("inspectionSummaryPanel");
     const reasonVoid = document.getElementById("inspectionReasonVoidPanel");
     if (!host || !checklistPane || !followUp || !summary) return;
-    const isBatch = record && String(record.InspectionMode || "").toUpperCase() === "BATCH";
+    const isBatch = record && isInspectionMapMode(record.InspectionMode);
     if (isBatch) {
         host.appendChild(followUp);
         host.appendChild(summary);
@@ -1496,7 +1496,7 @@ function updateInspectionRemarkPanels() {
         const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value).trim());
         const versionRemark1Enabled = container.dataset.remark1VersionEnabled === "1";
         const versionRemark2Enabled = container.dataset.remark2VersionEnabled === "1";
-        const isBatchRemarkMode = String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        const isBatchRemarkMode = isInspectionMapMode(currentInspectionRecord && currentInspectionRecord.InspectionMode);
         const baseRemark1Required = container.dataset.remark1BaseRequired === "1";
         const baseRemark2Required = container.dataset.remark2BaseRequired === "1";
         // Batch snapshot item flags are already ANDed with the template-version flag by the server.
@@ -2156,10 +2156,14 @@ function focusInvalidInspectionItem(error) {
     } else item.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 function getActiveInspectionPoint() {
-    if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
+    if (!currentInspectionRecord || !isInspectionMapMode(currentInspectionRecord.InspectionMode))
         return null;
+    const scheduleTime = String(currentInspectionRecord.InspectionMode).toUpperCase() === "LIGHTNING"
+        ? String(activeInspectionScheduleTime || currentInspectionRecord.ActiveScheduleTime || "")
+        : "";
     return (currentInspectionRecord.Points || []).find(point =>
-        Number(point.InspectionPointID) === Number(currentInspectionRecord.ActiveInspectionPointID)
+        Number(point.InspectionPointID) === Number(currentInspectionRecord.ActiveInspectionPointID) &&
+        String(point.ScheduleTime || "") === scheduleTime
     ) || null;
 }
 
@@ -2275,17 +2279,22 @@ async function goToNextBatchValidationIssue() {
 }
 
 async function openBatchInspectionPointChecklist(masterPoint, validationError) {
-    if (!currentInspectionRecord || String(currentInspectionRecord.InspectionMode || "").toUpperCase() !== "BATCH")
+    if (!currentInspectionRecord || !isInspectionMapMode(currentInspectionRecord.InspectionMode))
         return;
     if (!masterPoint || !masterPoint.InspectionPointID) return;
     const pointReadOnly = currentInspectionReadOnly || currentInspectionRecord.Status === "DONE";
+    const scheduleTime = String(currentInspectionRecord.InspectionMode).toUpperCase() === "LIGHTNING"
+        ? String(activeInspectionScheduleTime || currentInspectionRecord.ActiveScheduleTime || "")
+        : "";
 
     let point = (currentInspectionRecord.Points || []).find(item =>
-        Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID));
+        Number(item.InspectionPointID) === Number(masterPoint.InspectionPointID) &&
+        String(item.ScheduleTime || "") === scheduleTime);
     if (!point) {
         point = {
             ClientPointID: newInspectionId(),
             InspectionPointID: Number(masterPoint.InspectionPointID),
+            ScheduleTime: scheduleTime,
             PointCode: String(masterPoint.PointCode || ""),
             PointName: String(masterPoint.PointName || ""),
             InspectionDateTime: localDateTimeString(new Date()),
@@ -2829,7 +2838,7 @@ window.submitInspectionBatch = async function () {
 };
 
 async function saveInspection(status) {
-    if (currentInspectionRecord && String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "BATCH") {
+    if (currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode)) {
         if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0) {
             await saveBatchInspectionPoint(status);
             return;
@@ -3370,7 +3379,7 @@ async function openSavedInspection(localId) {
 
     currentInspectionRecord = record;
     await renderInspectionForm(record, record.Status === "DONE" && !isVoidedServerInspectionRecord(record));
-    if (String(record.InspectionMode || "").toUpperCase() === "BATCH" &&
+    if (isInspectionMapMode(record.InspectionMode) &&
         typeof showInspectionMapWorkspace === "function") {
         showInspectionMapWorkspace(record, true);
     }
@@ -3421,7 +3430,7 @@ async function closeInspectionForm() {
     }
     const closingRecord = currentInspectionRecord;
     const closingBatch = closingRecord &&
-        String(closingRecord.InspectionMode || "").toUpperCase() === "BATCH";
+        isInspectionMapMode(closingRecord.InspectionMode);
     const batchWasSaved = closingBatch
         ? await isInspectionRecordPersisted(closingRecord.LocalInspectionID)
         : false;
