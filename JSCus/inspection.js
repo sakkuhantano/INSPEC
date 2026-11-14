@@ -599,7 +599,10 @@ function refreshInspectionDetailAvailability() {
         }
 
         const times = getInspectionScheduleTimes(detail);
-        const slotTimes = times.length ? times : [""];
+        const isLightning = String(type.InspectionMode || "").toUpperCase() === "LIGHTNING";
+        const slotTimes = isLightning
+            ? [times.length ? times[0] : ""]
+            : (times.length ? times : [""]);
         let totalSlots = 0;
         let occupiedSlots = 0;
 
