@@ -266,6 +266,7 @@
     <None Include="Database\LightningInspection_Transaction_Migration.sql" />
     <None Include="Database\LightningInspection_Sync_Procedure.sql" />
     <None Include="Database\LightningInspection_Approval_Workflow.sql" />
+    <None Include="Database\InspectionApproval_Workflow_Procedures.sql" />
     <None Include="Database\repeatable_inspection_schema.sql" />
     <None Include="Database\inspection_point_svg_shape_migration.sql" />
     <None Include="Database\REPEATABLE_INSPECTION_README.md" />
