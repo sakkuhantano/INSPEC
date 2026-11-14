@@ -159,3 +159,42 @@
 .inspection-coordinate-path:hover{stroke-width:1.3;filter:drop-shadow(0 0 2px rgba(13,110,253,.6))}
 .inspection-coordinate-board.path-drawing{cursor:crosshair;touch-action:none}
 .inspection-map-preview-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* Mobile Inspection Points toolbar: let the toolbar grow instead of colliding with the grid. */
+@media(max-width:767.98px){
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20{
+     height:auto!important;
+     min-height:30px;
+     padding:.35rem .15rem;
+ }
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20>.col-sm-5{
+     width:100%;
+     max-width:100%;
+     flex:0 0 100%;
+     padding-bottom:.25rem;
+ }
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20>.col-sm-7{
+     width:100%;
+     max-width:100%;
+     flex:0 0 100%;
+     display:flex;
+     flex-wrap:wrap;
+     justify-content:flex-start!important;
+     align-items:center;
+     gap:.3rem;
+ }
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20 .input-group{
+     width:100%!important;
+     flex:0 0 100%;
+     margin-left:0!important;
+ }
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20 #btnNewPointGrid{
+     white-space:nowrap;
+     flex:0 0 auto;
+     min-width:0;
+ }
+ .inspection-master-content #tab-point .row.font-weight-bold.bg-custom20 select{
+     flex:0 0 75px;
+     width:75px!important;
+ }
+}
