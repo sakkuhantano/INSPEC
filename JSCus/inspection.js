@@ -24,6 +24,11 @@ function isInspectionMapMode(mode) {
 window.getActiveInspectionScheduleTime = function () {
     return activeInspectionScheduleTime || String(currentInspectionRecord && currentInspectionRecord.ActiveScheduleTime || "");
 };
+window.setInspectionActiveScheduleTime = function (value) {
+    activeInspectionScheduleTime = String(value || "");
+    if (currentInspectionRecord && String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "LIGHTNING")
+        currentInspectionRecord.ActiveScheduleTime = activeInspectionScheduleTime;
+};
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";")
