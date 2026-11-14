@@ -1824,6 +1824,11 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
             WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
               AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
         )
+        AND EXISTS (
+            SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+            WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
+              AND W.WorkflowStatus IN ('SUBMITTED','APPROVED','VOID')
+        )
         AND (
             EXISTS (
                 SELECT 1
@@ -2226,6 +2231,12 @@ WHERE I.InspectionID=@InspectionID
                   AND W.EntityType IN ('INSPECTION','LIGHTNING')
             )
        ))
+  )
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+      WHERE W.EntityID=I.InspectionID
+        AND W.EntityType IN ('INSPECTION','LIGHTNING')
+        AND W.WorkflowStatus IN ('SUBMITTED','APPROVED','VOID','CHECKED','ACKNOWLEDGE 1','ACKNOWLEDGE')
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
@@ -3178,6 +3189,11 @@ WHERE I.InspectionID=@InspectionID
       SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
       WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
         AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+  )
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+      WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
+        AND W.WorkflowStatus='SUBMITTED' AND W.CurrentStageCode='SPV'
   )
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
 ",
