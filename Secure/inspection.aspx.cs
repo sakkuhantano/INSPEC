@@ -2479,11 +2479,12 @@ new SqlParameter("@InspectionID", id) });
                         record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
                     record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
 
-                    if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase))
+                    if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
                         DataTable returnedPoints = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
-       TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
+       TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
        P.PointCode,P.PointName,P.PointObjectType,
        P.PointDescription,P.MapID,P.MapX,P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
@@ -2546,6 +2547,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "InspectionPointTransactionID", Convert.ToInt64(pointRow["InspectionPointTransactionID"]) },
                                 { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
                                 { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
+                                { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                                 { "PointCode", GF.GetString(pointRow["PointCode"]) },
                                 { "PointName", GF.GetString(pointRow["PointName"]) },
                                 { "AbnormalRemark", GF.GetString(pointRow["AbnormalRemark"]) },
@@ -2566,6 +2568,23 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             });
                         }
                         record["Points"] = returnedPointList;
+                        if (String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                        {
+                            DataTable returnedSchedules = br.EQueryP(@"
+SELECT ScheduleTime,ScheduleStatus,SubmittedDate
+FROM dbo.PIP_T_InspectionLightningSchedule
+WHERE InspectionID=@InspectionID
+ORDER BY ScheduleTime",
+                                new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                            record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new {
+                                ScheduleTime = GF.GetString(row["ScheduleTime"]),
+                                ScheduleStatus = GF.GetString(row["ScheduleStatus"]),
+                                SubmittedDate = row["SubmittedDate"] == DBNull.Value ? "" :
+                                    Convert.ToDateTime(row["SubmittedDate"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)
+                            }).ToList();
+                            record["ActiveScheduleTime"] = returnedSchedules.Rows.Count > 0
+                                ? GF.GetString(returnedSchedules.Rows[0]["ScheduleTime"]) : "";
+                        }
                     }
 
                     DataTable meta = br.EQueryP(@"
