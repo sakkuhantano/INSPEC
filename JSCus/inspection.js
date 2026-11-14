@@ -17,6 +17,7 @@ let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionBatchValidationState = { errors: [], index: -1 };
 let activeInspectionScheduleTime = "";
 let returnedInspectionDeepLinkHandled = false;
+let approvalInspectionDeepLinkHandled = false;
 
 function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
@@ -4851,6 +4852,14 @@ async function loadInspectionApprovalQueue() {
         populateInspectionApprovalFilters(Array.from(filterMap.values()));
         updateInspectionApprovalCounts();
         renderInspectionApprovalQueue();
+        if (!approvalInspectionDeepLinkHandled && window.location && window.location.search) {
+            const query = new URLSearchParams(window.location.search);
+            const requestedId = Number(query.get("inspectionId") || 0);
+            if (requestedId > 0 && inspectionApprovalRows.some(row => Number(row.InspectionID) === requestedId)) {
+                approvalInspectionDeepLinkHandled = true;
+                window.setTimeout(() => openInspectionApprovalDetail(requestedId), 120);
+            }
+        }
     } catch (err) {
         if (requestSequence !== inspectionApprovalLoadSequence) return;
         host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
