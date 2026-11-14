@@ -192,6 +192,11 @@ BEGIN
 END;
 GO
 
+/* Track the latest dispatch attempt so abandoned SENDING rows can be recovered safely. */
+IF COL_LENGTH('dbo.PIP_T_InspectionEmailOutbox','LastAttemptDate') IS NULL
+    ALTER TABLE dbo.PIP_T_InspectionEmailOutbox ADD LastAttemptDate DATETIME NULL;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1 FROM sys.indexes
