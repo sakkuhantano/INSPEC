@@ -67,6 +67,7 @@ namespace INSPEC.Secure
 
                     string status = TokenString(record, "Status").ToUpperInvariant();
                     string inspectionMode = TokenString(record, "InspectionMode").Trim().ToUpperInvariant();
+                    if (inspectionMode == "") inspectionMode = "STANDARD";
                     bool isLightningInspection = String.Equals(inspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase);
                     bool isBatchInspection = String.Equals(inspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) || isLightningInspection;
                     if (status != "DONE")
