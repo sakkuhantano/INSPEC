@@ -1783,11 +1783,11 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
         AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
        OR
-       (I.Status='DRAFT'
-        AND ISNULL(I.IsApprove,0)=0
-        AND ISNULL(I.ApprovedBy,'')<>''
-        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-        AND ISNULL(I.ReasonVoid,'')<>'')
+       (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
+            (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
+            OR EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+                       WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID')
+       ))
   )
   AND EXISTS (
       SELECT 1
@@ -1810,9 +1810,9 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
              )
         )
         AND EXISTS (
-            SELECT 1
-            FROM dbo.SplitStringConvertToTable(@SectionList,';') S
-            WHERE S.val=I.SectionID
+            SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
+            WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
+              AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
         )
         AND (
             EXISTS (
@@ -2209,10 +2209,11 @@ WHERE I.InspectionID=@InspectionID
        ))
        OR (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
             (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-            OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND EXISTS (
+            OR EXISTS (
                 SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-                WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
-            ))
+                WHERE W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
+                  AND W.EntityType IN ('INSPECTION','LIGHTNING')
+            )
        ))
   )
   AND EXISTS (
@@ -2614,10 +2615,11 @@ WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=
   AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ReasonVoid,'')<>''
   AND (
       (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-      OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND EXISTS (
+      OR EXISTS (
           SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-          WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
-      ))
+          WHERE W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
+            AND W.EntityType IN ('INSPECTION','LIGHTNING')
+      )
   )
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
 
