@@ -267,6 +267,12 @@ IF NOT EXISTS
       AND E.SectionID=@ChiefEngSectionID AND S.SectionID=@ChiefEngSectionID
       AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
 )
 BEGIN
     RAISERROR('Chief Engineering harus employee aktif pada section Engineering dan memiliki email.',16,1);
@@ -333,6 +339,9 @@ IF NOT EXISTS
     WHERE E.EmployeeID=@SPV AND E.CompanyID=@CompanyID
       AND E.SectionID=@SectionID AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                    AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
 )
 BEGIN
     RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki email.',16,1);
