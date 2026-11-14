@@ -2007,6 +2007,142 @@ ORDER BY P.SeqNo",
         }
 
         [WebMethod]
+        [WebMethod]
+        public static object GetLightningInspectionApprovalQueue(string employeeId, string companyId, string locationId,
+            string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
+            string inspectionTypeDetailCode, string templateId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Chief Engineering / Chief Security identity is required.");
+
+            approvalTab = String.Equals(approvalTab, "APPROVED", StringComparison.OrdinalIgnoreCase) ? "APPROVED" :
+                (String.Equals(approvalTab, "VOID", StringComparison.OrdinalIgnoreCase) ? "VOID" : "OUTSTANDING");
+            DateTime fromDate, thruDate;
+            if (!DateTime.TryParseExact(dateFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fromDate))
+                fromDate = DateTime.Today;
+            if (!DateTime.TryParseExact(dateThru, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out thruDate))
+                thruDate = fromDate;
+            if (fromDate > thruDate) throw new HttpException(400, "Approved From tidak boleh melewati Approved Thru.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                SqlParameter[] parameters = new SqlParameter[] {
+                    new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@CompanyID", companyId),
+                    new SqlParameter("@LocationID", locationId),
+                    new SqlParameter("@ApprovalTab", approvalTab),
+                    new SqlParameter("@DateFrom", fromDate),
+                    new SqlParameter("@DateThru", thruDate),
+                    new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
+                    new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
+                    new SqlParameter("@TemplateId", templateId ?? "")
+                };
+                const string scope = @"
+FROM dbo.PIP_T_InspectionWorkflow W
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=W.EntityID
+JOIN dbo.PIP_M_InspectionEmailSetup ES
+  ON ES.CompanyID=W.CompanyID AND ES.LocationID=W.LocationID AND ES.IsActive=1
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+WHERE W.EntityType='LIGHTNING'
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND (
+      (@ApprovalTab='OUTSTANDING' AND (
+          (W.CurrentStageCode='CHIEF_ENG' AND ES.ChiefEngEmployeeID=@EmployeeID)
+          OR (W.CurrentStageCode='CHIEF_SEC' AND ES.ChiefSecEmployeeID=@EmployeeID)
+      ) AND W.WorkflowStatus IN ('CHECKED','ACKNOWLEDGE 1'))
+      OR (@ApprovalTab='APPROVED' AND W.WorkflowStatus='ACKNOWLEDGE'
+          AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID))
+      OR (@ApprovalTab='VOID' AND W.WorkflowStatus='VOID'
+          AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID))
+  )
+  AND I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)
+  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )";
+                DataTable filtersTable = br.EQueryP(@"
+SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo " + scope + @"
+ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo", parameters);
+                var filters = new List<Dictionary<string, object>>();
+                foreach (DataRow row in filtersTable.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in filtersTable.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    filters.Add(item);
+                }
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.SectionID,
+       I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
+       I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
+       I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
+       CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
+       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,I.IsApprove,I.ApprovedBy,I.ApprovedDate,
+       I.ApprovalRemark,I.ReasonVoid,I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
+       'LIGHTNING' InspectionMode,W.WorkflowStatus,W.CurrentStageCode
+" + scope + @"
+ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in rows.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    data.Add(item);
+                }
+                return new { data = data, filters = filters };
+            }
+        }
+
+        [WebMethod]
+        public static object ProcessLightningInspectionApproval(long inspectionId, string action, string employeeId,
+            string companyId, string locationId, string remark)
+        {
+            employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Approver identity is required.");
+            if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
+                !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(400, "Invalid Lightning approval action.");
+            if (String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(remark))
+                throw new HttpException(400, "Reason for void is required.");
+
+            string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+            string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval";
+            string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
+                inspectionId.ToString(CultureInfo.InvariantCulture);
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Approval", new SqlParameter[] {
+                    new SqlParameter("@p_InspectionID", inspectionId),
+                    new SqlParameter("@p_ActorEmployeeID", employeeId),
+                    new SqlParameter("@p_Action", action.ToUpperInvariant()),
+                    new SqlParameter("@p_Remark", String.IsNullOrWhiteSpace(remark) ? "" : remark),
+                    new SqlParameter("@p_ApprovalUrl", approvalUrl),
+                    new SqlParameter("@p_CorrectionUrl", correctionUrl)
+                }, true, true);
+                return new {
+                    success = true,
+                    action = action.ToUpperInvariant(),
+                    inspectionId = inspectionId,
+                    workflowStatus = saved != null && saved.Rows.Count > 0 ? Convert.ToString(saved.Rows[0]["WorkflowStatus"]) : "",
+                    currentStageCode = saved != null && saved.Rows.Count > 0 ? Convert.ToString(saved.Rows[0]["CurrentStageCode"]) : ""
+                };
+            }
+        }
+
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
