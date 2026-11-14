@@ -2203,7 +2203,16 @@ WHERE I.InspectionID=@InspectionID
       SELECT 1 FROM dbo.SysWebUser SU
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+        AND (
+          EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+          OR EXISTS (
+              SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+              JOIN dbo.PIP_M_InspectionEmailSetup ES
+                ON ES.CompanyID=W.CompanyID AND ES.LocationID=W.LocationID AND ES.IsActive=1
+              WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID
+                AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID)
+          )
+        )
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                   WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
