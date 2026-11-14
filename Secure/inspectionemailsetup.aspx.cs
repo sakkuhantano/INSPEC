@@ -206,7 +206,10 @@ IF NOT EXISTS
       AND S.ProfitCenterNo='peng' AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
 )
+BEGIN
     RAISERROR('Chief Engineering harus employee aktif pada section Engineering dan memiliki email.',16,1);
+    RETURN;
+END;
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.M_HRD_Employee E
@@ -215,7 +218,10 @@ IF NOT EXISTS
       AND S.ProfitCenterNo='psec' AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
 )
+BEGIN
     RAISERROR('Chief Security harus employee aktif pada section Security dan memiliki email.',16,1);
+    RETURN;
+END;
 
 BEGIN TRANSACTION;
 IF EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup WHERE CompanyID=@CompanyID AND LocationID=@LocationID)
@@ -262,13 +268,19 @@ IF NOT EXISTS
       AND E.SectionID=@SectionID AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
 )
+BEGIN
     RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki email.',16,1);
+    RETURN;
+END;
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup
     WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1
 )
+BEGIN
     RAISERROR('Simpan penerima Chief Engineering dan Chief Security terlebih dahulu.',16,1);
+    RETURN;
+END;
 
 BEGIN TRANSACTION;
 IF EXISTS
