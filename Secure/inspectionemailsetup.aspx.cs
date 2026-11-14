@@ -83,8 +83,14 @@ SELECT DISTINCT S.SectionID,S.Description
 FROM dbo.PIP_M_Section S
 INNER JOIN dbo.M_HRD_Employee E ON E.SectionID=S.SectionID
 WHERE E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+              WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
 ORDER BY S.SectionID",
-                    new SqlParameter[] { new SqlParameter("@CompanyID", Master.Mn_CompanyID) });
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    });
                 foreach (DropDownList list in new[] { ddlChiefEngSection, ddlChiefSecSection })
                 {
                     list.Items.Clear();
@@ -138,9 +144,13 @@ FROM dbo.M_HRD_Employee E
 WHERE E.CompanyID=@CompanyID
   AND E.SectionID=@SectionID
   AND ISNULL(E.TerminationDate,'')=''
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+              WHERE CL.EmployeeID=E.EmployeeID AND CL.CompanyID=@CompanyID
+                AND CL.LocationID=@LocationID AND ISNULL(CL.IsActive,1)=1)
 ORDER BY E.Name, E.EmployeeID",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
                             new SqlParameter("@SectionID", sectionID)
                         });
                 }
