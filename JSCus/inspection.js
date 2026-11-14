@@ -3368,8 +3368,8 @@ async function openServerReturnedInspection(inspectionId) {
                 tx.objectStore("inspection_photos").add({
                     LocalInspectionID: localId,
                     PointID: String(photo.PointID || ""),
-                    Type: String(photo.PhotoType || photo.Type || "").toUpperCase(),
-                    FileName: String(photo.FileName || "inspection") + "." + String(photo.FileType || "jpg"),
+                    Type: String(photo.Type || photo.PhotoType || "").toUpperCase(),
+                    FileName: String(photo.FileName || "inspection.jpg"),
                     Blob: blob,
                     SeqNo: Number(photo.SeqNo || 1),
                     CreatedAt: new Date().toISOString()
