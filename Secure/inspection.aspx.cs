@@ -2177,7 +2177,13 @@ WHERE I.InspectionID=@InspectionID
             (ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
             OR (ISNULL(I.IsApprove,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
        ))
-       OR (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ReasonVoid,'')<>'')
+       OR (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
+            (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
+            OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND EXISTS (
+                SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+                WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
+            ))
+       ))
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
@@ -2558,7 +2564,14 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
-  AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+  AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ReasonVoid,'')<>''
+  AND (
+      (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
+      OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND EXISTS (
+          SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
+          WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
+      ))
+  )
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
