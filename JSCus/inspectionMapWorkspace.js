@@ -64,7 +64,7 @@
     function getActiveScheduleTime() {
         if (!currentMapRecord || String(currentMapRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "";
         var schedules = Array.isArray(currentMapRecord.Schedules) ? currentMapRecord.Schedules : [];
-        var active = currentScheduleTime || String(currentMapRecord.ActiveScheduleTime || "");
+        var active = String(currentMapRecord.ActiveScheduleTime || currentScheduleTime || "");
         if (!schedules.some(function (item) { return String(item.ScheduleTime || item) === active; }))
             active = String(schedules.length ? (schedules[0].ScheduleTime || schedules[0]) : "");
         currentScheduleTime = active;
