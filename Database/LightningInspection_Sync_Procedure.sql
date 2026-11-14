@@ -94,7 +94,8 @@ BEGIN
           AND WorkflowStatus IN ('CHECKED','ACKNOWLEDGE 1','ACKNOWLEDGE','APPROVED')
     )
     BEGIN
-        RAISERROR('Submitted Lightning daily inspection is locked while it is in approval workflow.',16,1);
+        SELECT @V_ExistingInspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
+               'ALREADY_SUBMITTED' WorkflowStatus;
         RETURN;
     END;
 
