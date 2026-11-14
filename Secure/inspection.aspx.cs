@@ -3070,6 +3070,7 @@ ORDER BY I.InspectionID";
         public static object ProcessInspectionApprovalBatch(long[] inspectionIds, string action,
             string employeeId, string companyId, string locationId, string remark)
         {
+            RequireSameOriginPost();
             employeeId = GFC.RequireMenuEmployee("20022");
             if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
                 !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
