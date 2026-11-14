@@ -5046,23 +5046,42 @@ async function executeInspectionApprovalAction(ids, action, remark) {
     const isSingleVoid = action === "VOID" && ids.length === 1 &&
         selectedInspectionApproval && Number(selectedInspectionApproval.InspectionID) === Number(ids[0]);
     try {
-        const result = await inspectionApprovalPost("ProcessInspectionApprovalBatch", {
-            inspectionIds: ids,
-            action: action,
-            employeeId: inspectionLogin.employeeid,
-            companyId: inspectionCompanyID,
-            locationId: inspectionLocationID,
-            remark: remark
+        const lightningIds = ids.filter(id => {
+            const row = inspectionApprovalRows.find(item => Number(item.InspectionID) === Number(id));
+            return row && String(row.InspectionMode || "").toUpperCase() === "LIGHTNING";
         });
+        const standardIds = ids.filter(id => lightningIds.indexOf(id) < 0);
+        const lightningResults = [];
+        for (const id of lightningIds) {
+            lightningResults.push(await inspectionApprovalPost("ProcessLightningInspectionApproval", {
+                inspectionId: Number(id), action: action,
+                employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
+                locationId: inspectionLocationID, remark: remark
+            }));
+        }
+        let standardResult = null;
+        if (standardIds.length) {
+            standardResult = await inspectionApprovalPost("ProcessInspectionApprovalBatch", {
+                inspectionIds: standardIds,
+                action: action,
+                employeeId: inspectionLogin.employeeid,
+                companyId: inspectionCompanyID,
+                locationId: inspectionLocationID,
+                remark: remark
+            });
+        }
         if (isSingleVoid) showInspectionApprovalQueueView();
         await loadInspectionApprovalQueue();
-        showToast((result.count || ids.length) + " inspeksi berhasil diproses.", "success");
+        const processedCount = (standardResult && standardResult.count) || (standardIds.length + lightningResults.length);
+        const lightningStatus = lightningResults.length
+            ? " Lightning: " + lightningResults.map(item => item.workflowStatus || action).join(", ") + "."
+            : "";
+        showToast(processedCount + " inspeksi berhasil diproses." + lightningStatus, "success");
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
         await loadInspectionApprovalQueue();
     }
 }
-
 async function processBatchInspectionApproval(action) {
     openInspectionApprovalAction(action, true);
 }
@@ -5576,26 +5595,34 @@ async function loadInspectionApprovalDetail(inspectionId) {
 async function processInspectionApproval(action) {
     if (!selectedInspectionApproval) return;
     if (!navigator.onLine) {
-        showToast("Approval tidak dapat diproses offline. Hubungkan internet lalu coba lagi.", "warning");
+        showToast("Approval memerlukan koneksi ke server. Hubungkan internet lalu coba lagi.", "warning");
         return;
     }
+    const isLightning = String(selectedInspectionApproval.InspectionMode || "").toUpperCase() === "LIGHTNING";
     const confirmed = await showConfirmation({
-        title: "Approve Inspeksi",
-        message: "Approve inspeksi ini?",
+        title: isLightning ? "Approve Lightning Daily" : "Approve Inspeksi",
+        message: isLightning
+            ? "Approve seluruh transaksi harian dan lanjutkan ke tahap approval berikutnya?"
+            : "Approve inspeksi ini?",
         yesText: "Approve"
     });
     if (!confirmed) return;
     const remark = document.getElementById("txtInspectionApprovalRemark").value.trim();
     try {
-        const approvalResult = await inspectionApprovalPost("ProcessInspectionApproval", {
-            inspectionId: Number(selectedInspectionApproval.InspectionID), action: "APPROVE",
-            employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
-            locationId: inspectionLocationID, remark: remark
-        });
+        const approvalResult = await inspectionApprovalPost(
+            isLightning ? "ProcessLightningInspectionApproval" : "ProcessInspectionApproval", {
+                inspectionId: Number(selectedInspectionApproval.InspectionID), action: "APPROVE",
+                employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
+                locationId: inspectionLocationID, remark: remark
+            });
         showInspectionApprovalQueueView();
-        showToast(approvalResult.followUpWONo
-            ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
-            : "Inspection berhasil di-approve.", "success");
+        const message = isLightning
+            ? "Lightning daily inspection diproses. Status: " + (approvalResult.workflowStatus || "updated") +
+                (approvalResult.currentStageCode ? " · tahap berikutnya " + approvalResult.currentStageCode : "") + "."
+            : (approvalResult.followUpWONo
+                ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
+                : "Inspection berhasil di-approve.");
+        showToast(message, "success");
         await loadInspectionApprovalQueue();
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
