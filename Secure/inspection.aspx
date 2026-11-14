@@ -982,6 +982,181 @@
         .inspection-map-panel > .inspection-map-legend { order: 2; }
     }
 
+
+    /* Final mobile layout correction: keep compact controls, but never squeeze text out of buttons. */
+    @media (max-width: 575.98px) {
+        .inspection-form-header {
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: .25rem !important;
+            padding: .3rem !important;
+            overflow: hidden;
+        }
+        .inspection-form-header > .d-flex:first-child {
+            flex: 1 1 auto;
+            min-width: 0;
+            gap: .25rem !important;
+        }
+        .inspection-form-header #inspectionFormTitle {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: none !important;
+            font-size: .78rem !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .inspection-form-header #btnInspectionFormInfo {
+            flex: 0 0 27px;
+            width: 27px;
+            height: 27px;
+            padding: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .inspection-entry-header-actions {
+            flex: 0 1 auto;
+            min-width: 0;
+            margin-left: auto !important;
+            gap: .2rem !important;
+            flex-wrap: nowrap !important;
+        }
+        .inspection-entry-heading {
+            flex: 0 1 92px;
+            min-width: 0;
+            max-width: 92px;
+            overflow: hidden;
+            font-size: .62rem !important;
+            line-height: 1.1;
+        }
+        .inspection-entry-heading .inspection-muted {
+            font-size: .52rem !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .inspection-entry-header-actions .btn {
+            flex: 0 0 auto;
+            width: auto !important;
+            min-width: 0 !important;
+            min-height: 27px;
+            height: 27px;
+            padding: .2rem .35rem !important;
+            font-size: .6rem !important;
+            line-height: 1;
+            white-space: nowrap !important;
+        }
+
+        #inspectionMapWorkspace > .inspection-map-toolbar {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            gap: .3rem;
+            padding: .3rem .4rem;
+        }
+        #inspectionMapWorkspace .inspection-map-title-wrap {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        #inspectionMapWorkspace .inspection-map-title {
+            font-size: .76rem;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #inspectionMapWorkspace .inspection-map-subtitle {
+            font-size: .55rem;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #inspectionMapWorkspace .inspection-map-actions {
+            display: flex !important;
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 0;
+            flex-wrap: nowrap !important;
+            align-items: center;
+            gap: .2rem !important;
+        }
+        #inspectionMapWorkspace .inspection-map-actions > .btn {
+            flex: 0 0 auto !important;
+            width: auto !important;
+            min-width: 0 !important;
+            min-height: 28px;
+            height: 28px;
+            padding: .15rem .32rem !important;
+            font-size: .58rem !important;
+            line-height: 1;
+            white-space: nowrap !important;
+        }
+        #inspectionMapWorkspace #btnInspectionNextPending {
+            width: 76px !important;
+        }
+        #inspectionMapWorkspace #btnInspectionMapReset {
+            width: 30px !important;
+            min-width: 30px !important;
+            padding: .1rem !important;
+        }
+        #inspectionMapWorkspace #btnDeleteInspectionBatchDraft {
+            width: 101px !important;
+        }
+        #inspectionMapWorkspace .inspection-map-actions .bi {
+            font-size: .68rem;
+            margin-right: .12rem !important;
+        }
+
+        #inspectionMapWorkspace .inspection-map-summary {
+            min-height: 48px;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        #inspectionMapWorkspace .inspection-map-stat {
+            min-width: 0;
+            padding: .3rem .12rem;
+            font-size: .5rem;
+            line-height: 1.05;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #inspectionMapWorkspace .inspection-map-stat-value {
+            font-size: .86rem;
+            line-height: 1;
+            margin-bottom: .18rem;
+        }
+        #inspectionMapWorkspace .inspection-map-stat-label {
+            min-height: 1.1em;
+            font-size: .5rem;
+            line-height: 1.05;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        #inspectionMapWorkspace .inspection-map-legend {
+            top: 6px !important;
+            bottom: auto !important;
+            left: 6px;
+            right: auto;
+            max-width: calc(100% - 12px);
+            gap: .25rem .4rem;
+            font-size: .52rem;
+            line-height: 1.1;
+            padding: .25rem .35rem;
+        }
+    }
+
+    @media (max-width: 360px) {
+        #inspectionMapWorkspace #btnInspectionNextPending { width: 72px !important; }
+        #inspectionMapWorkspace #btnDeleteInspectionBatchDraft { width: 96px !important; }
+        #inspectionMapWorkspace .inspection-map-actions > .btn { font-size: .55rem !important; }
+        .inspection-entry-heading { flex-basis: 78px; max-width: 78px; }
+        .inspection-entry-header-actions .btn { font-size: .57rem !important; padding-left: .28rem !important; padding-right: .28rem !important; }
+    }
+
 </style>
 </asp:Content>
 
