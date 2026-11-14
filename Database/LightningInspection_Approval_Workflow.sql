@@ -283,8 +283,8 @@ BEGIN
                 ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC',
                  @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
                  N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
-                 N'<p>Chief Engineering telah approve. Daily Lightning Inspection menunggu review Chief Security.</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
-                 N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE());
+                 N'<p>Chief Engineering telah approve. Daily Lightning Inspection menunggu review Chief Security.</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                 N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
         END;
 
         IF @V_TranCount=0 COMMIT TRANSACTION;
