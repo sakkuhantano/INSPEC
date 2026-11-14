@@ -2748,7 +2748,11 @@ function showInspectionBatchValidationReport(errors) {
         modal.hide();
         if (error.pointId) {
             const masterPoint = masterPoints.find(point => Number(point.InspectionPointID) === Number(error.pointId));
-            if (masterPoint) window.setTimeout(() => openBatchInspectionPointChecklist(masterPoint, error), 180);
+            if (masterPoint) window.setTimeout(() => {
+                if (typeof window.showInspectionMapWorkspace === "function")
+                    window.showInspectionMapWorkspace(currentInspectionRecord, true);
+                openBatchInspectionPointChecklist(masterPoint, error);
+            }, 180);
         } else {
             window.setTimeout(() => {
                 if (typeof window.showInspectionMapWorkspace === "function")
