@@ -3348,8 +3348,11 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                             string mapPath = "";
                             string mapFile = Path.GetFileName(GF.GetString(map["ImagePath"]).Replace('/', '\\'));
                             string webRoot = (PB.Path_WebFolder1 ?? "").Trim();
+                            string appPath = HttpContext.Current.Request.ApplicationPath ?? "";
+                            string mapRoot = appPath.Trim('/').ToUpperInvariant().Replace("INSPEC", "PIP");
+                            if (mapRoot == "") mapRoot = "PIP";
                             if (mapFile != "" && webRoot != "")
-                                mapPath = Path.Combine(webRoot, "PIP", "PIP_M_InspectionMap",
+                                mapPath = Path.Combine(webRoot, mapRoot, "PIP_M_InspectionMap",
                                     SafeInspectionMapPathPart(companyId) + "_" + SafeInspectionMapPathPart(locationId), mapFile);
                             string mapCid = "lightning-map-" + Convert.ToInt64(map["MapID"]).ToString(CultureInfo.InvariantCulture);
                             html.Append("<div style='position:relative;display:block;width:100%;margin:6px 0'>");
