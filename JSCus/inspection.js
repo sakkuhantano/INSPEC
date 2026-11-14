@@ -5221,7 +5221,9 @@ async function executeInspectionApprovalAction(ids, action, remark) {
         const lightningStatus = lightningResults.length
             ? " Lightning: " + lightningResults.map(item => item.workflowStatus || action).join(", ") + "."
             : "";
-        const emailPending = lightningResults.some(item => item.emailDispatch && item.emailDispatch.configured === false);
+        const emailPending = lightningResults.some(item => item.emailDispatch && item.emailDispatch.configured === false) ||
+            !!(standardResult && Array.isArray(standardResult.results) &&
+                standardResult.results.some(item => item.emailDispatch && item.emailDispatch.configured === false));
         showToast(processedCount + " inspeksi berhasil diproses." + lightningStatus, emailPending ? "warning" : "success");
         if (emailPending) showToast("Approval tersimpan, tetapi email masih di outbox. Lengkapi smtpFrom pada Web.config agar email dapat dikirim.", "warning");
     } catch (err) {
