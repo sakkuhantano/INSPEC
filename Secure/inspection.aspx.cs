@@ -3342,6 +3342,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                 mapPath = Path.Combine(webRoot, "PIP", "PIP_M_InspectionMap",
                                     SafeInspectionMapPathPart(companyId) + "_" + SafeInspectionMapPathPart(locationId), mapFile);
                             string mapCid = "lightning-map-" + Convert.ToInt64(map["MapID"]).ToString(CultureInfo.InvariantCulture);
+                            html.Append("<div style='position:relative;display:block;width:100%;margin:6px 0'>");
                             if (mapPath != "" && File.Exists(mapPath))
                             {
                                 var linkedMap = new LinkedResource(mapPath, GetInspectionEmailMimeType(mapFile));
@@ -3350,15 +3351,30 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                 linkedResources.Add(linkedMap);
                                 html.Append("<img src='cid:").Append(mapCid).Append("' alt='")
                                     .Append(HttpUtility.HtmlEncode(mapName))
-                                    .Append("' style='max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0'/>");
+                                    .Append("' style='display:block;width:100%;height:auto;border:1px solid #ddd'/>");
                             }
                             else if (!String.IsNullOrWhiteSpace(GF.GetString(map["ImagePath"])))
                             {
                                 string mapUrl = ResolveInspectionMapUrl(GF.GetString(map["ImagePath"]), companyId, locationId);
                                 html.Append("<img src='").Append(HttpUtility.HtmlAttributeEncode(mapUrl))
                                     .Append("' alt='").Append(HttpUtility.HtmlEncode(mapName))
-                                    .Append("' style='max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0'/>");
+                                    .Append("' style='display:block;width:100%;height:auto;border:1px solid #ddd'/>");
                             }
+                            foreach (DataRow markerPoint in mapGroup)
+                            {
+                                if (markerPoint["MapX"] == DBNull.Value || markerPoint["MapY"] == DBNull.Value) continue;
+                                decimal mapX, mapY;
+                                if (!Decimal.TryParse(Convert.ToString(markerPoint["MapX"]), NumberStyles.Any, CultureInfo.InvariantCulture, out mapX) ||
+                                    !Decimal.TryParse(Convert.ToString(markerPoint["MapY"]), NumberStyles.Any, CultureInfo.InvariantCulture, out mapY)) continue;
+                                mapX = Math.Max(0, Math.Min(100, mapX));
+                                mapY = Math.Max(0, Math.Min(100, mapY));
+                                html.Append("<span style='position:absolute;left:").Append(mapX.ToString(CultureInfo.InvariantCulture))
+                                    .Append("%;top:").Append(mapY.ToString(CultureInfo.InvariantCulture))
+                                    .Append("%;transform:translate(-50%,-50%);display:inline-block;padding:2px 5px;border-radius:10px;background:#c62828;color:#fff;font-size:10px;font-weight:bold'>")
+                                    .Append(HttpUtility.HtmlEncode(GF.GetString(markerPoint["PointCode"])))
+                                    .Append("</span>");
+                            }
+                            html.Append("</div>");
 
                             html.Append("<table cellpadding='5' cellspacing='0' style='width:100%;border-collapse:collapse'>")
                                 .Append("<tr><th align='left' style='border-bottom:1px solid #ddd'>Point</th>")
