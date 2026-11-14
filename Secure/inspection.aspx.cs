@@ -3252,7 +3252,7 @@ ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrde
                     DataTable results = br.EQueryP(@"
 SELECT R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
 FROM dbo.PIP_T_InspectionResult R
-WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+WHERE R.InspectionID=@InspectionID
 ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     DataTable photos = br.EQueryP(@"
