@@ -190,7 +190,33 @@
 
     /* Batch map workspace: compact, touch-friendly layout on phones. */
     @media (max-width: 575.98px) {
-        .inspection-map-workspace {
+    .inspection-lightning-schedule-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: .35rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: .25rem .1rem .45rem;
+        scrollbar-width: thin;
+    }
+    .inspection-lightning-schedule-tabs .nav-link {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        flex: 0 0 auto;
+        white-space: nowrap;
+        border: 1px solid var(--bs-border-color);
+        border-radius: .5rem;
+        padding: .45rem .75rem;
+        font-size: .84rem;
+    }
+    .inspection-lightning-schedule-tabs .nav-link.active {
+        font-weight: 700;
+        background: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary-border-subtle);
+    }
+
+    .inspection-map-workspace {
             min-height: calc(100dvh - 105px);
             overflow: visible;
         }
@@ -1413,6 +1439,7 @@
     </div>
     </div>
     <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
+        <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div class="inspection-map-toolbar">
             <div class="inspection-map-title-wrap">
                 <div class="inspection-map-eyebrow"><i class="bi bi-geo-alt-fill me-1"></i>INSPECTION LOCATION MAP</div>
@@ -1558,8 +1585,8 @@
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261112-report-progress-1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261114-lightning-daily-1"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261113-mobile-controls-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261114-lightning-daily-1"></script>
 </asp:Content>
