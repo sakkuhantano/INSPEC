@@ -2378,7 +2378,11 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
     const field = Number(remarkNumber) === 2 ? "Remark2" : "Remark1";
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
-    let point = record.Points.find(item => Number(item.InspectionPointID) === Number(pointId));
+    const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+        ? String(activeInspectionScheduleTime || record.ActiveScheduleTime || "") : "";
+    let point = record.Points.find(item =>
+        Number(item.InspectionPointID) === Number(pointId) &&
+        String(item.ScheduleTime || "") === scheduleTime);
     if (!point) {
         const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
             Number(item.InspectionPointID) === Number(pointId));
@@ -2386,6 +2390,7 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
         point = {
             ClientPointID: newInspectionId(),
             InspectionPointID: Number(masterPoint.InspectionPointID),
+            ScheduleTime: scheduleTime,
             PointCode: String(masterPoint.PointCode || ""),
             PointName: String(masterPoint.PointName || ""),
             InspectionDateTime: localDateTimeString(new Date()),
@@ -2467,7 +2472,11 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     if (!templateItem) throw new Error("Checklist OPTION tidak ditemukan pada template batch.");
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
-    let point = record.Points.find(item => Number(item.InspectionPointID) === Number(pointId));
+    const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+        ? String(activeInspectionScheduleTime || record.ActiveScheduleTime || "") : "";
+    let point = record.Points.find(item =>
+        Number(item.InspectionPointID) === Number(pointId) &&
+        String(item.ScheduleTime || "") === scheduleTime);
     if (!point) {
         const masterPoint = (record.BatchMapSetup && record.BatchMapSetup.points || []).find(item =>
             Number(item.InspectionPointID) === Number(pointId));
@@ -2475,6 +2484,7 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
         point = {
             ClientPointID: newInspectionId(),
             InspectionPointID: Number(masterPoint.InspectionPointID),
+            ScheduleTime: scheduleTime,
             PointCode: String(masterPoint.PointCode || ""),
             PointName: String(masterPoint.PointName || ""),
             InspectionDateTime: localDateTimeString(new Date()),
