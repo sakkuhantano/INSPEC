@@ -5345,8 +5345,7 @@ function showSectionMenu(event, sectionId)
         </div>
     `;
     document.body.appendChild(menu);
-    menu.style.left = event.pageX + 'px';
-    menu.style.top = event.pageY + 'px';
+    positionContextMenu(menu, event);
     setTimeout(() =>
     {
         document.addEventListener(
@@ -5380,8 +5379,7 @@ function showItemMenu(event, element)
     menu.dataset.itemId = itemRow.dataset.id || '';
     menu._itemRow = itemRow;
     document.body.appendChild(menu);
-    menu.style.left = event.pageX + 'px';
-    menu.style.top = event.pageY + 'px';
+    positionContextMenu(menu, event);
     setTimeout(() =>
     {
         document.addEventListener(
@@ -5825,8 +5823,7 @@ function showSubSectionMenu(event, sectionId, subSectionId)
         <div class="context-item" onclick="duplicateSubSection(${sectionId},${subSectionId})"><i class="bi bi-files"></i> Duplicate Sub-section</div>
         <div class="context-item text-danger" onclick="deleteSubSection(${sectionId},${subSectionId})"><i class="bi bi-trash"></i> Delete Sub-section</div>`;
     document.body.appendChild(menu);
-    menu.style.left = event.pageX + 'px';
-    menu.style.top = event.pageY + 'px';
+    positionContextMenu(menu, event);
     setTimeout(() => document.addEventListener('click', removeExistingContextMenu, { once:true }));
 }
 function duplicateSubSection(sectionId, subSectionId)
