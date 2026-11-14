@@ -1598,6 +1598,7 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
                 foreach (var map in mapRows)
                 {
                     long groupId = Convert.ToInt64(map["MapGroupID"]);
+                    if (groupId <= 0 || String.IsNullOrWhiteSpace(Convert.ToString(map["GroupName"]))) continue;
                     if (groupIds.Add(groupId))
                     {
                         groupRows.Add(new Dictionary<string, object> {
