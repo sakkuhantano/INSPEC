@@ -130,6 +130,32 @@ BEGIN
         RETURN;
     END;
 
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionTypeDetail D
+        CROSS APPLY dbo.SplitStringConvertToTable(REPLACE(ISNULL(D.ScheduleTime,''),' ',''),';') Configured
+        WHERE D.InspectionTypeCode=@p_InspectionTypeCode
+          AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND D.CompanyID=@p_CompanyID AND D.LocationID=@p_LocationID
+          AND LTRIM(RTRIM(ISNULL(Configured.val,'')))<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM @p_Schedules S
+              WHERE S.C1=LTRIM(RTRIM(Configured.val))
+          )
+    )
+    BEGIN
+        RAISERROR('Every configured ScheduleTime must be included in the Lightning daily transaction.',16,1);
+        RETURN;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM @p_Schedules WHERE C1=@p_ScheduledTime)
+    BEGIN
+        RAISERROR('The canonical header ScheduleTime must be one of the submitted Lightning schedules.',16,1);
+        RETURN;
+    END;
+
     IF NOT EXISTS (SELECT 1 FROM @p_Points)
     BEGIN
         RAISERROR('A LIGHTNING inspection must contain at least one inspected point.',16,1);
