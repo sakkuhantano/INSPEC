@@ -353,6 +353,11 @@ function wireInspectionEvents() {
                 await openSavedInspection(button.dataset.openInspection);
                 return;
             }
+            const returnedButton = event.target.closest("[data-open-returned-inspection]");
+            if (returnedButton) {
+                await openServerReturnedInspection(Number(returnedButton.dataset.openReturnedInspection));
+                return;
+            }
             const serverButton = event.target.closest("[data-open-server-inspection]");
             if (serverButton) await openServerSubmittedInspection(serverButton.dataset.openServerInspection);
         });
@@ -3185,10 +3190,35 @@ async function refreshSavedInspectionList() {
         }
     }
 
+    let returnedServerInspectionRecords = [];
+    if (navigator.onLine) {
+        try {
+            const returnedResult = await inspectionApprovalPost("GetReturnedInspections", {
+                employeeId: inspectionLogin.employeeid,
+                companyId: inspectionCompanyID,
+                locationId: inspectionLocationID
+            });
+            returnedServerInspectionRecords = returnedResult.data || [];
+        } catch (returnedError) {
+            console.warn("Unable to refresh returned inspections:", returnedError);
+        }
+    }
+
     // Conflicts must remain visible even when the rejected transaction was completed
     // for a prior date; otherwise technicians would have no way to resolve it.
     const drafts = inspectionRecords.filter(record =>
         record.Status === "DRAFT" || record.SyncStatus === "CONFLICT" || record.SyncStatus === "DELETE_PENDING");
+    returnedServerInspectionRecords.forEach(record => {
+        const local = inspectionRecords.find(item =>
+            (record.ClientInspectionID && String(item.ClientInspectionID || "") === String(record.ClientInspectionID)) ||
+            (record.InspectionID != null && Number(item.ServerInspectionID || item.InspectionID || 0) === Number(record.InspectionID)));
+        if (local && (local.Status === "DRAFT" || local.SyncStatus !== "SYNCED")) return;
+        drafts.push(Object.assign({}, record, {
+            ServerOnly: true,
+            ReturnedServerOnly: true,
+            ServerInspectionID: Number(record.InspectionID)
+        }));
+    });
 
     // Submitted must only contain sections assigned to the currently logged-in employee.
     // Local IndexedDB may retain completed records created under an older section assignment.
@@ -3257,6 +3287,94 @@ async function refreshSavedInspectionList() {
     renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
 }
 
+async function openServerReturnedInspection(inspectionId) {
+    if (!inspectionId || !navigator.onLine) {
+        showToast("Koneksi diperlukan untuk membuka inspeksi yang dikembalikan.", "warning");
+        return;
+    }
+    try {
+        const returnedResult = await inspectionApprovalPost("GetReturnedInspections", {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        const serverRecord = (returnedResult.data || []).find(item => Number(item.InspectionID) === Number(inspectionId));
+        if (!serverRecord) throw new Error("Inspeksi yang dikembalikan tidak ditemukan atau sudah berubah status.");
+
+        const local = inspectionRecords.find(item =>
+            (serverRecord.ClientInspectionID && String(item.ClientInspectionID || "") === String(serverRecord.ClientInspectionID)) ||
+            Number(item.ServerInspectionID || item.InspectionID || 0) === Number(inspectionId));
+        if (local && (local.SyncStatus !== "SYNCED" || local.Status === "DRAFT")) {
+            await openSavedInspection(local.LocalInspectionID);
+            return;
+        }
+
+        const localId = local ? local.LocalInspectionID : (serverRecord.ClientInspectionID || newInspectionId());
+        const type = inspectionTypes.find(item => String(item.InspectionTypeCode || "") === String(serverRecord.InspectionTypeCode || ""));
+        const detailKey = String(serverRecord.InspectionTypeDetailCode || "").toUpperCase();
+        const mapSetup = type && type.BatchMapSetups ? type.BatchMapSetups[detailKey] || null : null;
+        const record = Object.assign({}, local || {}, serverRecord, {
+            LocalInspectionID: localId,
+            ClientInspectionID: serverRecord.ClientInspectionID || (local && local.ClientInspectionID) || localId,
+            InspectionID: Number(serverRecord.InspectionID),
+            ServerInspectionID: Number(serverRecord.InspectionID),
+            InspectionMode: String(serverRecord.InspectionMode || "STANDARD").toUpperCase(),
+            BatchMapSetup: mapSetup,
+            Status: "DRAFT",
+            SyncStatus: "SYNCED",
+            ReasonVoid: String(serverRecord.ReasonVoid || ""),
+            Points: Array.isArray(serverRecord.Points) ? serverRecord.Points : [],
+            Schedules: Array.isArray(serverRecord.Schedules) ? serverRecord.Schedules : [],
+            ActiveScheduleTime: serverRecord.ActiveScheduleTime ||
+                (serverRecord.Schedules && serverRecord.Schedules.length
+                    ? String(serverRecord.Schedules[0].ScheduleTime || serverRecord.Schedules[0]) : ""),
+            ActiveInspectionPointID: 0,
+            UpdatedAt: new Date().toISOString()
+        });
+        if (!record.TemplateSnapshot) {
+            const template = inspectionTemplates.find(item =>
+                Number(item.IDTemplate) === Number(record.IDTemplate) &&
+                Number(item.IDVersion) === Number(record.IDVersion));
+            if (template) record.TemplateSnapshot = template;
+        }
+
+        const photoResult = await inspectionApprovalPost("GetReturnedInspectionPhotos", {
+            clientInspectionId: record.ClientInspectionID,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        const serverPhotos = photoResult.data || [];
+        await deleteInspectionPhotosForLocalRecord(localId);
+        for (const photo of serverPhotos) {
+            if (!photo.Data) continue;
+            const blob = await (await fetch(photo.Data)).blob();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction("inspection_photos", "readwrite");
+                tx.objectStore("inspection_photos").add({
+                    LocalInspectionID: localId,
+                    PointID: String(photo.PointID || ""),
+                    Type: String(photo.PhotoType || photo.Type || "").toUpperCase(),
+                    FileName: String(photo.FileName || "inspection") + "." + String(photo.FileType || "jpg"),
+                    Blob: blob,
+                    SeqNo: Number(photo.SeqNo || 1),
+                    CreatedAt: new Date().toISOString()
+                });
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan foto inspeksi yang dikembalikan."));
+                tx.onabort = () => reject(tx.error || new Error("Penyimpanan foto inspeksi yang dikembalikan dibatalkan."));
+            });
+        }
+        record.NextPhotoSeqNo = serverPhotos.reduce((max, photo) => Math.max(max, Number(photo.SeqNo || 0)), 0) + 1;
+        await persistInspectionRecord(record);
+        await refreshSavedInspectionList();
+        await openSavedInspection(localId);
+        showToast("Inspeksi dikembalikan berhasil dibuka. Perbaiki data lalu Submit ulang.", "warning");
+    } catch (error) {
+        showToast(error.message || "Gagal membuka inspeksi yang dikembalikan.", "danger");
+    }
+}
+
 function renderInspectionRecordTable(records, host, submitted) {
     if (!records.length) {
         host.innerHTML = '<div class="text-muted py-2">' +
@@ -3304,11 +3422,13 @@ function renderInspectionRecordTable(records, host, submitted) {
         const startEnd = (start || "—") + " - " + end;
         const localExists = !!inspectionRecords.find(item => item.LocalInspectionID === localId);
         const serverId = record.InspectionID || record.ServerInspectionID || "";
-        const numberHtml = localExists
-            ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
-            : (submitted && serverId
-                ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-server-inspection="' + escInspection(serverId) + '">' + escInspection(number) + '</button>'
-                : escInspection(number));
+        const numberHtml = record.ReturnedServerOnly && serverId
+            ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-returned-inspection="' + escInspection(serverId) + '">' + escInspection(number) + '</button>'
+            : (localExists
+                ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-inspection="' + escInspection(localId) + '">' + escInspection(number) + '</button>'
+                : (submitted && serverId
+                    ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-server-inspection="' + escInspection(serverId) + '">' + escInspection(number) + '</button>'
+                    : escInspection(number)));
         const conflictHtml = record.SyncStatus === "CONFLICT"
             ? '<div class="text-danger small mt-1"><strong>CONFLICT:</strong> ' + escInspection(record.ConflictReason || "Server menolak transaksi.") + '</div>'
             : record.SyncStatus === "DELETE_PENDING"
