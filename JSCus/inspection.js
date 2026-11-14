@@ -421,7 +421,7 @@ async function loadInspectionCache(includeAllTemplates) {
     // This protects a newly started transaction from a legacy IndexedDB row whose
     // nested item flags were saved as false even though the version-level switch is on.
     const batchTypeCodes = new Set(inspectionTypes
-        .filter(type => String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH")
+        .filter(type => isInspectionMapMode(type.InspectionMode))
         .map(type => String(type.InspectionTypeCode || "").trim().toUpperCase()));
     const cachedFlag = value => value !== undefined && value !== null && value !== "" &&
         !(value === false || value === 0 || value === "0" || String(value).toLowerCase() === "false");
