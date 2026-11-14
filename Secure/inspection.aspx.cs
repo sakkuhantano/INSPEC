@@ -2316,10 +2316,12 @@ SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
        P.PointCode, P.PointName, P.PointObjectType,
        P.PointDescription, P.MapID, P.MapX, P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
-       M.MapCode, M.MapName, M.ImagePath AS MapUrl, M.MapVersion
+       M.MapCode,M.MapName,M.ImagePath AS MapUrl,M.MapVersion,M.MapGroupID,
+       MG.GroupCode,MG.GroupName,MG.Sequence MapGroupSequence
 FROM dbo.PIP_T_InspectionPoint TP
 JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
 LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup MG ON MG.MapGroupID=M.MapGroupID
 WHERE TP.InspectionID=@InspectionID
 ORDER BY P.DisplayOrder,P.PointCode",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
@@ -2403,6 +2405,9 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             { "ShapeAttributes", GF.GetString(pointRow["ShapeAttributes"]) },
                             { "StrokeWidth", pointRow["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(pointRow["StrokeWidth"]) },
                             { "MapCode", GF.GetString(pointRow["MapCode"]) },
+                            { "MapGroupID", pointRow["MapGroupID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapGroupID"]) },
+                            { "GroupCode", GF.GetString(pointRow["GroupCode"]) },
+                            { "GroupName", GF.GetString(pointRow["GroupName"]) },
                             { "Items", pointItems.ContainsKey(pointTransactionID) ? (object)pointItems[pointTransactionID].Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList() : new List<Dictionary<string, object>>() }
                         };
                         batchPointRows.Add(pointData);
@@ -2412,6 +2417,10 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                                 { "MapID", mapID },
                                 { "MapCode", GF.GetString(pointRow["MapCode"]) },
                                 { "MapName", GF.GetString(pointRow["MapName"]) },
+                                { "MapGroupID", pointRow["MapGroupID"] == DBNull.Value ? 0 : Convert.ToInt64(pointRow["MapGroupID"]) },
+                                { "GroupCode", GF.GetString(pointRow["GroupCode"]) },
+                                { "GroupName", GF.GetString(pointRow["GroupName"]) },
+                                { "GroupSequence", pointRow["MapGroupSequence"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapGroupSequence"]) },
                                 { "MapUrl", ResolveInspectionMapUrl(GF.GetString(pointRow["MapUrl"]), GF.GetString(header.Rows[0]["CompanyID"]), GF.GetString(header.Rows[0]["LocationID"])) },
                                 { "MapVersion", pointRow["MapVersion"] == DBNull.Value ? 0 : Convert.ToInt32(pointRow["MapVersion"]) }
                             });
