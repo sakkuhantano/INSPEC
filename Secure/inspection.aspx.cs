@@ -2329,7 +2329,7 @@ SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
        R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
 FROM dbo.PIP_T_InspectionResult R
 LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
-WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+WHERE R.InspectionID=@InspectionID
 ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
@@ -3183,7 +3183,7 @@ WHERE I.InspectionID=@InspectionID
             }
         }
 
-        private static AlternateView CreateLightningInspectionEmailView(long inspectionId, string baseHtml)
+        private static AlternateView CreateInspectionEmailView(long inspectionId, string baseHtml)
         {
             var html = new StringBuilder();
             var linkedResources = new List<LinkedResource>();
@@ -3192,8 +3192,11 @@ WHERE I.InspectionID=@InspectionID
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable header = br.EQueryP(@"
-SELECT CompanyID,LocationID,InspectionDate,InspectionNo,InspectionTypeName,InspectionTypeDetailName,OwnerEmployeeID
-FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID",
+SELECT I.CompanyID,I.LocationID,I.InspectionDate,I.InspectionNo,I.InspectionTypeName,I.InspectionTypeDetailName,
+       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+WHERE I.InspectionID=@InspectionID",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     if (header.Rows.Count == 0)
                     {
@@ -3205,10 +3208,19 @@ FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID",
                     string inspectionNo = GF.GetString(header.Rows[0]["InspectionNo"]);
                     DateTime inspectionDate = Convert.ToDateTime(header.Rows[0]["InspectionDate"]);
 
-                    DataTable schedules = br.EQueryP(@"
+                    string inspectionMode = GF.GetString(header.Rows[0]["InspectionMode"]).ToUpperInvariant();
+                    DataTable schedules;
+                    if (inspectionMode == "LIGHTNING")
+                        schedules = br.EQueryP(@"
 SELECT ScheduleTime FROM dbo.PIP_T_InspectionLightningSchedule
 WHERE InspectionID=@InspectionID ORDER BY ScheduleTime",
-                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    else
+                    {
+                        schedules = new DataTable();
+                        schedules.Columns.Add("ScheduleTime", typeof(string));
+                        schedules.Rows.Add("");
+                    }
                     DataTable points = br.EQueryP(@"
 SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
        P.PointCode,P.PointName,P.MapID,P.MapX,P.MapY,P.DisplayOrder,
@@ -3229,23 +3241,64 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
                     DataTable photos = br.EQueryP(@"
 SELECT InspectionPointTransactionID,PhotoType,FileName,FileType,SeqNo
 FROM dbo.PIP_T_InspectionPhoto
-WHERE InspectionID=@InspectionID AND InspectionPointTransactionID IS NOT NULL
+WHERE InspectionID=@InspectionID
 ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
                     html.Append(baseHtml ?? "");
-                    html.Append("<hr/><h2>LIGHTNING DAILY INSPECTION REVIEW</h2>");
+                    html.Append("<hr/><h2>").Append(HttpUtility.HtmlEncode(inspectionMode == "LIGHTNING" ? "LIGHTNING DAILY INSPECTION REVIEW" :
+                        (inspectionMode == "BATCH" ? "BATCH INSPECTION REVIEW" : "STANDARD INSPECTION REVIEW"))).Append("</h2>");
                     html.Append("<p><strong>").Append(HttpUtility.HtmlEncode(inspectionNo))
                         .Append("</strong> · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeName"])))
                         .Append(" · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeDetailName"])))
                         .Append(" · ").Append(inspectionDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)).Append("</p>");
 
+                    string inspectionSummary = GF.GetString(header.Rows[0]["Summary"]);
+                    if (inspectionSummary != "")
+                        html.Append("<p><strong>Summary:</strong> ").Append(HttpUtility.HtmlEncode(inspectionSummary)).Append("</p>");
+
+                    if (inspectionMode == "STANDARD")
+                    {
+                        html.Append("<h3>Checklist / Findings</h3><table cellpadding='5' cellspacing='0' style='width:100%;border-collapse:collapse'>");
+                        foreach (DataRow result in results.Select("InspectionPointTransactionID IS NULL"))
+                        {
+                            html.Append("<tr><td style='border-bottom:1px solid #eee'><strong>")
+                                .Append(HttpUtility.HtmlEncode(GF.GetString(result["ItemLabel"]))).Append("</strong></td><td style='border-bottom:1px solid #eee'>")
+                                .Append(HttpUtility.HtmlEncode(GF.GetString(result["Value"])));
+                            string remark1 = GF.GetString(result["Remark1"]);
+                            string remark2 = GF.GetString(result["Remark2"]);
+                            if (remark1 != "") html.Append("<br/>").Append(HttpUtility.HtmlEncode(remark1));
+                            if (remark2 != "") html.Append("<br/>").Append(HttpUtility.HtmlEncode(remark2));
+                            html.Append("</td></tr>");
+                        }
+                        html.Append("</table>");
+                        foreach (DataRow photo in photos.Select("InspectionPointTransactionID IS NULL"))
+                        {
+                            string fileName = GF.GetString(photo["FileName"]);
+                            string fileType = GF.GetString(photo["FileType"]);
+                            string photoPath = "";
+                            try { photoPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionNo, fileName, fileType); } catch { }
+                            if (photoPath == "" || !File.Exists(photoPath)) continue;
+                            string cid = "inspection-photo-standard-" + Convert.ToString(photo["PhotoType"]).ToLowerInvariant() + "-" + Convert.ToString(photo["SeqNo"]);
+                            var linkedPhoto = new LinkedResource(photoPath, GetInspectionEmailMimeType(fileName + "." + fileType));
+                            linkedPhoto.ContentId = cid;
+                            linkedPhoto.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
+                            linkedResources.Add(linkedPhoto);
+                            html.Append("<br/><img src='cid:").Append(cid).Append("' alt='")
+                                .Append(HttpUtility.HtmlEncode(GF.GetString(photo["PhotoType"])))
+                                .Append("' style='max-width:240px;height:auto;margin:4px;border:1px solid #ddd'/>");
+                        }
+                    }
+
                     foreach (DataRow schedule in schedules.Rows)
                     {
                         string scheduleTime = GF.GetString(schedule["ScheduleTime"]);
+                        string scheduleLabel = scheduleTime == "" ? GF.GetString(header.Rows[0]["ScheduledTime"]) : scheduleTime;
                         DataRow[] schedulePoints = points.Select("ScheduleTime='" + scheduleTime.Replace("'", "''") + "'");
+                        if (inspectionMode == "STANDARD") continue;
                         html.Append("<section style='margin:18px 0;padding:12px;border:1px solid #ddd;border-radius:8px'>")
-                            .Append("<h3>Schedule ").Append(HttpUtility.HtmlEncode(scheduleTime)).Append("</h3>");
+                            .Append("<h3>").Append(inspectionMode == "LIGHTNING" ? "Schedule " : "Batch · ")
+                            .Append(HttpUtility.HtmlEncode(scheduleLabel)).Append("</h3>");
 
                         var mapGroups = schedulePoints.Where(row => row["MapID"] != DBNull.Value)
                             .GroupBy(row => Convert.ToInt64(row["MapID"]));
@@ -3445,7 +3498,7 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
                                 plainBody, Encoding.UTF8, "text/plain"));
                             AlternateView htmlView;
                             if (String.Equals(Convert.ToString(row["EntityType"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
-                                htmlView = CreateLightningInspectionEmailView(Convert.ToInt64(row["EntityID"]), Convert.ToString(row["HtmlBody"]));
+                                htmlView = CreateInspectionEmailView(Convert.ToInt64(row["EntityID"]), Convert.ToString(row["HtmlBody"]));
                             else
                                 htmlView = AlternateView.CreateAlternateViewFromString(Convert.ToString(row["HtmlBody"]), Encoding.UTF8, "text/html");
                             message.AlternateViews.Add(htmlView);
