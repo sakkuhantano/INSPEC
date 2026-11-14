@@ -3149,7 +3149,7 @@ WHERE I.InspectionID=@InspectionID
         private static AlternateView CreateLightningInspectionEmailView(long inspectionId, string baseHtml)
         {
             var html = new StringBuilder();
-            var view = AlternateView.CreateAlternateViewFromString("", Encoding.UTF8, "text/html");
+            var linkedResources = new List<LinkedResource>();
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -3161,8 +3161,7 @@ FROM dbo.PIP_T_Inspection WHERE InspectionID=@InspectionID",
                     if (header.Rows.Count == 0)
                     {
                         html.Append(baseHtml ?? "");
-                        view = AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
-                        return view;
+                        return AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
                     }
                     string companyId = GF.GetString(header.Rows[0]["CompanyID"]);
                     string locationId = GF.GetString(header.Rows[0]["LocationID"]);
@@ -3240,7 +3239,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                 var linkedMap = new LinkedResource(mapPath, GetInspectionEmailMimeType(mapFile));
                                 linkedMap.ContentId = mapCid;
                                 linkedMap.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
-                                view.LinkedResources.Add(linkedMap);
+                                linkedResources.Add(linkedMap);
                                 html.Append("<img src='cid:").Append(mapCid).Append("' alt='")
                                     .Append(HttpUtility.HtmlEncode(mapName))
                                     .Append("' style='max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0'/>");
@@ -3295,7 +3294,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                     var linkedPhoto = new LinkedResource(photoPath, GetInspectionEmailMimeType(fileName + "." + fileType));
                                     linkedPhoto.ContentId = cid;
                                     linkedPhoto.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
-                                    view.LinkedResources.Add(linkedPhoto);
+                                    linkedResources.Add(linkedPhoto);
                                     html.Append("<br/><img src='cid:").Append(cid)
                                         .Append("' alt='").Append(HttpUtility.HtmlEncode(GF.GetString(photo["PhotoType"])))
                                         .Append("' style='max-width:220px;height:auto;margin:4px;border:1px solid #ddd'/>");
@@ -3307,12 +3306,13 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                         html.Append("</section>");
                     }
                 }
-                view.Dispose();
-                return AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
+                AlternateView finalView = AlternateView.CreateAlternateViewFromString(html.ToString(), Encoding.UTF8, "text/html");
+                foreach (LinkedResource resource in linkedResources) finalView.LinkedResources.Add(resource);
+                return finalView;
             }
             catch
             {
-                view.Dispose();
+                foreach (LinkedResource resource in linkedResources) { try { resource.Dispose(); } catch { } }
                 return AlternateView.CreateAlternateViewFromString(baseHtml ?? "", Encoding.UTF8, "text/html");
             }
         }
