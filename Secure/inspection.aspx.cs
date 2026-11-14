@@ -2062,7 +2062,8 @@ WHERE W.EntityType='LIGHTNING'
       OR (@ApprovalTab='VOID' AND W.WorkflowStatus='VOID'
           AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID))
   )
-  AND I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)
+  AND (@ApprovalTab='OUTSTANDING' OR
+       (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
