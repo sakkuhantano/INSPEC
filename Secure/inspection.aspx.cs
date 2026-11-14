@@ -66,7 +66,9 @@ namespace INSPEC.Secure
                         throw new Exception("ClientInspectionID is required.");
 
                     string status = TokenString(record, "Status").ToUpperInvariant();
-                    bool isBatchInspection = String.Equals(TokenString(record, "InspectionMode"), "BATCH", StringComparison.OrdinalIgnoreCase);
+                    string inspectionMode = TokenString(record, "InspectionMode").Trim().ToUpperInvariant();
+                    bool isLightningInspection = String.Equals(inspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase);
+                    bool isBatchInspection = String.Equals(inspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) || isLightningInspection;
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
@@ -97,6 +99,27 @@ namespace INSPEC.Secure
                     DataTable batchItemValues = new DataTable();
                     for (int i = 1; i <= 5; i++)
                         batchItemValues.Columns.Add("C" + i, typeof(string));
+                    DataTable lightningSchedules = new DataTable();
+                    for (int i = 1; i <= 13; i++)
+                        lightningSchedules.Columns.Add("C" + i, typeof(string));
+                    if (isLightningInspection)
+                    {
+                        JArray scheduleArray = record["Schedules"] as JArray ?? new JArray();
+                        var uniqueSchedules = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (JToken scheduleToken in scheduleArray)
+                        {
+                            string scheduleTime = (scheduleToken.Type == JTokenType.Object
+                                ? TokenString((JObject)scheduleToken, "ScheduleTime")
+                                : scheduleToken.ToString()).Trim();
+                            if (scheduleTime.Length != 5 || !uniqueSchedules.Add(scheduleTime))
+                                throw new Exception("LIGHTNING ScheduleTime is invalid or duplicated.");
+                            DataRow scheduleRow = lightningSchedules.NewRow();
+                            scheduleRow["C1"] = scheduleTime;
+                            lightningSchedules.Rows.Add(scheduleRow);
+                        }
+                        if (lightningSchedules.Rows.Count == 0)
+                            throw new Exception("LIGHTNING daily inspection must contain all configured ScheduleTime values.");
+                    }
 
                     JArray itemArray = record["Items"] as JArray ?? new JArray();
                     int displayOrder = 0;
@@ -155,14 +178,19 @@ namespace INSPEC.Secure
 
                         var clientPointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var masterPointIDs = new HashSet<long>();
+                        var schedulePointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         foreach (JObject point in pointArray.OfType<JObject>())
                         {
                             string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
                             long masterPointID = TokenLong(point, "InspectionPointID");
                             string pointStatus = TokenString(point, "Status").ToUpperInvariant();
+                            string pointScheduleTime = isLightningInspection ? TokenString(point, "ScheduleTime").Trim() : "";
+                            bool duplicateMasterPoint = isLightningInspection
+                                ? !schedulePointIDs.Add(pointScheduleTime + "|" + masterPointID.ToString(CultureInfo.InvariantCulture))
+                                : !masterPointIDs.Add(masterPointID);
                             if (String.IsNullOrWhiteSpace(clientPointID) || masterPointID <= 0 ||
-                                !clientPointIDs.Add(clientPointID) || !masterPointIDs.Add(masterPointID))
-                                throw new Exception("BATCH Inspection Point identity is invalid or duplicated.");
+                                !clientPointIDs.Add(clientPointID) || duplicateMasterPoint)
+                                throw new Exception("BATCH/LIGHTNING Inspection Point identity is invalid or duplicated.");
                             if (pointStatus != "DONE" && pointStatus != "ABNORMAL")
                                 throw new Exception("Every selected BATCH Inspection Point must be DONE or ABNORMAL.");
 
@@ -173,6 +201,7 @@ namespace INSPEC.Secure
                             pointRow["C4"] = pointStatus;
                             pointRow["C5"] = DbString(Limit(TokenString(point, "AbnormalRemark").Trim(), 500));
                             pointRow["C6"] = TokenString(point, "PointCondition").ToUpperInvariant();
+                            pointRow["C7"] = pointScheduleTime;
                             batchPoints.Rows.Add(pointRow);
 
                             JArray pointItems = point["Items"] as JArray ?? new JArray();
@@ -362,7 +391,7 @@ WHERE T.IDTemplate=@IDTemplate
                                 new SqlParameter("@LocationID", locationId),
                                 new SqlParameter("@EmployeeID", userId),
                                 new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
-                                new SqlParameter("@InspectionMode", isBatchInspection ? "BATCH" : "STANDARD"),
+                                new SqlParameter("@InspectionMode", inspectionMode),
                                 new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
                             });
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
@@ -871,7 +900,19 @@ SELECT ID FROM @AutoNumResult;",
                                 new SqlParameter("@p_UpdateUser", Limit(userId, 50))
                             };
                             DataTable saved;
-                            if (isBatchInspection)
+                            if (isLightningInspection)
+                            {
+                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Sync",
+                                    commonParameters.Concat(new SqlParameter[] {
+                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
+                                        new SqlParameter("@p_Points", batchPoints),
+                                        new SqlParameter("@p_Schedules", lightningSchedules),
+                                        new SqlParameter("@p_Photos", photoTable),
+                                        new SqlParameter("@p_Items", batchItems),
+                                        new SqlParameter("@p_ItemValues", batchItemValues)
+                                    }).ToArray(), true, true);
+                            }
+                            else if (isBatchInspection)
                             {
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Batch_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
