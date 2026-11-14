@@ -2581,6 +2581,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
        I.TemplateNo, I.TemplateName, I.TemplateVersion, I.InspectionDate,
        I.StartDateTime, I.EndDateTime, I.Status, I.Summary, I.OwnerEmployeeID,
+       I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        I.ReasonVoid, I.UpdateDate,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
