@@ -3559,6 +3559,28 @@ WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
                     return new { attempted = 0, sent = 0, failed = 0, pending = pending, configured = false };
                 }
 
+                // Recover dispatches abandoned by an app-pool recycle or process crash.
+                // LastAttemptDate is refreshed atomically when a row is claimed below.
+                br.EQueryP(@"
+UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='FAILED',
+    LastError=ISNULL(LastError,'') +
+        CASE WHEN ISNULL(LastError,'')='' THEN '' ELSE ' | ' END +
+        'Recovered stale SENDING row after dispatcher interruption.',
+    NextAttemptDate=GETDATE()
+WHERE DeliveryStatus='SENDING'
+  AND LastAttemptDate IS NOT NULL
+  AND LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
+  AND AttemptCount<5;
+UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='FAILED',
+    LastError='Dispatch interrupted and retry limit reached.',
+    NextAttemptDate=GETDATE()
+WHERE DeliveryStatus='SENDING'
+  AND LastAttemptDate IS NOT NULL
+  AND LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
+  AND AttemptCount>=5;", null, true);
+
                 DataTable queue = br.EQueryP(@"
 ;WITH EmailQueue AS
 (
@@ -3570,7 +3592,7 @@ WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
     ORDER BY EmailOutboxID
 )
 UPDATE EmailQueue
-SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1
+SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1,LastAttemptDate=GETDATE()
 OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
        inserted.RecipientEmail,inserted.EmailSubject,inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
                     new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, true, true);
