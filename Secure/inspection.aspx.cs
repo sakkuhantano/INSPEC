@@ -2012,7 +2012,6 @@ ORDER BY P.SeqNo",
         }
 
         [WebMethod]
-        [WebMethod]
         public static object GetLightningInspectionApprovalQueue(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId)
@@ -2152,6 +2151,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
             }
         }
 
+        [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
