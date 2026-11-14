@@ -3514,7 +3514,9 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
                             message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
                                 plainBody, Encoding.UTF8, "text/plain"));
                             AlternateView htmlView;
-                            if (String.Equals(Convert.ToString(row["EntityType"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                            string entityType = Convert.ToString(row["EntityType"]);
+                            if (String.Equals(entityType, "LIGHTNING", StringComparison.OrdinalIgnoreCase) ||
+                                String.Equals(entityType, "INSPECTION", StringComparison.OrdinalIgnoreCase))
                                 htmlView = CreateInspectionEmailView(Convert.ToInt64(row["EntityID"]), Convert.ToString(row["HtmlBody"]));
                             else
                                 htmlView = AlternateView.CreateAlternateViewFromString(Convert.ToString(row["HtmlBody"]), Encoding.UTF8, "text/html");
