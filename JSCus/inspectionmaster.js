@@ -305,6 +305,7 @@
             zoom = 1; inspectionMapPreviewZoom = 1; panX = 0; panY = 0; apply(); scheduleMapPreviewCanvasRender();
         });
         stage.addEventListener('wheel', function (event) {
+            if (!event.ctrlKey && !event.shiftKey) return;
             event.preventDefault();
             var rect = stage.getBoundingClientRect();
             setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
@@ -803,6 +804,7 @@
             document.getElementById('btnMapZoomOut').addEventListener('click', function () { setZoom(zoom - 0.25); });
             document.getElementById('btnMapZoomFit').addEventListener('click', function () { zoom = 1; inspectionCoordinateZoom = 1; panX = 0; panY = 0; applyView(); scheduleInspectionPdfRender(); });
             board.addEventListener('wheel', function (event) {
+                if (!event.ctrlKey && !event.shiftKey) return;
                 event.preventDefault();
                 var rect = board.getBoundingClientRect();
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
