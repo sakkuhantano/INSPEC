@@ -2739,6 +2739,12 @@ function showInspectionBatchValidationReport(errors) {
         const error = inspectionBatchValidationState.errors[index];
         if (!error) return;
         inspectionBatchValidationState.index = index;
+        if (error.ScheduleTime && String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+            activeInspectionScheduleTime = String(error.ScheduleTime);
+            currentInspectionRecord.ActiveScheduleTime = activeInspectionScheduleTime;
+            if (typeof window.setInspectionActiveScheduleTime === "function")
+                window.setInspectionActiveScheduleTime(activeInspectionScheduleTime);
+        }
         modal.hide();
         if (error.pointId) {
             const masterPoint = masterPoints.find(point => Number(point.InspectionPointID) === Number(error.pointId));
