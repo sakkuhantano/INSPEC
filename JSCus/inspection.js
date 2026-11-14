@@ -5212,7 +5212,9 @@ async function executeInspectionApprovalAction(ids, action, remark) {
         const lightningStatus = lightningResults.length
             ? " Lightning: " + lightningResults.map(item => item.workflowStatus || action).join(", ") + "."
             : "";
-        showToast(processedCount + " inspeksi berhasil diproses." + lightningStatus, "success");
+        const emailPending = lightningResults.some(item => item.emailDispatch && item.emailDispatch.configured === false);
+        showToast(processedCount + " inspeksi berhasil diproses." + lightningStatus, emailPending ? "warning" : "success");
+        if (emailPending) showToast("Approval tersimpan, tetapi email masih di outbox. Lengkapi smtpFrom pada Web.config agar email dapat dikirim.", "warning");
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
         await loadInspectionApprovalQueue();
@@ -5781,7 +5783,9 @@ async function processInspectionApproval(action) {
             : (approvalResult.followUpWONo
                 ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
                 : "Inspection berhasil di-approve.");
-        showToast(message, "success");
+        const emailPending = approvalResult.emailDispatch && approvalResult.emailDispatch.configured === false;
+        showToast(message, emailPending ? "warning" : "success");
+        if (emailPending) showToast("Approval tersimpan, tetapi email masih di outbox. Lengkapi smtpFrom pada Web.config agar email dapat dikirim.", "warning");
         await loadInspectionApprovalQueue();
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
