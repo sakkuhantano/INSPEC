@@ -3561,7 +3561,7 @@ WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
 
                 // Recover dispatches abandoned by an app-pool recycle or process crash.
                 // LastAttemptDate is refreshed atomically when a row is claimed below.
-                br.EQueryP(@"
+                br.EQuery(@"
 UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET DeliveryStatus='FAILED',
     LastError=ISNULL(LastError,'') +
@@ -3569,17 +3569,21 @@ SET DeliveryStatus='FAILED',
         'Recovered stale SENDING row after dispatcher interruption.',
     NextAttemptDate=GETDATE()
 WHERE DeliveryStatus='SENDING'
-  AND LastAttemptDate IS NOT NULL
-  AND LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
-  AND AttemptCount<5;
+  AND AttemptCount<5
+  AND (
+      LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
+      OR (LastAttemptDate IS NULL AND EntryDate<DATEADD(MINUTE,-30,GETDATE()))
+  );
 UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET DeliveryStatus='FAILED',
     LastError='Dispatch interrupted and retry limit reached.',
     NextAttemptDate=GETDATE()
 WHERE DeliveryStatus='SENDING'
-  AND LastAttemptDate IS NOT NULL
-  AND LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
-  AND AttemptCount>=5;", null, true);
+  AND AttemptCount>=5
+  AND (
+      LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
+      OR (LastAttemptDate IS NULL AND EntryDate<DATEADD(MINUTE,-30,GETDATE()))
+  );");
 
                 DataTable queue = br.EQueryP(@"
 ;WITH EmailQueue AS
