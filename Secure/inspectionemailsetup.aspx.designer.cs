@@ -4,7 +4,9 @@ namespace INSPEC.Secure
     {
         protected global::System.Web.UI.WebControls.Panel pnlMessage;
         protected global::System.Web.UI.WebControls.Literal litMessage;
+        protected global::System.Web.UI.WebControls.DropDownList ddlChiefEngSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlChiefEng;
+        protected global::System.Web.UI.WebControls.DropDownList ddlChiefSecSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlChiefSec;
         protected global::System.Web.UI.WebControls.Button btnSaveHeader;
         protected global::System.Web.UI.WebControls.DropDownList ddlSection;
