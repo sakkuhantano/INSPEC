@@ -950,6 +950,12 @@ SELECT ID FROM @AutoNumResult;",
 
                             if (!isLightningInspection)
                             {
+                                br.EQueryP(@"UPDATE dbo.PIP_T_Inspection SET InspectionMode=@InspectionMode
+WHERE InspectionID=@InspectionID",
+                                    new SqlParameter[] {
+                                        new SqlParameter("@InspectionMode", inspectionMode),
+                                        new SqlParameter("@InspectionID", inspectionId)
+                                    }, true, true);
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
                                 string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
