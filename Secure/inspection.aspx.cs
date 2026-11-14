@@ -3276,6 +3276,14 @@ FROM dbo.PIP_T_InspectionResult R
 WHERE R.InspectionID=@InspectionID
 ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable resultValues = br.EQueryP(@"
+SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,
+       V.ObjectIndex,V.FieldName,V.Value FieldValue
+FROM dbo.PIP_T_InspectionResult R
+JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.InspectionResultID,V.ObjectIndex,V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     DataTable photos = br.EQueryP(@"
 SELECT InspectionPointTransactionID,PhotoType,FileName,FileType,SeqNo
 FROM dbo.PIP_T_InspectionPhoto
@@ -3303,6 +3311,11 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                             html.Append("<tr><td style='border-bottom:1px solid #eee'><strong>")
                                 .Append(HttpUtility.HtmlEncode(GF.GetString(result["ItemLabel"]))).Append("</strong></td><td style='border-bottom:1px solid #eee'>")
                                 .Append(HttpUtility.HtmlEncode(GF.GetString(result["Value"])));
+                            long resultId = Convert.ToInt64(result["InspectionResultID"]);
+                            foreach (DataRow child in resultValues.Select("InspectionResultID=" + resultId.ToString(CultureInfo.InvariantCulture)))
+                                html.Append("<br/><small>").Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldName"])))
+                                    .Append(" #").Append(Convert.ToString(child["ObjectIndex"])).Append(": ")
+                                    .Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldValue"]))).Append("</small>");
                             string remark1 = GF.GetString(result["Remark1"]);
                             string remark2 = GF.GetString(result["Remark2"]);
                             if (remark1 != "") html.Append("<br/>").Append(HttpUtility.HtmlEncode(remark1));
@@ -3416,6 +3429,12 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                 foreach (DataRow result in results.Select("InspectionPointTransactionID=" + pointTransactionId.ToString(CultureInfo.InvariantCulture)))
                                 {
                                     string label = GF.GetString(result["ItemLabel"]);
+                                    long resultId = Convert.ToInt64(result["InspectionResultID"]);
+                                    foreach (DataRow child in resultValues.Select("InspectionResultID=" + resultId.ToString(CultureInfo.InvariantCulture)))
+                                        html.Append("<br/><small>").Append(HttpUtility.HtmlEncode(label)).Append(" · ")
+                                            .Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldName"])))
+                                            .Append(" #").Append(Convert.ToString(child["ObjectIndex"])).Append(": ")
+                                            .Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldValue"]))).Append("</small>");
                                     string value = GF.GetString(result["Value"]);
                                     string remark1 = GF.GetString(result["Remark1"]);
                                     string remark2 = GF.GetString(result["Remark2"]);
