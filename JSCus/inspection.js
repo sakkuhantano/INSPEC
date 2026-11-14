@@ -5309,7 +5309,7 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
             { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved" },
             { status: "ACKNOWLEDGE", label: "ACKNOWLEDGE", description: "Chief Security approved" }
         ];
-        const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 1 : 0;
+        const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 2 : workflow === "CHECKED" ? 1 : 0;
         return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
             const done = index < completed;
             const current = index === completed && workflow !== "ACKNOWLEDGE" && workflow !== "VOID";
