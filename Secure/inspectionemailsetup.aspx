@@ -24,14 +24,18 @@
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-12 col-lg-6">
-                    <label class="form-label fw-semibold" for="<%= ddlChiefEng.ClientID %>">Chief Engineering</label>
+                    <label class="form-label fw-semibold" for="<%= ddlChiefEngSection.ClientID %>">Chief Engineering Section</label>
+                    <asp:DropDownList ID="ddlChiefEngSection" runat="server" CssClass="form-select mb-2" AutoPostBack="true" OnSelectedIndexChanged="ddlChiefEngSection_SelectedIndexChanged" />
+                    <label class="form-label fw-semibold" for="<%= ddlChiefEng.ClientID %>">Chief Engineering Employee</label>
                     <asp:DropDownList ID="ddlChiefEng" runat="server" CssClass="form-select" />
-                    <div class="form-text">Employee dipilih dari section Engineering (Profit Center PENG).</div>
+                    <div class="form-text">Employee difilter berdasarkan section yang dipilih dan Company aktif.</div>
                 </div>
                 <div class="col-12 col-lg-6">
-                    <label class="form-label fw-semibold" for="<%= ddlChiefSec.ClientID %>">Chief Security</label>
+                    <label class="form-label fw-semibold" for="<%= ddlChiefSecSection.ClientID %>">Chief Security Section</label>
+                    <asp:DropDownList ID="ddlChiefSecSection" runat="server" CssClass="form-select mb-2" AutoPostBack="true" OnSelectedIndexChanged="ddlChiefSecSection_SelectedIndexChanged" />
+                    <label class="form-label fw-semibold" for="<%= ddlChiefSec.ClientID %>">Chief Security Employee</label>
                     <asp:DropDownList ID="ddlChiefSec" runat="server" CssClass="form-select" />
-                    <div class="form-text">Employee dipilih dari section Security (Profit Center PSEC).</div>
+                    <div class="form-text">Employee difilter berdasarkan section yang dipilih dan Company aktif.</div>
                 </div>
             </div>
             <div class="d-flex justify-content-end mt-3">
