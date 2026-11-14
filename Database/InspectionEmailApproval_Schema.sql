@@ -23,7 +23,9 @@ BEGIN
     (
         CompanyID VARCHAR(10) NOT NULL,
         LocationID VARCHAR(3) NOT NULL,
+        ChiefEngSectionID VARCHAR(10) NULL,
         ChiefEngEmployeeID VARCHAR(50) NOT NULL,
+        ChiefSecSectionID VARCHAR(10) NULL,
         ChiefSecEmployeeID VARCHAR(50) NOT NULL,
         IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetup_IsActive DEFAULT (1),
         EntryUser VARCHAR(50) NOT NULL,
@@ -33,6 +35,24 @@ BEGIN
         CONSTRAINT PK_PIP_M_InspectionEmailSetup PRIMARY KEY CLUSTERED (CompanyID, LocationID)
     );
 END;
+GO
+
+/* Existing installations: add the selected section context for Chief pickers. */
+IF COL_LENGTH('dbo.PIP_M_InspectionEmailSetup','ChiefEngSectionID') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionEmailSetup ADD ChiefEngSectionID VARCHAR(10) NULL;
+IF COL_LENGTH('dbo.PIP_M_InspectionEmailSetup','ChiefSecSectionID') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionEmailSetup ADD ChiefSecSectionID VARCHAR(10) NULL;
+GO
+UPDATE S
+SET ChiefEngSectionID=E.SectionID
+FROM dbo.PIP_M_InspectionEmailSetup S
+JOIN dbo.M_HRD_Employee E ON E.EmployeeID=S.ChiefEngEmployeeID
+WHERE ISNULL(S.ChiefEngSectionID,'')='';
+UPDATE S
+SET ChiefSecSectionID=E.SectionID
+FROM dbo.PIP_M_InspectionEmailSetup S
+JOIN dbo.M_HRD_Employee E ON E.EmployeeID=S.ChiefSecEmployeeID
+WHERE ISNULL(S.ChiefSecSectionID,'')='';
 GO
 
 IF OBJECT_ID('dbo.PIP_M_InspectionEmailSetupSection', 'U') IS NULL
