@@ -5,6 +5,8 @@ using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
 using System.IO;
+using System.Net.Mail;
+using System.Text;
 using System.Web;
 using System.Web.Services;
 using Newtonsoft.Json.Linq;
@@ -3127,6 +3129,111 @@ WHERE I.InspectionID=@InspectionID
                 string followUpWONo = saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
                 return new { success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId, followUpWONo = followUpWONo };
+            }
+        }
+
+        private static object DispatchInspectionEmailOutbox(int batchSize)
+        {
+            string host = (System.Configuration.ConfigurationManager.AppSettings["smtpHost"] ?? "").Trim();
+            string fromAddress = (System.Configuration.ConfigurationManager.AppSettings["smtpFrom"] ?? "").Trim();
+            string smtpUser = (System.Configuration.ConfigurationManager.AppSettings["smtpUser"] ?? "").Trim();
+            string smtpPassword = System.Configuration.ConfigurationManager.AppSettings["smtpPassword"] ?? "";
+            bool useSsl = String.Equals(System.Configuration.ConfigurationManager.AppSettings["smtpUseSSL"], "true", StringComparison.OrdinalIgnoreCase);
+            int port;
+            if (!Int32.TryParse(System.Configuration.ConfigurationManager.AppSettings["smtpPort"], out port)) port = 25;
+
+            using (var br = new WAL.BR.CF())
+            {
+                if (host == "" || fromAddress == "")
+                {
+                    br.EQueryP(@"
+UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET LastError='SMTP host or smtpFrom is not configured. Configure Web.config before email dispatch.',
+    NextAttemptDate=DATEADD(MINUTE,15,GETDATE())
+WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();", true);
+                    DataTable pendingRows = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')");
+                    int pending = pendingRows.Rows.Count > 0 ? Convert.ToInt32(pendingRows.Rows[0]["PendingCount"]) : 0;
+                    return new { attempted = 0, sent = 0, failed = 0, pending = pending, configured = false };
+                }
+
+                DataTable queue = br.EQueryP(@"
+;WITH EmailQueue AS
+(
+    SELECT TOP (@BatchSize) *
+    FROM dbo.PIP_T_InspectionEmailOutbox WITH (UPDLOCK,READPAST,ROWLOCK)
+    WHERE DeliveryStatus IN ('PENDING','FAILED')
+      AND NextAttemptDate<=GETDATE()
+      AND AttemptCount<5
+    ORDER BY EmailOutboxID
+)
+UPDATE EmailQueue
+SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1
+OUTPUT inserted.EmailOutboxID,inserted.RecipientEmail,inserted.EmailSubject,
+       inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
+                    new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, true, true);
+
+                int sent = 0, failed = 0;
+                foreach (DataRow row in queue.Rows)
+                {
+                    long outboxId = Convert.ToInt64(row["EmailOutboxID"]);
+                    try
+                    {
+                        using (var message = new MailMessage())
+                        {
+                            message.From = new MailAddress(fromAddress, "INSPEC");
+                            message.To.Add(new MailAddress(Convert.ToString(row["RecipientEmail"])));
+                            message.Subject = Convert.ToString(row["EmailSubject"]);
+                            message.SubjectEncoding = Encoding.UTF8;
+                            message.BodyEncoding = Encoding.UTF8;
+                            message.IsBodyHtml = true;
+                            message.Body = Convert.ToString(row["HtmlBody"]);
+                            if (row["PlainBody"] != DBNull.Value && !String.IsNullOrWhiteSpace(Convert.ToString(row["PlainBody"])))
+                                message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
+                                    Convert.ToString(row["PlainBody"]), Encoding.UTF8, "text/plain"));
+
+                            using (var smtp = new SmtpClient(host, port))
+                            {
+                                smtp.EnableSsl = useSsl;
+                                smtp.Timeout = 20000;
+                                if (!String.IsNullOrWhiteSpace(smtpUser))
+                                    smtp.Credentials = new System.Net.NetworkCredential(smtpUser, smtpPassword);
+                                else
+                                    smtp.UseDefaultCredentials = true;
+                                smtp.Send(message);
+                            }
+                        }
+                        br.EQueryP(@"UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='SENT',SentDate=GETDATE(),LastError=NULL
+WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
+                            new SqlParameter[] { new SqlParameter("@ID", outboxId) }, true);
+                        sent++;
+                    }
+                    catch (Exception ex)
+                    {
+                        string error = ex.Message ?? "SMTP send failed.";
+                        if (error.Length > 1900) error = error.Substring(0, 1900);
+                        br.EQueryP(@"
+UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='FAILED',LastError=@Error,
+    NextAttemptDate=DATEADD(MINUTE,
+        CASE WHEN AttemptCount=1 THEN 5 WHEN AttemptCount=2 THEN 10
+             WHEN AttemptCount=3 THEN 20 WHEN AttemptCount=4 THEN 40 ELSE 60 END,GETDATE())
+WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
+                            new SqlParameter[] {
+                                new SqlParameter("@Error", error),
+                                new SqlParameter("@ID", outboxId)
+                            }, true);
+                        failed++;
+                    }
+                }
+                DataTable pending = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
+                return new {
+                    attempted = queue.Rows.Count,
+                    sent = sent,
+                    failed = failed,
+                    pending = pending.Rows.Count > 0 ? Convert.ToInt32(pending.Rows[0]["PendingCount"]) : 0,
+                    configured = true
+                };
             }
         }
 
