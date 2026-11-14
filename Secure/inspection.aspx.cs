@@ -3225,6 +3225,7 @@ WHERE I.InspectionID=@InspectionID
         {
             var html = new StringBuilder();
             var linkedResources = new List<LinkedResource>();
+            var linkedContentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 using (var br = new WAL.BR.CF())
@@ -3381,10 +3382,13 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                             html.Append("<div style='position:relative;display:block;width:100%;margin:6px 0'>");
                             if (mapPath != "" && File.Exists(mapPath))
                             {
-                                var linkedMap = new LinkedResource(mapPath, GetInspectionEmailMimeType(mapFile));
-                                linkedMap.ContentId = mapCid;
-                                linkedMap.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
-                                linkedResources.Add(linkedMap);
+                                if (linkedContentIds.Add(mapCid))
+                                {
+                                    var linkedMap = new LinkedResource(mapPath, GetInspectionEmailMimeType(mapFile));
+                                    linkedMap.ContentId = mapCid;
+                                    linkedMap.TransferEncoding = System.Net.Mime.TransferEncoding.Base64;
+                                    linkedResources.Add(linkedMap);
+                                }
                                 html.Append("<img src='cid:").Append(mapCid).Append("' alt='")
                                     .Append(HttpUtility.HtmlEncode(mapName))
                                     .Append("' style='display:block;width:100%;height:auto;border:1px solid #ddd'/>");
