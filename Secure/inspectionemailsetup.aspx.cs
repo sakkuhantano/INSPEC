@@ -52,7 +52,7 @@ SELECT CASE WHEN EXISTS
         private void BindPage()
         {
             BindSections();
-            BindChiefEmployees();
+            BindChiefSections();
             LoadHeader();
             BindSPVEmployees();
             LoadSectionSPV();
@@ -74,10 +74,32 @@ ORDER BY S.SectionID");
             }
         }
 
+        private void BindChiefSections()
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT DISTINCT S.SectionID,S.Description
+FROM dbo.PIP_M_Section S
+INNER JOIN dbo.M_HRD_Employee E ON E.SectionID=S.SectionID
+WHERE E.CompanyID=@CompanyID AND ISNULL(E.TerminationDate,'')=''
+ORDER BY S.SectionID",
+                    new SqlParameter[] { new SqlParameter("@CompanyID", Master.Mn_CompanyID) });
+                foreach (DropDownList list in new[] { ddlChiefEngSection, ddlChiefSecSection })
+                {
+                    list.Items.Clear();
+                    list.Items.Add(new ListItem("-- Pilih Section --", ""));
+                    foreach (DataRow row in dt.Rows)
+                        list.Items.Add(new ListItem(Convert.ToString(row["SectionID"]) + " - " +
+                            Convert.ToString(row["Description"]), Convert.ToString(row["SectionID"])));
+                }
+            }
+        }
+
         private void BindChiefEmployees()
         {
-            BindEmployees(ddlChiefEng, "peng", null);
-            BindEmployees(ddlChiefSec, "psec", null);
+            BindEmployees(ddlChiefEng, null, ddlChiefEngSection.SelectedValue);
+            BindEmployees(ddlChiefSec, null, ddlChiefSecSection.SelectedValue);
         }
 
         private void BindSPVEmployees()
@@ -140,7 +162,24 @@ ORDER BY E.Name, E.EmployeeID",
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT ChiefEngEmployeeID, ChiefSecEmployeeID
+SELECT ChiefEngSectionID,ChiefEngEmployeeID,ChiefSecSectionID,ChiefSecEmployeeID
+FROM dbo.PIP_M_InspectionEmailSetup
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    });
+                if (dt.Rows.Count > 0)
+                {
+                    SelectIfPresent(ddlChiefEngSection, Convert.ToString(dt.Rows[0]["ChiefEngSectionID"]));
+                    SelectIfPresent(ddlChiefSecSection, Convert.ToString(dt.Rows[0]["ChiefSecSectionID"]));
+                }
+            }
+            BindChiefEmployees();
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT ChiefEngEmployeeID,ChiefSecEmployeeID
 FROM dbo.PIP_M_InspectionEmailSetup
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
                     new SqlParameter[] {
@@ -180,6 +219,16 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
             if (item != null) list.SelectedValue = value;
         }
 
+        protected void ddlChiefEngSection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            BindEmployees(ddlChiefEng, null, ddlChiefEngSection.SelectedValue);
+        }
+
+        protected void ddlChiefSecSection_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            BindEmployees(ddlChiefSec, null, ddlChiefSecSection.SelectedValue);
+        }
+
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
         {
             BindSPVEmployees();
@@ -191,9 +240,11 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
             try
             {
                 EnsureAdministrator();
-                if (String.IsNullOrWhiteSpace(ddlChiefEng.SelectedValue) ||
+                if (String.IsNullOrWhiteSpace(ddlChiefEngSection.SelectedValue) ||
+                    String.IsNullOrWhiteSpace(ddlChiefSecSection.SelectedValue) ||
+                    String.IsNullOrWhiteSpace(ddlChiefEng.SelectedValue) ||
                     String.IsNullOrWhiteSpace(ddlChiefSec.SelectedValue))
-                    throw new InvalidOperationException("Pilih Chief Engineering dan Chief Security.");
+                    throw new InvalidOperationException("Pilih section dan employee Chief Engineering serta Chief Security.");
 
                 using (var br = new WAL.BR.CF())
                 {
@@ -203,7 +254,8 @@ IF NOT EXISTS
     SELECT 1 FROM dbo.M_HRD_Employee E
     INNER JOIN dbo.PIP_M_Section S ON S.SectionID=E.SectionID
     WHERE E.EmployeeID=@ChiefEng AND E.CompanyID=@CompanyID
-      AND S.ProfitCenterNo='peng' AND ISNULL(E.TerminationDate,'')=''
+      AND E.SectionID=@ChiefEngSectionID AND S.SectionID=@ChiefEngSectionID
+      AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
 )
 BEGIN
@@ -215,7 +267,8 @@ IF NOT EXISTS
     SELECT 1 FROM dbo.M_HRD_Employee E
     INNER JOIN dbo.PIP_M_Section S ON S.SectionID=E.SectionID
     WHERE E.EmployeeID=@ChiefSec AND E.CompanyID=@CompanyID
-      AND S.ProfitCenterNo='psec' AND ISNULL(E.TerminationDate,'')=''
+      AND E.SectionID=@ChiefSecSectionID AND S.SectionID=@ChiefSecSectionID
+      AND ISNULL(E.TerminationDate,'')=''
       AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
 )
 BEGIN
@@ -226,19 +279,22 @@ END;
 BEGIN TRANSACTION;
 IF EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup WHERE CompanyID=@CompanyID AND LocationID=@LocationID)
     UPDATE dbo.PIP_M_InspectionEmailSetup
-    SET ChiefEngEmployeeID=@ChiefEng, ChiefSecEmployeeID=@ChiefSec,
+    SET ChiefEngSectionID=@ChiefEngSectionID,ChiefEngEmployeeID=@ChiefEng,
+        ChiefSecSectionID=@ChiefSecSectionID,ChiefSecEmployeeID=@ChiefSec,
         IsActive=1, UpdateUser=@UserID, UpdateDate=GETDATE()
     WHERE CompanyID=@CompanyID AND LocationID=@LocationID;
 ELSE
     INSERT dbo.PIP_M_InspectionEmailSetup
-    (CompanyID,LocationID,ChiefEngEmployeeID,ChiefSecEmployeeID,IsActive,EntryUser,UpdateUser)
+    (CompanyID,LocationID,ChiefEngSectionID,ChiefEngEmployeeID,ChiefSecSectionID,ChiefSecEmployeeID,IsActive,EntryUser,UpdateUser)
     VALUES
-    (@CompanyID,@LocationID,@ChiefEng,@ChiefSec,1,@UserID,@UserID);
+    (@CompanyID,@LocationID,@ChiefEngSectionID,@ChiefEng,@ChiefSecSectionID,@ChiefSec,1,@UserID,@UserID);
 COMMIT TRANSACTION",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                             new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@ChiefEngSectionID", ddlChiefEngSection.SelectedValue),
                             new SqlParameter("@ChiefEng", ddlChiefEng.SelectedValue),
+                            new SqlParameter("@ChiefSecSectionID", ddlChiefSecSection.SelectedValue),
                             new SqlParameter("@ChiefSec", ddlChiefSec.SelectedValue),
                             new SqlParameter("@UserID", Master.Mn_EmployeeID)
                         });
