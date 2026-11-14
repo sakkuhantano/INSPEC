@@ -287,6 +287,10 @@ BEGIN
         IF @V_InspectionID IS NULL
             RAISERROR('LIGHTNING header was not saved by the canonical Inspection sync procedure.',16,1);
 
+        UPDATE dbo.PIP_T_Inspection
+        SET InspectionMode='LIGHTNING',UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
+        WHERE InspectionID=@V_InspectionID;
+
         IF NOT EXISTS
         (
             SELECT 1 FROM dbo.PIP_T_Inspection
