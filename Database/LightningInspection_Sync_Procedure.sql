@@ -1,8 +1,10 @@
 /*
     INSPEC - Lightning daily transaction sync.
     SQL Server 2008 compatible.
-    Run after inspection_batch_transaction_migration.sql and
-    Database/LightningInspection_Transaction_Migration.sql.
+    Run after inspection_batch_transaction_migration.sql,
+    Database/InspectionEmailApproval_Schema.sql,
+    Database/LightningInspection_Transaction_Migration.sql, and
+    Database/LightningInspection_Approval_Workflow.sql.
     TVP contract:
       @p_Schedules.C1 = configured ScheduleTime (HH:mm)
       @p_Points.C1..C6 = existing BATCH point fields
