@@ -2764,70 +2764,122 @@ function showInspectionBatchValidationReport(errors) {
 
 window.submitInspectionBatch = async function () {
     const record = currentInspectionRecord;
-    if (!record || String(record.InspectionMode || "").toUpperCase() !== "BATCH") return;
-    if (String(record.Status || "").toUpperCase() === "DONE") { showToast("Batch ini sudah disubmit dan tidak dapat diubah.", "warning"); return; }
-    const points = Array.isArray(record.Points) ? record.Points : [];
-    const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
-    if (!masterPoints.length) { showToast("Master Inspection Point batch ini tidak tersedia.", "danger"); return; }
-    const errors = [];
-    const knownPointIDs = new Set();
-    const requirement = getInspectionPhotoRequirement(record);
-    for (const masterPoint of masterPoints) {
-        const pointId = Number(masterPoint.InspectionPointID);
-        const point = points.find(item => Number(item.InspectionPointID) === pointId);
-        const requireAll = masterPoint.RequireAllPoints == null ? true : isInspectionFlagEnabled(masterPoint.RequireAllPoints, true);
-        const pointCode = String(masterPoint.PointCode || ("Point " + pointId));
-        if (!point) {
-            if (requireAll) errors.push({ pointCode, pointId, message: "Belum diinspeksi (wajib berdasarkan Master Map).", target: "point-complete" });
-            continue;
-        }
-        knownPointIDs.add(pointId);
-        const photos = await getInspectionPhotos(record.LocalInspectionID, String(point.ClientPointID || ""));
-        const items = Array.isArray(point.Items) ? point.Items : [];
-        const touched = items.length > 0 || photos.length > 0 || String(point.PointCondition || "").trim() !== "" ||
-            String(point.AbnormalRemark || "").trim() !== "" || !["", "PENDING"].includes(String(point.Status || "").toUpperCase());
-        if (!requireAll && !touched) continue;
-        validateInspectionItemsAll(items).forEach(error => errors.push({ pointCode, pointId, message: error.message, itemId: error.itemId, role: error.role }));
-        const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
-        const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
-        if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
-            errors.push({ pointCode, pointId, message: "Foto BEFORE belum dilampirkan.", target: "photo-before" });
-        if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter)
-            errors.push({ pointCode, pointId, message: "Foto AFTER belum dilampirkan.", target: "photo-after" });
-        if (isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false)) {
-            const condition = String(point.PointCondition || "").toUpperCase();
-            if (condition !== "NORMAL" && condition !== "ABNORMAL")
-                errors.push({ pointCode, pointId, message: "Kondisi NORMAL/ABNORMAL belum dipilih.", target: "condition" });
-            if (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim())
-                errors.push({ pointCode, pointId, message: "Abnormal Remark belum diisi.", target: "abnormal-remark" });
-        }
-        if (!["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
-            errors.push({ pointCode, pointId, message: "Point belum diselesaikan melalui Complete Point.", target: "point-complete" });
+    if (!record || !isInspectionMapMode(record.InspectionMode)) return;
+    if (String(record.Status || "").toUpperCase() === "DONE") {
+        showToast("Inspeksi ini sudah disubmit dan seluruh jadwal terkunci.", "warning");
+        return;
     }
+
+    const lightning = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const schedules = lightning
+        ? (Array.isArray(record.Schedules) ? record.Schedules.map(item => String(item.ScheduleTime || item).trim()).filter(Boolean) : [])
+        : [""];
+    const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
+    const points = Array.isArray(record.Points) ? record.Points : [];
+    if (!masterPoints.length) {
+        showToast("Master Inspection Point belum tersedia.", "danger");
+        return;
+    }
+    if (lightning && !schedules.length) {
+        showToast("ScheduleTime Lightning belum tersedia. Sinkronkan master jadwal terlebih dahulu.", "danger");
+        return;
+    }
+
+    const errors = [];
+    const requirement = getInspectionPhotoRequirement(record);
+    let completedPointCount = 0;
+    for (const scheduleTime of schedules) {
+        for (const masterPoint of masterPoints) {
+            const pointId = Number(masterPoint.InspectionPointID);
+            const point = points.find(item =>
+                Number(item.InspectionPointID) === pointId &&
+                String(item.ScheduleTime || "") === scheduleTime);
+            const requireAll = masterPoint.RequireAllPoints == null
+                ? true : isInspectionFlagEnabled(masterPoint.RequireAllPoints, true);
+            const pointCode = String(masterPoint.PointCode || ("Point " + pointId));
+            const errorBase = { pointCode, pointId, ScheduleTime: scheduleTime };
+            if (!point) {
+                if (requireAll) errors.push(Object.assign({}, errorBase, {
+                    message: "Belum diinspeksi pada jadwal " + (scheduleTime || "-") + ".",
+                    target: "point-complete"
+                }));
+                continue;
+            }
+            completedPointCount++;
+            const photos = await getInspectionPhotos(record.LocalInspectionID, String(point.ClientPointID || ""));
+            const items = Array.isArray(point.Items) ? point.Items : [];
+            const touched = items.length > 0 || photos.length > 0 ||
+                String(point.PointCondition || "").trim() !== "" ||
+                String(point.AbnormalRemark || "").trim() !== "" ||
+                !["", "PENDING"].includes(String(point.Status || "").toUpperCase());
+            if (!requireAll && !touched) continue;
+
+            validateInspectionItemsAll(items).forEach(error => errors.push(Object.assign({}, errorBase, {
+                message: error.message, itemId: error.itemId, role: error.role
+            })));
+            const hasBefore = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+            const hasAfter = photos.some(photo => String(photo.Type || "").toUpperCase() === "AFTER");
+            if ((requirement === "BEFORE" || requirement === "BOTH") && !hasBefore)
+                errors.push(Object.assign({}, errorBase, { message: "Foto BEFORE belum dilampirkan.", target: "photo-before" }));
+            if ((requirement === "AFTER" || requirement === "BOTH") && !hasAfter)
+                errors.push(Object.assign({}, errorBase, { message: "Foto AFTER belum dilampirkan.", target: "photo-after" }));
+            if (isInspectionFlagEnabled(masterPoint.IsNormalAbnormalRequired, false)) {
+                const condition = String(point.PointCondition || "").toUpperCase();
+                if (condition !== "NORMAL" && condition !== "ABNORMAL")
+                    errors.push(Object.assign({}, errorBase, { message: "Kondisi NORMAL/ABNORMAL belum dipilih.", target: "condition" }));
+                if (condition === "ABNORMAL" && !String(point.AbnormalRemark || "").trim())
+                    errors.push(Object.assign({}, errorBase, { message: "Abnormal Remark belum diisi.", target: "abnormal-remark" }));
+            }
+            if (!["DONE", "ABNORMAL"].includes(String(point.Status || "").toUpperCase()))
+                errors.push(Object.assign({}, errorBase, { message: "Point belum diselesaikan melalui Complete Point.", target: "point-complete" }));
+        }
+    }
+
     points.forEach(point => {
-        if (!masterPoints.some(master => Number(master.InspectionPointID) === Number(point.InspectionPointID)))
+        const scheduleTime = String(point.ScheduleTime || "");
+        const scheduleIsValid = !lightning || schedules.indexOf(scheduleTime) >= 0;
+        if (!scheduleIsValid || !masterPoints.some(master =>
+            Number(master.InspectionPointID) === Number(point.InspectionPointID))) {
             errors.push({
                 pointCode: String(point.PointCode || ("Point " + point.InspectionPointID)),
                 pointId: Number(point.InspectionPointID),
-                message: "Point tidak termasuk Master Map aktif untuk batch ini."
+                ScheduleTime: scheduleTime,
+                message: "Point tidak termasuk Master Map aktif pada jadwal ini."
             });
+        }
     });
-    if (!points.length || !knownPointIDs.size)
-        errors.push({ pointCode: "Kelengkapan Batch", message: "Minimal satu Inspection Point harus diinspeksi." });
+
+    if (!completedPointCount)
+        errors.push({ pointCode: "Kelengkapan Inspeksi", message: "Belum ada Inspection Point yang diselesaikan." });
+
     const summary = String(document.getElementById("txtInspectionSummary")?.value || record.Summary || "").trim();
     if (inspectionTemplateRequiresSummary(record.TemplateSnapshot) && !summary)
-        errors.push({ pointCode: "Kelengkapan Batch", message: "Final Inspection Summary wajib diisi.", target: "summary" });
+        errors.push({ pointCode: "Kelengkapan Inspeksi", message: "Final Inspection Summary wajib diisi.", target: "summary" });
     const followUp = collectInspectionFollowUp();
     if (inspectionTemplateRequiresFollowUp(record.TemplateSnapshot) && followUp.FollowUp === "Recommend Follow Up" &&
         (!followUp.FollowUpSection || !followUp.FollowUpRemark))
-        errors.push({ pointCode: "Kelengkapan Batch", message: "Responsible Section dan Follow Up Remark wajib diisi.", target: !followUp.FollowUpSection ? "followup-section" : "followup-remark" });
-    if (errors.length) { showInspectionBatchValidationReport(errors); return; }
+        errors.push({
+            pointCode: "Kelengkapan Inspeksi",
+            message: "Responsible Section dan Follow Up Remark wajib diisi.",
+            target: !followUp.FollowUpSection ? "followup-section" : "followup-remark"
+        });
+
+    if (errors.length) {
+        showInspectionBatchValidationReport(errors);
+        return;
+    }
+
+    const scheduleCount = lightning ? schedules.length : 1;
     const confirmed = await showConfirmation({
-        title: "Submit Inspection Batch",
-        message: "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi.",
-        yesText: "Submit Batch"
+        title: lightning ? "Submit Lightning Daily Inspection" : "Submit Inspection Batch",
+        message: lightning
+            ? "Submit seluruh " + scheduleCount + " jadwal dan " + points.length +
+                " point dalam satu transaksi harian? Setelah Submit, semua jadwal akan terkunci."
+            : "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi.",
+        yesText: lightning ? "Submit Semua Jadwal" : "Submit Batch"
     });
     if (!confirmed) return;
+
     record.Items = [];
     record.Summary = summary;
     Object.assign(record, followUp);
@@ -2837,11 +2889,12 @@ window.submitInspectionBatch = async function () {
     record.SyncStatus = "PENDING";
     record.UpdatedAt = new Date().toISOString();
     await persistInspectionRecord(record);
-    showToast("Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
+    showToast(lightning
+        ? "Lightning daily inspection tersimpan offline. Seluruh jadwal akan dikirim sebagai satu transaksi saat Sync."
+        : "Inspection Batch tersimpan offline. Jalankan Sync untuk mengirim seluruh point, checklist, dan foto.", "success");
     await refreshSavedInspectionList();
     await closeInspectionForm();
 };
-
 async function saveInspection(status) {
     if (currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode)) {
         if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0) {
