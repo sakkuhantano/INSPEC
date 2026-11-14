@@ -15,6 +15,15 @@ let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: nu
 let inspectionPhotoBaseline = null;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionBatchValidationState = { errors: [], index: -1 };
+let activeInspectionScheduleTime = "";
+
+function isInspectionMapMode(mode) {
+    return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
+}
+
+window.getActiveInspectionScheduleTime = function () {
+    return activeInspectionScheduleTime || String(currentInspectionRecord && currentInspectionRecord.ActiveScheduleTime || "");
+};
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";")
@@ -574,6 +583,10 @@ function onInspectionTypeChanged() {
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>';
     detailSelect.disabled = true;
     resetInspectionScheduleTimeOptions();
+    const scheduleControl = document.getElementById("selInspectionScheduleTime");
+    if (scheduleControl && scheduleControl.closest(".mb-3"))
+        scheduleControl.closest(".mb-3").classList.toggle("d-none",
+            String(type && type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING");
     document.getElementById("inspectionScheduleHint").textContent = type
         ? "Section: " + type.SectionID + ". Pilih template terlebih dahulu, lalu detail dan jam jadwal."
         : "";
@@ -589,6 +602,11 @@ function onInspectionDetailChanged() {
         x.InspectionTypeDetailCode === detailCode
     );
     populateInspectionScheduleTimeOptions(detail);
+    const selectedType = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
+    const scheduleControl = document.getElementById("selInspectionScheduleTime");
+    if (scheduleControl && scheduleControl.closest(".mb-3"))
+        scheduleControl.closest(".mb-3").classList.toggle("d-none",
+            String(selectedType && selectedType.InspectionMode || "").trim().toUpperCase() === "LIGHTNING");
     refreshInspectionDetailAvailability();
     updateStartButton();
     refreshInspectionScheduleOptions();
@@ -771,26 +789,35 @@ function updateStartButton() {
     const detailMatchesTemplate = !!template &&
         isInspectionTemplateDetailAllowed(template, detailCode);
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
+    const selectedType = inspectionTypes.find(x => String(x.InspectionTypeCode || "") === String(typeCode || ""));
+    const isLightning = String(selectedType && selectedType.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
     const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate &&
-        (!hasScheduledTimes || !!scheduledTime) && !!templateId;
+        (isLightning ? hasScheduledTimes : (!hasScheduledTimes || !!scheduledTime)) && !!templateId;
     document.getElementById("btnStartInspection").disabled = !enabled;
 }
 
 async function startNewInspection() {
     const typeCode = document.getElementById("selInspectionType").value;
     const detailCode = document.getElementById("selInspectionDetail").value;
-    const scheduledTime = document.getElementById("selInspectionScheduleTime").value || "";
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const detail = inspectionDetails.find(x =>
         x.InspectionTypeCode === typeCode && x.InspectionTypeDetailCode === detailCode
     );
     let template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
+    const configuredScheduleTimes = getInspectionScheduleTimes(detail);
+    const requestedMode = String(type && type.InspectionMode || "STANDARD").trim().toUpperCase();
+    const inspectionMode = requestedMode === "LIGHTNING" ? "LIGHTNING" :
+        requestedMode === "BATCH" ? "BATCH" : "STANDARD";
+    const scheduledTime = inspectionMode === "LIGHTNING"
+        ? (configuredScheduleTimes[0] || "")
+        : (document.getElementById("selInspectionScheduleTime").value || "");
 
     if (!type || !detail || !template ||
         !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
-        (getInspectionScheduleTimes(detail).length > 0 && !scheduledTime)) {
+        (inspectionMode === "LIGHTNING" ? !configuredScheduleTimes.length :
+            (configuredScheduleTimes.length > 0 && !scheduledTime))) {
         showToast("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
     }
@@ -798,7 +825,7 @@ async function startNewInspection() {
     // Online BATCH starts must use the exact authoritative template version from
     // the server, not a possibly stale IndexedDB snapshot. STANDARD keeps its
     // existing cache-first flow and is deliberately not affected.
-    if (String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH" && navigator.onLine) {
+    if (isInspectionMapMode(inspectionMode) && navigator.onLine) {
         try {
             const templateResponse = await fetch("dashboard.aspx/getCheckList", {
                 method: "POST",
@@ -952,10 +979,8 @@ async function startNewInspection() {
         }
     }
 
-    const inspectionMode = String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH"
-        ? "BATCH" : "STANDARD";
     let batchMapSetup = null;
-    if (inspectionMode === "BATCH") {
+    if (isInspectionMapMode(inspectionMode)) {
         if (navigator.onLine) {
             try {
                 const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
@@ -1028,6 +1053,8 @@ async function startNewInspection() {
         FollowUpWONo: "",
         InspectionMode: inspectionMode,
         BatchMapSetup: batchMapSetup,
+        Schedules: inspectionMode === "LIGHTNING" ? configuredScheduleTimes.slice() : [],
+        ActiveScheduleTime: inspectionMode === "LIGHTNING" ? scheduledTime : "",
         Points: [],
         ActiveInspectionPointID: 0,
         Items: []
@@ -1037,7 +1064,7 @@ async function startNewInspection() {
         await window.resetInspectionMapWorkspace();
     await renderInspectionForm(currentInspectionRecord, false, "checklist");
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
-    if (inspectionMode === "BATCH" && typeof showInspectionMapWorkspace === "function") {
+    if (isInspectionMapMode(inspectionMode) && typeof showInspectionMapWorkspace === "function") {
         // BATCH starts directly in the MAP workspace so the denah and point list
         // are immediately visible after the parameters are applied.
         showInspectionMapWorkspace(currentInspectionRecord, true);
