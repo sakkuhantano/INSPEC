@@ -3176,12 +3176,12 @@ WHERE I.InspectionID=@InspectionID
             {
                 if (host == "" || fromAddress == "")
                 {
-                    br.EQueryP(@"
+                    br.EQuery(@"
 UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET LastError='SMTP host or smtpFrom is not configured. Configure Web.config before email dispatch.',
     NextAttemptDate=DATEADD(MINUTE,15,GETDATE())
-WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();", new SqlParameter[0], true);
-                    DataTable pendingRows = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')", new SqlParameter[0]);
+WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
+                    DataTable pendingRows = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')");
                     int pending = pendingRows.Rows.Count > 0 ? Convert.ToInt32(pendingRows.Rows[0]["PendingCount"]) : 0;
                     return new { attempted = 0, sent = 0, failed = 0, pending = pending, configured = false };
                 }
@@ -3256,7 +3256,7 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                         failed++;
                     }
                 }
-                DataTable pending = br.EQueryP("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')", new SqlParameter[0]);
+                DataTable pending = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
                 return new {
                     attempted = queue.Rows.Count,
                     sent = sent,
