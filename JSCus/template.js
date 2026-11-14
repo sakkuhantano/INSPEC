@@ -1378,8 +1378,7 @@ function showTemplateRootMenu(event, sectionId, btn)
 
     document.body.appendChild(menu);
 
-    menu.style.left = event.pageX + 'px';
-    menu.style.top = event.pageY + 'px';
+    positionContextMenu(menu, event);
 
     setTimeout(() => {
         document.addEventListener(
@@ -2075,6 +2074,31 @@ async function deleteTemplate(sectionId,idTemplate)
     showToast(
         "Template deleted."
     );
+}
+function positionContextMenu(menu, event)
+{
+    if (!menu || !event) return;
+
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    const rect = menu.getBoundingClientRect();
+    const margin = 8;
+
+    // pageX/pageY are used because the menu is appended to body.
+    let left = (event.pageX || 0);
+    let top = (event.pageY || 0);
+
+    if (left + rect.width > window.scrollX + viewportWidth - margin)
+        left = window.scrollX + viewportWidth - rect.width - margin;
+
+    if (top + rect.height > window.scrollY + viewportHeight - margin)
+        top = window.scrollY + viewportHeight - rect.height - margin;
+
+    left = Math.max(window.scrollX + margin, left);
+    top = Math.max(window.scrollY + margin, top);
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
 }
 function removeExistingContextMenu()
 {
