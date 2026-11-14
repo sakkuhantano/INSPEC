@@ -18,6 +18,8 @@ GO
 
 IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NULL
     RAISERROR('Run Database/LightningInspection_Transaction_Migration.sql first.',16,1);
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Lightning_SubmitWorkflow','P') IS NULL
+    RAISERROR('Run Database/LightningInspection_Approval_Workflow.sql first.',16,1);
 GO
 
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Lightning_Sync','P') IS NOT NULL
@@ -51,6 +53,7 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Lightning_Sync
     @p_InspectionNo VARCHAR(10),
     @p_Points dbo.Type_N_Tbl_C13 READONLY,
     @p_Schedules dbo.Type_N_Tbl_C13 READONLY,
+    @p_ApprovalUrl NVARCHAR(1000),
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
@@ -76,6 +79,22 @@ BEGIN
     )
     BEGIN
         RAISERROR('Inspection Type is not configured for LIGHTNING mode.',16,1);
+        RETURN;
+    END;
+
+    DECLARE @V_ExistingInspectionID BIGINT;
+    SELECT @V_ExistingInspectionID=InspectionID
+    FROM dbo.PIP_T_Inspection
+    WHERE ClientInspectionID=@p_ClientInspectionID;
+
+    IF @V_ExistingInspectionID IS NOT NULL AND EXISTS
+    (
+        SELECT 1 FROM dbo.PIP_T_InspectionWorkflow
+        WHERE EntityType='LIGHTNING' AND EntityID=@V_ExistingInspectionID
+          AND WorkflowStatus IN ('CHECKED','ACKNOWLEDGE 1','ACKNOWLEDGE','APPROVED')
+    )
+    BEGIN
+        RAISERROR('Submitted Lightning daily inspection is locked while it is in approval workflow.',16,1);
         RETURN;
     END;
 
@@ -455,6 +474,11 @@ BEGIN
                P.PhotoType,P.FileName,P.FileType,P.SeqNo,@p_UpdateUser,GETDATE()
         FROM PhotoRows P
         JOIN @V_PointMap PM ON PM.ClientPointID=P.ClientPointID;
+
+        EXEC dbo.spUTL_PIP_T_Inspection_Lightning_SubmitWorkflow
+            @p_InspectionID=@V_InspectionID,
+            @p_ActorEmployeeID=@p_UpdateUser,
+            @p_ApprovalUrl=@p_ApprovalUrl;
 
         IF @V_EntryTranCount=0 COMMIT TRANSACTION;
 
