@@ -24,6 +24,7 @@ The schema script creates the location-level Chief Engineering / Chief Security 
 - Set `smtpFrom` in `Web.config` to a sender address authorized by the SMTP relay.
 - Current relay defaults remain `smtp.varnion.net:25`, SSL disabled, and blank credentials. Confirm the relay policy and configure credentials if required.
 - Pending/failed email notifications remain in `PIP_T_InspectionEmailOutbox`; dispatch is retried after inspection sync, approval actions, and approval queue loads.
+- The dispatcher records `LastAttemptDate` and automatically recovers `SENDING` rows left stale for more than 30 minutes after an app-pool recycle or process interruption; the fifth failed attempt remains terminal for manual review.
 - The setup page is available from Inspection Master. Configure two distinct Chief employees for the Company + Location, selecting each employee's actual section, then configure the SPV for every active inspection Section.
 
 ## Workflow behavior
