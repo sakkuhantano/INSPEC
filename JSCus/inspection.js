@@ -5327,7 +5327,13 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                 (isLightning ? 'LIGHTNING DAILY REVIEW' : 'BATCH INSPECTION REVIEW') +
                 '</div><small class="text-muted">' + (isLightning ? schedules.length + ' schedule(s)' : points.length + ' inspected point(s)') + '</small></div>' +
             (maps.length > 1 ? '<select id="inspectionApprovalMapSelect" class="form-select form-select-sm" style="max-width:260px">' +
-                maps.map(map => '<option value="' + escInspection(map.MapID) + '">' + escInspection(map.MapCode + " - " + map.MapName) + '</option>').join("") +
+                maps.slice().sort((a, b) =>
+                    Number(a.GroupSequence || 0) - Number(b.GroupSequence || 0) ||
+                    Number(a.MapGroupID || 0) - Number(b.MapGroupID || 0) ||
+                    String(a.MapCode || "").localeCompare(String(b.MapCode || "")))
+                    .map(map => '<option value="' + escInspection(map.MapID) + '">' +
+                        escInspection((map.GroupName ? map.GroupName + " / " : "") + map.MapCode + " - " + map.MapName) +
+                        '</option>').join("") +
              '</select>' : '') +
         '</div>' +
         (hasAnyFloorPlan ? '<details class="mb-3" open><summary class="small fw-semibold text-primary py-2">Denah inspeksi (opsional)</summary><div id="inspectionApprovalMapStage" class="inspection-map-pdf-stage mt-2"><canvas id="inspectionApprovalMapCanvas"></canvas><div id="inspectionApprovalMapPoints" class="inspection-map-points"></div></div></details>' :
