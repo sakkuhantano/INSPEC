@@ -18,6 +18,7 @@ BEGIN
     UPDATE dbo.PIP_M_InspectionType
     SET InspectionMode=CASE
         WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='BATCH' THEN 'BATCH'
+        WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='LIGHTNING' THEN 'LIGHTNING'
         ELSE 'STANDARD'
     END
     ;
@@ -49,5 +50,5 @@ IF NOT EXISTS
 )
     ALTER TABLE dbo.PIP_M_InspectionType
         ADD CONSTRAINT CK_PIP_M_InspectionType_InspectionMode
-        CHECK (InspectionMode IN ('STANDARD','BATCH'));
+        CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING'));
 GO
