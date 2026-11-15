@@ -1418,6 +1418,10 @@ window.mountInspectionBatchSummary = function (record) {
             workflowHost.innerHTML = "";
     }
     if (isBatch) {
+        if (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+            const workflowHost = document.getElementById("inspectionLightningWorkflowCards");
+            if (workflowHost) workflowHost.innerHTML = "";
+        }
         host.appendChild(followUp);
         host.appendChild(summary);
         if (reasonVoid) host.appendChild(reasonVoid);
