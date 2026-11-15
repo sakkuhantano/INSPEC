@@ -3211,27 +3211,21 @@ WHERE I.InspectionID=@InspectionID
                 if (authorized == null || authorized.Rows.Count == 0)
                     throw new HttpException(403, "Inspection is outside the supervisor's authorized section, template, or company/location scope.");
 
-                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Approval", new SqlParameter[] {
+                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
+                    inspectionId.ToString(CultureInfo.InvariantCulture);
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_Approval_Execute", new SqlParameter[] {
                     new SqlParameter("@p_InspectionID", inspectionId),
                     new SqlParameter("@p_Action", action.ToUpperInvariant()),
                     new SqlParameter("@p_EmployeeID", employeeId),
                     new SqlParameter("@p_CompanyID", companyId),
                     new SqlParameter("@p_LocationID", locationId),
-                    new SqlParameter("@p_Remark", String.IsNullOrEmpty(remark) ? "" : remark)
-                }, true, true);
-                string followUpWONo = saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
-                    ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
-                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
-                string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                string correctionUrl = origin + appRoot + "/Secure/inspection.aspx?type=entry&inspectionId=" +
-                    inspectionId.ToString(CultureInfo.InvariantCulture);
-                br.EQueryP("spUTL_PIP_T_Inspection_ApprovalWorkflow", new SqlParameter[] {
-                    new SqlParameter("@p_InspectionID", inspectionId),
-                    new SqlParameter("@p_ActorEmployeeID", employeeId),
-                    new SqlParameter("@p_Action", action.ToUpperInvariant()),
                     new SqlParameter("@p_Remark", String.IsNullOrWhiteSpace(remark) ? "" : remark),
                     new SqlParameter("@p_CorrectionUrl", correctionUrl)
                 }, true, true);
+                string followUpWONo = saved != null && saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
+                    ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
                 object emailDispatch;
                 try { emailDispatch = DispatchInspectionEmailOutbox(20); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
