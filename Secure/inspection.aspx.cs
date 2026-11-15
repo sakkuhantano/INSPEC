@@ -1942,7 +1942,12 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND (
-          EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+          EXISTS (
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.Description=@EmployeeID
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+          )
           OR EXISTS (
               SELECT 1 FROM dbo.SysWebCommonValue C
               WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -2245,24 +2250,26 @@ WHERE I.InspectionID=@InspectionID
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND (
-          EXISTS (
+          (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
               SELECT 1 FROM dbo.SysWebCommonValue C
               WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
                 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
                 AND C.Description=@EmployeeID
-          )
-          OR EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.Description=@EmployeeID
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
-          )
-          OR EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.Description=@EmployeeID
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
-          )
+          ))
+          OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
+              EXISTS (
+                  SELECT 1 FROM dbo.SysWebCommonValue C
+                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                    AND C.Description=@EmployeeID
+                    AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+              )
+              OR EXISTS (
+                  SELECT 1 FROM dbo.SysWebCommonValue C
+                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                    AND C.Description=@EmployeeID
+                    AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
+              )
+          ))
         )
         AND (
           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
