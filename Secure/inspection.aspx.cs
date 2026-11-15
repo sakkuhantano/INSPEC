@@ -2147,8 +2147,9 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
        ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,
-       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) ApprovedFinalByName,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        'LIGHTNING' InspectionMode,
        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
