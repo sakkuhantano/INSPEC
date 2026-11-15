@@ -3744,7 +3744,6 @@ async function resetInspectionSelection() {
         await window.resetInspectionMapWorkspace();
     restoreInspectionMasterDropdowns();
     showInspectionInputScreen();
-    showToast("Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.", "info");
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
