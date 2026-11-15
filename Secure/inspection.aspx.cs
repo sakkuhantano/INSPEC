@@ -1912,10 +1912,18 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsSubmitted=1 AND I.IsApproved=0 AND I.IsApprovedFinal=0 THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN I.Status='DONE' AND I.IsSubmitted=1 AND I.IsApprovedFinal=0 AND (
+        (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
+            (I.IsApproved=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND C.Description=@EmployeeID))
+            OR (I.IsApproved=1 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND C.Description=@EmployeeID))
+        ))
+        OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND I.IsApproved=0
+            AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND C.Description=@EmployeeID))
+    ) THEN 1 ELSE 0 END) PendingApproval,
     SUM(CASE WHEN I.IsApprovedFinal=1 AND I.ApprovedFinalDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
     SUM(CASE WHEN I.Status='DRAFT' AND I.IsSubmitted=0 AND ISNULL(I.ReasonVoid,'')<>'' THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND EXISTS (

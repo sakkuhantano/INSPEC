@@ -1,4 +1,4 @@
-/* Approval actions are online-only. This module only caches Outstanding details/photos for read-only offline review. */
+/* Global SPV inspection approval sync: queued actions first, then cache Outstanding details/photos. */
 (function () {
 "use strict";
 const C="inspection_approval_cache", A="inspection_approval_queue", P="inspection_photos";
@@ -28,7 +28,14 @@ window.syncInspectionApprovalOffline=async function(){
  const l=getLoginData();if(!l||typeof hasAuthorizedMenu!=="function"||!hasAuthorizedMenu(20022))return{synced:0,cached:0,conflicts:0};if(!navigator.onLine)throw new Error("Koneksi internet diperlukan untuk sync approval SPV.");
  if(!db||![C,A,P].every(n=>db.objectStoreNames.contains(n)))throw new Error("IndexedDB approval belum siap.");
  const parts=String(l.curcompany||"").split(";"),s={e:String(l.employeeid),c:String(parts[0]||""),l:String(parts[1]||"")};let synced=0,conflicts=0;
-  const now=new Date(),date=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+ for(const a of (await all(A)).filter(x=>x.EmployeeID===s.e&&x.CompanyID===s.c&&x.LocationID===s.l&&x.Status==="PENDING").sort((x,y)=>String(x.CreatedAt||"").localeCompare(String(y.CreatedAt||"")))){
+  try{await post("ProcessInspectionApproval",{inspectionId:a.InspectionID,action:a.Action,employeeId:a.EmployeeID,companyId:a.CompanyID,locationId:a.LocationID,remark:a.Remark||""});await deleteConfirmed(s,a);synced++;}
+  catch(e){if(!navigator.onLine)throw e;let applied=false;try{const d=await post("GetInspectionApprovalDetail",{inspectionId:a.InspectionID,employeeId:a.EmployeeID}),h=d.header||{};applied=a.Action==="APPROVE"
+      ? Number(h.IsApprovedFinal||0)===1 && String(h.ApprovedFinalBy||h.ApprovedBy||"")===a.EmployeeID
+      : String(h.Status||"").toUpperCase()==="DRAFT" && Number(h.IsSubmitted||0)===0 && String(h.ReasonVoid||"").trim()!=="";}catch(_){}
+   if(applied){await deleteConfirmed(s,a);synced++;continue;}a.LastError=String(e.message||e);a.LastAttemptAt=new Date().toISOString();if(/awaiting approval|state changed|not authorized|not found|authorization|template|supervisor/i.test(a.LastError)){a.Status="CONFLICT";conflicts++;}const tx=db.transaction(A,"readwrite");tx.objectStore(A).put(a);await done(tx,"Simpan error approval gagal.");}
+ }
+ const now=new Date(),date=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
  const q=await post("GetInspectionApprovalQueue",{employeeId:s.e,companyId:s.c,locationId:s.l,approvalTab:"OUTSTANDING",dateFrom:date,dateThru:date,inspectionTypeCode:"",inspectionTypeDetailCode:"",templateId:""});
  await putCache({CacheKey:key(s,"QUEUE","","OUTSTANDING"),CacheType:"QUEUE",EmployeeID:s.e,CompanyID:s.c,LocationID:s.l,ApprovalTab:"OUTSTANDING",Data:q.data||[],Filters:q.filters||[],CachedAt:new Date().toISOString()});
  let cached=0;const currentIds=new Set((q.data||[]).map(row=>Number(row.InspectionID)));for(const row of(q.data||[])){if(!navigator.onLine)throw new Error("Koneksi terputus saat cache detail approval.");const d=await post("GetInspectionApprovalDetail",{inspectionId:row.InspectionID,employeeId:s.e});await cacheDetail(s,row.InspectionID,d);cached++;}
