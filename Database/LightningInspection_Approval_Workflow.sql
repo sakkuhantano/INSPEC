@@ -38,7 +38,7 @@ BEGIN
     DECLARE @V_InspectionTypeName VARCHAR(100), @V_InspectionDetailName VARCHAR(100);
     DECLARE @V_ChiefEngID VARCHAR(50), @V_ChiefSecID VARCHAR(50);
     DECLARE @V_ChiefEngSectionID VARCHAR(10),@V_ChiefSecSectionID VARCHAR(10);
-    DECLARE @V_EmailEnabled BIT;
+    DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200);
     DECLARE @V_ChiefEngEmail VARCHAR(320), @V_ChiefEngName VARCHAR(200);
     DECLARE @V_ChiefSecEmail VARCHAR(320), @V_ChiefSecName VARCHAR(200);
@@ -60,18 +60,35 @@ BEGIN
     IF @V_OwnerEmployeeID<>@p_ActorEmployeeID
     BEGIN RAISERROR('Only the inspection owner can submit a Lightning daily inspection.',16,1); RETURN; END;
 
-    SELECT @V_ChiefEngID=ChiefEngEmployeeID,@V_ChiefSecID=ChiefSecEmployeeID,
-           @V_ChiefEngSectionID=ChiefEngSectionID,@V_ChiefSecSectionID=ChiefSecSectionID
-    FROM dbo.PIP_M_InspectionEmailSetup
-    WHERE CompanyID=@V_CompanyID AND LocationID=@V_LocationID AND IsActive=1;
+    SET @V_ConfigScope=CONVERT(VARCHAR(30),@V_CompanyID)+CONVERT(VARCHAR(30),@V_LocationID);
+
+    SELECT @V_ChiefEngID=NULLIF(LTRIM(RTRIM(C.Description)),'')
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';CHIEF_ENG';
+
+    SELECT @V_ChiefSecID=NULLIF(LTRIM(RTRIM(C.Description)),'')
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';CHIEF_SEC';
+
+    SELECT @V_ChiefEngSectionID=E.SectionID
+    FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=@V_ChiefEngID AND E.CompanyID=@V_CompanyID;
+
+    SELECT @V_ChiefSecSectionID=E.SectionID
+    FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=@V_ChiefSecID AND E.CompanyID=@V_CompanyID;
 
     IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')='' OR
        ISNULL(@V_ChiefEngSectionID,'')='' OR ISNULL(@V_ChiefSecSectionID,'')=''
-    BEGIN RAISERROR('Chief Engineering / Chief Security routing and section selections are not configured for this Company and Location.',16,1); RETURN; END;
-    SELECT @V_EmailEnabled=ISNULL(E.IsEmailEnabled,1)
-    FROM dbo.PIP_M_InspectionEmailSetupMode E
-    WHERE E.CompanyID=@V_CompanyID AND E.LocationID=@V_LocationID AND E.InspectionMode='LIGHTNING';
-    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+    BEGIN RAISERROR('Chief Engineering / Chief Security routing is not configured for this Company and Location.',16,1); RETURN; END;
+
+    SELECT @V_EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,0);
 
     IF @V_ChiefEngID=@V_ChiefSecID
     BEGIN RAISERROR('Chief Engineering and Chief Security must be different employees.',16,1); RETURN; END;
@@ -211,7 +228,7 @@ BEGIN
     DECLARE @V_OwnerEmployeeID VARCHAR(50),@V_InspectionNo VARCHAR(10),@V_Stage VARCHAR(20);
     DECLARE @V_ChiefEngID VARCHAR(50),@V_ChiefSecID VARCHAR(50);
     DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200);
-    DECLARE @V_EmailEnabled BIT;
+    DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_NextEmployeeID VARCHAR(50),@V_NextEmail VARCHAR(320),@V_NextName VARCHAR(200);
     DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
 
@@ -227,14 +244,24 @@ BEGIN
     IF @V_CompanyID IS NULL
     BEGIN RAISERROR('Lightning inspection is not waiting for approval.',16,1); RETURN; END;
 
-    SELECT @V_EmailEnabled=ISNULL(E.IsEmailEnabled,1)
-    FROM dbo.PIP_M_InspectionEmailSetupMode E
-    WHERE E.CompanyID=@V_CompanyID AND E.LocationID=@V_LocationID AND E.InspectionMode='LIGHTNING';
-    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+    SET @V_ConfigScope=CONVERT(VARCHAR(30),@V_CompanyID)+CONVERT(VARCHAR(30),@V_LocationID);
 
-    SELECT @V_ChiefEngID=ChiefEngEmployeeID,@V_ChiefSecID=ChiefSecEmployeeID
-    FROM dbo.PIP_M_InspectionEmailSetup
-    WHERE CompanyID=@V_CompanyID AND LocationID=@V_LocationID AND IsActive=1;
+    SELECT @V_EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,0);
+
+    SELECT @V_ChiefEngID=NULLIF(LTRIM(RTRIM(C.Description)),''),
+           @V_ChiefSecID=NULL
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';CHIEF_ENG';
+
+    SELECT @V_ChiefSecID=NULLIF(LTRIM(RTRIM(C.Description)),'')
+    FROM dbo.SysWebCommonValue C
+    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';CHIEF_SEC';
 
     IF (@V_Stage='CHIEF_ENG' AND @p_ActorEmployeeID<>@V_ChiefEngID)
        OR (@V_Stage='CHIEF_SEC' AND @p_ActorEmployeeID<>@V_ChiefSecID)
