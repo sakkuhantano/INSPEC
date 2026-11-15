@@ -38,6 +38,7 @@ BEGIN
     DECLARE @V_InspectionTypeName VARCHAR(100), @V_InspectionDetailName VARCHAR(100);
     DECLARE @V_ChiefEngID VARCHAR(50), @V_ChiefSecID VARCHAR(50);
     DECLARE @V_ChiefEngSectionID VARCHAR(10),@V_ChiefSecSectionID VARCHAR(10);
+    DECLARE @V_EmailEnabled BIT;
     DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200);
     DECLARE @V_ChiefEngEmail VARCHAR(320), @V_ChiefEngName VARCHAR(200);
     DECLARE @V_ChiefSecEmail VARCHAR(320), @V_ChiefSecName VARCHAR(200);
@@ -67,6 +68,11 @@ BEGIN
     IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')='' OR
        ISNULL(@V_ChiefEngSectionID,'')='' OR ISNULL(@V_ChiefSecSectionID,'')=''
     BEGIN RAISERROR('Chief Engineering / Chief Security routing and section selections are not configured for this Company and Location.',16,1); RETURN; END;
+    SELECT @V_EmailEnabled=ISNULL(E.IsEmailEnabled,1)
+    FROM dbo.PIP_M_InspectionEmailSetupMode E
+    WHERE E.CompanyID=@V_CompanyID AND E.LocationID=@V_LocationID AND E.InspectionMode='LIGHTNING';
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+
     IF @V_ChiefEngID=@V_ChiefSecID
     BEGIN RAISERROR('Chief Engineering and Chief Security must be different employees.',16,1); RETURN; END;
 
@@ -101,7 +107,8 @@ BEGIN
     SELECT @V_ChiefSecEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_ChiefSecName=ISNULL(Name,@V_ChiefSecID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_ChiefSecID;
 
-    IF ISNULL(@V_TechnicianEmail,'')='' OR ISNULL(@V_ChiefEngEmail,'')='' OR ISNULL(@V_ChiefSecEmail,'')=''
+    IF @V_EmailEnabled=1
+       AND (ISNULL(@V_TechnicianEmail,'')='' OR ISNULL(@V_ChiefEngEmail,'')='' OR ISNULL(@V_ChiefSecEmail,'')='')
     BEGIN RAISERROR('Email address is missing for Technician, Chief Engineering, or Chief Security. Complete M_HRD_Employee.emailaddress before submitting.',16,1); RETURN; END;
 
     SELECT @V_ExistingStatus=WorkflowStatus
@@ -138,23 +145,31 @@ BEGIN
                 'TECHNICIAN',@V_Action,@p_ActorEmployeeID,GETDATE(),NULL);
         SET @V_EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
 
-        INSERT dbo.PIP_T_InspectionEmailOutbox
-        (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-         EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-        VALUES
-        ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG',
-         @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_ChiefEngID,@V_ChiefEngEmail,
-         N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
-         N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
-         N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
-         N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-         N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
-        ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
-         @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
-         N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
-         N'<p>Daily Lightning Inspection Anda telah dikirim dan berstatus CHECKED.</p><p>Menunggu review Chief Engineering.</p>',
-         N'Daily Lightning Inspection Anda telah dikirim. Status: CHECKED.','PENDING',0,GETDATE());
-
+        IF @V_EmailEnabled=1
+        BEGIN
+                    IF @V_EmailEnabled=1
+            BEGIN
+                            INSERT dbo.PIP_T_InspectionEmailOutbox
+                                    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+                                     EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+                                    VALUES
+                                    ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG',
+                                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_ChiefEngID,@V_ChiefEngEmail,
+                                     N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
+                                     N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
+                                     N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
+                                     N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                                     N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
+                                    ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
+                                     @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
+                                     N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
+                                     N'<p>Daily Lightning Inspection Anda telah dikirim dan berstatus CHECKED.</p><p>Menunggu review Chief Engineering.</p>',
+                                     N'Daily Lightning Inspection Anda telah dikirim. Status: CHECKED.','PENDING',0,GETDATE());
+                            
+                            
+                        END;
+                
+            END;
         IF @V_TranCount=0 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -201,6 +216,7 @@ BEGIN
     DECLARE @V_OwnerEmployeeID VARCHAR(50),@V_InspectionNo VARCHAR(10),@V_Stage VARCHAR(20);
     DECLARE @V_ChiefEngID VARCHAR(50),@V_ChiefSecID VARCHAR(50);
     DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200);
+    DECLARE @V_EmailEnabled BIT;
     DECLARE @V_NextEmployeeID VARCHAR(50),@V_NextEmail VARCHAR(320),@V_NextName VARCHAR(200);
     DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
 
@@ -216,6 +232,11 @@ BEGIN
     IF @V_CompanyID IS NULL
     BEGIN RAISERROR('Lightning inspection is not waiting for approval.',16,1); RETURN; END;
 
+    SELECT @V_EmailEnabled=ISNULL(E.IsEmailEnabled,1)
+    FROM dbo.PIP_M_InspectionEmailSetupMode E
+    WHERE E.CompanyID=@V_CompanyID AND E.LocationID=@V_LocationID AND E.InspectionMode='LIGHTNING';
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+
     SELECT @V_ChiefEngID=ChiefEngEmployeeID,@V_ChiefSecID=ChiefSecEmployeeID
     FROM dbo.PIP_M_InspectionEmailSetup
     WHERE CompanyID=@V_CompanyID AND LocationID=@V_LocationID AND IsActive=1;
@@ -226,7 +247,7 @@ BEGIN
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
-    IF ISNULL(@V_TechnicianEmail,'')=''
+    IF @V_EmailEnabled=1 AND ISNULL(@V_TechnicianEmail,'')=''
     BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
 
     IF @p_Action='APPROVE' AND @V_Stage='CHIEF_ENG'
@@ -234,7 +255,7 @@ BEGIN
         SELECT @V_NextEmployeeID=@V_ChiefSecID;
         SELECT @V_NextEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_NextName=ISNULL(Name,@V_NextEmployeeID)
         FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_NextEmployeeID;
-        IF ISNULL(@V_NextEmail,'')=''
+        IF @V_EmailEnabled=1 AND ISNULL(@V_NextEmail,'')=''
         BEGIN RAISERROR('Chief Security email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
         SET @V_NewStatus='ACKNOWLEDGE 1'; SET @V_NextStage='CHIEF_SEC';
     END
