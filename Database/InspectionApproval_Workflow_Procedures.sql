@@ -24,7 +24,7 @@ BEGIN
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
- WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0
+ WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsApproved,0)=0
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for SPV workflow.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
@@ -75,7 +75,7 @@ BEGIN
     SubmittedBy,SubmittedDate,LastActorEmployeeID,LastActionDate,LastRemark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SUBMITTED','SPV',@p_ActorEmployeeID,GETDATE(),@p_ActorEmployeeID,GETDATE(),NULL);
   UPDATE dbo.PIP_T_Inspection
-  SET Status='DONE',IsApprove=0,ApprovedBy='',
+  SET Status='DONE',IsApproved=0,ApprovedBy='',
       ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',ReasonVoid='',
       UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
   WHERE InspectionID=@p_InspectionID;
@@ -165,7 +165,7 @@ BEGIN
    WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
   IF @p_Action='VOID'
   BEGIN
-   UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',IsApprove=0,ApprovedBy='',
+   UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',IsApproved=0,ApprovedBy='',
     ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',
     ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
@@ -183,7 +183,7 @@ BEGIN
   END
   ELSE
   BEGIN
-   UPDATE dbo.PIP_T_Inspection SET IsApprove=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
+   UPDATE dbo.PIP_T_Inspection SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
    IF @EmailEnabled=1

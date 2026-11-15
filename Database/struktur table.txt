@@ -236,7 +236,7 @@ CREATE TABLE [dbo].[PIP_T_Inspection](
 	[EntryDate] [datetime] NOT NULL,
 	[UpdateUser] [varchar](50) NOT NULL,
 	[UpdateDate] [datetime] NOT NULL,
-	[IsApprove] [bit] NOT NULL,
+	[IsApproved] [bit] NOT NULL,
 	[ApprovedBy] [varchar](50) NULL,
 	[ApprovedDate] [datetime] NULL,
 	[ApprovalRemark] [varchar](500) NULL,
@@ -545,7 +545,7 @@ GO
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
 GO
 
-ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsApprove]  DEFAULT ((0)) FOR [IsApprove]
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsApprove]  DEFAULT ((0)) FOR [IsApproved]
 GO
 
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovedBy]  DEFAULT ('') FOR [ApprovedBy]

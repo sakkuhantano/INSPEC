@@ -52,7 +52,7 @@ BEGIN
     JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
     WHERE I.InspectionID=@p_InspectionID
       AND ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
-      AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0;
+      AND I.Status='DONE' AND ISNULL(I.IsApproved,0)=0;
 
     IF @V_CompanyID IS NULL
     BEGIN RAISERROR('Submitted Lightning inspection header was not found or is not eligible for workflow.',16,1); RETURN; END;
@@ -310,7 +310,7 @@ BEGIN
         IF @p_Action='VOID'
         BEGIN
             UPDATE dbo.PIP_T_Inspection
-            SET Status='DRAFT',IsApprove=0,ApprovedBy='',
+            SET Status='DRAFT',IsApproved=0,ApprovedBy='',
                 ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',
                 ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
                 UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
@@ -334,7 +334,7 @@ BEGIN
         BEGIN
             IF @V_Stage='CHIEF_SEC'
                 UPDATE dbo.PIP_T_Inspection
-                SET IsApprove=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
+                SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
                     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',
                     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
                 WHERE InspectionID=@p_InspectionID;

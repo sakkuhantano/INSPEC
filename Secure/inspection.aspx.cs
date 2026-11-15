@@ -1232,7 +1232,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
-       I.Status, I.IsApprove, I.ReasonVoid
+       I.Status, I.IsApproved, I.ReasonVoid
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
@@ -1439,7 +1439,7 @@ BEGIN
     WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
       AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
       AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
-      AND ISNULL(IsApprove,0)=0 AND ISNULL(ReasonVoid,'')<>''
+      AND ISNULL(IsApproved,0)=0 AND ISNULL(ReasonVoid,'')<>''
       AND ISNULL(ApprovedBy,'')<>'' AND ApprovedDate>CONVERT(DATETIME,'19000101',112);
     IF @@ROWCOUNT=0
     BEGIN
@@ -1685,7 +1685,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
-       I.IsApprove, I.ApprovedDate, I.SyncDate, I.ReasonVoid,
+       I.IsApproved, I.ApprovedDate, I.SyncDate, I.ReasonVoid,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
@@ -1709,7 +1709,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   -- not again in Submitted just because its SyncDate falls in the selected range.
   AND NOT (
       I.Status='DRAFT'
-      AND ISNULL(I.IsApprove,0)=0
+      AND ISNULL(I.IsApproved,0)=0
       AND ISNULL(I.ApprovedBy,'')<>''
       AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
       AND ISNULL(I.ReasonVoid,'')<>''
@@ -1781,19 +1781,19 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND (
        (I.Status='DONE'
-        AND ISNULL(I.IsApprove,0)=0
+        AND ISNULL(I.IsApproved,0)=0
         AND ISNULL(I.ApprovedBy,'')=''
         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
         AND ISNULL(I.ApprovalRemark,'')=''
         AND ISNULL(I.ReasonVoid,'')='')
        OR
        (I.Status='DONE'
-        AND ISNULL(I.IsApprove,0)=1
+        AND ISNULL(I.IsApproved,0)=1
         AND ISNULL(I.ApprovedBy,'')<>''
         AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
         AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
        OR
-       (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
+       (I.Status='DRAFT' AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
             (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
             OR EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
                        WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID')
@@ -1879,7 +1879,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApprove,
+       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApproved,
        I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode" + fromWhere + @"
@@ -1922,9 +1922,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
-    SUM(CASE WHEN ISNULL(I.IsApprove,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
-    SUM(CASE WHEN I.IsApprove=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) THEN 1 ELSE 0 END) VoidCount
+    SUM(CASE WHEN I.Status='DONE' AND I.IsApproved=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
+    SUM(CASE WHEN I.IsApproved=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
@@ -1996,7 +1996,7 @@ JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
 LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=P.InspectionPointTransactionID
 WHERE I.ClientInspectionID=@ClientInspectionID
   AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.Status='DRAFT' AND I.IsApprove=0
+  AND I.Status='DRAFT' AND I.IsApproved=0
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
 
@@ -2124,7 +2124,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
        I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
-       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,I.IsApprove,I.ApprovedBy,I.ApprovedDate,
+       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
        I.ApprovalRemark,I.ReasonVoid,I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        'LIGHTNING' InspectionMode,W.WorkflowStatus,W.CurrentStageCode
 " + scope + @"
@@ -2200,7 +2200,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        W.WorkflowStatus, W.CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       I.IsApprove, I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
+       I.IsApproved, I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
@@ -2220,10 +2220,10 @@ WHERE I.InspectionID=@InspectionID
   )
   AND (
        (I.Status='DONE' AND (
-            (ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
-            OR (ISNULL(I.IsApprove,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
+            (ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
+            OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
        ))
-       OR (I.Status='DRAFT' AND ISNULL(I.IsApprove,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
+       OR (I.Status='DRAFT' AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
             (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
             OR EXISTS (
                 SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
@@ -2643,7 +2643,7 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
-  AND I.Status='DRAFT' AND I.IsApprove=0 AND ISNULL(I.ReasonVoid,'')<>''
+  AND I.Status='DRAFT' AND I.IsApproved=0 AND ISNULL(I.ReasonVoid,'')<>''
   AND (
       (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
       OR EXISTS (
@@ -3096,7 +3096,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
        I.InspectionTypeDetailName, I.InspectionDate, I.TemplateNo, I.TemplateName,
-       I.OwnerEmployeeID, I.Status, I.IsApprove
+       I.OwnerEmployeeID, I.Status, I.IsApproved
 FROM dbo.PIP_T_Inspection I
 JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID

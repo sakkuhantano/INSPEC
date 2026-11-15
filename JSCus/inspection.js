@@ -3647,7 +3647,7 @@ async function openSavedInspection(localId) {
             if (serverRecord.EndDateTime) record.EndDateTime = serverRecord.EndDateTime;
             if (serverRecord.InspectionID != null) record.ServerInspectionID = Number(serverRecord.InspectionID);
             if (serverRecord.ReasonVoid) record.ReasonVoid = serverRecord.ReasonVoid;
-            if (serverRecord.IsApprove != null) record.IsApprove = serverRecord.IsApprove;
+            if (serverRecord.IsApproved != null) record.IsApproved = serverRecord.IsApproved;
         }
     }
 
@@ -4783,7 +4783,7 @@ function updateInspectionApprovalCounts() {
 }
 
 function isInspectionApprovalApproved(row) {
-    return !!row && (row.IsApprove === true || row.IsApprove === 1 || String(row.IsApprove).toLowerCase() === "true" || String(row.IsApprove) === "1");
+    return !!row && (row.IsApproved === true || row.IsApproved === 1 || String(row.IsApproved).toLowerCase() === "true" || String(row.IsApproved) === "1");
 }
 
 function isInspectionApprovalVoided(row) {

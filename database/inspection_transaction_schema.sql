@@ -162,10 +162,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_Inspection (OwnerEmployeeID, Status, InspectionDate);
 GO
 
-/* IsApprove=0 with empty supervisor fields means not yet processed.
-   A voided record is IsApprove=0 with ApprovedBy/ApprovedDate populated. */
-IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApprove') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD IsApprove BIT NULL;
+/* IsApproved=0 with empty supervisor fields means not yet processed.
+   A voided record is IsApproved=0 with ApprovedBy/ApprovedDate populated. */
+IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApproved') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsApproved BIT NULL;
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedBy') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedBy DEFAULT ('');
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedDate') IS NULL
@@ -179,12 +179,12 @@ BEGIN
     IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IX_PIP_T_Inspection_ApprovalQueue')
         DROP INDEX IX_PIP_T_Inspection_ApprovalQueue ON dbo.PIP_T_Inspection;
     EXEC('UPDATE dbo.PIP_T_Inspection
-          SET IsApprove=0,
+          SET IsApproved=0,
               ApprovedBy=ISNULL(VoidBy, ApprovedBy),
               ApprovedDate=ISNULL(VoidDate, ApprovedDate)
           WHERE IsVoid=1');
     EXEC('UPDATE dbo.PIP_T_Inspection
-          SET IsApprove=0
+          SET IsApproved=0
           WHERE IsVoid=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)');
     DECLARE @V_IsVoidDefault sysname;
     SELECT @V_IsVoidDefault=dc.name
@@ -203,13 +203,13 @@ DECLARE @V_IsApproveDefault sysname;
 SELECT @V_IsApproveDefault=dc.name
 FROM sys.default_constraints dc
 JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
-WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApprove';
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApproved';
 IF @V_IsApproveDefault IS NOT NULL
     EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT ' + QUOTENAME(@V_IsApproveDefault));
-UPDATE dbo.PIP_T_Inspection SET IsApprove=0 WHERE IsApprove IS NULL;
-IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApprove' AND is_nullable=1)
-    ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApprove BIT NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApprove;
+UPDATE dbo.PIP_T_Inspection SET IsApproved=0 WHERE IsApproved IS NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApproved' AND is_nullable=1)
+    ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApproved BIT NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApproved;
 GO
 
 /* Normalize nullable transaction fields to explicit defaults.
