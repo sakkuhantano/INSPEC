@@ -119,6 +119,8 @@ BEGIN
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
+    SELECT @V_ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID)
+    FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
     SELECT @V_ChiefEngEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_ChiefEngName=ISNULL(Name,@V_ChiefEngID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_ChiefEngID;
     SELECT @V_ChiefSecEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_ChiefSecName=ISNULL(Name,@V_ChiefSecID)
