@@ -159,13 +159,17 @@ BEGIN
     ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',
     ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
-   INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-    EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-   VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-    'TECHNICIAN',@Owner,@TechEmail,N'Inspection perlu diperbaiki - '+ISNULL(@No,''),
-    N'<p>Inspection dikembalikan untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
-    N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
-    N'Inspection dikembalikan. Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
+   IF @EmailEnabled=1
+   BEGIN
+       INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+        EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+       VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
+        'TECHNICIAN',@Owner,@TechEmail,N'Inspection perlu diperbaiki - '+ISNULL(@No,''),
+        N'<p>Inspection dikembalikan untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
+        N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
+        N'Inspection dikembalikan. Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
+    
+   END
   END
   ELSE
   BEGIN
