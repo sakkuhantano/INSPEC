@@ -226,7 +226,7 @@ BEGIN
     DECLARE @V_CompanyID VARCHAR(10),@V_LocationID VARCHAR(3),@V_SectionID VARCHAR(10);
     DECLARE @V_OwnerEmployeeID VARCHAR(50),@V_InspectionNo VARCHAR(10),@V_Stage VARCHAR(20);
     DECLARE @V_ChiefEngID VARCHAR(50),@V_ChiefSecID VARCHAR(50);
-    DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200);
+    DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200),@V_ActorName VARCHAR(200);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_NextEmployeeID VARCHAR(50),@V_NextEmail VARCHAR(320),@V_NextName VARCHAR(200);
     DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
@@ -322,9 +322,9 @@ BEGIN
                 ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
                  @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
                  N'Lightning Inspection perlu diperbaiki - '+ISNULL(@V_InspectionNo,''),
-                 N'<p>Daily Lightning Inspection dikembalikan untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
+                 N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' dikembalikan oleh '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
                  N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
-                 N'Daily Lightning Inspection dikembalikan. Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
+                 N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' dikembalikan oleh '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
             END;
         END
         ELSE
@@ -363,7 +363,7 @@ BEGIN
                     ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC',
                      @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
                      N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
-                     N'<p>Chief Engineering telah approve. Daily Lightning Inspection menunggu review Chief Security.</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                     N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review Chief Security '+ISNULL(@V_NextName,@V_NextEmployeeID)+N' ('+ISNULL(@V_NextEmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
                      N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
             END;
         END;
