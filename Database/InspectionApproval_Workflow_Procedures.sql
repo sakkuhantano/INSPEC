@@ -20,7 +20,7 @@ BEGIN
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
          @EmailEnabled BIT,@SPV VARCHAR(50),@SPVEmail VARCHAR(320),@TechEmail VARCHAR(320),
           @SPVName NVARCHAR(200),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
-         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT;
+         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT,@LastActionCode VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
