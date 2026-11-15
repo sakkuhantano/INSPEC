@@ -5347,7 +5347,7 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
             photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
 };
 
-async function renderInspectionApprovalBatchMap(maps, points, schedules, workflowStatus) {
+async function renderInspectionApprovalBatchMap(maps, points, schedules, workflowHeader) {
     const host = document.getElementById("inspectionApprovalBatchMap");
     if (!host) return;
     maps = Array.isArray(maps) ? maps : [];
@@ -5358,12 +5358,13 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
     const visiblePoints = function () {
         return isLightning ? points.filter(point => String(point.ScheduleTime || "") === activeScheduleTime) : points;
     };
-    const workflow = String(workflowStatus || "CHECKED").toUpperCase();
+    const workflowData = workflowHeader && typeof workflowHeader === "object" ? workflowHeader : {};
+    const workflow = String((workflowData.WorkflowStatus || workflowHeader) || "CHECKED").toUpperCase();
     const workflowCards = isLightning ? (function () {
         const stages = [
-            { status: "CHECKED", label: "CHECKED", description: "Technician submitted" },
-            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved" },
-            { status: "ACKNOWLEDGE", label: "ACKNOWLEDGE", description: "Chief Security approved" }
+            { status: "CHECKED", label: "CHECKED", description: "Technician submitted", by: workflowData.SubmittedByName || workflowData.SubmittedBy, date: workflowData.SubmittedDate },
+            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", by: workflowData.ApprovedByName || workflowData.ApprovedBy, date: workflowData.ApprovedDate },
+            { status: "ACKNOWLEDGE", label: "ACKNOWLEDGE", description: "Chief Security approved", by: workflowData.ApprovedFinalByName || workflowData.ApprovedFinalBy, date: workflowData.ApprovedFinalDate }
         ];
         const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 2 : workflow === "CHECKED" ? 1 : 0;
         return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
@@ -5376,7 +5377,9 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                 bgClass + ' ' + borderClass + '">' +
                 '<div class="small fw-bold ' + textClass + '">' + escInspection(stage.label) + '</div>' +
                 '<div class="small ' + textClass + '">' + escInspection(returned ? "Returned for correction" :
-                    done ? "Completed" : current ? "Waiting for this stage" : stage.description) + '</div></div></div>';
+                    done ? ("Completed" + (stage.by ? " · " + escInspection(stage.by) : "") +
+                    (stage.date ? " · " + escInspection(formatInspectionDateDMY(stage.date) + " " + formatInspectionClockTime(stage.date)) : "")) :
+                    current ? "Waiting for this stage" : stage.description) + '</div></div></div>';
         }).join("") + '</div>';
     })() : "";
     if (!points.length) { host.innerHTML = ""; return; }
@@ -5822,7 +5825,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             : "";
         checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
             (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
-        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h.WorkflowStatus);
+        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h);
         document.getElementById("btnApproveInspection").disabled = isApproved ||
             (isBatchApproval && (!batchPoints.length || !templateAvailable));
         document.getElementById("btnVoidInspection").disabled = isApproved;

@@ -1240,6 +1240,9 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
@@ -1869,8 +1872,10 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
-       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,
+       I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
@@ -2086,6 +2091,9 @@ ORDER BY P.SeqNo",
                 const string scope = @"
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
@@ -2224,11 +2232,17 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.InspectionID=@InspectionID
   AND EXISTS (
       SELECT 1
