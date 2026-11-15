@@ -1398,7 +1398,7 @@
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"></div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"><div id="inspectionLightningWorkflowCards"></div></div>
         <div id="inspectionMapSubmitBar" class="d-flex justify-content-end gap-2 p-2 border-top d-none">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
