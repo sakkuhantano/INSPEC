@@ -1295,6 +1295,10 @@
         </div>
     </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
+    <div id="inspectionParameterNotice" class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-2 small" role="note">
+        <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
+        <div><strong>Petunjuk:</strong> Pilih Inspection Type, template, detail inspeksi, lalu jam jadwal. Data tersimpan di perangkat dan hanya disinkronkan oleh teknisi pemiliknya.</div>
+    </div>
     <div id="inspectionStartPanel" class="inspection-card p-3 mb-3">
         <div class="inspection-step mb-3">
             <div class="fw-bold">1. Inspection Type</div>
