@@ -169,87 +169,74 @@ ORDER BY E.Name,E.EmployeeID",
             }
         }
 
-        private void LoadHeader()
+        private string GetConfigScope()
+        {
+            return Convert.ToString(Master.Mn_CompanyID) + Convert.ToString(Master.Mn_LocationID);
+        }
+
+        private string GetCommonValue(string id)
         {
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT ChiefEngSectionID,ChiefEngEmployeeID,ChiefSecSectionID,ChiefSecEmployeeID
-FROM dbo.PIP_M_InspectionEmailSetup
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
-                    });
-                if (dt.Rows.Count > 0)
-                {
-                    SelectIfPresent(ddlChiefEngSection, Convert.ToString(dt.Rows[0]["ChiefEngSectionID"]));
-                    SelectIfPresent(ddlChiefSecSection, Convert.ToString(dt.Rows[0]["ChiefSecSectionID"]));
-                }
+SELECT TOP 1 Description
+FROM dbo.SysWebCommonValue
+WHERE AppID='INSPEC' AND CommonGroup='EmailApproval'
+  AND ID=@ID AND IsDelete=0",
+                    new SqlParameter[] { new SqlParameter("@ID", id) });
+                return dt.Rows.Count == 0 ? "" : Convert.ToString(dt.Rows[0]["Description"]).Trim();
             }
-            BindChiefEmployees();
+        }
+
+        private void LoadHeader()
+        {
+            string scope = GetConfigScope();
+            string chiefEng = GetCommonValue(scope + ";CHIEF_ENG");
+            string chiefSec = GetCommonValue(scope + ";CHIEF_SEC");
+
+            string chiefEngSection = "";
+            string chiefSecSection = "";
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(@"
-SELECT ChiefEngEmployeeID,ChiefSecEmployeeID
-FROM dbo.PIP_M_InspectionEmailSetup
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+SELECT EmployeeID,SectionID
+FROM dbo.M_HRD_Employee
+WHERE EmployeeID IN (@ChiefEng,@ChiefSec) AND CompanyID=@CompanyID",
                     new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                        new SqlParameter("@ChiefEng", chiefEng),
+                        new SqlParameter("@ChiefSec", chiefSec),
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID)
                     });
-                if (dt.Rows.Count > 0)
+                foreach (DataRow row in dt.Rows)
                 {
-                    SelectIfPresent(ddlChiefEng, Convert.ToString(dt.Rows[0]["ChiefEngEmployeeID"]));
-                    SelectIfPresent(ddlChiefSec, Convert.ToString(dt.Rows[0]["ChiefSecEmployeeID"]));
+                    if (String.Equals(Convert.ToString(row["EmployeeID"]), chiefEng, StringComparison.OrdinalIgnoreCase))
+                        chiefEngSection = Convert.ToString(row["SectionID"]);
+                    if (String.Equals(Convert.ToString(row["EmployeeID"]), chiefSec, StringComparison.OrdinalIgnoreCase))
+                        chiefSecSection = Convert.ToString(row["SectionID"]);
                 }
             }
+
+            SelectIfPresent(ddlChiefEngSection, chiefEngSection);
+            SelectIfPresent(ddlChiefSecSection, chiefSecSection);
+            BindChiefEmployees();
+            SelectIfPresent(ddlChiefEng, chiefEng);
+            SelectIfPresent(ddlChiefSec, chiefSec);
         }
 
         private void LoadEmailModeSettings()
         {
-            chkEmailStandard.Checked = false;
-            chkEmailBatch.Checked = false;
-            chkEmailLightning.Checked = true;
-
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dt = br.EQueryP(@"
-SELECT InspectionMode,IsEmailEnabled
-FROM dbo.PIP_M_InspectionEmailSetupMode
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID)
-                    });
-                foreach (DataRow row in dt.Rows)
-                {
-                    bool enabled = Convert.ToBoolean(row["IsEmailEnabled"]);
-                    string mode = Convert.ToString(row["InspectionMode"]);
-                    if (String.Equals(mode, "STANDARD", StringComparison.OrdinalIgnoreCase)) chkEmailStandard.Checked = enabled;
-                    else if (String.Equals(mode, "BATCH", StringComparison.OrdinalIgnoreCase)) chkEmailBatch.Checked = enabled;
-                    else if (String.Equals(mode, "LIGHTNING", StringComparison.OrdinalIgnoreCase)) chkEmailLightning.Checked = enabled;
-                }
-            }
+            string scope = GetConfigScope();
+            chkEmailStandard.Checked = GetCommonValue(scope + ";EMAIL;STANDARD") == "1";
+            chkEmailBatch.Checked = GetCommonValue(scope + ";EMAIL;BATCH") == "1";
+            string lightning = GetCommonValue(scope + ";EMAIL;LIGHTNING");
+            chkEmailLightning.Checked = lightning == "" || lightning == "1";
         }
 
         private void LoadSectionSPV()
         {
             if (String.IsNullOrWhiteSpace(ddlSection.SelectedValue)) return;
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dt = br.EQueryP(@"
-SELECT SPVEmployeeID
-FROM dbo.PIP_M_InspectionEmailSetupSection
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID AND IsActive=1",
-                    new SqlParameter[] {
-                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                        new SqlParameter("@LocationID", Master.Mn_LocationID),
-                        new SqlParameter("@SectionID", ddlSection.SelectedValue)
-                    });
-                if (dt.Rows.Count > 0)
-                    SelectIfPresent(ddlSPV, Convert.ToString(dt.Rows[0]["SPVEmployeeID"]));
-            }
+            string employeeID = GetCommonValue(GetConfigScope() + ";SPV;" + ddlSection.SelectedValue);
+            SelectIfPresent(ddlSPV, employeeID);
         }
 
         private static void SelectIfPresent(DropDownList list, string value)
@@ -274,6 +261,35 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
             LoadSectionSPV();
         }
 
+        private void SaveCommonValue(string id, string description)
+        {
+            using (var br = new WAL.BR.CF())
+            {
+                br.EQueryP(@"
+IF EXISTS
+(
+    SELECT 1 FROM dbo.SysWebCommonValue
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ID
+)
+    UPDATE dbo.SysWebCommonValue
+    SET Description=@Description,IsDelete=0,IsSystem=0,
+        GroupDescription='INSPEC Inspection Email Approval',
+        UpdateUser=LEFT(@UserID,10),UpdateDate=GETDATE()
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ID;
+ELSE
+    INSERT dbo.SysWebCommonValue
+    (AppID,ID,Description,CommonGroup,GroupDescription,IsDelete,IsSystem,EntryUser,EntryDate,UpdateUser,UpdateDate)
+    VALUES
+    ('INSPEC',@ID,@Description,'EmailApproval','INSPEC Inspection Email Approval',0,0,
+     LEFT(@UserID,10),GETDATE(),LEFT(@UserID,10),GETDATE());",
+                    new SqlParameter[] {
+                        new SqlParameter("@ID", id),
+                        new SqlParameter("@Description", description ?? ""),
+                        new SqlParameter("@UserID", Master.Mn_EmployeeID)
+                    });
+            }
+        }
+
         protected void btnSaveHeader_Click(object sender, EventArgs e)
         {
             try
@@ -293,10 +309,8 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID A
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.M_HRD_Employee E
-    INNER JOIN dbo.PIP_M_Section S ON S.SectionID=E.SectionID
     WHERE E.EmployeeID=@ChiefEng AND E.CompanyID=@CompanyID
-      AND E.SectionID=@ChiefEngSectionID AND S.SectionID=@ChiefEngSectionID
-      AND ISNULL(E.TerminationDate,'')=''
+      AND E.SectionID=@ChiefEngSectionID AND ISNULL(E.TerminationDate,'')=''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
@@ -304,18 +318,13 @@ IF NOT EXISTS
                   WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
-BEGIN
     RAISERROR('Chief Engineering harus employee aktif pada section terpilih dan memiliki akses approval.',16,1);
-    RETURN;
-END;
+
 IF NOT EXISTS
 (
     SELECT 1 FROM dbo.M_HRD_Employee E
-    INNER JOIN dbo.PIP_M_Section S ON S.SectionID=E.SectionID
     WHERE E.EmployeeID=@ChiefSec AND E.CompanyID=@CompanyID
-      AND E.SectionID=@ChiefSecSectionID AND S.SectionID=@ChiefSecSectionID
-      AND ISNULL(E.TerminationDate,'')=''
-      AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
+      AND E.SectionID=@ChiefSecSectionID AND ISNULL(E.TerminationDate,'')=''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
@@ -323,24 +332,37 @@ IF NOT EXISTS
                   WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
-BEGIN
     RAISERROR('Chief Security harus employee aktif pada section terpilih dan memiliki akses approval.',16,1);
-    RETURN;
-END;
 
 BEGIN TRANSACTION;
-IF EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup WHERE CompanyID=@CompanyID AND LocationID=@LocationID)
-    UPDATE dbo.PIP_M_InspectionEmailSetup
-    SET ChiefEngSectionID=@ChiefEngSectionID,ChiefEngEmployeeID=@ChiefEng,
-        ChiefSecSectionID=@ChiefSecSectionID,ChiefSecEmployeeID=@ChiefSec,
-        IsActive=1, UpdateUser=@UserID, UpdateDate=GETDATE()
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID;
+IF EXISTS
+(
+    SELECT 1 FROM dbo.SysWebCommonValue
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ChiefEngKey
+)
+    UPDATE dbo.SysWebCommonValue
+    SET Description=@ChiefEng,IsDelete=0,UpdateUser=LEFT(@UserID,10),UpdateDate=GETDATE()
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ChiefEngKey;
 ELSE
-    INSERT dbo.PIP_M_InspectionEmailSetup
-    (CompanyID,LocationID,ChiefEngSectionID,ChiefEngEmployeeID,ChiefSecSectionID,ChiefSecEmployeeID,IsActive,EntryUser,UpdateUser)
-    VALUES
-    (@CompanyID,@LocationID,@ChiefEngSectionID,@ChiefEng,@ChiefSecSectionID,@ChiefSec,1,@UserID,@UserID);
-COMMIT TRANSACTION",
+    INSERT dbo.SysWebCommonValue
+    (AppID,ID,Description,CommonGroup,GroupDescription,IsDelete,IsSystem,EntryUser,EntryDate,UpdateUser,UpdateDate)
+    VALUES ('INSPEC',@ChiefEngKey,@ChiefEng,'EmailApproval','INSPEC Inspection Email Approval',0,0,
+            LEFT(@UserID,10),GETDATE(),LEFT(@UserID,10),GETDATE());
+
+IF EXISTS
+(
+    SELECT 1 FROM dbo.SysWebCommonValue
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ChiefSecKey
+)
+    UPDATE dbo.SysWebCommonValue
+    SET Description=@ChiefSec,IsDelete=0,UpdateUser=LEFT(@UserID,10),UpdateDate=GETDATE()
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ChiefSecKey;
+ELSE
+    INSERT dbo.SysWebCommonValue
+    (AppID,ID,Description,CommonGroup,GroupDescription,IsDelete,IsSystem,EntryUser,EntryDate,UpdateUser,UpdateDate)
+    VALUES ('INSPEC',@ChiefSecKey,@ChiefSec,'EmailApproval','INSPEC Inspection Email Approval',0,0,
+            LEFT(@UserID,10),GETDATE(),LEFT(@UserID,10),GETDATE());
+COMMIT TRANSACTION;",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                             new SqlParameter("@LocationID", Master.Mn_LocationID),
@@ -348,10 +370,12 @@ COMMIT TRANSACTION",
                             new SqlParameter("@ChiefEng", ddlChiefEng.SelectedValue),
                             new SqlParameter("@ChiefSecSectionID", ddlChiefSecSection.SelectedValue),
                             new SqlParameter("@ChiefSec", ddlChiefSec.SelectedValue),
+                            new SqlParameter("@ChiefEngKey", GetConfigScope() + ";CHIEF_ENG"),
+                            new SqlParameter("@ChiefSecKey", GetConfigScope() + ";CHIEF_SEC"),
                             new SqlParameter("@UserID", Master.Mn_EmployeeID)
                         });
                 }
-                ShowMessage("Penerima Chief Engineering dan Chief Security berhasil disimpan.", false);
+                ShowMessage("Routing Chief Engineering dan Chief Security berhasil disimpan ke SysWebCommonValue.", false);
                 BindPage();
             }
             catch (Exception ex) { ShowMessage(ex.Message, true); }
@@ -362,51 +386,10 @@ COMMIT TRANSACTION",
             try
             {
                 EnsureAdministrator();
-                using (var br = new WAL.BR.CF())
-                {
-                    br.EQueryP(@"
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1)
-    RAISERROR('Simpan routing Chief Engineering dan Chief Security terlebih dahulu.',16,1);
-
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
-               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='STANDARD')
-    INSERT dbo.PIP_M_InspectionEmailSetupMode
-        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
-    VALUES (@CompanyID,@LocationID,'STANDARD',@Standard,@UserID,@UserID);
-ELSE
-    UPDATE dbo.PIP_M_InspectionEmailSetupMode
-    SET IsEmailEnabled=@Standard,UpdateUser=@UserID,UpdateDate=GETDATE()
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='STANDARD';
-
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
-               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='BATCH')
-    INSERT dbo.PIP_M_InspectionEmailSetupMode
-        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
-    VALUES (@CompanyID,@LocationID,'BATCH',@Batch,@UserID,@UserID);
-ELSE
-    UPDATE dbo.PIP_M_InspectionEmailSetupMode
-    SET IsEmailEnabled=@Batch,UpdateUser=@UserID,UpdateDate=GETDATE()
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='BATCH';
-
-IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
-               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='LIGHTNING')
-    INSERT dbo.PIP_M_InspectionEmailSetupMode
-        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
-    VALUES (@CompanyID,@LocationID,'LIGHTNING',@Lightning,@UserID,@UserID);
-ELSE
-    UPDATE dbo.PIP_M_InspectionEmailSetupMode
-    SET IsEmailEnabled=@Lightning,UpdateUser=@UserID,UpdateDate=GETDATE()
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='LIGHTNING';",
-                        new SqlParameter[] {
-                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
-                            new SqlParameter("@LocationID", Master.Mn_LocationID),
-                            new SqlParameter("@Standard", chkEmailStandard.Checked),
-                            new SqlParameter("@Batch", chkEmailBatch.Checked),
-                            new SqlParameter("@Lightning", chkEmailLightning.Checked),
-                            new SqlParameter("@UserID", Master.Mn_EmployeeID)
-                        });
-                }
-                ShowMessage("Pengaturan email per Inspection Mode berhasil disimpan. Approval tetap online.", false);
+                SaveCommonValue(GetConfigScope() + ";EMAIL;STANDARD", chkEmailStandard.Checked ? "1" : "0");
+                SaveCommonValue(GetConfigScope() + ";EMAIL;BATCH", chkEmailBatch.Checked ? "1" : "0");
+                SaveCommonValue(GetConfigScope() + ";EMAIL;LIGHTNING", chkEmailLightning.Checked ? "1" : "0");
+                ShowMessage("Pengaturan email berhasil disimpan. Approval tetap online.", false);
                 BindPage();
             }
             catch (Exception ex) { ShowMessage(ex.Message, true); }
@@ -432,48 +415,34 @@ IF NOT EXISTS
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
-      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
-                  WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
-BEGIN
-    RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki akses approval.',16,1);
-    RETURN;
-END;
-IF NOT EXISTS
-(
-    SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1
-)
-BEGIN
-    RAISERROR('Simpan penerima Chief Engineering dan Chief Security terlebih dahulu.',16,1);
-    RETURN;
-END;
+    RAISERROR('SPV harus employee aktif pada Company, Location, Section dan memiliki akses approval.',16,1);
 
-BEGIN TRANSACTION;
 IF EXISTS
 (
-    SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+    SELECT 1 FROM dbo.SysWebCommonValue
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@SPVKey
 )
-    UPDATE dbo.PIP_M_InspectionEmailSetupSection
-    SET SPVEmployeeID=@SPV, IsActive=1, UpdateUser=@UserID, UpdateDate=GETDATE()
-    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID;
+    UPDATE dbo.SysWebCommonValue
+    SET Description=@SPV,IsDelete=0,UpdateUser=LEFT(@UserID,10),UpdateDate=GETDATE()
+    WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@SPVKey;
 ELSE
-    INSERT dbo.PIP_M_InspectionEmailSetupSection
-    (CompanyID,LocationID,SectionID,SPVEmployeeID,IsActive,EntryUser,UpdateUser)
-    VALUES
-    (@CompanyID,@LocationID,@SectionID,@SPV,1,@UserID,@UserID);
-COMMIT TRANSACTION",
+    INSERT dbo.SysWebCommonValue
+    (AppID,ID,Description,CommonGroup,GroupDescription,IsDelete,IsSystem,EntryUser,EntryDate,UpdateUser,UpdateDate)
+    VALUES ('INSPEC',@SPVKey,@SPV,'EmailApproval','INSPEC Inspection Email Approval',0,0,
+            LEFT(@UserID,10),GETDATE(),LEFT(@UserID,10),GETDATE());",
                         new SqlParameter[] {
                             new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                             new SqlParameter("@LocationID", Master.Mn_LocationID),
                             new SqlParameter("@SectionID", ddlSection.SelectedValue),
                             new SqlParameter("@SPV", ddlSPV.SelectedValue),
+                            new SqlParameter("@SPVKey", GetConfigScope() + ";SPV;" + ddlSection.SelectedValue),
                             new SqlParameter("@UserID", Master.Mn_EmployeeID)
                         });
                 }
-                ShowMessage("Pemetaan SPV untuk Section berhasil disimpan.", false);
+                ShowMessage("Pemetaan SPV untuk Section berhasil disimpan ke SysWebCommonValue.", false);
                 string selectedSection = ddlSection.SelectedValue;
                 BindPage();
                 SelectIfPresent(ddlSection, selectedSection);
