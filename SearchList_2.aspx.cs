@@ -346,8 +346,21 @@ namespace INSPEC
                     _retval[1] = "mc.LocationID; c.LocationName";
                     break;
                 case "330":
-                    _retval[0] = "EmployeeID; Name ";
-                    _retval[1] = "x.EmployeeID; x.Name ";
+                    using (WAL.BR.CF ocom = new WAL.BR.CF())
+                    {
+                        string pc = Convert.ToString(Request.QueryString["1"]);
+                        string section = Convert.ToString(Request.QueryString["2"]);
+                        string where = "x.CompanyID=@CompanyID AND ISNULL(x.TerminationDate,'')=''";
+                        if (!String.IsNullOrWhiteSpace(pc)) where += " AND x.ProfitCenterNo=@ProfitCenterNo";
+                        if (!String.IsNullOrWhiteSpace(section)) where += " AND x.SectionID=@SectionID";
+                        if (Condition.Trim() != "") where += " AND (" + Condition.Trim() + ")";
+                        _retval = ocom.EQueryP("SELECT TOP " + MaxRecord + " x.EmployeeID,x.Name FROM dbo.M_HRD_Employee x WHERE " + where + " ORDER BY x.EmployeeID",
+                            new System.Data.SqlClient.SqlParameter[] {
+                                new System.Data.SqlClient.SqlParameter("@CompanyID", Convert.ToString(Request.QueryString["0"])),
+                                new System.Data.SqlClient.SqlParameter("@ProfitCenterNo", pc),
+                                new System.Data.SqlClient.SqlParameter("@SectionID", section)
+                            }).DefaultView;
+                    }
                     break;
                 case "49":
                     _retval[0] = "Company ID; Company Name";

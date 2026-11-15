@@ -1,105 +1,16 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
-<asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
-    <style>
-        .email-setup-card { border: 1px solid var(--bs-border-color); border-radius: .75rem; }
-        .email-setup-card .card-header { background: var(--bs-tertiary-bg); font-weight: 600; }
-    </style>
-</asp:Content>
+<asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server"><style>.email-setup-card{border:1px solid var(--bs-border-color);border-radius:.75rem}.email-setup-card .card-header{background:var(--bs-tertiary-bg);font-weight:600}.employee-picker{display:flex;gap:.5rem;align-items:center}</style></asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <div>
-            <h4 class="mb-1">Inspection Email & Approval Routing</h4>
-            <div class="text-muted small">Company: <strong><%= Server.HtmlEncode(Master.Mn_CompanyID) %></strong> · Location: <strong><%= Server.HtmlEncode(Master.Mn_LocationID) %></strong></div>
-        </div>
-        <a class="btn btn-outline-secondary btn-sm" href="inspectionmaster.aspx"><i class="bi bi-arrow-left me-1"></i>Inspection Setup</a>
-    </div>
-
-    <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert mb-3">
-        <asp:Literal ID="litMessage" runat="server" />
-    </asp:Panel>
-    <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">
-        Email routing dan outbox sudah tersedia, tetapi SMTP belum siap mengirim. Isi <strong>smtpFrom</strong> pada Web.config dan pastikan relay SMTP menerima sender tersebut. Notifikasi akan tetap tersimpan di outbox dan dicoba ulang.
-    </asp:Panel>
-
-    <div class="card email-setup-card mb-3">
-        <div class="card-header py-3"><i class="bi bi-diagram-3 me-2"></i>Approval recipients per Company + Location</div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-12 col-lg-6">
-                    <label class="form-label fw-semibold" for="<%= ddlChiefEngSection.ClientID %>">Chief Engineering Section</label>
-                    <asp:DropDownList ID="ddlChiefEngSection" runat="server" CssClass="form-select mb-2" AutoPostBack="true" OnSelectedIndexChanged="ddlChiefEngSection_SelectedIndexChanged" />
-                    <label class="form-label fw-semibold" for="<%= ddlChiefEng.ClientID %>">Chief Engineering Employee</label>
-                    <asp:DropDownList ID="ddlChiefEng" runat="server" CssClass="form-select" />
-                    <div class="form-text">Employee difilter berdasarkan section yang dipilih dan Company aktif.</div>
-                </div>
-                <div class="col-12 col-lg-6">
-                    <label class="form-label fw-semibold" for="<%= ddlChiefSecSection.ClientID %>">Chief Security Section</label>
-                    <asp:DropDownList ID="ddlChiefSecSection" runat="server" CssClass="form-select mb-2" AutoPostBack="true" OnSelectedIndexChanged="ddlChiefSecSection_SelectedIndexChanged" />
-                    <label class="form-label fw-semibold" for="<%= ddlChiefSec.ClientID %>">Chief Security Employee</label>
-                    <asp:DropDownList ID="ddlChiefSec" runat="server" CssClass="form-select" />
-                    <div class="form-text">Employee difilter berdasarkan section yang dipilih dan Company aktif.</div>
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-3">
-                <asp:Button ID="btnSaveHeader" runat="server" Text="Save Location Recipients" CssClass="btn btn-primary" OnClick="btnSaveHeader_Click" />
-            </div>
-        </div>
-    </div>
-
-    <div class="card email-setup-card mb-3">
-        <div class="card-header py-3"><i class="bi bi-bell me-2"></i>Email Notification per Inspection Mode</div>
-        <div class="card-body">
-            <div class="form-text mb-3">
-                Approval Chief Engineering, Chief Security, dan SPV tetap dilakukan <strong>online</strong>.
-                Setting di bawah hanya menentukan apakah INSPEC mengirim notifikasi email dan link menuju halaman approval.
-            </div>
-            <div class="row g-3">
-                <div class="col-12 col-md-4">
-                    <div class="form-check border rounded p-3 h-100">
-                        <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" />
-                        <label class="form-check-label fw-semibold" for="<%= chkEmailStandard.ClientID %>">STANDARD</label>
-                        <div class="form-text">Email submit / approval / void untuk Standard.</div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="form-check border rounded p-3 h-100">
-                        <asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" />
-                        <label class="form-check-label fw-semibold" for="<%= chkEmailBatch.ClientID %>">BATCH</label>
-                        <div class="form-text">Email submit / approval / void untuk Batch.</div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-4">
-                    <div class="form-check border rounded p-3 h-100">
-                        <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" />
-                        <label class="form-check-label fw-semibold" for="<%= chkEmailLightning.ClientID %>">LIGHTNING</label>
-                        <div class="form-text">Email workflow CHECKED → ACKNOWLEDGE 1 → ACKNOWLEDGE.</div>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-3">
-                <asp:Button ID="btnSaveEmailMode" runat="server" Text="Save Email Settings" CssClass="btn btn-primary" OnClick="btnSaveEmailMode_Click" />
-            </div>
-        </div>
-    </div>
-
-    <div class="card email-setup-card">
-        <div class="card-header py-3"><i class="bi bi-people me-2"></i>SPV recipient per Section</div>
-        <div class="card-body">
-            <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-5">
-                    <label class="form-label fw-semibold" for="<%= ddlSection.ClientID %>">Section</label>
-                    <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
-                </div>
-                <div class="col-12 col-md-7">
-                    <label class="form-label fw-semibold" for="<%= ddlSPV.ClientID %>">SPV Employee</label>
-                    <asp:DropDownList ID="ddlSPV" runat="server" CssClass="form-select" />
-                </div>
-            </div>
-            <div class="d-flex justify-content-end mt-3">
-                <asp:Button ID="btnSaveSPV" runat="server" Text="Save SPV for Section" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" />
-            </div>
-        </div>
-    </div>
-    <div class="form-text mt-3">Alamat email selalu dibaca dari <code>M_HRD_Employee.emailaddress</code>. Employee tanpa alamat email tidak dapat disimpan sebagai penerima.</div>
+<div class="d-flex justify-content-between align-items-center mb-3"><div><h4>Inspection Email &amp; Approval Routing</h4><div class="small text-muted">Company: <b><%= Server.HtmlEncode(Master.Mn_CompanyID) %></b> · Location scope: <b><%= Server.HtmlEncode(Master.Mn_LocationID) %></b></div></div><a class="btn btn-outline-secondary btn-sm" href="inspectionmaster.aspx">Inspection Setup</a></div>
+<asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert mb-3"><asp:Literal ID="litMessage" runat="server" /></asp:Panel><asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa smtpHost dan smtpFrom.</asp:Panel>
+<div class="card email-setup-card mb-3"><div class="card-header">Chief Approver</div><div class="card-body"><div class="row g-3">
+<div class="col-lg-6"><label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span></label><div class="employee-picker"><asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="true" placeholder="Pilih NIK" /><asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton></div><asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text" /></div>
+<div class="col-lg-6"><label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span></label><div class="employee-picker"><asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="true" placeholder="Pilih NIK" /><asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton></div><asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text" /></div></div><div class="text-end mt-3"><asp:Button ID="btnSaveHeader" runat="server" Text="Save Chief Approver" CssClass="btn btn-primary" OnClick="btnSaveHeader_Click" /></div></div></div>
+<div class="card email-setup-card mb-3"><div class="card-header">SPV Mapping per Section</div><div class="card-body"><asp:HiddenField ID="hidSPVOriginalSection" runat="server" /><div class="row g-3 align-items-end">
+<div class="col-md-4"><label class="form-label">Section</label><asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select" /></div>
+<div class="col-md-5"><label class="form-label">SPV NIK</label><div class="employee-picker"><asp:TextBox ID="txtSPV" runat="server" CssClass="form-control" ReadOnly="true" placeholder="Pilih NIK SPV" /><asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton></div><asp:Label ID="lblSPVName" runat="server" CssClass="form-text" /></div>
+<div class="col-md-3 d-flex gap-2"><asp:Button ID="btnSaveSPV" runat="server" Text="Save Mapping" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" /><asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" /></div></div><hr />
+<asp:GridView ID="gvSPV" runat="server" AutoGenerateColumns="false" CssClass="table table-sm table-hover align-middle" EmptyDataText="Belum ada mapping SPV." OnRowCommand="gvSPV_RowCommand"><Columns><asp:BoundField DataField="SectionID" HeaderText="Section" /><asp:BoundField DataField="EmployeeID" HeaderText="NIK SPV" /><asp:BoundField DataField="EmployeeName" HeaderText="Nama SPV" /><asp:TemplateField HeaderText="Action"><ItemTemplate><asp:LinkButton runat="server" CommandName="EditMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-primary" CausesValidation="false">Edit</asp:LinkButton> <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-danger" CausesValidation="false" OnClientClick="return confirm('Hapus mapping ini?');">Delete</asp:LinkButton></ItemTemplate></asp:TemplateField></Columns></asp:GridView></div></div>
+<div class="card email-setup-card"><div class="card-header">Email Notification per Inspection Mode</div><div class="card-body"><div class="row g-3"><div class="col-md-4"><asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" /> STANDARD</div><div class="col-md-4"><asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" /> BATCH</div><div class="col-md-4"><asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING</div></div><div class="text-end mt-3"><asp:Button ID="btnSaveEmailMode" runat="server" Text="Save Email Settings" CssClass="btn btn-primary" OnClick="btnSaveEmailMode_Click" /></div></div></div>
 </asp:Content>
