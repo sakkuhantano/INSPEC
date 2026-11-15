@@ -173,7 +173,7 @@ BEGIN
              N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Teknisi: '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N')</p><p>Approver berikutnya: '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N')</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
              N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
              N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-             N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
+             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') menunggu approval Chief Engineering '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
             ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
              @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
              N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
@@ -364,7 +364,7 @@ BEGIN
                      @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
                      N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
                      N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review Chief Security '+ISNULL(@V_NextName,@V_NextEmployeeID)+N' ('+ISNULL(@V_NextEmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-                     N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
+                     N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval Chief Security '+ISNULL(@V_NextName,@V_NextEmployeeID)+N' ('+ISNULL(@V_NextEmployeeID,'')+N') setelah di-approve Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
             END;
         END;
 
