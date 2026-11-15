@@ -3647,7 +3647,15 @@ async function openSavedInspection(localId) {
             if (serverRecord.EndDateTime) record.EndDateTime = serverRecord.EndDateTime;
             if (serverRecord.InspectionID != null) record.ServerInspectionID = Number(serverRecord.InspectionID);
             if (serverRecord.ReasonVoid) record.ReasonVoid = serverRecord.ReasonVoid;
+            if (serverRecord.IsSubmitted != null) record.IsSubmitted = serverRecord.IsSubmitted;
+            if (serverRecord.SubmittedBy != null) record.SubmittedBy = serverRecord.SubmittedBy;
+            if (serverRecord.SubmittedDate != null) record.SubmittedDate = serverRecord.SubmittedDate;
             if (serverRecord.IsApproved != null) record.IsApproved = serverRecord.IsApproved;
+            if (serverRecord.ApprovedBy != null) record.ApprovedBy = serverRecord.ApprovedBy;
+            if (serverRecord.ApprovedDate != null) record.ApprovedDate = serverRecord.ApprovedDate;
+            if (serverRecord.IsApprovedFinal != null) record.IsApprovedFinal = serverRecord.IsApprovedFinal;
+            if (serverRecord.ApprovedFinalBy != null) record.ApprovedFinalBy = serverRecord.ApprovedFinalBy;
+            if (serverRecord.ApprovedFinalDate != null) record.ApprovedFinalDate = serverRecord.ApprovedFinalDate;
         }
     }
 
@@ -4783,16 +4791,17 @@ function updateInspectionApprovalCounts() {
 }
 
 function isInspectionApprovalApproved(row) {
-    return !!row && (row.IsApproved === true || row.IsApproved === 1 || String(row.IsApproved).toLowerCase() === "true" || String(row.IsApproved) === "1");
+    if (!row) return false;
+    // Lightning has two approval stages; it is final only after Chief Security.
+    const value = row.IsApprovedFinal != null ? row.IsApprovedFinal : row.IsApproved;
+    return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
 }
 
 function isInspectionApprovalVoided(row) {
     return !!row &&
-        !isInspectionApprovalApproved(row) &&
-        !!String(row.ReasonVoid || "").trim() &&
-        !!String(row.ApprovedBy || "").trim() &&
-        !!row.ApprovedDate &&
-        String(row.ApprovedDate).indexOf("1900") !== 0;
+        String(row.Status || "").toUpperCase() === "DRAFT" &&
+        String(row.ReasonVoid || "").trim() !== "" &&
+        (row.IsSubmitted === false || row.IsSubmitted === 0 || String(row.IsSubmitted) === "0");
 }
 
 async function inspectionApprovalPost(method, args) {

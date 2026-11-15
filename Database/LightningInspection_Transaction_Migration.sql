@@ -101,19 +101,6 @@ BEGIN
 END;
 GO
 
-/* One row per selected ScheduleTime is required before a Lightning submit. */
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule')
-      AND name='IX_PIP_T_InspectionLightningSchedule_Status'
-)
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_PIP_T_InspectionLightningSchedule_Status
-        ON dbo.PIP_T_InspectionLightningSchedule(InspectionID,ScheduleStatus,ScheduleTime);
-END;
-GO
-
 /* The daily header and point ScheduleTime values are the only transaction schedule storage. */
 IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NOT NULL
     DROP TABLE dbo.PIP_T_InspectionLightningSchedule;

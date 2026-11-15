@@ -1439,8 +1439,8 @@ BEGIN
     WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
       AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
       AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
-      AND ISNULL(IsApproved,0)=0 AND ISNULL(ReasonVoid,'')<>''
-      AND ISNULL(ApprovedBy,'')<>'' AND ApprovedDate>CONVERT(DATETIME,'19000101',112);
+      AND Status='DRAFT' AND ISNULL(IsSubmitted,0)=0
+      AND ISNULL(ReasonVoid,'')<>'';
     IF @@ROWCOUNT=0
     BEGIN
         ROLLBACK TRANSACTION;
@@ -1709,9 +1709,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   -- not again in Submitted just because its SyncDate falls in the selected range.
   AND NOT (
       I.Status='DRAFT'
-      AND ISNULL(I.IsApproved,0)=0
-      AND ISNULL(I.ApprovedBy,'')<>''
-      AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
+      AND ISNULL(I.IsSubmitted,0)=0
       AND ISNULL(I.ReasonVoid,'')<>''
   )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
@@ -1780,24 +1778,14 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
              OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   )
   AND (
-       (I.Status='DONE'
-        AND ISNULL(I.IsApproved,0)=0
-        AND ISNULL(I.ApprovedBy,'')=''
-        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
-        AND ISNULL(I.ApprovalRemark,'')=''
-        AND ISNULL(I.ReasonVoid,'')='')
+       (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+        AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0)
        OR
-       (I.Status='DONE'
-        AND ISNULL(I.IsApproved,0)=1
-        AND ISNULL(I.ApprovedBy,'')<>''
-        AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)
-        AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+       (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+        AND ISNULL(I.IsApprovedFinal,0)=1
+        AND I.ApprovedFinalDate>=@DateFrom AND I.ApprovedFinalDate<DATEADD(DAY,1,@DateThru))
        OR
-       (I.Status='DRAFT' AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
-            (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-            OR EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-                       WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID')
-       ))
+       (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
   )
   AND EXISTS (
       SELECT 1
@@ -1820,15 +1808,12 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
              )
         )
         AND EXISTS (
-            SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
-            WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
-              AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+            SELECT 1 FROM dbo.SysWebCommonValue C
+            WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+              AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+              AND C.Description=@EmployeeID
         )
-        AND EXISTS (
-            SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-            WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
-              AND W.WorkflowStatus IN ('SUBMITTED','APPROVED','VOID')
-        )
+        AND (ISNULL(I.IsSubmitted,0)=1 OR (I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>''))
         AND (
             EXISTS (
                 SELECT 1
@@ -1879,8 +1864,9 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status, I.IsApproved,
-       I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
+       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
+       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
@@ -1922,9 +1908,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsApproved=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='' THEN 1 ELSE 0 END) PendingApproval,
-    SUM(CASE WHEN ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
-    SUM(CASE WHEN I.IsApproved=0 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) THEN 1 ELSE 0 END) VoidCount
+    SUM(CASE WHEN I.Status='DONE' AND I.IsSubmitted=1 AND I.IsApproved=0 AND I.IsApprovedFinal=0 THEN 1 ELSE 0 END) PendingApproval,
+    SUM(CASE WHEN I.IsApprovedFinal=1 AND I.ApprovedFinalDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
+    SUM(CASE WHEN I.Status='DRAFT' AND I.IsSubmitted=0 AND ISNULL(I.ReasonVoid,'')<>'' THEN 1 ELSE 0 END) VoidCount
 FROM dbo.PIP_T_Inspection I
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
@@ -1946,11 +1932,16 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.
         AND (
           EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
           OR EXISTS (
-              SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-              JOIN dbo.PIP_M_InspectionEmailSetup ES
-                ON ES.CompanyID=W.CompanyID AND ES.LocationID=W.LocationID AND ES.IsActive=1
-              WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID
-                AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID)
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.Description=@EmployeeID
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+          )
+          OR EXISTS (
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.Description=@EmployeeID
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
           )
         )
         AND (
@@ -2076,23 +2067,29 @@ ORDER BY P.SeqNo",
                     new SqlParameter("@TemplateId", templateId ?? "")
                 };
                 const string scope = @"
-FROM dbo.PIP_T_InspectionWorkflow W
-JOIN dbo.PIP_T_Inspection I ON I.InspectionID=W.EntityID
-JOIN dbo.PIP_M_InspectionEmailSetup ES
-  ON ES.CompanyID=W.CompanyID AND ES.LocationID=W.LocationID AND ES.IsActive=1
+FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
-WHERE W.EntityType='LIGHTNING'
+WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND (
-      (@ApprovalTab='OUTSTANDING' AND (
-          (W.CurrentStageCode='CHIEF_ENG' AND ES.ChiefEngEmployeeID=@EmployeeID)
-          OR (W.CurrentStageCode='CHIEF_SEC' AND ES.ChiefSecEmployeeID=@EmployeeID)
-      ) AND W.WorkflowStatus IN ('CHECKED','ACKNOWLEDGE 1'))
-      OR (@ApprovalTab='APPROVED' AND W.WorkflowStatus='ACKNOWLEDGE'
-          AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID))
-      OR (@ApprovalTab='VOID' AND W.WorkflowStatus='VOID'
-          AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID))
+      (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+          AND ((ISNULL(I.IsApproved,0)=0 AND EXISTS (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+                      AND C.Description=@EmployeeID))
+               OR (ISNULL(I.IsApproved,0)=1 AND EXISTS (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
+                      AND C.Description=@EmployeeID))))
+      OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=1
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND C.Description=@EmployeeID)
+            OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND C.Description=@EmployeeID)))
+      OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND C.Description=@EmployeeID)
+            OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND C.Description=@EmployeeID)))
   )
   AND (@ApprovalTab='OUTSTANDING' OR
        (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
@@ -2124,9 +2121,15 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
        I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
-       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
-       I.ApprovalRemark,I.ReasonVoid,I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
-       'LIGHTNING' InspectionMode,W.WorkflowStatus,W.CurrentStageCode
+       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,
+       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
+       'LIGHTNING' InspectionMode,
+       CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+            WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE'
+            WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END WorkflowStatus,
+       CASE WHEN I.IsApproved=0 THEN 'CHIEF_ENG' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                 var data = new List<Dictionary<string, object>>();
@@ -2195,17 +2198,20 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
             using (var br = new WAL.BR.CF())
             {
                 DataTable header = br.EQueryP(@"
-SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeName,
+SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
        I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
-       W.WorkflowStatus, W.CurrentStageCode,
+       CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE' WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END
+            WHEN I.IsApprovedFinal=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
+       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'CHIEF_ENG' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
+            WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       I.IsApproved, I.ApprovedBy, I.ApprovedDate, I.ApprovalRemark, I.ReasonVoid,
+       I.IsSubmitted,I.SubmittedBy,I.SubmittedDate,I.IsApproved,I.ApprovedBy,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.PIP_T_InspectionWorkflow W
-  ON W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID
 WHERE I.InspectionID=@InspectionID
   AND EXISTS (
       SELECT 1
@@ -2219,24 +2225,8 @@ WHERE I.InspectionID=@InspectionID
              OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   )
   AND (
-       (I.Status='DONE' AND (
-            (ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ApprovedBy,'')='' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112) AND ISNULL(I.ApprovalRemark,'')='' AND ISNULL(I.ReasonVoid,'')='')
-            OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-       ))
-       OR (I.Status='DRAFT' AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.ReasonVoid,'')<>'' AND (
-            (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-            OR EXISTS (
-                SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-                WHERE W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
-                  AND W.EntityType IN ('INSPECTION','LIGHTNING')
-            )
-       ))
-  )
-  AND EXISTS (
-      SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-      WHERE W.EntityID=I.InspectionID
-        AND W.EntityType IN ('INSPECTION','LIGHTNING')
-        AND W.WorkflowStatus IN ('SUBMITTED','APPROVED','VOID','CHECKED','ACKNOWLEDGE 1','ACKNOWLEDGE')
+       ((I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1)
+        OR (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''))
   )
   AND EXISTS (
       SELECT 1 FROM dbo.SysWebUser SU
@@ -2244,16 +2234,22 @@ WHERE I.InspectionID=@InspectionID
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
         AND (
           EXISTS (
-              SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
-              WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
-                AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                AND C.Description=@EmployeeID
           )
           OR EXISTS (
-              SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-              JOIN dbo.PIP_M_InspectionEmailSetup ES
-                ON ES.CompanyID=W.CompanyID AND ES.LocationID=W.LocationID AND ES.IsActive=1
-              WHERE W.EntityType='LIGHTNING' AND W.EntityID=I.InspectionID
-                AND (ES.ChiefEngEmployeeID=@EmployeeID OR ES.ChiefSecEmployeeID=@EmployeeID)
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.Description=@EmployeeID
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+          )
+          OR EXISTS (
+              SELECT 1 FROM dbo.SysWebCommonValue C
+              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                AND C.Description=@EmployeeID
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
           )
         )
         AND (
@@ -2453,10 +2449,13 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                     if (String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
                         DataTable scheduleRows = br.EQueryP(@"
-SELECT ScheduleTime,ScheduleStatus,SubmittedDate
-FROM dbo.PIP_T_InspectionLightningSchedule
-WHERE InspectionID=@InspectionID
-ORDER BY ScheduleTime",
+SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID
+ORDER BY D.ScheduleTime",
                             new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                         foreach (DataRow scheduleRow in scheduleRows.Rows)
                             batchScheduleRows.Add(new Dictionary<string, object> {
@@ -2643,15 +2642,8 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
-  AND I.Status='DRAFT' AND I.IsApproved=0 AND ISNULL(I.ReasonVoid,'')<>''
-  AND (
-      (ISNULL(I.ApprovedBy,'')<>'' AND ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112))
-      OR EXISTS (
-          SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-          WHERE W.EntityID=I.InspectionID AND W.WorkflowStatus='VOID'
-            AND W.EntityType IN ('INSPECTION','LIGHTNING')
-      )
-  )
+  AND I.Status='DRAFT' AND I.IsApproved=0 AND I.IsApprovedFinal=0
+  AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
@@ -2814,10 +2806,13 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                         if (String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                         {
                             DataTable returnedSchedules = br.EQueryP(@"
-SELECT ScheduleTime,ScheduleStatus,SubmittedDate
-FROM dbo.PIP_T_InspectionLightningSchedule
-WHERE InspectionID=@InspectionID
-ORDER BY ScheduleTime",
+SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID
+ORDER BY D.ScheduleTime",
                                 new SqlParameter[] { new SqlParameter("@InspectionID", id) });
                             record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new {
                                 ScheduleTime = GF.GetString(row["ScheduleTime"]),
@@ -3186,15 +3181,12 @@ WHERE I.InspectionID=@InspectionID
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   AND EXISTS (
-      SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupSection ES
-      WHERE ES.CompanyID=I.CompanyID AND ES.LocationID=I.LocationID
-        AND ES.SectionID=I.SectionID AND ES.SPVEmployeeID=@EmployeeID AND ES.IsActive=1
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+        AND C.Description=@EmployeeID
   )
-  AND EXISTS (
-      SELECT 1 FROM dbo.PIP_T_InspectionWorkflow W
-      WHERE W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
-        AND W.WorkflowStatus='SUBMITTED' AND W.CurrentStageCode='SPV'
-  )
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
 ",
                     new SqlParameter[] {
@@ -3268,8 +3260,10 @@ WHERE I.InspectionID=@InspectionID",
                     DataTable schedules;
                     if (inspectionMode == "LIGHTNING")
                         schedules = br.EQueryP(@"
-SELECT ScheduleTime FROM dbo.PIP_T_InspectionLightningSchedule
-WHERE InspectionID=@InspectionID ORDER BY ScheduleTime",
+SELECT DISTINCT D.ScheduleTime FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID ORDER BY D.ScheduleTime",
                             new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     else
                     {

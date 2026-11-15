@@ -10,16 +10,14 @@
       @p_Points.C1..C6 = existing BATCH point fields
       @p_Points.C7 = ScheduleTime for that point
       @p_Items / @p_ItemValues / @p_Photos retain existing BATCH contracts.
-    One PIP_T_Inspection header is created for the entire day. The first
-    configured ScheduleTime is passed as the canonical header ScheduleTime;
-    the complete schedule set is stored in PIP_T_InspectionLightningSchedule.
+    One PIP_T_Inspection header is created for the entire day. Schedule tabs
+    are derived from PIP_M_InspectionTypeDetail.ScheduleTime; each transaction
+    point stores its own ScheduleTime in PIP_T_InspectionPoint.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
 
-IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NULL
-    RAISERROR('Run Database/LightningInspection_Transaction_Migration.sql first.',16,1);
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Lightning_SubmitWorkflow','P') IS NULL
     RAISERROR('Run Database/LightningInspection_Approval_Workflow.sql first.',16,1);
 GO
@@ -91,9 +89,8 @@ BEGIN
 
     IF @V_ExistingInspectionID IS NOT NULL AND EXISTS
     (
-        SELECT 1 FROM dbo.PIP_T_InspectionWorkflow
-        WHERE EntityType='LIGHTNING' AND EntityID=@V_ExistingInspectionID
-          AND WorkflowStatus IN ('CHECKED','ACKNOWLEDGE 1','ACKNOWLEDGE','APPROVED')
+        SELECT 1 FROM dbo.PIP_T_Inspection
+        WHERE InspectionID=@V_ExistingInspectionID AND ISNULL(IsSubmitted,0)=1
     )
     BEGIN
         SELECT @V_ExistingInspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
@@ -336,8 +333,11 @@ BEGIN
             RAISERROR('LIGHTNING header was not saved by the canonical Inspection sync procedure.',16,1);
 
         UPDATE dbo.PIP_T_Inspection
-        SET InspectionMode='LIGHTNING',Status='DONE',IsApproved=0,ApprovedBy='',
-            ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',ReasonVoid='',
+        SET InspectionMode='LIGHTNING',Status='DONE',
+            IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
+            IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+            IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
+            ApprovalRemark='',ReasonVoid='',
             UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
         WHERE InspectionID=@V_InspectionID;
 

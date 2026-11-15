@@ -13,10 +13,11 @@ Run the scripts below in SQL Server Management Studio against the target INSPEC 
      (only if the current Group Map / direct MapX+MapY schema and point scope are not already deployed)
 2. `InspectionEmailApproval_Schema.sql`
 3. `InspectionApproval_HeaderFields_Migration.sql`
-4. `LightningInspection_Transaction_Migration.sql`
-5. `LightningInspection_Approval_Workflow.sql`
-6. `InspectionApproval_Workflow_Procedures.sql`
-7. `LightningInspection_Sync_Procedure.sql`
+4. `InspectionLegacyApproval_Procedure_ColumnRename.sql`
+5. `LightningInspection_Transaction_Migration.sql`
+6. `LightningInspection_Approval_Workflow.sql`
+7. `InspectionApproval_Workflow_Procedures.sql`
+8. `LightningInspection_Sync_Procedure.sql`
 
 The schema script creates approval history and email outbox. Workflow state is stored on PIP_T_Inspection. Approval routing and email switches are stored in the existing `dbo.SysWebCommonValue` table under `AppID='INSPEC'`, `CommonGroup='EmailApproval'`.
 

@@ -38,6 +38,20 @@ BEGIN
 END;
 GO
 
+/* Normalize the renamed approval flag and its default constraint. */
+DECLARE @V_IsApprovedDefault SYSNAME;
+SELECT @V_IsApprovedDefault=dc.name
+FROM sys.default_constraints dc
+JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
+WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApproved';
+IF @V_IsApprovedDefault IS NOT NULL
+    EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT '+QUOTENAME(@V_IsApprovedDefault));
+UPDATE dbo.PIP_T_Inspection SET IsApproved=0 WHERE IsApproved IS NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApproved' AND is_nullable=1)
+    ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApproved BIT NOT NULL;
+ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApproved DEFAULT (0) FOR IsApproved;
+GO
+
 IF COL_LENGTH('dbo.PIP_T_Inspection','IsSubmitted') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsSubmitted BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsSubmitted DEFAULT (0);
 IF COL_LENGTH('dbo.PIP_T_Inspection','SubmittedBy') IS NULL

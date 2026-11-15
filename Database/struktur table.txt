@@ -236,10 +236,16 @@ CREATE TABLE [dbo].[PIP_T_Inspection](
 	[EntryDate] [datetime] NOT NULL,
 	[UpdateUser] [varchar](50) NOT NULL,
 	[UpdateDate] [datetime] NOT NULL,
+	[IsSubmitted] [bit] NOT NULL,
+	[SubmittedBy] [varchar](50) NOT NULL,
+	[SubmittedDate] [datetime] NOT NULL,
 	[IsApproved] [bit] NOT NULL,
-	[ApprovedBy] [varchar](50) NULL,
-	[ApprovedDate] [datetime] NULL,
-	[ApprovalRemark] [varchar](500) NULL,
+	[ApprovedBy] [varchar](50) NOT NULL,
+	[ApprovedDate] [datetime] NOT NULL,
+	[IsApprovedFinal] [bit] NOT NULL,
+	[ApprovedFinalBy] [varchar](50) NOT NULL,
+	[ApprovedFinalDate] [datetime] NOT NULL,
+	[ApprovalRemark] [varchar](500) NOT NULL,
 	[ReasonVoid] [varchar](500) NULL,
 	[SyncDate] [datetime] NULL,
 	[IsActive] [bit] NOT NULL,
@@ -545,7 +551,13 @@ GO
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_UpdateDate]  DEFAULT (getdate()) FOR [UpdateDate]
 GO
 
-ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsApprove]  DEFAULT ((0)) FOR [IsApproved]
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_IsSubmitted] DEFAULT ((0)) FOR [IsSubmitted]
+GO
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_SubmittedBy] DEFAULT ('') FOR [SubmittedBy]
+GO
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_SubmittedDate] DEFAULT ('19000101') FOR [SubmittedDate]
+GO
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_IsApproved]  DEFAULT ((0)) FOR [IsApproved]
 GO
 
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovedBy]  DEFAULT ('') FOR [ApprovedBy]
@@ -554,6 +566,12 @@ GO
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovedDate]  DEFAULT ('19000101') FOR [ApprovedDate]
 GO
 
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_IsApprovedFinal] DEFAULT ((0)) FOR [IsApprovedFinal]
+GO
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_ApprovedFinalBy] DEFAULT ('') FOR [ApprovedFinalBy]
+GO
+ALTER TABLE [dbo].[PIP_T_Inspection] ADD CONSTRAINT [DF_PIP_T_Inspection_ApprovedFinalDate] DEFAULT ('19000101') FOR [ApprovedFinalDate]
+GO
 ALTER TABLE [dbo].[PIP_T_Inspection] ADD  CONSTRAINT [DF_PIP_T_Inspection_ApprovalRemark]  DEFAULT ('') FOR [ApprovalRemark]
 GO
 

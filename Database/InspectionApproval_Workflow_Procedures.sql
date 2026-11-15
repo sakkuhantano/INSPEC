@@ -24,7 +24,7 @@ BEGIN
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
- WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsApproved,0)=0
+ WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for SPV workflow.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
@@ -57,27 +57,24 @@ BEGIN
   IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')=''
   BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
- SELECT @OldStatus=WorkflowStatus FROM dbo.PIP_T_InspectionWorkflow WITH (UPDLOCK,HOLDLOCK)
- WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
+ SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1 THEN CASE WHEN ISNULL(IsApprovedFinal,0)=1 THEN 'APPROVED' ELSE 'SUBMITTED' END
+  WHEN Status='DRAFT' AND ISNULL(ReasonVoid,'')<>'' THEN 'VOID' ELSE '' END
+ FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK) WHERE InspectionID=@p_InspectionID;
  IF @OldStatus='SUBMITTED' RETURN;
  IF @OldStatus='APPROVED' BEGIN RAISERROR('Inspection has already been finally approved.',16,1); RETURN; END;
- SET @Action=CASE WHEN @OldStatus='VOID' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
+ SELECT TOP 1 @LastActionCode=ActionCode
+ FROM dbo.PIP_T_InspectionApprovalHistory
+ WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID
+ ORDER BY ApprovalEventID DESC;
+ SET @Action=CASE WHEN @LastActionCode='VOIDED' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
  SET @TranCount=@@TRANCOUNT;
  BEGIN TRY
   IF @TranCount=0 BEGIN TRANSACTION; ELSE SAVE TRANSACTION InspectionWorkflowSubmitSave;
-  IF EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionWorkflow WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID)
-   UPDATE dbo.PIP_T_InspectionWorkflow SET CompanyID=@C,LocationID=@L,SectionID=@S,
-    WorkflowStatus='SUBMITTED',CurrentStageCode='SPV',SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
-    LastActorEmployeeID=@p_ActorEmployeeID,LastActionDate=GETDATE(),LastRemark=NULL
-   WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
-  ELSE
-   INSERT dbo.PIP_T_InspectionWorkflow(EntityType,EntityID,CompanyID,LocationID,SectionID,WorkflowStatus,CurrentStageCode,
-    SubmittedBy,SubmittedDate,LastActorEmployeeID,LastActionDate,LastRemark)
-   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SUBMITTED','SPV',@p_ActorEmployeeID,GETDATE(),@p_ActorEmployeeID,GETDATE(),NULL);
   UPDATE dbo.PIP_T_Inspection
-  SET Status='DONE',IsApproved=0,ApprovedBy='',
-      ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',ReasonVoid='',
-      UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+  SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
+      IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+      IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
+      ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
   WHERE InspectionID=@p_InspectionID;
 
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
@@ -130,10 +127,10 @@ BEGIN
          @EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
- FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
- JOIN dbo.PIP_T_InspectionWorkflow W WITH (UPDLOCK,HOLDLOCK) ON W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
+ FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+ JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
-  AND W.WorkflowStatus='SUBMITTED' AND W.CurrentStageCode='SPV';
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0;
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for SPV approval.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SELECT @EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
@@ -160,14 +157,14 @@ BEGIN
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SPV',CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
     @p_ActorEmployeeID,GETDATE(),NULLIF(@p_Remark,N''));
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
-  UPDATE dbo.PIP_T_InspectionWorkflow SET WorkflowStatus=@NewStatus,CurrentStageCode=@NextStage,
-   LastActorEmployeeID=@p_ActorEmployeeID,LastActionDate=GETDATE(),LastRemark=NULLIF(@p_Remark,N'')
-   WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
   IF @p_Action='VOID'
   BEGIN
-   UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',IsApproved=0,ApprovedBy='',
-    ApprovedDate=CONVERT(DATETIME,'19000101',112),ApprovalRemark='',
-    ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+   UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',
+    IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
+    IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+    IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
+    ApprovalRemark='',ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
+    UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
    IF @EmailEnabled=1
    BEGIN
@@ -184,6 +181,7 @@ BEGIN
   ELSE
   BEGIN
    UPDATE dbo.PIP_T_Inspection SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
+    IsApprovedFinal=1,ApprovedFinalBy=@p_ActorEmployeeID,ApprovedFinalDate=GETDATE(),
     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
    IF @EmailEnabled=1

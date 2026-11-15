@@ -162,8 +162,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_In
         ON dbo.PIP_T_Inspection (OwnerEmployeeID, Status, InspectionDate);
 GO
 
-/* IsApproved=0 with empty supervisor fields means not yet processed.
-   A voided record is IsApproved=0 with ApprovedBy/ApprovedDate populated. */
+/* Approval state is stored on the inspection header:
+   IsSubmitted=1 means technician submitted; IsApproved=1 means first-stage approval;
+   IsApprovedFinal=1 means final approval. VOID resets all flags/actors/dates,
+   sets Status='DRAFT', and preserves the reason in ReasonVoid. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApproved') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsApproved BIT NULL;
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'ApprovedBy') IS NULL
@@ -199,17 +201,17 @@ BEGIN
         ALTER TABLE dbo.PIP_T_Inspection DROP COLUMN VoidDate;
     ALTER TABLE dbo.PIP_T_Inspection DROP COLUMN IsVoid;
 END;
-DECLARE @V_IsApproveDefault sysname;
-SELECT @V_IsApproveDefault=dc.name
+DECLARE @V_IsApprovedDefault sysname;
+SELECT @V_IsApprovedDefault=dc.name
 FROM sys.default_constraints dc
 JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
 WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApproved';
-IF @V_IsApproveDefault IS NOT NULL
-    EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT ' + QUOTENAME(@V_IsApproveDefault));
+IF @V_IsApprovedDefault IS NOT NULL
+    EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT ' + QUOTENAME(@V_IsApprovedDefault));
 UPDATE dbo.PIP_T_Inspection SET IsApproved=0 WHERE IsApproved IS NULL;
 IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND name='IsApproved' AND is_nullable=1)
     ALTER TABLE dbo.PIP_T_Inspection ALTER COLUMN IsApproved BIT NOT NULL;
-ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApproved;
+ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApproved DEFAULT (0) FOR IsApproved;
 GO
 
 
