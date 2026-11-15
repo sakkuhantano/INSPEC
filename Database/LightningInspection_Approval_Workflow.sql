@@ -147,8 +147,6 @@ BEGIN
 
         IF @V_EmailEnabled=1
         BEGIN
-                    IF @V_EmailEnabled=1
-            BEGIN
                             INSERT dbo.PIP_T_InspectionEmailOutbox
                                     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
@@ -294,49 +292,53 @@ BEGIN
                 UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID;
 
-            INSERT dbo.PIP_T_InspectionEmailOutbox
-            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-            VALUES
-            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
-             @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
-             N'Lightning Inspection perlu diperbaiki - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Daily Lightning Inspection dikembalikan untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
-             N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
-             N'Daily Lightning Inspection dikembalikan. Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
-        END
-        ELSE
-        BEGIN
-            IF @V_Stage='CHIEF_SEC'
-                UPDATE dbo.PIP_T_Inspection
-                SET IsApprove=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
-                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',
-                    UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
-                WHERE InspectionID=@p_InspectionID;
-
-            INSERT dbo.PIP_T_InspectionEmailOutbox
-            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-            VALUES
-            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
-             @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
-             N'Lightning Inspection approval update - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Daily Lightning Inspection Anda telah diproses.</p><p>Status: '+@V_NewStatus+
-             N'</p><p>Stage berikutnya: '+@V_NextStage+N'</p>',
-             N'Daily Lightning Inspection status: '+@V_NewStatus+N'. Stage: '+@V_NextStage,'PENDING',0,GETDATE());
-
-            IF @V_Stage='CHIEF_ENG'
-                INSERT dbo.PIP_T_InspectionEmailOutbox
-                (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-                 EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-                VALUES
-                ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC',
-                 @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
-                 N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
-                 N'<p>Chief Engineering telah approve. Daily Lightning Inspection menunggu review Chief Security.</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-                 N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
-        END;
-
+            IF @V_EmailEnabled=1
+            BEGIN
+                            INSERT dbo.PIP_T_InspectionEmailOutbox
+                            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+                             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+                            VALUES
+                            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
+                             @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
+                             N'Lightning Inspection perlu diperbaiki - '+ISNULL(@V_InspectionNo,''),
+                             N'<p>Daily Lightning Inspection dikembalikan untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
+                             N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
+                             N'Daily Lightning Inspection dikembalikan. Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
+                        END
+                        ELSE
+                        BEGIN
+                            IF @V_Stage='CHIEF_SEC'
+                                UPDATE dbo.PIP_T_Inspection
+                                SET IsApprove=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
+                                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',
+                                    UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+                                WHERE InspectionID=@p_InspectionID;
+                
+                            INSERT dbo.PIP_T_InspectionEmailOutbox
+                            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+                             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+                            VALUES
+                            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
+                             @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
+                             N'Lightning Inspection approval update - '+ISNULL(@V_InspectionNo,''),
+                             N'<p>Daily Lightning Inspection Anda telah diproses.</p><p>Status: '+@V_NewStatus+
+                             N'</p><p>Stage berikutnya: '+@V_NextStage+N'</p>',
+                             N'Daily Lightning Inspection status: '+@V_NewStatus+N'. Stage: '+@V_NextStage,'PENDING',0,GETDATE());
+                
+                            IF @V_Stage='CHIEF_ENG'
+                                INSERT dbo.PIP_T_InspectionEmailOutbox
+                                (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+                                 EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+                                VALUES
+                                ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC',
+                                 @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
+                                 N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
+                                 N'<p>Chief Engineering telah approve. Daily Lightning Inspection menunggu review Chief Security.</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                                 N'Daily Lightning Inspection menunggu approval Chief Security. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
+                        END;
+                
+                
+            END;
         IF @V_TranCount=0 COMMIT TRANSACTION;
         SELECT @V_NewStatus WorkflowStatus,@V_NextStage CurrentStageCode,@V_EventID ApprovalEventID;
     END TRY
