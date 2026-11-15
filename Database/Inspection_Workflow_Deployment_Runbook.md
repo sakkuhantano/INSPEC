@@ -17,14 +17,16 @@ Run the scripts below in SQL Server Management Studio against the target INSPEC 
 5. `InspectionApproval_Workflow_Procedures.sql`
 6. `LightningInspection_Sync_Procedure.sql`
 
-The schema script creates the location-level Chief Engineering / Chief Security setup, section-level SPV setup, approval history, workflow state, and email outbox. It also adds `ChiefEngSectionID` and `ChiefSecSectionID` to existing installations.
+The schema script creates only the generic approval history, workflow state, and email outbox. Approval routing and email switches are stored in the existing `dbo.SysWebCommonValue` table under `AppID='INSPEC'`, `CommonGroup='EmailApproval'`.
 
 
-### Email notification mode configuration
-Run `Database/InspectionEmailMode_Config.sql` after `InspectionEmailApproval_Schema.sql` and before the workflow procedure scripts. It creates per-Company/Location switches for STANDARD, BATCH, and LIGHTNING. Approval itself is online-only; the switch controls email notification and approval-link delivery. Defaults are STANDARD=OFF, BATCH=OFF, LIGHTNING=ON.
 
 ## Application configuration
 
+- Configure approval routing from Inspection Master -> Inspection Email & Approval Routing. The page writes only to `dbo.SysWebCommonValue`.
+- Routing key format: `<CompanyID><LocationID>;CHIEF_ENG` / `CHIEF_SEC` with EmployeeID in Description; SPV uses `<CompanyID><LocationID>;SPV;<SectionID>`.
+- Email switches use `<CompanyID><LocationID>;EMAIL;STANDARD`, `BATCH`, and `LIGHTNING`, with Description `1` or `0`. Defaults are STANDARD=OFF, BATCH=OFF, LIGHTNING=ON.
+- If a development database already contains the temporary `PIP_M_InspectionEmailSetup*` tables from the earlier patch, run `InspectionEmailApproval_CommonValue_Migration.sql` once before removing those tables.
 - Set `smtpFrom` in `Web.config` to a sender address authorized by the SMTP relay.
 - Current relay defaults remain `smtp.varnion.net:25`, SSL disabled, and blank credentials. Confirm the relay policy and configure credentials if required.
 - Pending/failed email notifications remain in `PIP_T_InspectionEmailOutbox`; dispatch is retried after inspection sync, approval actions, and approval queue loads.
@@ -43,9 +45,9 @@ Run `Database/InspectionEmailMode_Config.sql` after `InspectionEmailApproval_Sch
 
 Before enabling users, verify:
 
-- Chief and SPV employee records have non-empty `M_HRD_Employee.emailaddress`.
-- Chief and SPV employees have active Company + Location access.
-- Every inspection Section has an active SPV mapping.
+- Chief and SPV employee records have active Company + Location access.
+- If email is enabled for a mode, the relevant recipients have non-empty `M_HRD_Employee.emailaddress`.
+- Every inspection Section has an active SPV mapping in `SysWebCommonValue`.
 - Chief Engineering and Chief Security are different employees.
 - The SQL scripts complete without errors and the procedures exist.
 - The application compiles under the existing .NET Framework 4.5 / VS2013 project.
