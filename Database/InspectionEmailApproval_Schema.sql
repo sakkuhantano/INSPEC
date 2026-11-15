@@ -17,65 +17,13 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 GO
 
-IF OBJECT_ID('dbo.PIP_M_InspectionEmailSetup', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_M_InspectionEmailSetup
-    (
-        CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(3) NOT NULL,
-        ChiefEngSectionID VARCHAR(10) NULL,
-        ChiefEngEmployeeID VARCHAR(50) NOT NULL,
-        ChiefSecSectionID VARCHAR(10) NULL,
-        ChiefSecEmployeeID VARCHAR(50) NOT NULL,
-        IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetup_IsActive DEFAULT (1),
-        EntryUser VARCHAR(50) NOT NULL,
-        EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetup_EntryDate DEFAULT (GETDATE()),
-        UpdateUser VARCHAR(50) NOT NULL,
-        UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetup_UpdateDate DEFAULT (GETDATE()),
-        CONSTRAINT PK_PIP_M_InspectionEmailSetup PRIMARY KEY CLUSTERED (CompanyID, LocationID)
-    );
-END;
-GO
-
-/* Existing installations: add the selected section context for Chief pickers. */
-IF COL_LENGTH('dbo.PIP_M_InspectionEmailSetup','ChiefEngSectionID') IS NULL
-    ALTER TABLE dbo.PIP_M_InspectionEmailSetup ADD ChiefEngSectionID VARCHAR(10) NULL;
-IF COL_LENGTH('dbo.PIP_M_InspectionEmailSetup','ChiefSecSectionID') IS NULL
-    ALTER TABLE dbo.PIP_M_InspectionEmailSetup ADD ChiefSecSectionID VARCHAR(10) NULL;
-GO
-UPDATE S
-SET ChiefEngSectionID=E.SectionID
-FROM dbo.PIP_M_InspectionEmailSetup S
-JOIN dbo.M_HRD_Employee E ON E.EmployeeID=S.ChiefEngEmployeeID
-WHERE ISNULL(S.ChiefEngSectionID,'')='';
-UPDATE S
-SET ChiefSecSectionID=E.SectionID
-FROM dbo.PIP_M_InspectionEmailSetup S
-JOIN dbo.M_HRD_Employee E ON E.EmployeeID=S.ChiefSecEmployeeID
-WHERE ISNULL(S.ChiefSecSectionID,'')='';
-GO
-
-IF OBJECT_ID('dbo.PIP_M_InspectionEmailSetupSection', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_M_InspectionEmailSetupSection
-    (
-        CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(3) NOT NULL,
-        SectionID VARCHAR(10) NOT NULL,
-        SPVEmployeeID VARCHAR(50) NOT NULL,
-        IsActive BIT NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetupSection_IsActive DEFAULT (1),
-        EntryUser VARCHAR(50) NOT NULL,
-        EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetupSection_EntryDate DEFAULT (GETDATE()),
-        UpdateUser VARCHAR(50) NOT NULL,
-        UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_M_InspectionEmailSetupSection_UpdateDate DEFAULT (GETDATE()),
-        CONSTRAINT PK_PIP_M_InspectionEmailSetupSection
-            PRIMARY KEY CLUSTERED (CompanyID, LocationID, SectionID),
-        CONSTRAINT FK_PIP_M_InspectionEmailSetupSection_Header
-            FOREIGN KEY (CompanyID, LocationID)
-            REFERENCES dbo.PIP_M_InspectionEmailSetup (CompanyID, LocationID)
-    );
-END;
-GO
+/* Inspection routing/configuration is stored in dbo.SysWebCommonValue.
+   CommonGroup='EmailApproval':
+     <CompanyID><LocationID>;CHIEF_ENG      -> Description=EmployeeID
+     <CompanyID><LocationID>;CHIEF_SEC      -> Description=EmployeeID
+     <CompanyID><LocationID>;SPV;<SectionID> -> Description=EmployeeID
+     <CompanyID><LocationID>;EMAIL;STANDARD/BATCH/LIGHTNING -> Description=1/0
+   No INSPEC-specific setup tables are required. */
 
 IF OBJECT_ID('dbo.PIP_T_InspectionApprovalHistory', 'U') IS NULL
 BEGIN
