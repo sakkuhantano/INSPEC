@@ -150,14 +150,30 @@
         const toastContainer = document.querySelector('.toast-container');
         if (!toastContainer) return;
 
-        const closeButton = toast.querySelector('.toast-close');
-        closeButton.addEventListener('click', function () {
+        function dismissToast() {
+            if (!toast.parentNode || toast.classList.contains('hide')) return;
             toast.classList.remove('show');
             toast.classList.add('hide');
             window.setTimeout(function () {
                 if (toast.parentNode) toast.remove();
             }, 250);
-        });
+        }
+
+        const closeButton = toast.querySelector('.toast-close');
+        closeButton.addEventListener('click', dismissToast);
+
+        // Desktop keyboard shortcut: Escape closes the currently visible toast.
+        if (!document.__inspecToastEscapeHandler) {
+            document.__inspecToastEscapeHandler = function (event) {
+                if (event.key !== 'Escape' && event.keyCode !== 27) return;
+                const visibleToast = document.querySelector('.custom-toast.show');
+                if (!visibleToast) return;
+
+                const visibleCloseButton = visibleToast.querySelector('.toast-close');
+                if (visibleCloseButton) visibleCloseButton.click();
+            };
+            document.addEventListener('keydown', document.__inspecToastEscapeHandler);
+        }
 
         toastContainer.appendChild(toast);
         requestAnimationFrame(() => toast.classList.add('show'));
