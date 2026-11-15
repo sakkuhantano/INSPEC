@@ -88,9 +88,9 @@ BEGIN
      VALUES
       ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV',@EventID,'INSPECTION',@p_InspectionID,
        'APPROVER',@SPV,@SPVEmail,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
-       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
+       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>Teknisi: '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N')</p><p>Approver: '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N')</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
        N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
-       N'Inspection menunggu approval SPV. '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
+       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N'). '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
       ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
        'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
        N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').</p>',
