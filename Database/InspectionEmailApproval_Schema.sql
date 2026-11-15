@@ -6,10 +6,13 @@
       SPV, CHIEF_ENG, CHIEF_SEC.
     No role master table is introduced.
 
-    Routing scope:
-      - Chief Engineering and Chief Security: one configuration per Company + Location.
-      - SPV: one employee mapping per Company + Location + Section.
-      - Employee IDs are stored; application resolves Name/emailaddress from M_HRD_Employee.
+    Routing/configuration:
+      - Stored in the existing dbo.SysWebCommonValue multi-setup table.
+      - CommonGroup='EmailApproval'.
+      - Chief Engineering / Chief Security: <CompanyID><LocationID>;CHIEF_ENG / CHIEF_SEC.
+      - SPV: <CompanyID><LocationID>;SPV;<SectionID>.
+      - Email switches: <CompanyID><LocationID>;EMAIL;STANDARD / BATCH / LIGHTNING.
+      - Employee IDs are stored in Description; application resolves Name/emailaddress from M_HRD_Employee.
     Generic approval history/outbox supports both PIP_T_Inspection and the separate
     Lightning daily inspection transaction without forcing Lightning into PIP_T_Inspection.
 */
