@@ -47,6 +47,42 @@
         </div>
     </div>
 
+    <div class="card email-setup-card mb-3">
+        <div class="card-header py-3"><i class="bi bi-bell me-2"></i>Email Notification per Inspection Mode</div>
+        <div class="card-body">
+            <div class="form-text mb-3">
+                Approval Chief Engineering, Chief Security, dan SPV tetap dilakukan <strong>online</strong>.
+                Setting di bawah hanya menentukan apakah INSPEC mengirim notifikasi email dan link menuju halaman approval.
+            </div>
+            <div class="row g-3">
+                <div class="col-12 col-md-4">
+                    <div class="form-check border rounded p-3 h-100">
+                        <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" />
+                        <label class="form-check-label fw-semibold" for="<%= chkEmailStandard.ClientID %>">STANDARD</label>
+                        <div class="form-text">Email submit / approval / void untuk Standard.</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="form-check border rounded p-3 h-100">
+                        <asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" />
+                        <label class="form-check-label fw-semibold" for="<%= chkEmailBatch.ClientID %>">BATCH</label>
+                        <div class="form-text">Email submit / approval / void untuk Batch.</div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <div class="form-check border rounded p-3 h-100">
+                        <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" />
+                        <label class="form-check-label fw-semibold" for="<%= chkEmailLightning.ClientID %>">LIGHTNING</label>
+                        <div class="form-text">Email workflow CHECKED → ACKNOWLEDGE 1 → ACKNOWLEDGE.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-3">
+                <asp:Button ID="btnSaveEmailMode" runat="server" Text="Save Email Settings" CssClass="btn btn-primary" OnClick="btnSaveEmailMode_Click" />
+            </div>
+        </div>
+    </div>
+
     <div class="card email-setup-card">
         <div class="card-header py-3"><i class="bi bi-people me-2"></i>SPV recipient per Section</div>
         <div class="card-body">
