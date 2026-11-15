@@ -59,6 +59,7 @@ SELECT CASE WHEN EXISTS
             BindSections();
             BindChiefSections();
             LoadHeader();
+            LoadEmailModeSettings();
             BindSPVEmployees();
             LoadSectionSPV();
         }
@@ -205,6 +206,33 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
             }
         }
 
+        private void LoadEmailModeSettings()
+        {
+            chkEmailStandard.Checked = false;
+            chkEmailBatch.Checked = false;
+            chkEmailLightning.Checked = true;
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQueryP(@"
+SELECT InspectionMode,IsEmailEnabled
+FROM dbo.PIP_M_InspectionEmailSetupMode
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID)
+                    });
+                foreach (DataRow row in dt.Rows)
+                {
+                    bool enabled = Convert.ToBoolean(row["IsEmailEnabled"]);
+                    string mode = Convert.ToString(row["InspectionMode"]);
+                    if (String.Equals(mode, "STANDARD", StringComparison.OrdinalIgnoreCase)) chkEmailStandard.Checked = enabled;
+                    else if (String.Equals(mode, "BATCH", StringComparison.OrdinalIgnoreCase)) chkEmailBatch.Checked = enabled;
+                    else if (String.Equals(mode, "LIGHTNING", StringComparison.OrdinalIgnoreCase)) chkEmailLightning.Checked = enabled;
+                }
+            }
+        }
+
         private void LoadSectionSPV()
         {
             if (String.IsNullOrWhiteSpace(ddlSection.SelectedValue)) return;
@@ -269,7 +297,6 @@ IF NOT EXISTS
     WHERE E.EmployeeID=@ChiefEng AND E.CompanyID=@CompanyID
       AND E.SectionID=@ChiefEngSectionID AND S.SectionID=@ChiefEngSectionID
       AND ISNULL(E.TerminationDate,'')=''
-      AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
@@ -278,7 +305,7 @@ IF NOT EXISTS
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
-    RAISERROR('Chief Engineering harus employee aktif pada section terpilih dan memiliki akses approval serta email.',16,1);
+    RAISERROR('Chief Engineering harus employee aktif pada section terpilih dan memiliki akses approval.',16,1);
     RETURN;
 END;
 IF NOT EXISTS
@@ -297,7 +324,7 @@ IF NOT EXISTS
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
-    RAISERROR('Chief Security harus employee aktif pada section terpilih dan memiliki akses approval serta email.',16,1);
+    RAISERROR('Chief Security harus employee aktif pada section terpilih dan memiliki akses approval.',16,1);
     RETURN;
 END;
 
@@ -330,6 +357,61 @@ COMMIT TRANSACTION",
             catch (Exception ex) { ShowMessage(ex.Message, true); }
         }
 
+        protected void btnSaveEmailMode_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                EnsureAdministrator();
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetup WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1)
+    RAISERROR('Simpan routing Chief Engineering dan Chief Security terlebih dahulu.',16,1);
+
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
+               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='STANDARD')
+    INSERT dbo.PIP_M_InspectionEmailSetupMode
+        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
+    VALUES (@CompanyID,@LocationID,'STANDARD',@Standard,@UserID,@UserID);
+ELSE
+    UPDATE dbo.PIP_M_InspectionEmailSetupMode
+    SET IsEmailEnabled=@Standard,UpdateUser=@UserID,UpdateDate=GETDATE()
+    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='STANDARD';
+
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
+               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='BATCH')
+    INSERT dbo.PIP_M_InspectionEmailSetupMode
+        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
+    VALUES (@CompanyID,@LocationID,'BATCH',@Batch,@UserID,@UserID);
+ELSE
+    UPDATE dbo.PIP_M_InspectionEmailSetupMode
+    SET IsEmailEnabled=@Batch,UpdateUser=@UserID,UpdateDate=GETDATE()
+    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='BATCH';
+
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionEmailSetupMode
+               WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='LIGHTNING')
+    INSERT dbo.PIP_M_InspectionEmailSetupMode
+        (CompanyID,LocationID,InspectionMode,IsEmailEnabled,EntryUser,UpdateUser)
+    VALUES (@CompanyID,@LocationID,'LIGHTNING',@Lightning,@UserID,@UserID);
+ELSE
+    UPDATE dbo.PIP_M_InspectionEmailSetupMode
+    SET IsEmailEnabled=@Lightning,UpdateUser=@UserID,UpdateDate=GETDATE()
+    WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND InspectionMode='LIGHTNING';",
+                        new SqlParameter[] {
+                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@Standard", chkEmailStandard.Checked),
+                            new SqlParameter("@Batch", chkEmailBatch.Checked),
+                            new SqlParameter("@Lightning", chkEmailLightning.Checked),
+                            new SqlParameter("@UserID", Master.Mn_EmployeeID)
+                        });
+                }
+                ShowMessage("Pengaturan email per Inspection Mode berhasil disimpan. Approval tetap online.", false);
+                BindPage();
+            }
+            catch (Exception ex) { ShowMessage(ex.Message, true); }
+        }
+
         protected void btnSaveSPV_Click(object sender, EventArgs e)
         {
             try
@@ -347,7 +429,6 @@ IF NOT EXISTS
     SELECT 1 FROM dbo.M_HRD_Employee E
     WHERE E.EmployeeID=@SPV AND E.CompanyID=@CompanyID
       AND E.SectionID=@SectionID AND ISNULL(E.TerminationDate,'')=''
-      AND LTRIM(RTRIM(ISNULL(E.emailaddress,'')))<>''
       AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
                   WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@CompanyID
                     AND CL.LocationID=@LocationID)
@@ -356,7 +437,7 @@ IF NOT EXISTS
                     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
 )
 BEGIN
-    RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki email.',16,1);
+    RAISERROR('SPV harus employee aktif pada Company dan Section terpilih serta memiliki akses approval.',16,1);
     RETURN;
 END;
 IF NOT EXISTS
