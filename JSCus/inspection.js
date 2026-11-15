@@ -1362,14 +1362,61 @@ function applyInspectionPhotoRequirement(record) {
     return requirement;
 }
 
+function getInspectionLightningWorkflowStatus(record) {
+    if (!record || String(record.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "DRAFT";
+    if (isInspectionFlagEnabled(record.IsApprovedFinal, false)) return "ACKNOWLEDGE";
+    if (isInspectionFlagEnabled(record.IsApproved, false)) return "ACKNOWLEDGE 1";
+    if (isInspectionFlagEnabled(record.IsSubmitted, false)) return "CHECKED";
+    return "DRAFT";
+}
+
+function renderInspectionLightningWorkflowCards(record) {
+    const host = document.getElementById("inspectionLightningWorkflowCards");
+    if (!host || !record || String(record.InspectionMode || "").toUpperCase() !== "LIGHTNING") {
+        if (host) host.innerHTML = "";
+        return;
+    }
+
+    const workflow = getInspectionLightningWorkflowStatus(record);
+    const completed = workflow === "ACKNOWLEDGE" ? 3 :
+        workflow === "ACKNOWLEDGE 1" ? 2 :
+        workflow === "CHECKED" ? 1 : 0;
+
+    const stages = [
+        { label: "CHECKED", description: "Technician submitted", color: "primary" },
+        { label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", color: "warning" },
+        { label: "ACKNOWLEDGE", description: "Chief Security approved", color: "success" }
+    ];
+
+    host.innerHTML = '<div class="row g-2 mb-3">' + stages.map(function (stage, index) {
+        const done = index < completed;
+        const bgClass = done ? "bg-" + stage.color + "-subtle" : "bg-body-secondary";
+        const borderClass = done ? "border-" + stage.color : "border-secondary-subtle";
+        const textClass = done ? "text-" + stage.color + "-emphasis" : "text-secondary";
+        return '<div class="col-12 col-md-4">' +
+            '<div class="border rounded-3 p-2 h-100 ' + bgClass + ' ' + borderClass + '">' +
+            '<div class="small fw-bold ' + textClass + '">' + escInspection(stage.label) + '</div>' +
+            '<div class="small ' + (done ? textClass : "text-secondary") + '">' +
+            escInspection(done ? "Completed" : (workflow === "DRAFT" ? "Waiting for technician submit" : stage.description)) +
+            '</div></div></div>';
+    }).join("") + '</div>';
+}
+
 window.mountInspectionBatchSummary = function (record) {
     const host = document.getElementById("inspectionMapSummaryHost");
     const checklistPane = document.getElementById("inspectionChecklistPane");
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
     const reasonVoid = document.getElementById("inspectionReasonVoidPanel");
+    const workflowHost = document.getElementById("inspectionLightningWorkflowCards");
     if (!host || !checklistPane || !followUp || !summary) return;
     const isBatch = record && isInspectionMapMode(record.InspectionMode);
+    if (workflowHost) {
+        if (record && String(record.InspectionMode || "").toUpperCase() === "LIGHTNING")
+            renderInspectionLightningWorkflowCards(record);
+        else
+            workflowHost.innerHTML = "";
+    }
     if (isBatch) {
         host.appendChild(followUp);
         host.appendChild(summary);
@@ -5321,12 +5368,14 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
         const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 2 : workflow === "CHECKED" ? 1 : 0;
         return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
             const done = index < completed;
-            const current = index === completed && workflow !== "ACKNOWLEDGE" && workflow !== "VOID";
+            const bgClass = done ? "bg-" + (index === 0 ? "primary" : index === 1 ? "warning" : "success") + "-subtle" : "bg-body-secondary";
+            const borderClass = done ? "border-" + (index === 0 ? "primary" : index === 1 ? "warning" : "success") : "border-secondary-subtle";
+            const textClass = done ? "text-" + (index === 1 ? "warning" : index === 2 ? "success" : "primary") + "-emphasis" : "text-secondary";
             const returned = workflow === "VOID";
             return '<div class="col-12 col-md-4"><div class="border rounded-3 p-2 h-100 ' +
-                (done ? 'border-success' : current ? 'border-primary' : returned ? 'border-warning' : '') + '">' +
-                '<div class="small fw-bold">' + escInspection(stage.label) + '</div>' +
-                '<div class="small text-muted">' + escInspection(returned ? "Returned for correction" :
+                bgClass + ' ' + borderClass + '">' +
+                '<div class="small fw-bold ' + textClass + '">' + escInspection(stage.label) + '</div>' +
+                '<div class="small ' + textClass + '">' + escInspection(returned ? "Returned for correction" :
                     done ? "Completed" : current ? "Waiting for this stage" : stage.description) + '</div></div></div>';
         }).join("") + '</div>';
     })() : "";
