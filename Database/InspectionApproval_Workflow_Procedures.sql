@@ -19,7 +19,7 @@ BEGIN
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
          @EmailEnabled BIT,@SPV VARCHAR(50),@SPVEmail VARCHAR(320),@TechEmail VARCHAR(320),
-         @OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT;
+         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
@@ -27,13 +27,17 @@ BEGIN
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for SPV workflow.',16,1); RETURN; END;
- SELECT @EmailEnabled=ISNULL(E.IsEmailEnabled,CASE WHEN @Mode='LIGHTNING' THEN 1 ELSE 0 END)
- FROM dbo.PIP_M_InspectionEmailSetupMode E
- WHERE E.CompanyID=@C AND E.LocationID=@L AND E.InspectionMode=@Mode;
- SET @EmailEnabled=ISNULL(@EmailEnabled,CASE WHEN @Mode='LIGHTNING' THEN 1 ELSE 0 END);
+ SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
+ SELECT @EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
+ FROM dbo.SysWebCommonValue C
+ WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+   AND C.ID=@ConfigScope+';EMAIL;'+@Mode;
+ SET @EmailEnabled=ISNULL(@EmailEnabled,0);
  IF @Owner<>@p_ActorEmployeeID BEGIN RAISERROR('Only the inspection owner can submit this inspection.',16,1); RETURN; END;
- SELECT @SPV=SPVEmployeeID FROM dbo.PIP_M_InspectionEmailSetupSection
- WHERE CompanyID=@C AND LocationID=@L AND SectionID=@S AND IsActive=1;
+ SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
+ FROM dbo.SysWebCommonValue C
+ WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+   AND C.ID=@ConfigScope+';SPV;'+@S;
  IF ISNULL(@SPV,'')='' BEGIN RAISERROR('SPV routing is not configured for this Company, Location, and Section.',16,1); RETURN; END;
  IF NOT EXISTS
  (
@@ -130,11 +134,16 @@ BEGIN
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
   AND W.WorkflowStatus='SUBMITTED' AND W.CurrentStageCode='SPV';
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for SPV approval.',16,1); RETURN; END;
- SELECT @EmailEnabled=ISNULL(E.IsEmailEnabled,0)
- FROM dbo.PIP_M_InspectionEmailSetupMode E
- WHERE E.CompanyID=@C AND E.LocationID=@L AND E.InspectionMode=@Mode;
- SELECT @SPV=SPVEmployeeID FROM dbo.PIP_M_InspectionEmailSetupSection
- WHERE CompanyID=@C AND LocationID=@L AND SectionID=@S AND IsActive=1;
+ SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
+ SELECT @EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
+ FROM dbo.SysWebCommonValue C
+ WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+   AND C.ID=@ConfigScope+';EMAIL;'+@Mode;
+ SET @EmailEnabled=ISNULL(@EmailEnabled,0);
+ SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
+ FROM dbo.SysWebCommonValue C
+ WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+   AND C.ID=@ConfigScope+';SPV;'+@S;
  IF @SPV<>@p_ActorEmployeeID BEGIN RAISERROR('You are not the configured SPV for this Section.',16,1); RETURN; END;
  IF @EmailEnabled=1
  BEGIN
