@@ -51,10 +51,10 @@ BEGIN
       WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
  )
  BEGIN RAISERROR('Configured SPV is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
+ SELECT @SPVName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@SPV),@SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
+ SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  IF @EmailEnabled=1
  BEGIN
-  SELECT @SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
-  SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
   IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')=''
   BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
@@ -93,8 +93,8 @@ BEGIN
        N'Inspection menunggu approval SPV. '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
       ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
        'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
-       N'<p>Inspection Anda telah dikirim dan menunggu approval SPV.</p>',
-       N'Inspection Anda telah dikirim dan menunggu approval SPV.','PENDING',0,GETDATE());
+       N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').</p>',
+       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').','PENDING',0,GETDATE());
    
   END;
   IF @TranCount=0 COMMIT TRANSACTION;
@@ -144,9 +144,10 @@ BEGIN
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
  IF @SPV<>@p_ActorEmployeeID BEGIN RAISERROR('You are not the configured SPV for this Section.',16,1); RETURN; END;
+ SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
+ SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID) FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
  IF @EmailEnabled=1
  BEGIN
-  SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
   IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
  SET @NewStatus=CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOID' END;
