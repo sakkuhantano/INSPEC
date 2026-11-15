@@ -19,6 +19,10 @@ Run the scripts below in SQL Server Management Studio against the target INSPEC 
 
 The schema script creates the location-level Chief Engineering / Chief Security setup, section-level SPV setup, approval history, workflow state, and email outbox. It also adds `ChiefEngSectionID` and `ChiefSecSectionID` to existing installations.
 
+
+### Email notification mode configuration
+Run `Database/InspectionEmailMode_Config.sql` after `InspectionEmailApproval_Schema.sql` and before the workflow procedure scripts. It creates per-Company/Location switches for STANDARD, BATCH, and LIGHTNING. Approval itself is online-only; the switch controls email notification and approval-link delivery. Defaults are STANDARD=OFF, BATCH=OFF, LIGHTNING=ON.
+
 ## Application configuration
 
 - Set `smtpFrom` in `Web.config` to a sender address authorized by the SMTP relay.
