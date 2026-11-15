@@ -170,15 +170,15 @@ BEGIN
             ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG',
              @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_ChiefEngID,@V_ChiefEngEmail,
              N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
+             N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Teknisi: '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N')</p><p>Approver berikutnya: '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N')</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
              N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
              N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
              N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
             ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
              @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
              N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Daily Lightning Inspection Anda telah dikirim dan berstatus CHECKED.</p><p>Menunggu review Chief Engineering.</p>',
-             N'Daily Lightning Inspection Anda telah dikirim. Status: CHECKED.','PENDING',0,GETDATE());
+             N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu review Chief Engineering '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N').</p>',
+             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu review Chief Engineering '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N'). Status: CHECKED.','PENDING',0,GETDATE());
         END;
 
         IF @V_TranCount=0 COMMIT TRANSACTION;
@@ -351,9 +351,9 @@ BEGIN
                 ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
                  @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
                  N'Lightning Inspection approval update - '+ISNULL(@V_InspectionNo,''),
-                 N'<p>Daily Lightning Inspection Anda telah diproses.</p><p>Status: '+@V_NewStatus+
+                 N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah diproses oleh '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').</p><p>Status: '+@V_NewStatus+
                  N'</p><p>Stage berikutnya: '+@V_NextStage+N'</p>',
-                 N'Daily Lightning Inspection status: '+@V_NewStatus+N'. Stage: '+@V_NextStage,'PENDING',0,GETDATE());
+                 N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah diproses oleh '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). Status: '+@V_NewStatus+N'. Stage: '+@V_NextStage,'PENDING',0,GETDATE());
 
                 IF @V_Stage='CHIEF_ENG'
                     INSERT dbo.PIP_T_InspectionEmailOutbox
