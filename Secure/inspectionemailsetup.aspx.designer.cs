@@ -17,7 +17,7 @@ namespace INSPEC.Secure
   protected global::System.Web.UI.WebControls.TextBox txtSPV;
   protected global::System.Web.UI.WebControls.LinkButton lBtnSPV;
   protected global::System.Web.UI.WebControls.Label lblSPVName;
-  protected global::System.Web.UI.WebControls.Button btnSaveSPV;
+  protected global::System.Web.UI.WebControls.Button btnNewSPV;\n  protected global::System.Web.UI.WebControls.Button btnSaveSPV;
   protected global::System.Web.UI.WebControls.Button btnCancelSPV;
   protected global::System.Web.UI.WebControls.GridView gvSPV;
   protected global::System.Web.UI.WebControls.CheckBox chkEmailStandard;
