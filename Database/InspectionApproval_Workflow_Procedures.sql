@@ -18,7 +18,7 @@ BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
-         @SPV VARCHAR(50),@SPVEmail VARCHAR(320),@TechEmail VARCHAR(320),
+         @EmailEnabled BIT,@SPV VARCHAR(50),@SPVEmail VARCHAR(320),@TechEmail VARCHAR(320),
          @OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
@@ -27,6 +27,10 @@ BEGIN
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsApprove,0)=0
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for SPV workflow.',16,1); RETURN; END;
+ SELECT @EmailEnabled=ISNULL(E.IsEmailEnabled,CASE WHEN @Mode='LIGHTNING' THEN 1 ELSE 0 END)
+ FROM dbo.PIP_M_InspectionEmailSetupMode E
+ WHERE E.CompanyID=@C AND E.LocationID=@L AND E.InspectionMode=@Mode;
+ SET @EmailEnabled=ISNULL(@EmailEnabled,CASE WHEN @Mode='LIGHTNING' THEN 1 ELSE 0 END);
  IF @Owner<>@p_ActorEmployeeID BEGIN RAISERROR('Only the inspection owner can submit this inspection.',16,1); RETURN; END;
  SELECT @SPV=SPVEmployeeID FROM dbo.PIP_M_InspectionEmailSetupSection
  WHERE CompanyID=@C AND LocationID=@L AND SectionID=@S AND IsActive=1;
@@ -42,9 +46,13 @@ BEGIN
       WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
  )
  BEGIN RAISERROR('Configured SPV is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
- SELECT @SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
- SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
- IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')='' BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+ IF @EmailEnabled=1
+ BEGIN
+  SELECT @SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
+  SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
+  IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')=''
+  BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+ END;
  SELECT @OldStatus=WorkflowStatus FROM dbo.PIP_T_InspectionWorkflow WITH (UPDLOCK,HOLDLOCK)
  WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID;
  IF @OldStatus='SUBMITTED' RETURN;
@@ -71,18 +79,22 @@ BEGIN
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'TECHNICIAN',@Action,@p_ActorEmployeeID,GETDATE(),NULL);
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
-  INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-   EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-  VALUES
-   ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV',@EventID,'INSPECTION',@p_InspectionID,
-    'APPROVER',@SPV,@SPVEmail,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
-    N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
-    N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
-    N'Inspection menunggu approval SPV. '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
-   ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-    'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
-    N'<p>Inspection Anda telah dikirim dan menunggu approval SPV.</p>',
-    N'Inspection Anda telah dikirim dan menunggu approval SPV.','PENDING',0,GETDATE());
+  IF @EmailEnabled=1
+  BEGIN
+     INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+     VALUES
+      ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV',@EventID,'INSPECTION',@p_InspectionID,
+       'APPROVER',@SPV,@SPVEmail,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
+       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
+       N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
+       N'Inspection menunggu approval SPV. '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
+      ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
+       'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
+       N'<p>Inspection Anda telah dikirim dan menunggu approval SPV.</p>',
+       N'Inspection Anda telah dikirim dan menunggu approval SPV.','PENDING',0,GETDATE());
+   
+  END;
   IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
@@ -110,18 +122,25 @@ BEGIN
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(50),
-         @TechEmail VARCHAR(320),@EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
- SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo
+         @Mode VARCHAR(10),@EmailEnabled BIT,@TechEmail VARCHAR(320),@EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
+ SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
+        @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  JOIN dbo.PIP_T_InspectionWorkflow W WITH (UPDLOCK,HOLDLOCK) ON W.EntityType='INSPECTION' AND W.EntityID=I.InspectionID
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
   AND W.WorkflowStatus='SUBMITTED' AND W.CurrentStageCode='SPV';
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for SPV approval.',16,1); RETURN; END;
+ SELECT @EmailEnabled=ISNULL(E.IsEmailEnabled,0)
+ FROM dbo.PIP_M_InspectionEmailSetupMode E
+ WHERE E.CompanyID=@C AND E.LocationID=@L AND E.InspectionMode=@Mode;
  SELECT @SPV=SPVEmployeeID FROM dbo.PIP_M_InspectionEmailSetupSection
  WHERE CompanyID=@C AND LocationID=@L AND SectionID=@S AND IsActive=1;
  IF @SPV<>@p_ActorEmployeeID BEGIN RAISERROR('You are not the configured SPV for this Section.',16,1); RETURN; END;
- SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
- IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+ IF @EmailEnabled=1
+ BEGIN
+  SELECT @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
+  IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+ END;
  SET @NewStatus=CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOID' END;
  SET @NextStage=CASE WHEN @p_Action='APPROVE' THEN 'COMPLETED' ELSE 'TECHNICIAN' END;
  SET @TranCount=@@TRANCOUNT;
@@ -153,12 +172,16 @@ BEGIN
    UPDATE dbo.PIP_T_Inspection SET IsApprove=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
-   INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-    EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-   VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-    'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah di-approve - '+ISNULL(@No,''),
-    N'<p>Inspection Anda telah di-approve oleh SPV.</p>',N'Inspection Anda telah di-approve oleh SPV.','PENDING',0,GETDATE());
-  END;
+   IF @EmailEnabled=1
+   BEGIN
+       INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+        EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+       VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
+        'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah di-approve - '+ISNULL(@No,''),
+        N'<p>Inspection Anda telah di-approve oleh SPV.</p>',N'Inspection Anda telah di-approve oleh SPV.','PENDING',0,GETDATE());
+      END;
+    
+   END;
   IF @TranCount=0 COMMIT TRANSACTION;
   SELECT @NewStatus WorkflowStatus,@NextStage CurrentStageCode,@EventID ApprovalEventID;
  END TRY
