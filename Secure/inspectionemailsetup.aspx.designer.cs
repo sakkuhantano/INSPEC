@@ -11,6 +11,10 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.DropDownList ddlChiefSecSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlChiefSec;
         protected global::System.Web.UI.WebControls.Button btnSaveHeader;
+        protected global::System.Web.UI.WebControls.CheckBox chkEmailStandard;
+        protected global::System.Web.UI.WebControls.CheckBox chkEmailBatch;
+        protected global::System.Web.UI.WebControls.CheckBox chkEmailLightning;
+        protected global::System.Web.UI.WebControls.Button btnSaveEmailMode;
         protected global::System.Web.UI.WebControls.DropDownList ddlSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlSPV;
         protected global::System.Web.UI.WebControls.Button btnSaveSPV;
