@@ -192,7 +192,7 @@ BEGIN
        VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
         'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah di-approve - '+ISNULL(@No,''),
         N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah di-approve oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').</p>',
-         N'Inspection '+ISNULL(@No,'')+N' telah di-approve oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').,'PENDING',0,GETDATE());
+         N'Inspection '+ISNULL(@No,'')+N' telah di-approve oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').','PENDING',0,GETDATE());
       END;
     
    END;
