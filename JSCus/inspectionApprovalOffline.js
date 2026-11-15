@@ -403,8 +403,6 @@
         catch (cleanupError) { console.warn("Approval cache cleanup failed:", cleanupError); }
         if (navigator.onLine) {
             const priorQueueCache = await getCache(cacheKey("QUEUE", "", currentInspectionApprovalTab));
-            try { await syncPendingApprovalActions(); }
-            catch (syncError) { console.warn("Pending approval sync could not run; continuing online queue load:", syncError); }
             await originalLoadApprovalQueue();
             try {
                 const actions = await readScopedActions();
@@ -453,42 +451,19 @@
     };
 
     window.processInspectionApproval = async function (action) {
-        if (navigator.onLine) return originalProcessApproval(action);
-        if (!selectedInspectionApproval) return;
-        const normalizedAction = String(action || "APPROVE").toUpperCase();
-        if (normalizedAction !== "APPROVE" && normalizedAction !== "VOID") {
-            showToast("Aksi approval tidak valid.", "warning");
+        if (!navigator.onLine) {
+            showToast("Approval INSPEC hanya dapat dilakukan saat online. Hubungkan internet lalu coba lagi.", "warning");
             return;
         }
-        const confirmed = await showConfirmation({
-            title: "Konfirmasi Approval Offline",
-            message: "Simpan aksi " + normalizedAction + " sebagai Pending Sync? Status belum resmi berubah sampai server mengonfirmasi.",
-            yesText: "Simpan Pending Sync"
-        });
-        if (!confirmed) return;
-        try {
-            const remark = (document.getElementById("txtInspectionApprovalRemark").value || "").trim();
-            if (normalizedAction === "VOID" && !remark) {
-                showToast("Reason for Void wajib diisi.", "warning");
-                return;
-            }
-            await queueOfflineActions([Number(selectedInspectionApproval.InspectionID)], normalizedAction, remark);
-            showToast(normalizedAction + " tersimpan lokal sebagai Pending Sync. Belum dianggap selesai sampai server mengonfirmasi.", "warning");
-            await decorateApprovalQueue();
-        } catch (err) {
-            showToast(err.message || "Aksi offline gagal disimpan.", "warning");
-        }
+        return originalProcessApproval(action);
     };
 
     window.executeInspectionApprovalAction = async function (ids, action, remark) {
-        if (navigator.onLine) return originalExecuteApprovalAction(ids, action, remark);
-        try {
-            const count = await queueOfflineActions(ids.map(Number), action, remark);
-            showToast(count + " aksi " + action + " tersimpan sebagai Pending Sync. Belum resmi sampai server mengonfirmasi.", "warning");
-            await loadInspectionApprovalQueue();
-        } catch (err) {
-            showToast(err.message || "Aksi offline gagal disimpan.", "warning");
+        if (!navigator.onLine) {
+            showToast("Approval INSPEC hanya dapat dilakukan saat online. Hubungkan internet lalu coba lagi.", "warning");
+            return;
         }
+        return originalExecuteApprovalAction(ids, action, remark);
     };
 
     async function cleanupExpiredApprovalCache() {
@@ -513,10 +488,8 @@
     }
 
     window.addEventListener("online", async function () {
-        if (!new URLSearchParams(window.location.search).get("type") === "approval") return;
+        if (new URLSearchParams(window.location.search).get("type") !== "approval") return;
         try {
-            try { await syncPendingApprovalActions(); }
-            catch (syncError) { console.warn("Approval sync on reconnect failed:", syncError); }
             await loadInspectionApprovalQueue();
         } catch (err) {
             console.warn("Approval queue refresh on reconnect failed:", err);
