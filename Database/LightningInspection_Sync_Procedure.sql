@@ -348,27 +348,9 @@ BEGIN
         )
             RAISERROR('The saved daily header is not configured as LIGHTNING mode.',16,1);
 
-        DELETE T
-        FROM dbo.PIP_T_InspectionLightningSchedule T
-        WHERE T.InspectionID=@V_InspectionID
-          AND NOT EXISTS (SELECT 1 FROM @p_Schedules S WHERE S.C1=T.ScheduleTime);
-
-        UPDATE T
-        SET T.ScheduleStatus='SUBMITTED',T.SubmittedDate=GETDATE(),
-            T.UpdateUser=@p_UpdateUser,T.UpdateDate=GETDATE()
-        FROM dbo.PIP_T_InspectionLightningSchedule T
-        JOIN @p_Schedules S ON S.C1=T.ScheduleTime
-        WHERE T.InspectionID=@V_InspectionID;
-
-        INSERT dbo.PIP_T_InspectionLightningSchedule
-        (InspectionID,ScheduleTime,ScheduleStatus,SubmittedDate,EntryUser,EntryDate,UpdateUser,UpdateDate)
-        SELECT @V_InspectionID,S.C1,'SUBMITTED',GETDATE(),@p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
-        FROM @p_Schedules S
-        WHERE NOT EXISTS
-        (
-            SELECT 1 FROM dbo.PIP_T_InspectionLightningSchedule T
-            WHERE T.InspectionID=@V_InspectionID AND T.ScheduleTime=S.C1
-        );
+        /* ScheduleTime is persisted on each PIP_T_InspectionPoint row below.
+           The configured master schedule list is validated from @p_Schedules; no
+           redundant per-header schedule table is maintained. */
 
         /* Remove old child results/photos before rebuilding the submitted local snapshot. */
         DELETE V

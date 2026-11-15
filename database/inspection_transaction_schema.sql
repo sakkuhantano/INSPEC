@@ -212,6 +212,22 @@ IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.PIP_T_Inspec
 ALTER TABLE dbo.PIP_T_Inspection ADD CONSTRAINT DF_PIP_T_Inspection_IsApprove DEFAULT (0) FOR IsApproved;
 GO
 
+
+/* Two-stage approval fields shared by STANDARD, BATCH, and LIGHTNING. */
+IF COL_LENGTH('dbo.PIP_T_Inspection','IsSubmitted') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsSubmitted BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsSubmitted DEFAULT (0);
+IF COL_LENGTH('dbo.PIP_T_Inspection','SubmittedBy') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD SubmittedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_SubmittedBy DEFAULT ('');
+IF COL_LENGTH('dbo.PIP_T_Inspection','SubmittedDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD SubmittedDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_SubmittedDate DEFAULT ('19000101');
+IF COL_LENGTH('dbo.PIP_T_Inspection','IsApprovedFinal') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsApprovedFinal BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsApprovedFinal DEFAULT (0);
+IF COL_LENGTH('dbo.PIP_T_Inspection','ApprovedFinalBy') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedFinalBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedFinalBy DEFAULT ('');
+IF COL_LENGTH('dbo.PIP_T_Inspection','ApprovedFinalDate') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedFinalDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedFinalDate DEFAULT ('19000101');
+GO
+
 /* Normalize nullable transaction fields to explicit defaults.
    Empty text is '', numeric/bit is 0, and missing dates use 1900-01-01. */
 UPDATE dbo.PIP_T_Inspection

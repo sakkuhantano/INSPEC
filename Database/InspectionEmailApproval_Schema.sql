@@ -13,8 +13,8 @@
       - SPV: <CompanyID><LocationID>;SPV;<SectionID>.
       - Email switches: <CompanyID><LocationID>;EMAIL;STANDARD / BATCH / LIGHTNING.
       - Employee IDs are stored in Description; application resolves Name/emailaddress from M_HRD_Employee.
-    Generic approval history/outbox supports both PIP_T_Inspection and the separate
-    Lightning daily inspection transaction without forcing Lightning into PIP_T_Inspection.
+    Approval history/outbox supports the single canonical PIP_T_Inspection header
+    for STANDARD, BATCH, and LIGHTNING modes. Workflow state lives on that header.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -63,45 +63,6 @@ IF NOT EXISTS
 BEGIN
     CREATE NONCLUSTERED INDEX IX_PIP_T_InspectionApprovalHistory_Entity
         ON dbo.PIP_T_InspectionApprovalHistory (EntityType, EntityID, ApprovalEventID);
-END;
-GO
-
-IF OBJECT_ID('dbo.PIP_T_InspectionWorkflow', 'U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_T_InspectionWorkflow
-    (
-        EntityType VARCHAR(20) NOT NULL,
-        EntityID BIGINT NOT NULL,
-        CompanyID VARCHAR(10) NOT NULL,
-        LocationID VARCHAR(3) NOT NULL,
-        SectionID VARCHAR(10) NULL,
-        WorkflowStatus VARCHAR(30) NOT NULL,
-        CurrentStageCode VARCHAR(20) NOT NULL,
-        SubmittedBy VARCHAR(50) NULL,
-        SubmittedDate DATETIME NULL,
-        LastActorEmployeeID VARCHAR(50) NOT NULL,
-        LastActionDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionWorkflow_LastActionDate DEFAULT (GETDATE()),
-        LastRemark NVARCHAR(1000) NULL,
-        CONSTRAINT PK_PIP_T_InspectionWorkflow PRIMARY KEY CLUSTERED (EntityType, EntityID),
-        CONSTRAINT CK_PIP_T_InspectionWorkflow_EntityType
-            CHECK (EntityType IN ('INSPECTION', 'LIGHTNING')),
-        CONSTRAINT CK_PIP_T_InspectionWorkflow_Status
-            CHECK (WorkflowStatus IN ('DRAFT', 'SUBMITTED', 'CHECKED', 'ACKNOWLEDGE 1', 'ACKNOWLEDGE', 'APPROVED', 'VOID')),
-        CONSTRAINT CK_PIP_T_InspectionWorkflow_Stage
-            CHECK (CurrentStageCode IN ('TECHNICIAN', 'SPV', 'CHIEF_ENG', 'CHIEF_SEC', 'COMPLETED'))
-    );
-END;
-GO
-
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID('dbo.PIP_T_InspectionWorkflow')
-      AND name = 'IX_PIP_T_InspectionWorkflow_Scope'
-)
-BEGIN
-    CREATE NONCLUSTERED INDEX IX_PIP_T_InspectionWorkflow_Scope
-        ON dbo.PIP_T_InspectionWorkflow (CompanyID, LocationID, WorkflowStatus, CurrentStageCode);
 END;
 GO
 

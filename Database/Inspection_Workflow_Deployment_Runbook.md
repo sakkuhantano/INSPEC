@@ -12,12 +12,13 @@ Run the scripts below in SQL Server Management Studio against the target INSPEC 
    - `InspectionPoint_RemoveCompanyLocation_Migration.sql`
      (only if the current Group Map / direct MapX+MapY schema and point scope are not already deployed)
 2. `InspectionEmailApproval_Schema.sql`
-3. `LightningInspection_Transaction_Migration.sql`
-4. `LightningInspection_Approval_Workflow.sql`
-5. `InspectionApproval_Workflow_Procedures.sql`
-6. `LightningInspection_Sync_Procedure.sql`
+3. `InspectionApproval_HeaderFields_Migration.sql`
+4. `LightningInspection_Transaction_Migration.sql`
+5. `LightningInspection_Approval_Workflow.sql`
+6. `InspectionApproval_Workflow_Procedures.sql`
+7. `LightningInspection_Sync_Procedure.sql`
 
-The schema script creates only the generic approval history, workflow state, and email outbox. Approval routing and email switches are stored in the existing `dbo.SysWebCommonValue` table under `AppID='INSPEC'`, `CommonGroup='EmailApproval'`.
+The schema script creates approval history and email outbox. Workflow state is stored on PIP_T_Inspection. Approval routing and email switches are stored in the existing `dbo.SysWebCommonValue` table under `AppID='INSPEC'`, `CommonGroup='EmailApproval'`.
 
 
 
@@ -31,7 +32,7 @@ The schema script creates only the generic approval history, workflow state, and
 - Current relay defaults remain `smtp.varnion.net:25`, SSL disabled, and blank credentials. Confirm the relay policy and configure credentials if required.
 - Pending/failed email notifications remain in `PIP_T_InspectionEmailOutbox`; dispatch is retried after inspection sync, approval actions, and approval queue loads.
 - The dispatcher records `LastAttemptDate` and automatically recovers `SENDING` rows left stale for more than 30 minutes after an app-pool recycle or process interruption; the fifth failed attempt remains terminal for manual review.
-- The setup page is available from Inspection Master. Configure two distinct Chief employees for the Company + Location, selecting each employee's actual section, then configure the SPV for every active inspection Section.
+- The setup page is available from Inspection Master. Configure two distinct Chief employees for the Company + Location, then configure the SPV for every active inspection Section.
 
 ## Workflow behavior
 
@@ -39,7 +40,7 @@ The schema script creates only the generic approval history, workflow state, and
 - Lightning: one daily InspectionID contains every configured ScheduleTime -> Technician submits -> Chief Engineering (`CHECKED` -> `ACKNOWLEDGE 1`) -> Chief Security (`ACKNOWLEDGE`).
 - A void requires a reason and returns the server record to the technician correction list. The authenticated correction email link opens that record.
 - Approval email links open the authenticated approval review; approval itself is only performed by an explicit same-origin POST action.
-- Lightning submission is locked while its approval workflow is active. Repeated submit requests return the existing server transaction instead of overwriting it.
+- Workflow state is held on PIP_T_Inspection (IsSubmitted, IsApproved, IsApprovedFinal and their actor/date fields). Every approver VOID resets all three stages and returns the record to DRAFT; the approval history remains intact. Lightning schedule tabs are derived from PIP_M_InspectionTypeDetail.ScheduleTime and PIP_T_InspectionPoint.ScheduleTime.
 
 ## Deployment checks
 

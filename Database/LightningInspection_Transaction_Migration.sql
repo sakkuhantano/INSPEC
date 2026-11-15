@@ -3,9 +3,9 @@
     SQL Server 2008 compatible; additive and safe to re-run.
 
     One PIP_T_Inspection header represents ONE daily Lightning submission.
-    PIP_T_InspectionLightningSchedule stores every ScheduleTime belonging to
-    the selected InspectionTypeDetailCode. PIP_T_InspectionPoint.ScheduleTime
-    assigns each point transaction to exactly one schedule.
+    ScheduleTime values come from PIP_M_InspectionTypeDetail and are assigned
+    directly to each PIP_T_InspectionPoint transaction row. No schedule child
+    table is required.
 
     Existing STANDARD and BATCH rows keep ScheduleTime=''. Their existing
     one-point-per-inspection uniqueness is preserved by the composite unique
@@ -51,37 +51,6 @@ GO
 ALTER TABLE dbo.PIP_T_Inspection
     ADD CONSTRAINT CK_PIP_T_Inspection_InspectionMode
     CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING','MAP'));
-GO
-
-IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NULL
-BEGIN
-    CREATE TABLE dbo.PIP_T_InspectionLightningSchedule
-    (
-        InspectionID BIGINT NOT NULL,
-        ScheduleTime VARCHAR(5) NOT NULL,
-        ScheduleStatus VARCHAR(12) NOT NULL
-            CONSTRAINT DF_PIP_T_InspectionLightningSchedule_Status DEFAULT ('DRAFT'),
-        SubmittedDate DATETIME NULL,
-        EntryUser VARCHAR(50) NOT NULL,
-        EntryDate DATETIME NOT NULL
-            CONSTRAINT DF_PIP_T_InspectionLightningSchedule_EntryDate DEFAULT (GETDATE()),
-        UpdateUser VARCHAR(50) NOT NULL,
-        UpdateDate DATETIME NOT NULL
-            CONSTRAINT DF_PIP_T_InspectionLightningSchedule_UpdateDate DEFAULT (GETDATE()),
-        CONSTRAINT PK_PIP_T_InspectionLightningSchedule
-            PRIMARY KEY CLUSTERED (InspectionID, ScheduleTime),
-        CONSTRAINT FK_PIP_T_InspectionLightningSchedule_Header
-            FOREIGN KEY (InspectionID) REFERENCES dbo.PIP_T_Inspection(InspectionID),
-        CONSTRAINT CK_PIP_T_InspectionLightningSchedule_Time CHECK
-        (
-            LEN(ScheduleTime)=5
-            AND ScheduleTime LIKE '[0-2][0-9]:[0-5][0-9]'
-            AND LEFT(ScheduleTime,2)<='23'
-        ),
-        CONSTRAINT CK_PIP_T_InspectionLightningSchedule_Status
-            CHECK (ScheduleStatus IN ('DRAFT','SUBMITTED'))
-    );
-END;
 GO
 
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','ScheduleTime') IS NULL
@@ -143,4 +112,9 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_PIP_T_InspectionLightningSchedule_Status
         ON dbo.PIP_T_InspectionLightningSchedule(InspectionID,ScheduleStatus,ScheduleTime);
 END;
+GO
+
+/* The daily header and point ScheduleTime values are the only transaction schedule storage. */
+IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NOT NULL
+    DROP TABLE dbo.PIP_T_InspectionLightningSchedule;
 GO
