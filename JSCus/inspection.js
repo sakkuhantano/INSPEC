@@ -1483,7 +1483,11 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         : "TEMP-" + String(record.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase();
     const startTime = formatInspectionClock(record.StartDateTime);
     const endTime = formatInspectionClock(record.EndDateTime);
+    const technicianId = record.OwnerEmployeeID || record.InspectionOwnerID || "";
+    const technicianName = record.TechnicianName ||
+        (technicianId === inspectionLogin.employeeid ? inspectionTechnicianName : "");
     setInspectionFormHeader(transactionNo, [
+        "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || "-"),
@@ -3624,6 +3628,7 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnSaveInspectionDraft").classList.add("d-none");
         document.getElementById("btnCompleteInspection").classList.add("d-none");
         setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
+            "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
@@ -3894,6 +3899,14 @@ function updateInspectionParameterTabGate() {
         ? "Pilih Inspection Point dari MAP terlebih dahulu."
         : (complete ? "" : "Lengkapi semua parameter inspeksi terlebih dahulu.");
 }
+function formatInspectionEmployeeLabel(name, employeeId) {
+    const id = String(employeeId || "").trim();
+    const displayName = String(name || "").trim();
+    if (displayName && id && displayName.toLowerCase() !== id.toLowerCase())
+        return displayName + " (" + id + ")";
+    return displayName || id || "—";
+}
+
 function setInspectionFormHeader(transactionNo, infoLines) {
     const title = document.getElementById("inspectionFormTitle");
     const infoButton = document.getElementById("btnInspectionFormInfo");
@@ -5019,7 +5032,7 @@ function renderInspectionApprovalQueue() {
             '<td data-label="Date">' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
             '<td data-label="Scheduled">' + escInspection(row.ScheduledTime || "-") + '</td>' +
             '<td data-label="Start – End">' + escInspection(range) + '</td>' +
-            '<td data-label="Technician">' + escInspection(row.TechnicianName || row.OwnerEmployeeName || row.OwnerEmployeeID || "") + '</td>' +
+            '<td data-label="Technician">' + escInspection(formatInspectionEmployeeLabel(row.TechnicianName || row.OwnerEmployeeName, row.OwnerEmployeeID)) + '</td>' +
             '</tr>';
     }).join("");
     updateInspectionApprovalSelectAll();
@@ -5761,7 +5774,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Date:</strong> ' + escInspection(formatInspectionDateDMY(h.InspectionDate) || "-") + '</div>' +
             '<div><strong>Scheduled:</strong> ' + escInspection(scheduledLabel) + '</div>' +
             '<div><strong>Start – End:</strong> ' + escInspection(start) + ' – ' + escInspection(end) + '</div>' +
-            '<div><strong>Technician:</strong> ' + escInspection(h.TechnicianName || h.OwnerEmployeeName || h.OwnerEmployeeID || "-") + '</div>' +
+            '<div><strong>Technician:</strong> ' + escInspection(formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID)) + '</div>' +
             '<div><strong>Section:</strong> ' + escInspection(h.SectionID || "-") + '</div></div></div>' +
             '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Template</div>' +
             '<div><strong>Template:</strong> ' + escInspection(h.TemplateNo || "-") + ' / v' + escInspection(h.TemplateVersion || "-") + '</div>' +
