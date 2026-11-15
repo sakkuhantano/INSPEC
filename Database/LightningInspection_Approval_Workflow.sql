@@ -147,27 +147,24 @@ BEGIN
 
         IF @V_EmailEnabled=1
         BEGIN
-                            INSERT dbo.PIP_T_InspectionEmailOutbox
-                                    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-                                     EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-                                    VALUES
-                                    ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG',
-                                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_ChiefEngID,@V_ChiefEngEmail,
-                                     N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
-                                     N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
-                                     N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
-                                     N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-                                     N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
-                                    ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
-                                     @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
-                                     N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
-                                     N'<p>Daily Lightning Inspection Anda telah dikirim dan berstatus CHECKED.</p><p>Menunggu review Chief Engineering.</p>',
-                                     N'Daily Lightning Inspection Anda telah dikirim. Status: CHECKED.','PENDING',0,GETDATE());
-                            
-                            
-                        END;
-                
-            END;
+            INSERT dbo.PIP_T_InspectionEmailOutbox
+            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+            VALUES
+            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG',
+             @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_ChiefEngID,@V_ChiefEngEmail,
+             N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
+             N'<p>Daily Lightning Inspection menunggu review Chief Engineering.</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
+             N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
+             N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+             N'Daily Lightning Inspection menunggu approval Chief Engineering. '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
+            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
+             @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
+             N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
+             N'<p>Daily Lightning Inspection Anda telah dikirim dan berstatus CHECKED.</p><p>Menunggu review Chief Engineering.</p>',
+             N'Daily Lightning Inspection Anda telah dikirim. Status: CHECKED.','PENDING',0,GETDATE());
+        END;
+
         IF @V_TranCount=0 COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
