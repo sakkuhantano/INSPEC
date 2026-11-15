@@ -784,7 +784,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                         syncStage = "preflight existing inspection";
                         DataTable existingRows = br.EQueryP(@"
 SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
-       StartDateTime, EndDateTime, ReasonVoid
+       StartDateTime, EndDateTime, ReasonVoid, IsSubmitted
 FROM dbo.PIP_T_Inspection
 WHERE ClientInspectionID=@ClientInspectionID",
                             new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
@@ -797,6 +797,10 @@ WHERE ClientInspectionID=@ClientInspectionID",
                             oldCompanyId = Convert.ToString(existing["CompanyID"]);
                             oldLocationId = Convert.ToString(existing["LocationID"]);
                             inspectionNo = oldInspectionNo;
+
+                            if (!isLightningInspection && existing["IsSubmitted"] != DBNull.Value &&
+                                Convert.ToBoolean(existing["IsSubmitted"]))
+                                throw new Exception("Inspection sudah disubmit dan terkunci sampai approver memprosesnya.");
 
                             // A voided inspection returns to DRAFT for correction, but its original
                             // work timestamps are historical data and must not be reset/overwritten.

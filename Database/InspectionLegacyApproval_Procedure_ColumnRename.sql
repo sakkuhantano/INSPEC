@@ -77,16 +77,27 @@ BEGIN
         IF NOT EXISTS
         (
             SELECT 1
-            FROM dbo.UTL_User U
-            WHERE U.EmployeeID=@p_EmployeeID
-              AND ISNULL(U.IsSPV,0)=1
-              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section,';') S WHERE S.val=@V_SectionID)
+            FROM dbo.SysWebUser SU
+            WHERE SU.EmployeeID=@p_EmployeeID
+              AND SU.IsActive=1
+              AND EXISTS
+              (
+                  SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+                  WHERE AM.MenuID='20022'
+              )
+              AND EXISTS
+              (
+                  SELECT 1 FROM dbo.SysWebCommonValue C
+                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                    AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';SPV;'+@V_SectionID
+                    AND C.Description=@p_EmployeeID
+              )
               AND
               (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                          WHERE C.UserID=U.UserID AND C.AppID='pip'
+                          WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                             AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID)
-                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
                              WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
               )
         )
