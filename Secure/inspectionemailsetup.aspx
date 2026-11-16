@@ -43,8 +43,9 @@
       <asp:Button ID="btnNewSPV" runat="server" Text="Add New Record" CssClass="btn btn-sm btn-primary" CausesValidation="false" OnClick="btnNewSPV_Click" />
     </div>
     <div class="card-body">
-      <asp:HiddenField ID="hidSPVOriginalSection" runat="server" />
-      <div class="row g-3 align-items-end">
+      <asp:Panel ID="pnlSPVEditor" runat="server" Visible="false">
+        <asp:HiddenField ID="hidSPVOriginalSection" runat="server" />
+        <div class="row g-3 align-items-end">
         <div class="col-md-4">
           <label class="form-label">Section</label>
           <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
@@ -61,7 +62,8 @@
           <asp:Button ID="btnSaveSPV" runat="server" Text="Save Mapping" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" />
           <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
         </div>
-      </div>
+        </div>
+      </asp:Panel>
       <hr />
       <asp:GridView ID="gvSPV" runat="server" AutoGenerateColumns="false" CssClass="table table-sm table-hover align-middle" EmptyDataText="Belum ada mapping SPV." OnRowCommand="gvSPV_RowCommand">
         <Columns>
