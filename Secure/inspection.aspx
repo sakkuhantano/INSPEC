@@ -1111,9 +1111,10 @@
         }
         body.inspection-map-mobile-active #contentbody #inspectionInputPanel {
             display: flex;
-            flex: 1 1 auto;
-            flex-direction: column;
+            flex: 1 1 0%;
+            height: 100%;
             min-height: 0;
+            flex-direction: column;
             overflow: hidden;
         }
         body.inspection-map-mobile-active #contentbody #inspectionEditorStickyHeader {
