@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             <asp:ListItem Text="Batch Map" Value="BATCH"></asp:ListItem>
                             <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
                         </asp:DropDownList>
-                        <button type="button" id="btnInspectionModeInfo" class="btn btn-link text-info p-0 flex-shrink-0" data-bs-toggle="tooltip" data-bs-trigger="click focus" data-bs-placement="top" data-bs-container="body" title="Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian." aria-label="Informasi Lightning">
+                        <button type="button" id="btnInspectionModeInfo" class="btn btn-link text-info p-0 flex-shrink-0" data-bs-toggle="tooltip" data-bs-trigger="focus" data-bs-placement="top" data-bs-container="body" title="Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian." aria-label="Informasi Lightning">
                             <i class="bi bi-info-circle-fill"></i>
                         </button>
                     </div>
