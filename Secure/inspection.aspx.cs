@@ -3004,6 +3004,10 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                             fieldList = g["FieldList"].ToString(),
                                             unit = g["Unit"].ToString()
                                         }).ToList();
+                                    int repeatItemId = Convert.ToInt32(itemRow["IDItem"]);
+                                    DataRow repeatConfigRow = templateRepeatConfig.AsEnumerable()
+                                        .FirstOrDefault(row => Convert.ToInt32(row["IDItem"]) == repeatItemId);
+                                    var itemRepeatFields = BuildInspectionRepeatFields(templateRepeatFields, repeatItemId);
                                     return new {
                                         idItem = Convert.ToInt32(itemRow["IDItem"]),
                                         idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
