@@ -131,7 +131,7 @@ passwordInput.addEventListener('keydown', function (e) {
 function F_LoginByPortal(infoID) {
     loginButton.classList.add('btn-loading');
     loginButton.disabled = true;
-    var browserGuid = generateGUID();
+    var browserGuid = getBrowserGuid();
     var deviceName = navigator.userAgent;
 
     fetch('Login.aspx/F_LoginByInfoID', {
@@ -219,6 +219,22 @@ function generateGUID() {
         });
 }
 
+// Keep a stable ID for this browser profile so its sync watermarks remain
+// independent from the same NIK logged in on another PC/browser.
+function getBrowserGuid() {
+    var key = "INSPEC_BROWSER_GUID";
+    try {
+        var value = localStorage.getItem(key);
+        if (!value) {
+            value = generateGUID();
+            localStorage.setItem(key, value);
+        }
+        return value;
+    } catch (ignore) {
+        return generateGUID();
+    }
+}
+
 function F_Login() {
     const userid = txt_Login_UserID.value.trim();
     const password = passwordInput.value.trim();
@@ -239,7 +255,7 @@ function F_Login() {
     loginButton.classList.add('btn-loading');
     loginButton.disabled = true;
     //var browserGuid = crypto.randomUUID();
-    var browserGuid = generateGUID();
+    var browserGuid = getBrowserGuid();
     var deviceName = navigator.userAgent;
     
     fetch('Login.aspx/F_Login', {
