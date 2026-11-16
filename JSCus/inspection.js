@@ -5375,11 +5375,11 @@ async function executeInspectionApprovalAction(ids, action, remark) {
         const lightningStatus = lightningResults.length
             ? " Lightning: " + lightningResults.map(item => item.workflowStatus || action).join(", ") + "."
             : "";
-        const emailPending = lightningResults.some(item => item.emailDispatch && item.emailDispatch.configured === false) ||
+        const emailPending = lightningResults.some(item => item.emailDispatch && (item.emailDispatch.configured === false || Number(item.emailDispatch.failed || 0) > 0 || Number(item.emailDispatch.pending || 0) > 0)) ||
             !!(standardResult && Array.isArray(standardResult.results) &&
-                standardResult.results.some(item => item.emailDispatch && item.emailDispatch.configured === false));
+                standardResult.results.some(item => item.emailDispatch && (item.emailDispatch.configured === false || Number(item.emailDispatch.failed || 0) > 0 || Number(item.emailDispatch.pending || 0) > 0)));
         showToast(processedCount + " inspeksi berhasil diproses." + lightningStatus, emailPending ? "warning" : "success");
-        if (emailPending) showToast("Approval tersimpan, tetapi email masih di outbox. Lengkapi smtpFrom pada Web.config agar email dapat dikirim.", "warning");
+        if (emailPending) showToast("Approval tersimpan, tetapi ada email yang belum terkirim. Periksa email pengirim di M_HRD_Employee dan konfigurasi SMTP aplikasi; email akan dicoba kembali dari outbox.", "warning");
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
         await loadInspectionApprovalQueue();
@@ -5967,9 +5967,9 @@ async function processInspectionApproval(action) {
             : (approvalResult.followUpWONo
                 ? "Inspection berhasil di-approve. Internal WO " + approvalResult.followUpWONo + " dibuat untuk Follow Up."
                 : "Inspection berhasil di-approve.");
-        const emailPending = approvalResult.emailDispatch && approvalResult.emailDispatch.configured === false;
+        const emailPending = approvalResult.emailDispatch && (approvalResult.emailDispatch.configured === false || Number(approvalResult.emailDispatch.failed || 0) > 0 || Number(approvalResult.emailDispatch.pending || 0) > 0);
         showToast(message, emailPending ? "warning" : "success");
-        if (emailPending) showToast("Approval tersimpan, tetapi email masih di outbox. Lengkapi smtpFrom pada Web.config agar email dapat dikirim.", "warning");
+        if (emailPending) showToast("Approval tersimpan, tetapi ada email yang belum terkirim. Periksa email pengirim di M_HRD_Employee dan konfigurasi SMTP aplikasi; email akan dicoba kembali dari outbox.", "warning");
         await loadInspectionApprovalQueue();
     } catch (err) {
         showToast(err.message || "Gagal memproses approval.", "warning");
