@@ -207,6 +207,7 @@ BEGIN
                 AND MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
                 AND MAP.InspectionTypeCode=@p_InspectionTypeCode
                 AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+                AND MAP.IsCurrentVersion=1 AND MAP.IsActive=1
                 AND M.IsActive=1)
     )
     BEGIN
@@ -223,6 +224,8 @@ BEGIN
         WHERE MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
           AND MAP.InspectionTypeCode=@p_InspectionTypeCode
           AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND MAP.IsCurrentVersion=1 AND MAP.IsActive=1
+          AND ISNULL(MAP.RequireAllPoints,1)=1
           AND M.IsActive=1
           AND NOT EXISTS
           (
