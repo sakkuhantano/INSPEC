@@ -88,7 +88,7 @@ namespace INSPEC.Secure
                     for (int i = 1; i <= 13; i++)
                         items.Columns.Add("C" + i, typeof(string));
 
-                    // dbo.Type_N_Tbl_C5: C1=IDItem, C2=FieldKey, C3=Value, C4=ObjectIndex.
+                    // dbo.Type_N_Tbl_C5: C1=IDItem, C2=IDRepeat, C3=Value, C4=ObjectIndex.
                     DataTable itemValues = new DataTable();
                     for (int i = 1; i <= 5; i++)
                         itemValues.Columns.Add("C" + i, typeof(string));
@@ -476,7 +476,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion",
                                 new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
                             DataTable versionRepeatFields = br.EQueryP(@"
-SELECT F.IDItem,F.FieldKey,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
+SELECT F.IDItem,F.IDRepeat,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -554,36 +554,36 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                                 throw new Exception(pointPrefix + "ObjectIndex REPEAT " + itemLabel + " tidak valid atau duplikat.");
                                             JObject childValues = repeatObject["Values"] as JObject;
                                             foreach (JProperty submittedField in (childValues == null ? new JObject() : childValues).Properties())
-                                                if (!repeatFields.Any(f => String.Equals(Convert.ToString(f["FieldKey"]), submittedField.Name, StringComparison.Ordinal)))
+                                                if (!repeatFields.Any(f => String.Equals(Convert.ToString(f["IDRepeat"]), submittedField.Name, StringComparison.Ordinal)))
                                                     throw new Exception(pointPrefix + "Field REPEAT " + submittedField.Name + " tidak dikenal pada " + itemLabel + ".");
                                             foreach (DataRow field in repeatFields)
                                             {
-                                                string fieldKey = Convert.ToString(field["FieldKey"]);
-                                                JToken childValue = childValues == null ? null : childValues[fieldKey];
+                                                string repeatId = Convert.ToString(field["IDRepeat"]);
+                                                JToken childValue = childValues == null ? null : childValues[repeatId];
                                                 string childText = childValue == null || childValue.Type == JTokenType.Null ? "" : childValue.ToString().Trim();
                                                 if (Convert.ToBoolean(field["IsRequired"]) && childText.Length == 0)
-                                                    throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " wajib diisi.");
+                                                    throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " wajib diisi.");
                                                 if (childText.Length == 0) continue;
                                                 string fieldType = Convert.ToString(field["FieldType"]).ToUpperInvariant();
                                                 if (fieldType == "OPTION")
                                                 {
                                                     string options = Convert.ToString(field["OptionList"]);
                                                     if (String.IsNullOrWhiteSpace(options) || !options.Split(';').Any(x => String.Equals(x.Trim(), childText, StringComparison.OrdinalIgnoreCase)))
-                                                        throw new Exception(pointPrefix + "Pilihan " + fieldKey + " pada " + itemLabel + " tidak valid.");
+                                                        throw new Exception(pointPrefix + "Pilihan " + repeatId + " pada " + itemLabel + " tidak valid.");
                                                 }
                                                 if (fieldType == "NUMBER" || fieldType == "RANGE")
                                                 {
                                                     decimal numeric;
                                                     if (!Decimal.TryParse(childText, NumberStyles.Any, CultureInfo.InvariantCulture, out numeric))
-                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " harus berupa angka.");
+                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " harus berupa angka.");
                                                     bool minInclusive = field["MinInclusive"] == DBNull.Value || Convert.ToBoolean(field["MinInclusive"]);
                                                     bool maxInclusive = field["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(field["MaxInclusive"]);
                                                     if (field["MinValue"] != DBNull.Value &&
                                                         (numeric < Convert.ToDecimal(field["MinValue"]) || (!minInclusive && numeric == Convert.ToDecimal(field["MinValue"]))))
-                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di bawah atau tepat pada batas minimum eksklusif.");
+                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " di bawah atau tepat pada batas minimum eksklusif.");
                                                     if (field["MaxValue"] != DBNull.Value &&
                                                         (numeric > Convert.ToDecimal(field["MaxValue"]) || (!maxInclusive && numeric == Convert.ToDecimal(field["MaxValue"]))))
-                                                        throw new Exception(pointPrefix + fieldKey + " pada " + itemLabel + " di atas atau tepat pada batas maksimum eksklusif.");
+                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " di atas atau tepat pada batas maksimum eksklusif.");
                                                 }
                                             }
                                         }
