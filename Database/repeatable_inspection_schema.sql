@@ -48,8 +48,8 @@ IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
     (
+        IDRepeat INT IDENTITY(1,1) NOT NULL,
         IDItem INT NOT NULL,
-        FieldKey VARCHAR(50) NOT NULL,
         FieldLabel NVARCHAR(100) NOT NULL,
         FieldType VARCHAR(20) NOT NULL,
         OptionList NVARCHAR(1000) NULL,
@@ -61,13 +61,71 @@ BEGIN
         IsRequired BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_IsRequired DEFAULT (0),
         GroupName NVARCHAR(100) NULL,
         DisplayOrder INT NOT NULL,
-        CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField PRIMARY KEY CLUSTERED (IDItem,FieldKey),
+        CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField PRIMARY KEY CLUSTERED (IDRepeat),
         CONSTRAINT CK_PIP_M_ItemRepeatField_Type CHECK (FieldType IN ('NUMBER','RANGE','OPTION','TEXT')),
         CONSTRAINT CK_PIP_M_ItemRepeatField_Range CHECK (MinValue IS NULL OR MaxValue IS NULL OR MinValue <= MaxValue)
     );
     CREATE NONCLUSTERED INDEX IX_PIP_M_ItemRepeatField_Order
-        ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,FieldKey);
+        ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,IDRepeat);
 END;
+GO
+
+/* Upgrade the earlier FieldKey prototype to numeric IDRepeat identities. */
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NOT NULL
+   AND COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','IDRepeat') IS NULL
+BEGIN
+    IF EXISTS
+    (
+        SELECT 1 FROM sys.indexes
+        WHERE object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField')
+          AND name='IX_PIP_M_ItemRepeatField_Order'
+    )
+        DROP INDEX IX_PIP_M_ItemRepeatField_Order ON dbo.PIP_M_CheckListWOPM_ItemRepeatField;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM sys.key_constraints
+        WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField')
+          AND name='PK_PIP_M_CheckListWOPM_ItemRepeatField'
+    )
+        ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+            DROP CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField;
+
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD IDRepeat INT IDENTITY(1,1) NOT NULL;
+
+    /* Preserve already-saved REPEAT values by replacing their old textual keys
+       with the generated numeric IDRepeat. Legacy GROUP FieldName values remain untouched. */
+    UPDATE SV
+       SET SV.FieldName=CONVERT(VARCHAR(100),F.IDRepeat)
+    FROM dbo.PIP_T_WO_CheckList_SubValue SV
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.IDResult=SV.IDResult
+    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+    JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.FieldKey=SV.FieldName;
+
+    UPDATE IV
+       SET IV.FieldName=CONVERT(VARCHAR(100),F.IDRepeat)
+    FROM dbo.PIP_T_InspectionResultValue IV
+    JOIN dbo.PIP_T_InspectionResult R ON R.InspectionResultID=IV.InspectionResultID
+    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem AND I.ItemType='REPEAT'
+    JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.FieldKey=IV.FieldName;
+
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField DROP COLUMN FieldKey;
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField PRIMARY KEY CLUSTERED (IDRepeat);
+END;
+GO
+
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField')
+      AND name='IX_PIP_M_ItemRepeatField_Order'
+)
+    DROP INDEX IX_PIP_M_ItemRepeatField_Order ON dbo.PIP_M_CheckListWOPM_ItemRepeatField;
+GO
+CREATE NONCLUSTERED INDEX IX_PIP_M_ItemRepeatField_Order
+    ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,IDRepeat);
 GO
 
 /* Add boundary semantics to REPEAT fields; existing rows remain inclusive. */
