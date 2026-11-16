@@ -571,7 +571,6 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             DateTime inspectionDate,
             string existingInspectionNo,
             string clientInspectionId,
-            bool isBatch,
             List<Tuple<string, int, string, byte[]>> incomingPhotos,
             List<Tuple<string, string, int, string, byte[]>> incomingBatchPhotos,
             out string inspectionNo)
@@ -634,8 +633,8 @@ SELECT ID FROM @AutoNumResult;", _mainConnection, _transaction))
                             Guid.NewGuid().ToString("N").Substring(0, 8);
                         string fullPath = System.IO.Path.Combine(photoFolder, fileName + "." + photo.Item3);
                         if (!System.IO.Directory.Exists(photoFolder)) System.IO.Directory.CreateDirectory(photoFolder);
-                        System.IO.File.WriteAllBytes(fullPath, photo.Item4);
                         writtenFiles.Add(fullPath);
+                        System.IO.File.WriteAllBytes(fullPath, photo.Item4);
                         photoTable.Rows.Add(photo.Item1, fileName, photo.Item3,
                             photo.Item2.ToString(System.Globalization.CultureInfo.InvariantCulture), "");
                     }
@@ -651,8 +650,8 @@ SELECT ID FROM @AutoNumResult;", _mainConnection, _transaction))
                             Guid.NewGuid().ToString("N").Substring(0, 8);
                         string fullPath = System.IO.Path.Combine(photoFolder, fileName + "." + photo.Item4);
                         if (!System.IO.Directory.Exists(photoFolder)) System.IO.Directory.CreateDirectory(photoFolder);
-                        System.IO.File.WriteAllBytes(fullPath, photo.Item5);
                         writtenFiles.Add(fullPath);
+                        System.IO.File.WriteAllBytes(fullPath, photo.Item5);
                         photoTable.Rows.Add(photo.Item1, photo.Item2, fileName, photo.Item4,
                             photo.Item3.ToString(System.Globalization.CultureInfo.InvariantCulture));
                     }
