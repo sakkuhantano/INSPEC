@@ -7,7 +7,7 @@ Run the SQL files in this order:
 1. `inspection_transaction_schema.sql` — canonical Inspection header, result, result-value, and photo tables.
 2. `master_template_inspection_schema.sql` — Inspection template/version master dependencies.
 3. `Database/repeatable_inspection_schema.sql` — REPEAT child-field master and transaction values, including `ObjectIndex` for OBJECTS rows.
-4. `Database/InspectionApproval_HeaderFields_Migration.sql` and `Database/InspectionEmailApproval_Schema.sql` — approval header fields, approval history, and email outbox.
+4. `Database/InspectionEmailApproval_Schema.sql`, then `Database/InspectionApproval_HeaderFields_Migration.sql` — create approval history/outbox before the header migration backfills workflow history and approval fields.
 5. `Database/InspectionApproval_Workflow_Procedures.sql` — creates the Standard/Batch `spUTL_PIP_T_Inspection_SubmitWorkflow` and approval procedures. This is required before BATCH sync can submit its workflow.
 6. `inspection_parameter_change_migration.sql` — canonical `spUTL_PIP_T_Inspection_Sync`, including version-level Follow Up enforcement and ObjectIndex persistence.
 7. `inspection_mode_migration.sql` — adds/normalizes `dbo.PIP_M_InspectionType.InspectionMode` (`STANDARD` / `BATCH`).
