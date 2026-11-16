@@ -959,6 +959,13 @@ SELECT ID FROM @AutoNumResult;",
 
                             if (!isLightningInspection)
                             {
+                                syncStage = "update InspectionMode after sync";
+                                br.EQueryP(@"UPDATE dbo.PIP_T_Inspection SET InspectionMode=@InspectionMode
+WHERE InspectionID=@InspectionID",
+                                    new SqlParameter[] {
+                                        new SqlParameter("@InspectionMode", inspectionMode),
+                                        new SqlParameter("@InspectionID", inspectionId)
+                                    }, false, true);
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
                                 string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
@@ -3927,7 +3934,7 @@ UPDATE EmailQueue
 SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1,LastAttemptDate=GETDATE()
 OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
        inserted.RecipientEmail,inserted.EmailSubject,inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
-                    new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, true, true);
+                    new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, false, true);
 
                 int sent = 0, failed = 0;
                 foreach (DataRow row in queue.Rows)
@@ -3959,7 +3966,7 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
                         br.EQueryP(@"UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET DeliveryStatus='SENT',SentDate=GETDATE(),LastError=NULL
 WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
-                            new SqlParameter[] { new SqlParameter("@ID", outboxId) }, true);
+                            new SqlParameter[] { new SqlParameter("@ID", outboxId) });
                         sent++;
                     }
                     catch (Exception ex)
@@ -3976,7 +3983,7 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                             new SqlParameter[] {
                                 new SqlParameter("@Error", error),
                                 new SqlParameter("@ID", outboxId)
-                            }, true);
+                            });
                         failed++;
                     }
                 }
