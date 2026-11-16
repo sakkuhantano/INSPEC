@@ -2612,7 +2612,7 @@ BEGIN
         SELECT 1
         FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-          ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
         WHERE F.FieldType IN ('NUMBER','RANGE')
           AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND ISNUMERIC(V.C5)=0
@@ -2624,7 +2624,7 @@ BEGIN
         SELECT 1
         FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-          ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
         WHERE F.FieldType IN ('NUMBER','RANGE')
           AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND
@@ -2640,7 +2640,7 @@ BEGIN
         SELECT 1
         FROM @p_DtRepeat V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-          ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4 AND F.FieldType='OPTION'
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4 AND F.FieldType='OPTION'
         WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND NOT EXISTS
           (
@@ -2653,7 +2653,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_DtRepeat V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
         WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND ISNUMERIC(V.C5)=0
     )
     BEGIN RAISERROR('A REPEAT numeric value must be a valid number.',16,1); RETURN; END;
@@ -2661,7 +2661,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_DtRepeat V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
         WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND (CONVERT(FLOAT,V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MinValue))
     )
@@ -2670,7 +2670,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_DtRepeat V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C4
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
         WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
           AND (CONVERT(FLOAT,V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MaxValue))
     )
