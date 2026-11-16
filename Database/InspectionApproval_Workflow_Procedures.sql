@@ -184,7 +184,7 @@ BEGIN
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(50),
-         @Mode VARCHAR(10),@EmailEnabled BIT,@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ConfigScope VARCHAR(30),
+         @Mode VARCHAR(10),@EmailEnabled BIT,@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
          @EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
@@ -205,10 +205,13 @@ BEGIN
    AND C.ID=@ConfigScope+';SPV;'+@S;
  IF NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID) BEGIN RAISERROR('You are not a configured SPV for this Section.',16,1); RETURN; END;
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
- SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID) FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
+ SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID),
+        @ActorEmail=LTRIM(RTRIM(ISNULL(emailaddress,'')))
+ FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
  IF @EmailEnabled=1
  BEGIN
   IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+  IF ISNULL(@ActorEmail,'')='' BEGIN RAISERROR('SPV email is missing from M_HRD_Employee.emailaddress; it is used as the outbox sender address.',16,1); RETURN; END;
  END;
  SET @NewStatus=CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOID' END;
  SET @NextStage=CASE WHEN @p_Action='APPROVE' THEN 'COMPLETED' ELSE 'TECHNICIAN' END;
