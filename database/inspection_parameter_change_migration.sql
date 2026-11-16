@@ -566,8 +566,9 @@ BEGIN
             ELSE
                 ROLLBACK TRANSACTION InspectionSyncSave;
         END
-        ELSE IF XACT_STATE() = -1
+        ELSE IF XACT_STATE() = -1 AND @V_EntryTranCount = 0
             ROLLBACK TRANSACTION;
+        /* When nested in BRC, leave a doomed transaction for the BRC owner to roll back. */
 
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
