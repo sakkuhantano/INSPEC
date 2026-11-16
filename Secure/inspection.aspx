@@ -724,9 +724,8 @@
         flex:0 0 auto;align-self:flex-start;max-width:none!important;max-height:none!important;margin:0 auto!important;
     }
     #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
-    #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
     #inspectionMapWorkspace .inspection-map-pdf-stage img{
-        max-width:none!important;max-height:none!important;object-fit:fill;
+        max-width:none!important;max-height:none!important;object-fit:contain;
     }
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
         height:100%;min-height:0;max-height:none;padding:.45rem;overflow:auto
