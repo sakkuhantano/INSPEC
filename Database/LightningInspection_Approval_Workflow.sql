@@ -256,7 +256,8 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Lightning_Approval
     @p_Action VARCHAR(10),
     @p_Remark NVARCHAR(1000),
     @p_ApprovalUrl NVARCHAR(1000),
-    @p_CorrectionUrl NVARCHAR(1000)
+    @p_CorrectionUrl NVARCHAR(1000),
+    @p_ApprovalToken UNIQUEIDENTIFIER = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -316,6 +317,18 @@ BEGIN
        OR (@V_Stage='CHIEF_ENG' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
        OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
     BEGIN RAISERROR('You are not the configured approver for the current Lightning stage.',16,1); RETURN; END;
+
+    IF @p_ApprovalToken IS NOT NULL
+       AND NOT EXISTS
+       (
+           SELECT 1 FROM dbo.PIP_T_InspectionEmailOutbox O
+           WHERE O.ApprovalToken=@p_ApprovalToken
+             AND O.EntityType='LIGHTNING'
+             AND O.EntityID=@p_InspectionID
+             AND O.RecipientType='APPROVER'
+             AND O.RecipientEmployeeID=@p_ActorEmployeeID
+       )
+    BEGIN RAISERROR('This approval email link is invalid or belongs to another approver.',16,1); RETURN; END;
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
