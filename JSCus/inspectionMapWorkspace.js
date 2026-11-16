@@ -832,6 +832,18 @@
         }
     }
 
+    function getInspectionMapFitBounds() {
+        var viewport = document.getElementById('inspectionMapCanvas');
+        if (!viewport) return { width: 1, height: 1 };
+        var style = window.getComputedStyle(viewport);
+        var horizontalPadding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        var verticalPadding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+        return {
+            width: Math.max(1, Math.min(2400, viewport.clientWidth - horizontalPadding)),
+            height: Math.max(1, viewport.clientHeight - verticalPadding)
+        };
+    }
+
     async function renderPdf(map) {
         var requestId = ++pdfRenderSequence;
         var message = document.getElementById('inspectionMapPdfMessage');
@@ -879,9 +891,9 @@
                 var objectUrl = URL.createObjectURL(blob); image.dataset.objectUrl = objectUrl;
                 image.onload = function () {
                     if (requestId !== pdfRenderSequence) return;
-                    var mapViewport = document.getElementById('inspectionMapCanvas');
-                    var availableWidth = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
-                    var availableHeight = Math.max(260, mapViewport.clientHeight - 16);
+                    var fitBounds = getInspectionMapFitBounds();
+                    var availableWidth = fitBounds.width;
+                    var availableHeight = fitBounds.height;
                     var naturalWidth = image.naturalWidth || image.clientWidth;
                     var naturalHeight = image.naturalHeight || image.clientHeight;
                     var imageScale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight, 1);
@@ -890,7 +902,7 @@
                     image.style.width = displayWidth + 'px';
                     image.style.height = displayHeight + 'px';
                     image.style.maxWidth = 'none'; image.style.maxHeight = 'none';
-                    image.style.objectFit = 'fill'; image.style.display = 'block';
+                    image.style.objectFit = 'contain'; image.style.display = 'block';
                     stage.style.width = displayWidth + 'px';
                     stage.style.height = displayHeight + 'px';
                     stage.style.minHeight = '0';
@@ -918,9 +930,9 @@
             if (requestId !== pdfRenderSequence) return;
             currentPdfPage = page;
             var base = page.getViewport({ scale: 1 });
-            var mapViewport = document.getElementById('inspectionMapCanvas');
-            var width = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
-            var height = Math.max(260, mapViewport.clientHeight - 16);
+            var fitBounds = getInspectionMapFitBounds();
+            var width = fitBounds.width;
+            var height = fitBounds.height;
             var fitScale = Math.min(width / base.width, height / base.height);
             // Keep the canvas at its fitted CSS size, but render enough backing pixels
             // for the current zoom level. Zoom changes trigger a fresh PDF.js render.
