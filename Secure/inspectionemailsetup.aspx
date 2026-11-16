@@ -16,6 +16,9 @@
         <div class="col-md-4">
           <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING
         </div>
+        <div class="col-md-4">
+          <asp:CheckBox ID="chkEmailWO" runat="server" CssClass="form-check-input" /> WORK ORDER
+        </div>
       </div>
     </div>
   </div>
