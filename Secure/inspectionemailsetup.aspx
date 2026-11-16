@@ -1,6 +1,9 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %><%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %> <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 
-  <div class="d-flex justify-content-end mt-3 mb-3">\n    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />\n  </div>\n</asp:Content>
+  <div class="d-flex justify-content-end mt-3 mb-3">
+    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />
+  </div>
+</asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
   <div class="mb-3">
     <h4 class="mb-1">Inspection Email &amp; Approval Routing</h4>
@@ -27,14 +30,12 @@
           </label>
           <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
-            <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
+            <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
           <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
       </div>
-      <div class="text-end mt-3">
-        <asp:Button ID="btnSaveHeader" runat="server" Text="Save Chief Approver" CssClass="btn btn-primary" OnClick="btnSaveHeader_Click" />
-      </div>
+      
     </div>
   </div>
   <div class="card border-0 shadow-sm mb-3">
@@ -58,9 +59,8 @@
           </div>
           
         </div>
-        <div class="col-md-3 d-flex gap-2">
-          <asp:Button ID="btnSaveSPV" runat="server" Text="Save Mapping" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" />
-          <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
+        <div class="col-md-3 d-flex align-items-end">
+          <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
         </div>
         </div>
       </asp:Panel>
@@ -94,9 +94,7 @@
           <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING
         </div>
       </div>
-      <div class="text-end mt-3">
-        <asp:Button ID="btnSaveEmailMode" runat="server" Text="Save Email Settings" CssClass="btn btn-primary" OnClick="btnSaveEmailMode_Click" />
-      </div>
+      
     </div>
   </div>
 </asp:Content>
