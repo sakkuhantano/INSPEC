@@ -558,6 +558,155 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 Dispose();
             }
         }
+
+        /// <summary>
+        /// Executes one Inspection sync as a single SQL transaction and owns the physical photo writes.
+        /// The auto number, inspection procedure, and photo metadata therefore commit or roll back together.
+        /// </summary>
+        public DataTable SyncInspection(
+            string procedureName,
+            SqlParameter[] parameters,
+            string companyId,
+            string locationId,
+            DateTime inspectionDate,
+            string existingInspectionNo,
+            string clientInspectionId,
+            bool isBatch,
+            List<Tuple<string, int, string, byte[]>> incomingPhotos,
+            List<Tuple<string, string, int, string, byte[]>> incomingBatchPhotos,
+            out string inspectionNo)
+        {
+            inspectionNo = existingInspectionNo ?? "";
+            string photoFolder = "";
+            var writtenFiles = new List<string>();
+            bool commitAttempted = false;
+
+            _mainConnection.Open();
+            Begintrans();
+            try
+            {
+                if (String.IsNullOrWhiteSpace(inspectionNo))
+                {
+                    using (SqlCommand autoNumCommand = new SqlCommand(@"
+DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
+SELECT ID FROM @AutoNumResult;", _mainConnection, _transaction))
+                    {
+                        autoNumCommand.Parameters.AddWithValue("@AutoNum", "PIPINS" + companyId + locationId);
+                        object generated = autoNumCommand.ExecuteScalar();
+                        inspectionNo = generated == null || generated == DBNull.Value ? "" : Convert.ToString(generated);
+                    }
+                    if (String.IsNullOrWhiteSpace(inspectionNo))
+                        throw new Exception("Failed to generate InspectionNo inside the inspection sync transaction.");
+                }
+
+                if (String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId) ||
+                    !String.Equals(System.IO.Path.GetFileName(companyId), companyId, StringComparison.Ordinal) ||
+                    !String.Equals(System.IO.Path.GetFileName(locationId), locationId, StringComparison.Ordinal) ||
+                    !String.Equals(System.IO.Path.GetFileName(inspectionNo), inspectionNo, StringComparison.Ordinal))
+                    throw new Exception("Invalid Inspection photo folder identity.");
+
+                System.Web.HttpContext context = System.Web.HttpContext.Current;
+                if (context == null || context.Request == null)
+                    throw new InvalidOperationException("HTTP request context is unavailable while preparing Inspection photo storage.");
+                string appPath = context.Request.ApplicationPath ?? "";
+                string appId = PB.AppID ?? "";
+                string root = appPath.Replace("/", "");
+                if (!String.IsNullOrEmpty(appId)) root = root.Replace(appId, "PIP");
+                string webFolder = PB.Path_WebFolder1;
+                if (String.IsNullOrWhiteSpace(webFolder))
+                    throw new InvalidOperationException("PB.Path_WebFolder1 is empty; Inspection photo storage root is not configured.");
+                photoFolder = System.IO.Path.Combine(webFolder, root, "PIP_T_Inspection",
+                    companyId + "_" + locationId,
+                    inspectionDate.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture),
+                    inspectionNo);
+
+                DataTable photoTable = new DataTable();
+                for (int i = 1; i <= 5; i++) photoTable.Columns.Add("C" + i, typeof(string));
+                string clientPrefix = (clientInspectionId ?? "").Replace("-", "");
+                if (clientPrefix.Length > 12) clientPrefix = clientPrefix.Substring(0, 12);
+                if (incomingPhotos != null)
+                {
+                    foreach (Tuple<string, int, string, byte[]> photo in incomingPhotos)
+                    {
+                        string fileName = "INS" + clientPrefix + "_" +
+                            photo.Item2.ToString(System.Globalization.CultureInfo.InvariantCulture) + "_" +
+                            Guid.NewGuid().ToString("N").Substring(0, 8);
+                        string fullPath = System.IO.Path.Combine(photoFolder, fileName + "." + photo.Item3);
+                        if (!System.IO.Directory.Exists(photoFolder)) System.IO.Directory.CreateDirectory(photoFolder);
+                        System.IO.File.WriteAllBytes(fullPath, photo.Item4);
+                        writtenFiles.Add(fullPath);
+                        photoTable.Rows.Add(photo.Item1, fileName, photo.Item3,
+                            photo.Item2.ToString(System.Globalization.CultureInfo.InvariantCulture), "");
+                    }
+                }
+                if (incomingBatchPhotos != null)
+                {
+                    foreach (Tuple<string, string, int, string, byte[]> photo in incomingBatchPhotos)
+                    {
+                        string safePoint = new string((photo.Item1 ?? "").Where(Char.IsLetterOrDigit).ToArray());
+                        string fileName = "INS" + clientPrefix + "_" +
+                            safePoint.Substring(0, Math.Min(8, safePoint.Length)) + "_" +
+                            photo.Item3.ToString(System.Globalization.CultureInfo.InvariantCulture) + "_" +
+                            Guid.NewGuid().ToString("N").Substring(0, 8);
+                        string fullPath = System.IO.Path.Combine(photoFolder, fileName + "." + photo.Item4);
+                        if (!System.IO.Directory.Exists(photoFolder)) System.IO.Directory.CreateDirectory(photoFolder);
+                        System.IO.File.WriteAllBytes(fullPath, photo.Item5);
+                        writtenFiles.Add(fullPath);
+                        photoTable.Rows.Add(photo.Item1, photo.Item2, fileName, photo.Item4,
+                            photo.Item3.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    }
+                }
+
+                var procParameters = new List<SqlParameter>();
+                if (parameters != null) procParameters.AddRange(parameters);
+                procParameters.Add(new SqlParameter("@p_InspectionNo", inspectionNo));
+                procParameters.Add(new SqlParameter("@p_Photos", photoTable));
+
+                using (WAL.BR.CF common = new WAL.BR.CF())
+                {
+                    DataSet result = common.EQueryP_DS(procedureName, procParameters.ToArray(),
+                        true, ref _mainConnection, ref _transaction);
+                    if (result == null || result.Tables.Count == 0)
+                        throw new Exception("Inspection sync procedure returned no saved header.");
+                    DataTable saved = result.Tables[0];
+                    if (saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") ||
+                        saved.Rows[0]["InspectionID"] == DBNull.Value ||
+                        Convert.ToInt64(saved.Rows[0]["InspectionID"]) <= 0)
+                        throw new Exception("Inspection sync procedure returned no valid saved header.");
+                    if (saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value)
+                        inspectionNo = Convert.ToString(saved.Rows[0]["InspectionNo"]);
+
+                    commitAttempted = true;
+                    CommitTrans();
+                    return saved;
+                }
+            }
+            catch (Exception ex)
+            {
+                Exception rollbackError = null;
+                try { RollBackTrans(); }
+                catch (Exception error) { rollbackError = error; }
+
+                if (rollbackError == null && !commitAttempted)
+                {
+                    foreach (string path in writtenFiles)
+                    {
+                        try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+                        catch { }
+                    }
+                }
+                if (rollbackError != null)
+                    throw new Exception("Inspection sync failed and SQL rollback could not be confirmed. Photo files were retained for safety. Original error: " +
+                        ex.Message, rollbackError);
+                throw;
+            }
+            finally
+            {
+                Dispose();
+            }
+        }
+
         #endregion
 
         #region " Class Property Declarations "
