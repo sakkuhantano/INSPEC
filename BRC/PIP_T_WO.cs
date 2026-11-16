@@ -276,7 +276,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                     row["C1"] = r["KeyHD"].ToString();
                     row["C2"] = r["IDItem"].ToString();
                     row["C3"] = r["ObjectIndex"].ToString();
-                    row["C4"] = r["FieldKey"].ToString();
+                    row["C4"] = r["IDRepeat"].ToString();
                     row["C5"] = r["Value"].ToString();
                     V_tblTmp_Repeat.Rows.Add(row);
                 }
