@@ -342,8 +342,9 @@ BEGIN
         SET InspectionMode='LIGHTNING',Status='DONE',
             IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
             IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
-            IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
-            ApprovalRemark='',ReasonVoid='',
+            IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
+            IsApproved2=0,Approved2By='',Approved2Date=CONVERT(DATETIME,'19000101',112),
+            ApprovalRemark='',ReasonVoid='',ReasonVoid1='',ReasonVoid2='',
             UpdateUser=@p_UpdateUser,UpdateDate=GETDATE()
         WHERE InspectionID=@V_InspectionID;
 
