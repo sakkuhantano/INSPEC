@@ -540,10 +540,12 @@ BEGIN
            after its point-level children have also been persisted by the wrapper. */
         IF @p_InspectionMode='STANDARD'
         BEGIN
+            DECLARE @V_ApprovalUrl NVARCHAR(1000);
+            SET @V_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
             EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
                 @p_InspectionID=@V_InspectionID,
                 @p_ActorEmployeeID=@p_UpdateUser,
-                @p_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
+                @p_ApprovalUrl=@V_ApprovalUrl;
         END;
 
         IF @V_EntryTranCount = 0
