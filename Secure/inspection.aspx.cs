@@ -907,13 +907,14 @@ SELECT ID FROM @AutoNumResult;",
                                 new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
                                 new SqlParameter("@p_UpdateUser", Limit(userId, 50))
                             };
+                            string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                            string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                            string inspectionApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
                             DataTable saved;
                             if (isLightningInspection)
                             {
                                 syncStage = "execute Lightning inspection sync procedure";
-                                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
-                                string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                                string lightningApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
+                                string lightningApprovalUrl = inspectionApprovalUrl;
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
                                         new SqlParameter("@p_ApprovalUrl", lightningApprovalUrl),
@@ -931,6 +932,7 @@ SELECT ID FROM @AutoNumResult;",
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Batch_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
                                         new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
+                                        new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl),
                                         new SqlParameter("@p_Points", batchPoints),
                                         new SqlParameter("@p_Photos", photoTable),
                                         new SqlParameter("@p_Items", batchItems),
@@ -946,7 +948,8 @@ SELECT ID FROM @AutoNumResult;",
                                         new SqlParameter("@p_Photos", photoTable),
                                         new SqlParameter("@p_Items", items),
                                         new SqlParameter("@p_ItemValues", itemValues),
-                                        new SqlParameter("@p_InspectionMode", inspectionMode)
+                                        new SqlParameter("@p_InspectionMode", inspectionMode),
+                                        new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl)
                                     }).ToArray(), true, true);
                             }
                             sqlCallReturned = true;
@@ -958,24 +961,8 @@ SELECT ID FROM @AutoNumResult;",
                             if (inspectionId <= 0)
                                 throw new Exception("Inspection header was not saved.");
 
-                            if (!isLightningInspection)
-                            {
-                                string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
-                                string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                                string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
-                                    inspectionId.ToString(CultureInfo.InvariantCulture);
-                                syncStage = "submit Standard/Batch inspection workflow";
-                                /* Use a fresh BR context for the second transactional stored-procedure call.
-                                   The inspection save above has already completed its own EQueryP transaction. */
-                                using (var workflowBr = new WAL.BR.CF())
-                                {
-                                    workflowBr.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
-                                        new SqlParameter("@p_InspectionID", inspectionId),
-                                        new SqlParameter("@p_ActorEmployeeID", userId),
-                                        new SqlParameter("@p_ApprovalUrl", approvalUrl)
-                                    }, true, true);
-                                }
-                            }
+                            /* Standard and Batch submit their workflow inside the same SQL transaction
+                               as the inspection header and child data. No second EQueryP call is required. */
 
                             /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely. */
                             if (oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
