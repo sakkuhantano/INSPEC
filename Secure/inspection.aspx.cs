@@ -2470,7 +2470,20 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
             employeeId = GFC.RequireMenuEmployee("20022");
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
+            return GetInspectionDetail(inspectionId, employeeId, false);
+        }
 
+        [WebMethod]
+        public static object GetTechnicianSubmittedInspectionDetail(long inspectionId, string employeeId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20021");
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Technician identity is required.");
+            return GetInspectionDetail(inspectionId, employeeId, true);
+        }
+
+        private static object GetInspectionDetail(long inspectionId, string employeeId, bool technicianView)
+        {
             using (var br = new WAL.BR.CF())
             {
                 DataTable header = br.EQueryP(@"
@@ -2510,44 +2523,68 @@ WHERE I.InspectionID=@InspectionID
        ((I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1)
         OR (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''))
   )
-  AND EXISTS (
-      SELECT 1 FROM dbo.SysWebUser SU
-
-WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-        AND (
-          (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
-                AND C.Description=@EmployeeID
-          ))
-          OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
-              EXISTS (
-                  SELECT 1 FROM dbo.SysWebCommonValue C
-                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                    AND C.Description=@EmployeeID
-                    AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
-              )
-              OR EXISTS (
-                  SELECT 1 FROM dbo.SysWebCommonValue C
-                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                    AND C.Description=@EmployeeID
-                    AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
-              )
-          ))
-        )
-        AND (
-          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
-        )
+  AND (
+      (@TechnicianView=1
+       AND I.OwnerEmployeeID=@EmployeeID
+       AND I.Status='DONE'
+       AND ISNULL(I.IsSubmitted,0)=1
+       AND EXISTS (
+           SELECT 1
+           FROM dbo.SysWebUser SU
+           WHERE SU.EmployeeID=@EmployeeID
+             AND SU.IsActive=1
+             AND (
+                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+             )
+       )
+      )
+      OR
+      (@TechnicianView=0
+       AND EXISTS (
+           SELECT 1 FROM dbo.SysWebUser SU
+           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+             AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
+             AND (
+               (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
+                   SELECT 1 FROM dbo.SysWebCommonValue C
+                   WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                     AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                     AND C.Description=@EmployeeID
+               ))
+               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
+                   EXISTS (
+                       SELECT 1 FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                         AND C.Description=@EmployeeID
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+                   )
+                   OR EXISTS (
+                       SELECT 1 FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                         AND C.Description=@EmployeeID
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
+                   )
+               ))
+             )
+             AND (
+                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+             )
+       )
+      )
   )",
                     new SqlParameter[] {
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", inspectionId),
-                        new SqlParameter("@EmployeeID", employeeId)
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@TechnicianView", technicianView ? 1 : 0)
                     });
                 if (header.Rows.Count == 0)
                     throw new HttpException(404, "Inspection not found or not authorized for approval.");
