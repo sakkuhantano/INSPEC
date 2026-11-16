@@ -1892,7 +1892,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
             const objectValues=old&&old.Values?old.Values:{};
             let lastGroup="";
             const fieldHtml=fields.map(field=>{
-                const key=String(field.fieldKey||field.FieldKey||"");
+                const key=String(field.idRepeat||field.IDRepeat||"");
                 const label=String(field.fieldLabel||field.FieldLabel||key);
                 const group=String(field.groupName||field.GroupName||"");
                 const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary" style="flex:0 0 100%;width:100%;max-width:100%">'+escInspection(group)+'</div>':"";
@@ -1903,7 +1903,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                 if(String(field.fieldType||field.FieldType||"").toUpperCase()==="OPTION"){
                     const rawOptions=field.optionList!=null?field.optionList:field.OptionList;
                     const options=Array.isArray(rawOptions)?rawOptions:String(rawOptions||"").split(";");
-                    input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
+                    input='<select class="form-select form-select-sm" data-role="repeat-value" data-repeat-id="'+escInspection(key)+'"'+fieldRequired+disabled+'><option value="">-- Select --</option>'+options.map(option=>'<option value="'+escInspection(option)+'" '+(String(fieldValue)===String(option)?"selected":"")+'>'+escInspection(option)+'</option>').join("")+'</select>';
                 }else{
                     const textType=String(field.fieldType||field.FieldType||"").toUpperCase()==="TEXT";
                     const minValue=field.min!=null?field.min:field.MinValue;
@@ -1912,7 +1912,7 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
                     const maxInclusive=field.maxInclusive!==undefined?field.maxInclusive!==false:field.MaxInclusive!==false;
                     const constraints=(minValue!=null?' data-min-value="'+escInspection(minValue)+'" data-min-inclusive="'+(minInclusive?'1':'0')+'"':'')+
                         (maxValue!=null?' data-max-value="'+escInspection(maxValue)+'" data-max-inclusive="'+(maxInclusive?'1':'0')+'"':'');
-                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+constraints)+' class="form-control form-control-sm" data-role="repeat-value" data-field-key="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
+                    input='<input type="'+(textType?"text":"number")+'" '+(textType?'maxlength="500"':'step="any"'+constraints)+' class="form-control form-control-sm" data-role="repeat-value" data-repeat-id="'+escInspection(key)+'" value="'+escInspection(fieldValue)+'"'+fieldRequired+disabled+'>';
                 }
                 return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="inspection-muted">'+escInspection(label+((field.unit||field.Unit)?" ("+(field.unit||field.Unit)+")":""))+'</label>'+input+'</div>';
             }).join("");
@@ -2026,7 +2026,7 @@ function collectInspectionItems() {
         });
         const repeatValues=Array.from(container.querySelectorAll(".inspection-repeat-object")).map(objectEl=>{
             const objectValues={};
-            objectEl.querySelectorAll("[data-role='repeat-value']").forEach(field=>{objectValues[field.dataset.fieldKey]=field.value===""?null:field.value;});
+            objectEl.querySelectorAll("[data-role='repeat-value']").forEach(field=>{objectValues[field.dataset.repeatId]=field.value===""?null:field.value;});
             return {ObjectIndex:Number(objectEl.dataset.objectIndex||0),Values:objectValues};
         });
         const value = (type === "GROUP" || type === "REPEAT") ? "" : (valueElement ? valueElement.value : "");
@@ -2153,7 +2153,7 @@ function validateInspectionItemsAll(items) {
             objects.forEach((objectRow,index)=>{
                 const values=objectRow&&objectRow.Values?objectRow.Values:{};
                 fields.forEach(field=>{
-                    const key=String(field.fieldKey||"");
+                    const key=String(field.idRepeat||field.IDRepeat||"");
                     const raw=values[key]==null?"":String(values[key]).trim();
                     if((field.isRequired||field.IsRequired) && !raw) invalid((field.fieldLabel||field.FieldLabel||key)+" wajib diisi pada "+label,"repeat-value");
                     if(raw && ["NUMBER","RANGE"].includes(String(field.fieldType||field.FieldType||"").toUpperCase())){
