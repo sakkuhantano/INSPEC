@@ -29,6 +29,7 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
 
 - Work Order child values use `PIP_T_WO_CheckList_SubValue.ObjectIndex` plus `FieldName=IDRepeat` (the integer is serialized as decimal text in this legacy-compatible value column; GROUP values continue using their existing textual FieldName).
 - Inspection child values use `PIP_T_InspectionResultValue.ObjectIndex` plus `FieldName=IDRepeat` (decimal text in the existing FieldName column; legacy GROUP values remain unchanged).
+- Inspection approval and returned-inspection snapshots also include the REPEAT configuration and child definitions (`IDRepeat`, `FieldLabel`, type, options, units, bounds, and required flags), so read-only approval screens can render the saved values without relying on a local template cache.
 - STANDARD and BATCH Inspection sync reuse spare columns in the existing `Type_N_Tbl_C5` TVP for ObjectIndex, so the existing C# procedure signature remains compatible.
 - Legacy GROUP values remain at ObjectIndex 0 and are not migrated.
 
