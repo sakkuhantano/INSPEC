@@ -1094,10 +1094,10 @@
 
     /* Phone full-height Batch/Lightning map workspace: keep Submit Batch visible. */
     @media (max-width: 767.98px) {
-        body:has(#inspectionMapWorkspace:not(.d-none)) #pageStickyBar {
+        body.inspection-map-mobile-active #pageStickyBar {
             display: none !important;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) {
+        #contentbody.inspection-map-mobile-active {
             display: flex;
             flex-direction: column;
             height: calc(100dvh - 44px);
@@ -1106,45 +1106,45 @@
             overflow: hidden;
             padding: .2rem .35rem 0 !important;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) > .master-footer {
+        #contentbody.inspection-map-mobile-active > .master-footer {
             display: none !important;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionInputPanel {
+        #contentbody.inspection-map-mobile-active #inspectionInputPanel {
             display: flex;
             flex: 1 1 auto;
             flex-direction: column;
             min-height: 0;
             overflow: hidden;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionEditorStickyHeader {
+        #contentbody.inspection-map-mobile-active #inspectionEditorStickyHeader {
             flex: 0 0 auto;
             margin-bottom: .15rem !important;
             padding-top: .15rem;
             padding-bottom: .15rem;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace {
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace {
             display: flex;
             flex: 1 1 0;
             height: auto !important;
             min-height: 0 !important;
             margin-bottom: 0 !important;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-toolbar,
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-summary,
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSelectWrap,
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSummaryHost,
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSubmitBar {
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-toolbar,
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-summary,
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSelectWrap,
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSummaryHost,
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSubmitBar {
             flex: 0 0 auto;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-content {
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-content {
             flex: 1 1 0;
             min-height: 0;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSubmitBar {
+        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSubmitBar {
             padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom)) !important;
         }
-        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #btnSubmitInspectionBatch {
+        #contentbody.inspection-map-mobile-active #btnSubmitInspectionBatch {
             min-height: 40px;
             padding: .45rem 1rem;
         }
