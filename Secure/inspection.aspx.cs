@@ -3252,7 +3252,7 @@ WHERE I.InspectionID=@InspectionID
                 string followUpWONo = saved != null && saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
                 object emailDispatch;
-                try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
+                try { emailDispatch = DispatchInspectionEmailOutbox(20, employeeId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
                 return new {
                     success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId,
