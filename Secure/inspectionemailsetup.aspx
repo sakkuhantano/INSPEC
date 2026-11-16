@@ -26,10 +26,10 @@
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span></label>
           <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefEng_TextChanged" placeholder="Pilih NIK" />
+            <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefEng_TextChanged" placeholder="NIK1;NIK2;NIK3" />
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" />
+          <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
         </div>
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span></label>
@@ -37,7 +37,7 @@
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefSec_TextChanged" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" />
+          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
         </div>
       </div>
     </div>
@@ -58,10 +58,10 @@
           <div class="col-md-5">
             <label class="form-label">SPV NIK</label>
             <div class="d-flex gap-2 align-items-center">
-              <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtSPV_TextChanged" placeholder="Pilih NIK SPV" />
+              <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtSPV_TextChanged" placeholder="NIK1;NIK2;NIK3" />
               <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
             </div>
-            <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
+            <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
           </div>
           <div class="col-md-3 d-flex align-items-end">
             <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
