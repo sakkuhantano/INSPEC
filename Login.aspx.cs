@@ -278,13 +278,13 @@ namespace INSPEC
                       (
                           SELECT TOP 1 LastSyncMaster, LastSyncWO
                           FROM UserSession
-                          WHERE IsActive = 1 AND UserID = U.EmployeeID
-                            AND ExpireTime > GETDATE()
+                          WHERE UserID = U.EmployeeID AND BrowserGuid = @BrowserGuid
                           ORDER BY LoginTime DESC, ID DESC
                       ) us
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
                       WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
-                    "@EmployeeID=" + p_employeeid);
+                    "@EmployeeID=" + p_employeeid + GF.Str2 +
+                     "@BrowserGuid=" + p_browserGuid);
                 var _arrList = new ArrayList();
                 if (dt.Rows.Count == 0) return new { success = false, message = "user not found..." };
                 if (Convert.ToString(dt.Rows[0]["Password"]).Trim() != V_Pwd.Trim())
@@ -356,13 +356,40 @@ namespace INSPEC
 @"SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 DECLARE @NewID INT;
+DECLARE @SessionID INT;
 SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
--- Keep other devices' active sessions. Only purge sessions that can no longer authenticate.
-DELETE FROM UserSession
-WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
-SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
-INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
-VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
+SELECT TOP 1 @SessionID = ID
+FROM UserSession
+WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid
+ORDER BY LoginTime DESC, ID DESC;
+
+-- A login refreshes only this browser's session. Other devices remain active.
+UPDATE UserSession
+SET IsActive = 0
+WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid AND IsActive = 1;
+
+IF @SessionID IS NULL
+BEGIN
+    -- New browser/device: do not inherit another device's sync watermark.
+    DELETE FROM UserSession
+    WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
+
+    SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
+    INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
+    VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
+END
+ELSE
+BEGIN
+    -- Reuse this device's row so its own sync watermarks survive re-login.
+    UPDATE UserSession
+    SET ServerGuid = @ServerGuid,
+        Token = @Token,
+        LoginTime = GETDATE(),
+        ExpireTime = DATEADD(DAY,2,GETDATE()),
+        IsActive = 1,
+        DeviceName = @DeviceName
+    WHERE ID = @SessionID;
+END
 COMMIT TRANSACTION;",
                     "@EmployeeID=" + V_EmpID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
                     "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
