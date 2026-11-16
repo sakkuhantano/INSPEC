@@ -1092,6 +1092,61 @@
         .inspection-entry-header-actions .btn { font-size: .57rem !important; padding-left: .28rem !important; padding-right: .28rem !important; }
     }
 
+    /* Phone full-height Batch/Lightning map workspace: keep Submit Batch visible. */
+    @media (max-width: 767.98px) {
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) {
+            display: flex;
+            flex-direction: column;
+            height: calc(100dvh - 44px);
+            min-height: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            padding: .2rem .35rem 0 !important;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) > .master-footer {
+            display: none !important;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionInputPanel {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionEditorStickyHeader {
+            flex: 0 0 auto;
+            margin-bottom: .15rem !important;
+            padding-top: .15rem;
+            padding-bottom: .15rem;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace {
+            display: flex;
+            flex: 1 1 0;
+            height: auto !important;
+            min-height: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-toolbar,
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-summary,
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSelectWrap,
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSummaryHost,
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSubmitBar {
+            flex: 0 0 auto;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > .inspection-map-content {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #inspectionMapWorkspace > #inspectionMapSubmitBar {
+            padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom)) !important;
+        }
+        #contentbody:has(#inspectionMapWorkspace:not(.d-none)) #btnSubmitInspectionBatch {
+            min-height: 40px;
+            padding: .45rem 1rem;
+        }
+    }
+
 </style>
 </asp:Content>
 
