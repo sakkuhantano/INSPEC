@@ -17,7 +17,7 @@
           <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span>
           </label>
           <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
+            <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefEng_TextChanged" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
           <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" />
@@ -26,7 +26,7 @@
           <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span>
           </label>
           <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
+            <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefSec_TextChanged" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
           <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" />
@@ -51,10 +51,10 @@
         <div class="col-md-5">
           <label class="form-label">SPV NIK</label>
           <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" placeholder="Pilih NIK SPV" />
+            <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtSPV_TextChanged" placeholder="Pilih NIK SPV" />
             <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
-          
+          <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
         <div class="col-md-3 d-flex align-items-end">
           <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
