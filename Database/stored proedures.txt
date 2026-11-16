@@ -1162,7 +1162,7 @@ BEGIN
         WHERE NOT EXISTS
         (
             SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-            WHERE F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C3
+            WHERE F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C3
         )
     )
     BEGIN RAISERROR('Unknown REPEAT child IDRepeat submitted for BATCH inspection.',16,1); RETURN; END;
@@ -1215,7 +1215,7 @@ BEGIN
         FROM @p_Items I
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(I.C2 AS INT) AND F.IsRequired=1
         JOIN (SELECT DISTINCT C1,C2,C5 FROM @p_ItemValues) O ON O.C1=I.C1 AND O.C2=I.C2
-        LEFT JOIN @p_ItemValues V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C5=O.C5 AND V.C3=F.IDRepeat
+        LEFT JOIN @p_ItemValues V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C5=O.C5 AND V.C3=CONVERT(VARCHAR(11),F.IDRepeat)
         WHERE UPPER(ISNULL(I.C4,''))='REPEAT' AND ISNULL(LTRIM(RTRIM(V.C4)),'')=''
     )
     BEGIN RAISERROR('A required REPEAT child field is missing in BATCH inspection.',16,1); RETURN; END;
@@ -1225,7 +1225,7 @@ BEGIN
         SELECT 1
         FROM @p_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-          ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C3 AND F.FieldType='OPTION'
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C3 AND F.FieldType='OPTION'
         WHERE ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
           AND NOT EXISTS
           (
@@ -1238,7 +1238,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C3
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C3
         WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>'' AND ISNUMERIC(V.C4)=0
     )
     BEGIN RAISERROR('A BATCH REPEAT numeric value must be a valid number.',16,1); RETURN; END;
@@ -1246,7 +1246,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C3
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C3
         WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
           AND (CONVERT(FLOAT,V.C4)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C4)=F.MinValue))
     )
@@ -1255,7 +1255,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @p_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND F.IDRepeat=V.C3
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C3
         WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C4)),'')<>''
           AND (CONVERT(FLOAT,V.C4)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C4)=F.MaxValue))
     )
@@ -1568,7 +1568,7 @@ BEGIN
         WHERE NOT EXISTS
         (
             SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-            WHERE F.IDItem=V.IDItem AND F.IDRepeat=V.FieldName
+            WHERE F.IDItem=V.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=V.FieldName
         )
     )
     BEGIN RAISERROR('Unknown REPEAT child IDRepeat submitted.',16,1); RETURN; END;
@@ -1630,7 +1630,7 @@ BEGIN
         FROM @tbl_Items I
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
         JOIN (SELECT DISTINCT IDItem,ObjectIndex FROM @tbl_ItemValues) O ON O.IDItem=I.IDItem
-        LEFT JOIN @tbl_ItemValues V ON V.IDItem=O.IDItem AND V.ObjectIndex=O.ObjectIndex AND V.FieldName=F.IDRepeat
+        LEFT JOIN @tbl_ItemValues V ON V.IDItem=O.IDItem AND V.ObjectIndex=O.ObjectIndex AND V.FieldName=CONVERT(VARCHAR(11),F.IDRepeat)
         WHERE I.ItemType='REPEAT' AND ISNULL(LTRIM(RTRIM(V.Value)),'')=''
     )
     BEGIN RAISERROR('A required REPEAT child field is missing.',16,1); RETURN; END;
@@ -1640,7 +1640,7 @@ BEGIN
         SELECT 1
         FROM @tbl_ItemValues V
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-          ON F.IDItem=V.IDItem AND F.IDRepeat=V.FieldName AND F.FieldType='OPTION'
+          ON F.IDItem=V.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=V.FieldName AND F.FieldType='OPTION'
         WHERE ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
           AND NOT EXISTS
           (
@@ -1678,7 +1678,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @tbl_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.IDRepeat=V.FieldName
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=V.FieldName
         WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>'' AND ISNUMERIC(V.Value)=0
     )
     BEGIN RAISERROR('A REPEAT numeric value must be a valid number.',16,1); RETURN; END;
@@ -1686,7 +1686,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @tbl_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.IDRepeat=V.FieldName
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=V.FieldName
         WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
           AND (CONVERT(FLOAT,V.Value)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.Value)=F.MinValue))
     )
@@ -1695,7 +1695,7 @@ BEGIN
     IF EXISTS
     (
         SELECT 1 FROM @tbl_ItemValues V
-        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND F.IDRepeat=V.FieldName
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=V.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=V.FieldName
         WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.Value)),'')<>''
           AND (CONVERT(FLOAT,V.Value)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.Value)=F.MaxValue))
     )
@@ -2535,12 +2535,13 @@ BEGIN
         FROM @p_DtRepeat R
         WHERE ISNULL(R.C1,'')='' OR ISNUMERIC(R.C2)=0 OR ISNUMERIC(R.C3)=0
            OR CAST(R.C3 AS INT)<0 OR ISNULL(R.C4,'')=''
+           OR LEN(R.C4)>10 OR R.C4 LIKE '%[^0-9]%'
            OR NOT EXISTS
            (
                SELECT 1
                FROM dbo.PIP_T_WO_CheckList CL
                JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
-               JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IDRepeat=R.C4
+               JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=R.C4
                WHERE CL.KeyHD=CAST(R.C1 AS INT) AND CL.IDItem=CAST(R.C2 AS INT)
            )
     )
@@ -2601,7 +2602,7 @@ BEGIN
         JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
         JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
         JOIN (SELECT DISTINCT C1,C2,C3 FROM @p_DtRepeat) O ON O.C1=A.C1 AND O.C2=A.C2
-        LEFT JOIN @p_DtRepeat V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C3=O.C3 AND V.C4=F.IDRepeat
+        LEFT JOIN @p_DtRepeat V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C3=O.C3 AND V.C4=CONVERT(VARCHAR(11),F.IDRepeat)
         WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')=''
     )
     BEGIN RAISERROR('A required REPEAT child field is missing in Work Order.',16,1); RETURN; END;
