@@ -575,5 +575,10 @@ BEGIN
 END;
 GO
 
+/* Remove the temporary helper; InspectionMode is now persisted by the canonical sync procedure. */
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_SetMode', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_SetMode;
+GO
+
 
 
