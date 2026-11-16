@@ -2300,7 +2300,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
 
         [WebMethod]
         public static object ProcessLightningInspectionApproval(long inspectionId, string action, string employeeId,
-            string companyId, string locationId, string remark)
+            string companyId, string locationId, string remark, string approvalToken)
         {
             RequireSameOriginPost();
             employeeId = GFC.RequireMenuEmployee("20022");
@@ -2312,6 +2312,10 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                 throw new HttpException(400, "Invalid Lightning approval action.");
             if (String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase) && String.IsNullOrWhiteSpace(remark))
                 throw new HttpException(400, "Reason for void is required.");
+
+            Guid parsedApprovalToken;
+            if (!String.IsNullOrWhiteSpace(approvalToken) && !Guid.TryParse(approvalToken, out parsedApprovalToken))
+                throw new HttpException(400, "Invalid approval email token.");
 
             string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
             string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
@@ -2327,7 +2331,8 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                     new SqlParameter("@p_Action", action.ToUpperInvariant()),
                     new SqlParameter("@p_Remark", String.IsNullOrWhiteSpace(remark) ? "" : remark),
                     new SqlParameter("@p_ApprovalUrl", approvalUrl),
-                    new SqlParameter("@p_CorrectionUrl", correctionUrl)
+                    new SqlParameter("@p_CorrectionUrl", correctionUrl),
+                    new SqlParameter("@p_ApprovalToken", String.IsNullOrWhiteSpace(approvalToken) ? (object)DBNull.Value : new Guid(approvalToken))
                 }, true, true);
                 object emailDispatch;
                 try { emailDispatch = DispatchInspectionEmailOutbox(20, employeeId, companyId); }
