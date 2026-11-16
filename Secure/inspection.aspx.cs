@@ -1014,22 +1014,15 @@ SELECT ID FROM @AutoNumResult;",
                     WriteInspectionSyncError(syncStage, clientId, userId, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
-                    string userMessage;
-                    if (ex.Message.IndexOf("An inspection already exists for this date", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        userMessage = "Jadwal inspeksi ini sudah memiliki data di server. Silakan periksa data inspeksi yang sudah tersimpan.";
-                    }
-                    else if (syncStage == "validate batch checklist version rules" ||
-                             syncStage == "validate batch map coverage")
-                    {
-                        // These are business-rule failures with Point Code context, not technical diagnostics.
-                        userMessage = ex.Message;
-                    }
-                    else
-                    {
-                        // Keep technical details in the server log; do not expose them to technicians.
-                        userMessage = "Sinkronisasi belum berhasil. Silakan coba lagi. Jika masih terjadi, hubungi supervisor.";
-                    }
+                    // Return the same diagnostic detail written to App_Data so the user can
+                    // identify the actual failing stage, SQL error, and stack location without
+                    // opening the IIS server log.
+                    string userMessage = String.Format(
+                        CultureInfo.InvariantCulture,
+                        "Tahap: {0}{1}{2}",
+                        syncStage ?? "unknown",
+                        Environment.NewLine,
+                        ex.ToString());
 
                     outcomes.Add(new
                     {
