@@ -945,7 +945,8 @@ SELECT ID FROM @AutoNumResult;",
                                         new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
                                         new SqlParameter("@p_Photos", photoTable),
                                         new SqlParameter("@p_Items", items),
-                                        new SqlParameter("@p_ItemValues", itemValues)
+                                        new SqlParameter("@p_ItemValues", itemValues),
+                                        new SqlParameter("@p_InspectionMode", inspectionMode)
                                     }).ToArray(), true, true);
                             }
                             sqlCallReturned = true;
@@ -959,13 +960,6 @@ SELECT ID FROM @AutoNumResult;",
 
                             if (!isLightningInspection)
                             {
-                                syncStage = "update InspectionMode after sync";
-                                br.EQueryP(@"UPDATE dbo.PIP_T_Inspection SET InspectionMode=@InspectionMode
-WHERE InspectionID=@InspectionID",
-                                    new SqlParameter[] {
-                                        new SqlParameter("@InspectionMode", inspectionMode),
-                                        new SqlParameter("@InspectionID", inspectionId)
-                                    }, false, true);
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
                                 string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
