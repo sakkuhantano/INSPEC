@@ -712,8 +712,9 @@ BEGIN
         FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField WITH (TABLOCKX,HOLDLOCK);
 
         IF @V_NextRepeatID IS NULL
+           OR @V_NextRepeatID > 2147483647 - (SELECT COUNT(*) FROM @tbl_RepeatField WHERE IDRepeat IS NULL) + 1
         BEGIN
-            RAISERROR('IDRepeat has reached the INT limit; no new REPEAT field ID can be allocated.',16,1);
+            RAISERROR('IDRepeat has reached the INT limit; the new REPEAT field IDs cannot be allocated.',16,1);
         END;
 
         INSERT @tbl_NewRepeatField
