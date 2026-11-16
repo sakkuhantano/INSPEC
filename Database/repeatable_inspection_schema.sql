@@ -70,9 +70,10 @@ BEGIN
 END;
 GO
 
-/* Upgrade the earlier FieldKey prototype to numeric IDRepeat identities. */
+/* Upgrade the earlier FieldKey prototype to numeric IDRepeat identities.
+   The block is restartable if a previous deployment stopped part-way through. */
 IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NOT NULL
-   AND COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','IDRepeat') IS NULL
+   AND COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','FieldKey') IS NOT NULL
 BEGIN
     IF EXISTS
     (
@@ -91,11 +92,12 @@ BEGIN
         ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
             DROP CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField;
 
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
-        ADD IDRepeat INT IDENTITY(1,1) NOT NULL;
+    IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','IDRepeat') IS NULL
+        ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+            ADD IDRepeat INT IDENTITY(1,1) NOT NULL;
 
-    /* Preserve already-saved REPEAT values by replacing their old textual keys
-       with the generated numeric IDRepeat. Legacy GROUP FieldName values remain untouched. */
+    /* Preserve saved REPEAT values by replacing old textual keys with IDRepeat.
+       Legacy GROUP FieldName values are not touched. */
     UPDATE SV
        SET SV.FieldName=CONVERT(VARCHAR(100),F.IDRepeat)
     FROM dbo.PIP_T_WO_CheckList_SubValue SV
@@ -111,9 +113,19 @@ BEGIN
     JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.FieldKey=IV.FieldName;
 
     ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField DROP COLUMN FieldKey;
+END;
+GO
+
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NOT NULL
+   AND COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','IDRepeat') IS NOT NULL
+   AND NOT EXISTS
+   (
+       SELECT 1 FROM sys.key_constraints
+       WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField')
+         AND name='PK_PIP_M_CheckListWOPM_ItemRepeatField'
+   )
     ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
         ADD CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField PRIMARY KEY CLUSTERED (IDRepeat);
-END;
 GO
 
 IF EXISTS
