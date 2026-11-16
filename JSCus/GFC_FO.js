@@ -1474,16 +1474,25 @@ async function uploadPendingInspections() {
                     seqNo = maxSeq;
                 }
                 used.add(seqNo);
+
+                if (!photo.Blob || typeof photo.Blob.size !== "number" || photo.Blob.size <= 0)
+                    throw new Error("Inspection photo " + (photo.FileName || seqNo) + " has no valid image data in IndexedDB.");
+
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result || ""));
+                    reader.onerror = () => reject(reader.error || new Error("Failed to read Inspection photo."));
+                    reader.readAsDataURL(photo.Blob);
+                });
+                const comma = dataUrl.indexOf(",");
+                if (comma < 0 || dataUrl.length <= comma + 1)
+                    throw new Error("Inspection photo " + (photo.FileName || seqNo) + " produced empty Base64 data.");
+
                 return {
                     Type: photo.Type,
                     FileName: photo.FileName || "",
                     SeqNo: seqNo,
-                    Data: await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(String(reader.result || ""));
-                        reader.onerror = () => reject(reader.error);
-                        reader.readAsDataURL(photo.Blob);
-                    })
+                    Data: dataUrl
                 };
             }));
         };
