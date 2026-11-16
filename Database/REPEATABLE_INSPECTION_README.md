@@ -18,17 +18,17 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
 ## Data model
 
 - `PIP_M_CheckListWOPM_ItemRepeat`: one REPEAT configuration per checklist item.
-- `PIP_M_CheckListWOPM_ItemRepeatField`: child field definitions keyed by stable `FieldKey`.
+- `PIP_M_CheckListWOPM_ItemRepeatField`: child field definitions keyed by database-generated `IDRepeat INT` (identity). `FieldLabel` is display text only and may be renamed without changing stored values.
 - Child field types: `NUMBER`, `RANGE`, `OPTION`, `TEXT`. Nested REPEAT is not supported.
 - `FIELDS`: one logical record, stored as `ObjectIndex=0`; `ColumnCount` controls the UI grid (default 3).
 - `OBJECTS`: repeated objects with the same child field definitions; object indices are zero-based and sequential.
-- Child values use `FieldKey`, never the visible field label. Renaming a label therefore does not change the data key.
+- Child values use the numeric `IDRepeat` identity, never the visible `FieldLabel`. Renaming a label therefore does not change the data key. New/cloned fields use a negative client-only `RuntimeRepeatID` until `SaveAllTemplate` returns the generated `IDRepeat` in its identity map.
 - Child fields can be required, constrained by min/max, assigned an optional unit, option list, display order, and optional group heading. Unit is presentation metadata only; blank units are valid. `ShowUnitInRange` on a parent RANGE item controls whether its unit appears beside the reference range choices/hint. `MinInclusive` and `MaxInclusive` independently define whether a configured boundary is accepted; legacy fields default to inclusive. For example, `MinValue=26, MinInclusive=0` means `>26`, while `MaxValue=47, MaxInclusive=0` means `<47`. An open boundary is represented by NULL.
 
 ## Transaction storage
 
-- Work Order child values use `PIP_T_WO_CheckList_SubValue.ObjectIndex` plus `FieldName=FieldKey`.
-- Inspection child values use `PIP_T_InspectionResultValue.ObjectIndex` plus `FieldName=FieldKey`.
+- Work Order child values use `PIP_T_WO_CheckList_SubValue.ObjectIndex` plus `FieldName=IDRepeat` (the integer is serialized as decimal text in this legacy-compatible value column; GROUP values continue using their existing textual FieldName).
+- Inspection child values use `PIP_T_InspectionResultValue.ObjectIndex` plus `FieldName=IDRepeat` (decimal text in the existing FieldName column; legacy GROUP values remain unchanged).
 - STANDARD and BATCH Inspection sync reuse spare columns in the existing `Type_N_Tbl_C5` TVP for ObjectIndex, so the existing C# procedure signature remains compatible.
 - Legacy GROUP values remain at ObjectIndex 0 and are not migrated.
 
