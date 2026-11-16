@@ -566,7 +566,7 @@ BEGIN
             ELSE
                 ROLLBACK TRANSACTION InspectionSyncSave;
         END
-        ELSE IF XACT_STATE() = -1 AND @V_EntryTranCount = 0
+        ELSE IF XACT_STATE() = -1
             ROLLBACK TRANSACTION;
 
         DECLARE @V_ErrorMessage NVARCHAR(4000);
