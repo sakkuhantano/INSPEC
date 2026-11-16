@@ -360,7 +360,6 @@ namespace INSPEC.Secure
         {
             hidSPVOriginalSection.Value = "";
             txtSPV.Text = "";
-            lblSPVName.Text = "";
             if (ddlSection.Items.Count > 0)
                 ddlSection.SelectedIndex = 0;
             PrepareEmployeeSearch();
