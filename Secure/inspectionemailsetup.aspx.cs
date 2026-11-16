@@ -283,6 +283,7 @@ namespace INSPEC.Secure
             chkEmailBatch.Checked = GetCommonValue(Scope + ";EMAIL;BATCH") == "1";
             string v = GetCommonValue(Scope + ";EMAIL;LIGHTNING");
             chkEmailLightning.Checked = v == "" || v == "1";
+            chkEmailWO.Checked = GetCommonValue(Scope + ";EMAIL;WO") == "1";
         }
         private void SaveCommonValue(string id, string val)
         {
@@ -358,6 +359,7 @@ namespace INSPEC.Secure
                 SaveCommonValue(Scope + ";EMAIL;STANDARD", chkEmailStandard.Checked ? "1" : "0");
                 SaveCommonValue(Scope + ";EMAIL;BATCH", chkEmailBatch.Checked ? "1" : "0");
                 SaveCommonValue(Scope + ";EMAIL;LIGHTNING", chkEmailLightning.Checked ? "1" : "0");
+                SaveCommonValue(Scope + ";EMAIL;WO", chkEmailWO.Checked ? "1" : "0");
 
                 if (pnlSPVEditor.Visible)
                 {
