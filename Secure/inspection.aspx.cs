@@ -885,28 +885,21 @@ WHERE InspectionID=@InspectionID",
 
                         syncStage = "save inspection and photos in one BRC transaction";
                         DataTable saved;
-                        using (var inspectionBr = new INSPEC.BRC.PIP_T_WO())
-                        {
-                            string requestedInspectionNo = inspectionNo;
-                            saved = inspectionBr.SyncInspection(
-                                procedureName,
-                                syncParameters.ToArray(),
-                                companyId,
-                                locationId,
-                                inspectionDate,
-                                requestedInspectionNo,
-                                clientId,
-                                incomingPhotos,
-                                incomingBatchPhotos,
-                                out inspectionNo);
-                        }
-                        syncStage = "validate saved inspection result";
-
-                            if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
-                                throw new Exception("Inspection sync procedure returned no saved header.");
-                            long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
-                            if (inspectionId <= 0)
-                                throw new Exception("Inspection header was not saved.");
+                        string requestedInspectionNo = inspectionNo;
+                        var inspectionBr = new INSPEC.BRC.PIP_T_WO();
+                        saved = inspectionBr.SyncInspection(
+                            procedureName,
+                            syncParameters.ToArray(),
+                            companyId,
+                            locationId,
+                            inspectionDate,
+                            requestedInspectionNo,
+                            clientId,
+                            incomingPhotos,
+                            incomingBatchPhotos,
+                            out inspectionNo);
+                        syncStage = "read saved inspection identifiers";
+                        long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
 
                             /* Standard and Batch submit their workflow inside the same SQL transaction
                                as the inspection header and child data. No second EQueryP call is required. */
