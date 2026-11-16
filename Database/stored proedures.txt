@@ -72,8 +72,10 @@ DECLARE @tbl_RepeatField TABLE
  MinInclusive BIT, MaxInclusive BIT)
 INSERT @tbl_RepeatField
 SELECT CAST(C1 AS INT),
-       CASE WHEN C2 LIKE '-[0-9]%' AND C2 NOT LIKE '%[^0-9-]%' THEN CAST(C2 AS INT) ELSE 0 END,
-       CASE WHEN C2 NOT LIKE '%[^0-9]%' AND ISNUMERIC(C2)=1 AND CAST(C2 AS BIGINT)>0 THEN CAST(C2 AS INT) ELSE NULL END,
+       CASE WHEN LEN(C2)<=11 AND LEFT(C2,1)='-' AND SUBSTRING(C2,2,10)<>'' AND SUBSTRING(C2,2,10) NOT LIKE '%[^0-9]%' THEN CAST(C2 AS INT) ELSE 0 END,
+       CASE WHEN LEN(C2)<=10 AND C2<>'' AND C2 NOT LIKE '%[^0-9]%' THEN
+                CASE WHEN CAST(C2 AS BIGINT)>0 THEN CAST(C2 AS INT) ELSE NULL END
+            ELSE NULL END,
        C3, UPPER(C4), NULLIF(C5,''), NULLIF(C6,''),
        NULLIF(C7,''), NULLIF(C8,''), CAST(ISNULL(NULLIF(C9,''),'0') AS BIT),
        NULLIF(C10,''), CAST(ISNULL(NULLIF(C11,''),'0') AS INT),
@@ -639,15 +641,6 @@ SELECT S.IDItem,S.RepeatMode,S.ColumnCount,S.ObjectLabel,S.CountMode,S.FixedCoun
 FROM @tbl_ResolvedRepeat S
 WHERE NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=S.IDItem);
 
-DELETE F
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
-WHERE NOT EXISTS
-(
-    SELECT 1 FROM @tbl_RepeatField S
-    WHERE S.RuntimeItemID=R.RuntimeItemID AND S.IDRepeat=F.IDRepeat
-);
-
 IF EXISTS
 (
     SELECT 1
@@ -658,6 +651,15 @@ IF EXISTS
                       WHERE F.IDItem=R.IDItem AND F.IDRepeat=S.IDRepeat)
 )
 BEGIN RAISERROR('An IDRepeat does not belong to the submitted REPEAT item.',16,1); RETURN; END;
+
+DELETE F
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM @tbl_RepeatField S
+    WHERE S.RuntimeItemID=R.RuntimeItemID AND S.IDRepeat=F.IDRepeat
+);
 
 UPDATE F
 SET FieldLabel=S.FieldLabel, FieldType=S.FieldType, OptionList=S.OptionList, Unit=S.Unit,
