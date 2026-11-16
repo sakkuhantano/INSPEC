@@ -3321,9 +3321,13 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     DataTable resultValues = br.EQueryP(@"
 SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,
-       V.ObjectIndex,V.FieldName,V.Value FieldValue
+       V.ObjectIndex,V.FieldName,ISNULL(F.FieldLabel,V.FieldName) FieldLabel,V.Value FieldValue
 FROM dbo.PIP_T_InspectionResult R
 JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+LEFT JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+  ON F.IDItem=R.IDItem
+ AND F.IDRepeat=CASE WHEN V.FieldName<>'' AND LEN(V.FieldName)<=10 AND V.FieldName NOT LIKE '%[^0-9]%'
+                     THEN CAST(V.FieldName AS INT) ELSE 0 END
 WHERE R.InspectionID=@InspectionID
 ORDER BY R.InspectionResultID,V.ObjectIndex,V.FieldName",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
@@ -3356,7 +3360,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                                 .Append(HttpUtility.HtmlEncode(GF.GetString(result["Value"])));
                             long resultId = Convert.ToInt64(result["InspectionResultID"]);
                             foreach (DataRow child in resultValues.Select("InspectionResultID=" + resultId.ToString(CultureInfo.InvariantCulture)))
-                                html.Append("<br/><small>").Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldName"])))
+                                html.Append("<br/><small>").Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldLabel"])))
                                     .Append(" #").Append(Convert.ToString(child["ObjectIndex"])).Append(": ")
                                     .Append(HttpUtility.HtmlEncode(GF.GetString(child["FieldValue"]))).Append("</small>");
                             string remark1 = GF.GetString(result["Remark1"]);
