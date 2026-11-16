@@ -1,8 +1,9 @@
 /*
     Inspection parameter-change sync migration.
     SQL Server 2008 compatible.
-    Run this file once against the application database to update the stored procedure
-    without re-running the full Inspection schema.
+    Run Database/InspectionApproval_Workflow_Procedures.sql first, then run this file
+    against the application database. The Standard submit workflow is executed inside
+    this canonical sync transaction; no second application-layer EQueryP call is used.
 */
 SET ANSI_NULLS ON
 GO
