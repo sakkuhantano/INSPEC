@@ -93,8 +93,10 @@ BEGIN
         WHERE InspectionID=@V_ExistingInspectionID AND ISNULL(IsSubmitted,0)=1
     )
     BEGIN
-        SELECT @V_ExistingInspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
-               'ALREADY_SUBMITTED' WorkflowStatus;
+        SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,
+               'ALREADY_SUBMITTED' WorkflowStatus
+        FROM dbo.PIP_T_Inspection I
+        WHERE I.InspectionID=@V_ExistingInspectionID;
         RETURN;
     END;
 
