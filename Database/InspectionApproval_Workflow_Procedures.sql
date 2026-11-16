@@ -18,8 +18,8 @@ BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
-         @EmailEnabled BIT,@SPV VARCHAR(50),@SPVEmail VARCHAR(320),@TechEmail VARCHAR(320),
-          @SPVName NVARCHAR(200),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
+         @EmailEnabled BIT,@SPV VARCHAR(4000),@SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),
+          @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
          @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT,@LastActionCode VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
@@ -52,19 +52,31 @@ BEGIN
    RAISERROR('SPV approver setup is missing. Required SysWebCommonValue.ID: %s',16,1,@MissingSPVKey);
    RETURN;
   END;
-  IF NOT EXISTS
+  IF EXISTS
   (
-   SELECT 1 FROM dbo.M_HRD_Employee E
-   WHERE E.EmployeeID=@SPV AND E.CompanyID=@C AND E.SectionID=@S
-     AND ISNULL(E.TerminationDate,'')=''
-     AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-       AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-     AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-       WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+   SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
+   WHERE NOT EXISTS
+   (
+    SELECT 1 FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C AND E.SectionID=@S
+      AND ISNULL(E.TerminationDate,'')=''
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+        AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+        WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+   )
   )
-  BEGIN RAISERROR('Configured SPV approver is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
+  BEGIN RAISERROR('One or more configured SPV approvers are not active or lack approval access for this Company, Location, and Section.',16,1); RETURN; END;
  END;
- SELECT @SPVName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@SPV),@SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
+ SELECT @SPVName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
+ FROM dbo.SplitStringConvertToTable(@SPV,';') X
+ LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+ ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@SPV),
+ @SPVEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress))
+ FROM dbo.SplitStringConvertToTable(@SPV,';') X
+ JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+ WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+ ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  IF @EmailEnabled=1
  BEGIN
@@ -100,10 +112,19 @@ BEGIN
       EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
      VALUES
       ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV',@EventID,'INSPECTION',@p_InspectionID,
-       'APPROVER',@SPV,@SPVEmail,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
-       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>Teknisi: '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N')</p><p>Approver: '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N')</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
+       'APPROVER',X.EmployeeID,X.EmailAddress,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
+       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>Teknisi: '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N')</p><p>Approver: '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N')</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
        N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
-       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N'). '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE()),
+       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') menunggu approval SPV '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE())
+     FROM
+     (
+       SELECT LTRIM(RTRIM(S.val)) EmployeeID,
+              E.emailaddress EmailAddress,
+              ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+       FROM dbo.SplitStringConvertToTable(@SPV,';') S
+       JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+       WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+     ) X,
       ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
        'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
        N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').</p>',
@@ -163,7 +184,7 @@ BEGIN
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
- IF @SPV<>@p_ActorEmployeeID BEGIN RAISERROR('You are not the configured SPV for this Section.',16,1); RETURN; END;
+ IF NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID) BEGIN RAISERROR('You are not a configured SPV for this Section.',16,1); RETURN; END;
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID) FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
  IF @EmailEnabled=1
