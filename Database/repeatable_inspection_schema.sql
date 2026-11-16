@@ -126,6 +126,15 @@ BEGIN
 END;
 GO
 
+/* Ensure boundary columns exist before a possible table rebuild. */
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MinInclusive') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD MinInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MinInclusive_PreRebuild DEFAULT (1);
+IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','MaxInclusive') IS NULL
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD MaxInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MaxInclusive_PreRebuild DEFAULT (1);
+GO
+
 /* Older deployments briefly used IDENTITY for IDRepeat. Rebuild the table
    with the same numeric keys but a normal INT column (no IDENTITY property). */
 IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NOT NULL
