@@ -5,9 +5,6 @@
   <div class="mb-3">
     <h4 class="mb-1">Inspection Email &amp; Approval Routing</h4>
   </div>
-  <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert mb-3">
-    <asp:Literal ID="litMessage" runat="server" />
-  </asp:Panel>
   <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-body-tertiary fw-semibold">Chief Approver</div>
