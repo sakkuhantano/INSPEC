@@ -145,12 +145,13 @@ BEGIN
     (
         InspectionResultID BIGINT NOT NULL,
         FieldName VARCHAR(100) NOT NULL,
+        ObjectIndex INT NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_ObjectIndex DEFAULT (0),
         Value VARCHAR(500) NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_Value DEFAULT (''),
         EntryUser VARCHAR(50) NOT NULL,
         EntryDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_EntryDate DEFAULT (GETDATE()),
         UpdateUser VARCHAR(50) NOT NULL,
         UpdateDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_InspectionResultValue_UpdateDate DEFAULT (GETDATE()),
-        CONSTRAINT PK_PIP_T_InspectionResultValue PRIMARY KEY CLUSTERED (InspectionResultID, FieldName),
+        CONSTRAINT PK_PIP_T_InspectionResultValue PRIMARY KEY CLUSTERED (InspectionResultID, ObjectIndex, FieldName),
         CONSTRAINT FK_PIP_T_InspectionResultValue_Result FOREIGN KEY (InspectionResultID)
             REFERENCES dbo.PIP_T_InspectionResult (InspectionResultID)
     );
