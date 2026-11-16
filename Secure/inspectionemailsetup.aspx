@@ -2,13 +2,10 @@
 
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-  <div class="mb-3">
-    <h4 class="mb-1">Inspection Email &amp; Approval Routing</h4>
-  </div>
-  <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
+<asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
   <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-body-tertiary fw-semibold">Chief Approver</div>
-    <div class="card-body">
+    <div class="card-header bg-body-tertiary fw-semibold py-2">Email Notification per Inspection Mode</div>
+    <div class="card-body pt-2">
       <div class="row g-3">
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span>
@@ -33,11 +30,11 @@
     </div>
   </div>
   <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+    <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-2">
       <span>SPV Mapping per Section</span>
       <asp:Button ID="btnNewSPV" runat="server" Text="Add New Record" CssClass="btn btn-sm CUS-btn-outline-PColor-1" CausesValidation="false" OnClick="btnNewSPV_Click" />
     </div>
-    <div class="card-body">
+    <div class="card-body pt-2">
       <asp:Panel ID="pnlSPVEditor" runat="server" Visible="false">
         <asp:HiddenField ID="hidSPVOriginalSection" runat="server" />
         <div class="row g-3 align-items-end">
@@ -74,9 +71,9 @@
       </asp:GridView>
     </div>
   </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-body-tertiary fw-semibold">Email Notification per Inspection Mode</div>
-    <div class="card-body">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-body-tertiary fw-semibold py-2">Chief Approver</div>
+    <div class="card-body pt-2">
       <div class="row g-3">
         <div class="col-md-4">
           <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" /> STANDARD
@@ -90,8 +87,5 @@
       </div>
       
     </div>
-  </div>
-  <div class="d-flex justify-content-end mt-3 mb-3">
-    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />
   </div>
 </asp:Content>
