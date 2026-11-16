@@ -18,11 +18,11 @@ This branch adds native `ItemType='REPEAT'` support without converting or deleti
 ## Data model
 
 - `PIP_M_CheckListWOPM_ItemRepeat`: one REPEAT configuration per checklist item.
-- `PIP_M_CheckListWOPM_ItemRepeatField`: child field definitions keyed by manually allocated `IDRepeat INT` (not IDENTITY). `SaveAllTemplate` allocates `MAX(IDRepeat)+1` while holding an exclusive table lock inside a transaction, then returns the generated mapping. `FieldLabel` is display text only and may be renamed without changing stored values.
+- `PIP_M_CheckListWOPM_ItemRepeatField`: child field definitions keyed by manually allocated `IDRepeat INT` (not IDENTITY). `SaveAllTemplate` allocates `MAX(IDRepeat)+1` while holding an exclusive table lock inside a transaction, then returns the generated ID mapping. `FieldLabel` is display text only and may be renamed without changing stored values.
 - Child field types: `NUMBER`, `RANGE`, `OPTION`, `TEXT`. Nested REPEAT is not supported.
 - `FIELDS`: one logical record, stored as `ObjectIndex=0`; `ColumnCount` controls the UI grid (default 3).
 - `OBJECTS`: repeated objects with the same child field definitions; object indices are zero-based and sequential.
-- Child values use the numeric `IDRepeat` identity, never the visible `FieldLabel`. Renaming a label therefore does not change the data key. New/cloned fields use a negative client-only `RuntimeRepeatID` until `SaveAllTemplate` returns the generated `IDRepeat` in its identity map. No IDENTITY column is used.
+- Child values use the numeric `IDRepeat` identity, never the visible `FieldLabel`. Renaming a label therefore does not change the data key. New/cloned fields use a negative client-only `RuntimeRepeatID` until `SaveAllTemplate` returns the generated `IDRepeat` in its ID mapping. No IDENTITY column is used.
 - Child fields can be required, constrained by min/max, assigned an optional unit, option list, display order, and optional group heading. Unit is presentation metadata only; blank units are valid. `ShowUnitInRange` on a parent RANGE item controls whether its unit appears beside the reference range choices/hint. `MinInclusive` and `MaxInclusive` independently define whether a configured boundary is accepted; legacy fields default to inclusive. For example, `MinValue=26, MinInclusive=0` means `>26`, while `MaxValue=47, MaxInclusive=0` means `<47`. An open boundary is represented by NULL.
 
 ## Transaction storage
