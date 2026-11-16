@@ -721,10 +721,12 @@
     }
     /* Start the floor plan at the top edge instead of vertically centering it. */
     #inspectionMapWorkspace .inspection-map-pdf-stage{
-        flex:0 0 auto;align-self:flex-start;max-width:100%;max-height:100%;margin:0 auto!important;
+        flex:0 0 auto;align-self:flex-start;max-width:none!important;max-height:none!important;margin:0 auto!important;
     }
     #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
-    #inspectionMapWorkspace .inspection-map-pdf-stage img{max-width:100%;max-height:100%;height:auto;object-fit:contain}
+    #inspectionMapWorkspace .inspection-map-pdf-stage img{
+        max-width:none!important;max-height:none!important;object-fit:fill;
+    }
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
         height:100%;min-height:0;max-height:none;padding:.45rem;overflow:auto
     }
@@ -739,7 +741,7 @@
             height:100%!important;min-height:0!important;max-height:none!important;padding:2px!important
         }
         #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{display:none!important}
-        #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:100%;max-height:100%}
+        #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:none!important;max-height:none!important}
     }
 
     .inspection-map-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
