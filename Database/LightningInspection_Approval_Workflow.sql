@@ -192,22 +192,38 @@ BEGIN
 
         IF @V_EmailEnabled=1
         BEGIN
+            /* One outbox row per configured SPV; RecipientEmployeeID is a single NIK. */
+            INSERT dbo.PIP_T_InspectionEmailOutbox
+            (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+             EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+            SELECT
+             'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':SPV:'+X.EmployeeID,
+             @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
+             N'Lightning Inspection menunggu verifikasi SPV - '+ISNULL(@V_InspectionNo,''),
+             N'<p>Daily Lightning Inspection menunggu verifikasi SPV.</p><p>Teknisi: '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N')</p><p>Approver: '+X.EmployeeName+N' ('+X.EmployeeID+N')</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
+             N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
+             N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') menunggu verifikasi SPV '+X.EmployeeName+N' ('+X.EmployeeID+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),
+             'PENDING',0,GETDATE()
+            FROM
+            (
+                SELECT LTRIM(RTRIM(S.val)) EmployeeID,
+                       LTRIM(RTRIM(E.emailaddress)) EmailAddress,
+                       ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+                FROM dbo.SplitStringConvertToTable(@V_SPVID,';') S
+                JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+                WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+            ) X;
+
             INSERT dbo.PIP_T_InspectionEmailOutbox
             (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
              EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
             VALUES
-            ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':SPV',
-             @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_SPVID,@V_SPVEmail,
-             N'Lightning Inspection menunggu verifikasi SPV - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Daily Lightning Inspection menunggu verifikasi SPV.</p><p>Teknisi: '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N')</p><p>Approver berikutnya: '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N')</p><p>Inspection: '+ISNULL(@V_InspectionNo,'')+
-             N'<br/>Type: '+ISNULL(@V_InspectionTypeName,'')+N'<br/>Detail: '+ISNULL(@V_InspectionDetailName,'')+
-             N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()),
             ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
              @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
              N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N').</p>',
-             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N'). Status: CHECKED.','PENDING',0,GETDATE());
+             N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'.</p>',
+             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'. Status: CHECKED.','PENDING',0,GETDATE());
         END;
 
         IF @V_TranCount=0 COMMIT TRANSACTION;
@@ -311,7 +327,7 @@ BEGIN
         SELECT @V_NextEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),''),
                @V_NextName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val))) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_NextEmployeeID);
         IF @V_EmailEnabled=1 AND ISNULL(@V_NextEmail,'')=''
-        BEGIN RAISERROR('Chief Security email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+        BEGIN RAISERROR('Email address is missing for the next Lightning approver stage.',16,1); RETURN; END;
         SET @V_NewStatus=CASE WHEN @V_Stage='SPV' THEN 'VERIFIED' ELSE 'ACKNOWLEDGE 1' END; SET @V_NextStage=CASE WHEN @V_Stage='SPV' THEN 'CHIEF_ENG' ELSE 'CHIEF_SEC' END;
     END
     ELSE IF @p_Action='APPROVE'
@@ -404,7 +420,7 @@ BEGIN
                     SELECT
                     'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+CASE WHEN @V_Stage='SPV' THEN ':CHIEF_ENG:' ELSE ':CHIEF_SEC:' END+X.EmployeeID,
                      @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
-                     N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
+                     N'Lightning Inspection menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering - ' ELSE N'Chief Security - ' END+ISNULL(@V_InspectionNo,''),
                      N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
                      N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve '+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
                     FROM
