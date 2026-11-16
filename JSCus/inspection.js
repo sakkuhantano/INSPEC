@@ -1365,8 +1365,9 @@ function applyInspectionPhotoRequirement(record) {
 
 function getInspectionLightningWorkflowStatus(record) {
     if (!record || String(record.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "DRAFT";
-    if (isInspectionFlagEnabled(record.IsApprovedFinal, false)) return "ACKNOWLEDGE";
-    if (isInspectionFlagEnabled(record.IsApproved, false)) return "ACKNOWLEDGE 1";
+    if (isInspectionFlagEnabled(record.IsApproved2, false)) return "ACKNOWLEDGE 2";
+    if (isInspectionFlagEnabled(record.IsApproved1, false)) return "ACKNOWLEDGE 1";
+    if (isInspectionFlagEnabled(record.IsApproved, false)) return "VERIFIED";
     if (isInspectionFlagEnabled(record.IsSubmitted, false)) return "CHECKED";
     return "DRAFT";
 }
@@ -4931,7 +4932,7 @@ function updateInspectionApprovalCounts() {
 function isInspectionApprovalApproved(row) {
     if (!row) return false;
     // Lightning has two approval stages; it is final only after Chief Security.
-    const value = row.IsApprovedFinal != null ? row.IsApprovedFinal : row.IsApproved;
+    const value = String(row.InspectionMode || "").toUpperCase() === "LIGHTNING" ? row.IsApproved2 : row.IsApproved;
     return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
 }
 
@@ -5453,11 +5454,12 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
     const workflow = String((workflowData.WorkflowStatus || workflowHeader) || "CHECKED").toUpperCase();
     const workflowCards = isLightning ? (function () {
         const stages = [
-            { status: "CHECKED", label: "CHECKED", description: "Technician submitted", by: workflowData.SubmittedByName || workflowData.SubmittedBy, date: workflowData.SubmittedDate },
-            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", by: workflowData.ApprovedByName || workflowData.ApprovedBy, date: workflowData.ApprovedDate },
-            { status: "ACKNOWLEDGE", label: "ACKNOWLEDGE", description: "Chief Security approved", by: workflowData.ApprovedFinalByName || workflowData.ApprovedFinalBy, date: workflowData.ApprovedFinalDate }
+            { status: "CHECKED", label: "CHECKED BY", description: "Technician submitted", by: workflowData.SubmittedByName || workflowData.SubmittedBy, date: workflowData.SubmittedDate },
+            { status: "VERIFIED", label: "VERIFIED BY", description: "SPV approved", by: workflowData.ApprovedByName || workflowData.ApprovedBy, date: workflowData.ApprovedDate },
+            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", by: workflowData.Approved1ByName || workflowData.Approved1By, date: workflowData.Approved1Date },
+            { status: "ACKNOWLEDGE 2", label: "ACKNOWLEDGE 2", description: "Chief Security approved", by: workflowData.Approved2ByName || workflowData.Approved2By, date: workflowData.Approved2Date }
         ];
-        const completed = workflow === "ACKNOWLEDGE" ? 3 : workflow === "ACKNOWLEDGE 1" ? 2 : workflow === "CHECKED" ? 1 : 0;
+        const completed = workflow === "ACKNOWLEDGE 2" ? 4 : workflow === "ACKNOWLEDGE 1" ? 3 : workflow === "VERIFIED" ? 2 : workflow === "CHECKED" ? 1 : 0;
         return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
             const done = index < completed;
             const bgClass = done ? "bg-" + (index === 0 ? "primary" : index === 1 ? "warning" : "success") + "-subtle" : "bg-body-secondary";
