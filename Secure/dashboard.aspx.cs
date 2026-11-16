@@ -211,13 +211,13 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion",
                         "@IDVersion=" + row["IDVersion"].ToString());
                     DataTable dtRepeatFields = br.EQuery(@"
-SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
        F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
-ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey",
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                         "@IDVersion=" + row["IDVersion"].ToString());
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
@@ -314,7 +314,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey",
                                         .OrderBy(f => f["DisplayOrder"])
                                         .Select(f => new
                                         {
-                                            fieldKey = f["FieldKey"].ToString(),
+                                            idRepeat = Convert.ToInt32(f["IDRepeat"]),
                                             fieldLabel = f["FieldLabel"].ToString(),
                                             fieldType = f["FieldType"].ToString(),
                                             optionList = String.IsNullOrWhiteSpace(GF.GetString(f["OptionList"])) ? new string[0] : GF.GetString(f["OptionList"]).Split(';'),
