@@ -3014,6 +3014,15 @@ BEGIN
 				AND CV.CommonGroup='EmailApproval'
 				AND CV.IsDelete=0
 				AND CV.ID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
+                AND LTRIM(RTRIM(CV.Description))<>''
+                AND EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.SplitStringConvertToTable(CV.Description,';') SPVEmail
+                    JOIN dbo.M_HRD_Employee SPVEmployee
+                      ON SPVEmployee.EmployeeID=LTRIM(RTRIM(SPVEmail.val))
+                    WHERE ISNULL(LTRIM(RTRIM(SPVEmployee.EmailAddress)),'')<>''
+                )
 			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
 			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
 			CROSS JOIN M_HRD_Employee AS mhe2  
