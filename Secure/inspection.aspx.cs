@@ -1755,8 +1755,8 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND ISNULL(I.IsApproved,0)=0)
        OR
        (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
-        AND ISNULL(I.IsApprovedFinal,0)=1
-        AND I.ApprovedFinalDate>=@DateFrom AND I.ApprovedFinalDate<DATEADD(DAY,1,@DateThru))
+        AND ISNULL(I.IsApproved,0)=1
+        AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
        OR
        (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
   )
@@ -2231,7 +2231,7 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND (
-      (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+      (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
           AND ((ISNULL(I.IsApproved,0)=0 AND EXISTS (
                     SELECT 1 FROM dbo.SysWebCommonValue C
                     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -2242,7 +2242,7 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
                     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
                       AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
                       AND C.Description=@EmployeeID))))
-      OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=1
+      OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved2,0)=1
           AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND C.Description=@EmployeeID)
             OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND C.Description=@EmployeeID)))
       OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
@@ -2286,8 +2286,8 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        'LIGHTNING' InspectionMode,
        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
-            WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE'
-            WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END WorkflowStatus,
+            WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
+            WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
@@ -2412,8 +2412,8 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
        I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
-            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE' WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END
-            WHEN I.IsApprovedFinal=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE' WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END
+            WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
        CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
