@@ -816,7 +816,7 @@ function renderWORepeatItem(item, saved, isEntryMode) {
         const values=old&&old.Values?old.Values:{};
         let lastGroup=null;
         const controls=fields.map(f=>{
-            const key=String(f.fieldKey||"");
+            const key=String(f.idRepeat||"");
             const label=String(f.fieldLabel||key);
             const group=String(f.groupName||"");
             const heading=group&&group!==lastGroup?'<div class="col-12 mt-2 small fw-bold text-secondary" style="flex:0 0 100%;width:100%;max-width:100%">'+escapeHtmlAttribute(group)+'</div>':"";
@@ -831,13 +831,13 @@ function renderWORepeatItem(item, saved, isEntryMode) {
             let input="";
             if(fieldType==="OPTION"){
                 const opts=Array.isArray(f.optionList)?f.optionList:String(f.optionList||"").split(";");
-                input='<select class="form-select form-select-sm" data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'"'+required+(!isEntryMode?' disabled':'')+'><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+escapeHtmlAttribute(o)+'" '+(String(value)===String(o)?'selected':'')+'>'+escapeHtmlAttribute(o)+'</option>').join("")+'</select>';
+                input='<select class="form-select form-select-sm" data-role="repeat-value" data-repeat-id="'+escapeHtmlAttribute(key)+'"'+required+(!isEntryMode?' disabled':'')+'><option value="">-- Select --</option>'+opts.map(o=>'<option value="'+escapeHtmlAttribute(o)+'" '+(String(value)===String(o)?'selected':'')+'>'+escapeHtmlAttribute(o)+'</option>').join("")+'</select>';
             } else {
                 const type=fieldType==="TEXT"?"text":"number";
                 const constraints=type==="number"?
                     (minValue!=null?' data-min-value="'+escapeHtmlAttribute(minValue)+'" data-min-inclusive="'+(minInclusive?'1':'0')+'"':'')+
                     (maxValue!=null?' data-max-value="'+escapeHtmlAttribute(maxValue)+'" data-max-inclusive="'+(maxInclusive?'1':'0')+'"':''):'maxlength="500"';
-                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+constraints:constraints)+' data-role="repeat-value" data-field-key="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
+                input='<input class="form-control form-control-sm" type="'+type+'" '+(type==="number"?'step="any" '+constraints:constraints)+' data-role="repeat-value" data-repeat-id="'+escapeHtmlAttribute(key)+'" value="'+escapeHtmlAttribute(value)+'"'+required+(!isEntryMode?' disabled':'')+'>';
             }
             return heading+'<div class="'+(mode==="FIELDS"?'col':'col-12 col-md-6')+'"><label class="small text-muted">'+escapeHtmlAttribute(label)+(f.unit?' ('+escapeHtmlAttribute(f.unit)+')':'')+'</label>'+input+'</div>';
         }).join("");
@@ -2714,7 +2714,7 @@ function collectData(template, wo) {
                     obj.RepeatValues = Array.from(container.querySelectorAll(".repeat-object")).map(objectEl => {
                         const values = {};
                         objectEl.querySelectorAll("[data-role='repeat-value']").forEach(input => {
-                            values[input.dataset.fieldKey] = input.value === "" ? null : input.value;
+                            values[input.dataset.repeatId] = input.value === "" ? null : input.value;
                         });
                         return { ObjectIndex:Number(objectEl.dataset.objectIndex||0), Values:values };
                     });
@@ -3098,14 +3098,14 @@ function validateItem(item, container) {
                 const inputs=Array.from(objectEl.querySelectorAll("[data-role='repeat-value']"));
                 for(const input of inputs){
                     const raw=String(input.value||"").trim();
-                    if(input.required && raw===""){error="Required: "+(input.dataset.fieldKey||"REPEAT field");break;}
-                    if(raw!=="" && input.type==="number" && !Number.isFinite(Number(raw))){error="Invalid number: "+input.dataset.fieldKey;break;}
+                    if(input.required && raw===""){error="Required: "+(input.dataset.repeatId||"REPEAT field");break;}
+                    if(raw!=="" && input.type==="number" && !Number.isFinite(Number(raw))){error="Invalid number: "+input.dataset.repeatId;break;}
                     if(raw!=="" && input.type==="number" && input.dataset.minValue!==undefined &&
                         (Number(raw)<Number(input.dataset.minValue) ||
-                         (input.dataset.minInclusive==="0" && Number(raw)===Number(input.dataset.minValue)))){error="Below minimum: "+input.dataset.fieldKey;break;}
+                         (input.dataset.minInclusive==="0" && Number(raw)===Number(input.dataset.minValue)))){error="Below minimum: "+input.dataset.repeatId;break;}
                     if(raw!=="" && input.type==="number" && input.dataset.maxValue!==undefined &&
                         (Number(raw)>Number(input.dataset.maxValue) ||
-                         (input.dataset.maxInclusive==="0" && Number(raw)===Number(input.dataset.maxValue)))){error="Above maximum: "+input.dataset.fieldKey;break;}
+                         (input.dataset.maxInclusive==="0" && Number(raw)===Number(input.dataset.maxValue)))){error="Above maximum: "+input.dataset.repeatId;break;}
                 }
                 if(error)break;
             }
