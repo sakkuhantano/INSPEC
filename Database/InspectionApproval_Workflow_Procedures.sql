@@ -40,24 +40,30 @@ BEGIN
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
- IF ISNULL(@SPV,'')=''
+ /* SPV routing is mandatory only when approval email notification is enabled.
+    With notification disabled (missing config or Description='0'), sync and workflow
+    submission must still succeed; the SPV can be configured later for approval access. */
+ IF @EmailEnabled=1
  BEGIN
-  DECLARE @MissingSPVKey VARCHAR(100);
-  SET @MissingSPVKey=@ConfigScope+';SPV;'+@S;
-  RAISERROR('SPV routing is not configured. Required SysWebCommonValue.ID: %s',16,1,@MissingSPVKey);
-  RETURN;
+  IF ISNULL(@SPV,'')=''
+  BEGIN
+   DECLARE @MissingSPVKey VARCHAR(100);
+   SET @MissingSPVKey=@ConfigScope+';SPV;'+@S;
+   RAISERROR('SPV approver setup is missing. Required SysWebCommonValue.ID: %s',16,1,@MissingSPVKey);
+   RETURN;
+  END;
+  IF NOT EXISTS
+  (
+   SELECT 1 FROM dbo.M_HRD_Employee E
+   WHERE E.EmployeeID=@SPV AND E.CompanyID=@C AND E.SectionID=@S
+     AND ISNULL(E.TerminationDate,'')=''
+     AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+       AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+     AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+       WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+  )
+  BEGIN RAISERROR('Configured SPV approver is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
  END;
- IF NOT EXISTS
- (
-  SELECT 1 FROM dbo.M_HRD_Employee E
-  WHERE E.EmployeeID=@SPV AND E.CompanyID=@C AND E.SectionID=@S
-    AND ISNULL(E.TerminationDate,'')=''
-    AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-      AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-    AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-      WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
- )
- BEGIN RAISERROR('Configured SPV is not active or lacks approval access for this Company, Location, and Section.',16,1); RETURN; END;
  SELECT @SPVName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@SPV),@SPVEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@SPV;
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  IF @EmailEnabled=1
