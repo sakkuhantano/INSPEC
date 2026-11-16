@@ -115,11 +115,11 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Batch_Sync
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
     @p_InspectionNo VARCHAR(10),
-    @p_ApprovalUrl NVARCHAR(1000) = NULL,
     @p_Points dbo.Type_N_Tbl_C13 READONLY,
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
-    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
+    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY,
+    @p_ApprovalUrl NVARCHAR(1000) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -436,10 +436,12 @@ BEGIN
 
         /* Submit only after header, points, checklist values, and photos are all saved.
            The caller's transaction keeps data and workflow state atomic. */
+        DECLARE @V_ApprovalUrl NVARCHAR(1000);
+        SET @V_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
         EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
             @p_InspectionID=@V_InspectionID,
             @p_ActorEmployeeID=@p_UpdateUser,
-            @p_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
+            @p_ApprovalUrl=@V_ApprovalUrl;
 
         IF @V_EntryTranCount=0 COMMIT TRANSACTION;
 
