@@ -965,11 +965,16 @@ SELECT ID FROM @AutoNumResult;",
                                 string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
                                     inspectionId.ToString(CultureInfo.InvariantCulture);
                                 syncStage = "submit Standard/Batch inspection workflow";
-                                br.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
-                                    new SqlParameter("@p_InspectionID", inspectionId),
-                                    new SqlParameter("@p_ActorEmployeeID", userId),
-                                    new SqlParameter("@p_ApprovalUrl", approvalUrl)
-                                }, true, true);
+                                /* Use a fresh BR context for the second transactional stored-procedure call.
+                                   The inspection save above has already completed its own EQueryP transaction. */
+                                using (var workflowBr = new WAL.BR.CF())
+                                {
+                                    workflowBr.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
+                                        new SqlParameter("@p_InspectionID", inspectionId),
+                                        new SqlParameter("@p_ActorEmployeeID", userId),
+                                        new SqlParameter("@p_ApprovalUrl", approvalUrl)
+                                    }, true, true);
+                                }
                             }
 
                             /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely. */
