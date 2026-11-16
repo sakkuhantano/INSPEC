@@ -35,6 +35,12 @@ namespace INSPEC.Secure
                 ConfigurationManager.AppSettings["smtpHost"]
             );
             PrepareEmployeeSearch();
+            if (IsPostBack)
+            {
+                lblChiefEngName.Text = GetEmployeeName(txtChiefEng.Text.Trim());
+                lblChiefSecName.Text = GetEmployeeName(txtChiefSec.Text.Trim());
+                lblSPVName.Text = GetEmployeeName(txtSPV.Text.Trim());
+            }
             if (!IsPostBack)
             {
                 Master.Mn_lit_Title = WAL.PB.AppID + " -> Inspection Email & Approval Routing";
