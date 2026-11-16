@@ -3828,6 +3828,7 @@ async function closeInspectionForm() {
 function returnFromInspectionPage(){if(!document.getElementById("inspectionInputPanel").classList.contains("d-none")){closeInspectionForm();return;}window.location.href="dashboard.aspx";}
 function showInspectionEditorTab(tab) {
     const p = tab === "param";
+    document.body.classList.toggle("inspection-map-mobile-active", !p && !!(currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode) && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)));
     if (p) {
         const mapWorkspace = document.getElementById("inspectionMapWorkspace");
         if (mapWorkspace) mapWorkspace.classList.add("d-none");
@@ -4514,6 +4515,7 @@ async function updateInspectionChecklistGate() {
 }
 
 function showInspectionInputScreen() {
+    document.body.classList.remove("inspection-map-mobile-active");
     document.getElementById("inspectionRecordsPanel").classList.add("d-none");
     document.getElementById("inspectionInputPanel").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.remove("d-none");
@@ -4521,6 +4523,7 @@ function showInspectionInputScreen() {
 }
 
 function showInspectionRecordsScreen() {
+    document.body.classList.remove("inspection-map-mobile-active");
     document.getElementById("inspectionInputPanel").classList.add("d-none");
     document.getElementById("inspectionRecordsPanel").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
