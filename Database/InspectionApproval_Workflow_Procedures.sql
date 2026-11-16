@@ -117,28 +117,38 @@ BEGIN
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
   IF @EmailEnabled=1
   BEGIN
-     INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
-      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-     VALUES
-      ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV',@EventID,'INSPECTION',@p_InspectionID,
-       'APPROVER',X.EmployeeID,X.EmailAddress,N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
-       N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>Teknisi: '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N')</p><p>Approver: '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N')</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
-       N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
-       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') menunggu approval SPV '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N''),'PENDING',0,GETDATE())
-     FROM
-     (
-       SELECT LTRIM(RTRIM(S.val)) EmployeeID,
-              E.emailaddress EmailAddress,
-              ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
-       FROM dbo.SplitStringConvertToTable(@SPV,';') S
-       JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
-       WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
-     ) X,
-      ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-       'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah dikirim - '+ISNULL(@No,''),
-       N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').</p>',
-       N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N' ('+ISNULL(@SPV,'')+N').','PENDING',0,GETDATE());
-   
+   /* One outbox row per SPV approver. */
+   INSERT dbo.PIP_T_InspectionEmailOutbox
+   (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+    EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+   SELECT
+    'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':SPV:'+X.EmployeeID,
+    @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
+    N'Inspection menunggu approval SPV - '+ISNULL(@No,''),
+    N'<p>Inspection '+ISNULL(@No,'')+N' ('+ISNULL(@Mode,'')+N') menunggu approval SPV.</p><p>Teknisi: '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N')</p><p>Approver: '+X.EmployeeName+N' ('+X.EmployeeID+N')</p><p>'+ISNULL(@TypeName,'')+N' / '+ISNULL(@DetailName,'')+
+    N'</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
+    N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') menunggu approval SPV '+X.EmployeeName+N' ('+X.EmployeeID+N'). '+ISNULL(@p_ApprovalUrl,N''),
+    'PENDING',0,GETDATE()
+   FROM
+   (
+    SELECT LTRIM(RTRIM(S.val)) EmployeeID,
+           LTRIM(RTRIM(E.emailaddress)) EmailAddress,
+           ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+    FROM dbo.SplitStringConvertToTable(@SPV,';') S
+    JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+    WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+   ) X;
+
+   INSERT dbo.PIP_T_InspectionEmailOutbox
+   (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+    EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+   VALUES
+   ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',
+    @EventID,'INSPECTION',@p_InspectionID,'TECHNICIAN',@Owner,@TechEmail,
+    N'Inspection telah dikirim - '+ISNULL(@No,''),
+    N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.</p>',
+    N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.',
+    'PENDING',0,GETDATE());
   END;
   IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
