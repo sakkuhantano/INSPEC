@@ -1049,7 +1049,7 @@ WHERE InspectionID=@InspectionID",
 
             bool allSuccess = outcomes.All(x => Convert.ToBoolean(x.GetType().GetProperty("success").GetValue(x, null)));
             object emailDispatch;
-            try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+            try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
             catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
             return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
         }
@@ -1748,7 +1748,7 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string inspectionTypeDetailCode, string templateId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
-            try { DispatchInspectionEmailOutbox(10); }
+            try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
             catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
@@ -2060,7 +2060,7 @@ ORDER BY P.SeqNo",
             string inspectionTypeDetailCode, string templateId)
         {
             employeeId = GFC.RequireMenuEmployee("20022");
-            try { DispatchInspectionEmailOutbox(10); }
+            try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
             catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
@@ -2201,7 +2201,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                     new SqlParameter("@p_CorrectionUrl", correctionUrl)
                 }, true, true);
                 object emailDispatch;
-                try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+                try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
                 return new {
                     success = true,
@@ -3249,7 +3249,7 @@ WHERE I.InspectionID=@InspectionID
                 string followUpWONo = saved != null && saved.Rows.Count > 0 && saved.Columns.Contains("FollowUpWONo") && saved.Rows[0]["FollowUpWONo"] != DBNull.Value
                     ? Convert.ToString(saved.Rows[0]["FollowUpWONo"]) : "";
                 object emailDispatch;
-                try { emailDispatch = DispatchInspectionEmailOutbox(20); }
+                try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
                 return new {
                     success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId,
@@ -3557,9 +3557,23 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                 throw new HttpException(403, "Cross-origin approval requests are not allowed.");
         }
 
-        private static object DispatchInspectionEmailOutbox(int batchSize)
+        private static object DispatchInspectionEmailOutbox(int batchSize, string senderEmployeeId, string companyId)
         {
-            string fromAddress = (System.Configuration.ConfigurationManager.AppSettings["smtpFrom"] ?? "").Trim();
+            string fromAddress = "";
+            using (var senderBr = new WAL.BR.CF())
+            {
+                DataTable sender = senderBr.EQueryP(@"
+SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') AS EmailAddress
+FROM dbo.M_HRD_Employee
+WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
+  AND ISNULL(LTRIM(RTRIM(emailaddress)),'')<>''",
+                    new SqlParameter[] {
+                        new SqlParameter("@E", senderEmployeeId ?? ""),
+                        new SqlParameter("@C", companyId ?? "")
+                    });
+                if (sender != null && sender.Rows.Count > 0)
+                    fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
+            }
 
             using (var br = new WAL.BR.CF())
             {
@@ -3592,7 +3606,7 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
                         if (String.IsNullOrWhiteSpace(toAddress))
                             throw new InvalidOperationException("Recipient email is empty.");
                         if (String.IsNullOrWhiteSpace(fromAddress))
-                            throw new InvalidOperationException("smtpFrom is not configured.");
+                            throw new InvalidOperationException("Email address login employee tidak ditemukan di M_HRD_Employee.");
 
                         if (!GF.SendEmail(
                                 fromAddress,
