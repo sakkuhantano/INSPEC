@@ -1432,9 +1432,14 @@ window.mountInspectionBatchSummary = function (record) {
         const summaryInput = document.getElementById("txtInspectionSummary");
         if (summaryInput) summaryInput.disabled = readOnly;
     } else {
-        checklistPane.appendChild(followUp);
-        checklistPane.appendChild(summary);
-        if (reasonVoid) checklistPane.appendChild(reasonVoid);
+        const formPanel = document.getElementById("inspectionFormPanel");
+        const actionRow = document.getElementById("btnSaveInspectionDraft");
+        const actionContainer = actionRow ? actionRow.parentElement : null;
+        if (formPanel && actionContainer) {
+            formPanel.insertBefore(followUp, actionContainer);
+            formPanel.insertBefore(summary, actionContainer);
+            if (reasonVoid) formPanel.insertBefore(reasonVoid, actionContainer);
+        }
         host.classList.add("d-none");
         followUp.classList.toggle("d-none", !inspectionTemplateRequiresFollowUp(record.TemplateSnapshot));
         summary.classList.toggle("d-none", !inspectionTemplateRequiresSummary(record.TemplateSnapshot));
