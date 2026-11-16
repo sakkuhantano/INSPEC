@@ -3747,9 +3747,12 @@ async function openSavedInspection(localId) {
             if (serverRecord.IsApproved != null) record.IsApproved = serverRecord.IsApproved;
             if (serverRecord.ApprovedBy != null) record.ApprovedBy = serverRecord.ApprovedBy;
             if (serverRecord.ApprovedDate != null) record.ApprovedDate = serverRecord.ApprovedDate;
-            if (serverRecord.IsApprovedFinal != null) record.IsApprovedFinal = serverRecord.IsApprovedFinal;
-            if (serverRecord.ApprovedFinalBy != null) record.ApprovedFinalBy = serverRecord.ApprovedFinalBy;
-            if (serverRecord.ApprovedFinalDate != null) record.ApprovedFinalDate = serverRecord.ApprovedFinalDate;
+            if (serverRecord.IsApproved1 != null) record.IsApproved1 = serverRecord.IsApproved1;
+            if (serverRecord.Approved1By != null) record.Approved1By = serverRecord.Approved1By;
+            if (serverRecord.Approved1Date != null) record.Approved1Date = serverRecord.Approved1Date;
+            if (serverRecord.IsApproved2 != null) record.IsApproved2 = serverRecord.IsApproved2;
+            if (serverRecord.Approved2By != null) record.Approved2By = serverRecord.Approved2By;
+            if (serverRecord.Approved2Date != null) record.Approved2Date = serverRecord.Approved2Date;
         }
     }
 
