@@ -280,6 +280,10 @@ BEGIN
       AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
     SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
 
+    SELECT @V_SPVID=NULLIF(LTRIM(RTRIM(C.Description)),'')
+    FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+      AND C.ID=@V_ConfigScope+';SPV;'+@V_SectionID;
+
     SELECT @V_ChiefEngID=NULLIF(LTRIM(RTRIM(C.Description)),''),
            @V_ChiefSecID=NULL
     FROM dbo.SysWebCommonValue C
