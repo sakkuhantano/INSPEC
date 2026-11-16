@@ -13,6 +13,7 @@ let currentInspectionReadOnly = false;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
+let inspectionPhotoWritePromise = null;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
 let inspectionBatchValidationState = { errors: [], index: -1 };
 let activeInspectionScheduleTime = "";
@@ -3044,6 +3045,10 @@ window.submitInspectionBatch = async function () {
     await closeInspectionForm();
 };
 async function saveInspection(status) {
+    // Wait for any photo compression/IndexedDB write started by the photo picker.
+    // This prevents Save/Submit from capturing a partially populated inspection_photos store.
+    if (inspectionPhotoWritePromise) await inspectionPhotoWritePromise;
+
     if (currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode)) {
         if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0) {
             await saveBatchInspectionPoint(status);
@@ -4425,65 +4430,100 @@ async function handleInspectionPhotoInput(event, type) {
     const files = Array.from(input.files || []);
     input.value = "";
     if (!currentInspectionRecord || currentInspectionReadOnly || !files.length) return;
-    const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
-    const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
-    const afterRequired = requirement === "AFTER" || requirement === "BOTH";
-    if ((type === "BEFORE" && !beforeRequired) || (type === "AFTER" && !afterRequired)) {
-        showToast("Foto " + type + " tidak diaktifkan pada Template Version ini.", "warning");
-        return;
-    }
-    const existing = await getCurrentInspectionPhotos();
-    const hasBeforePhoto = existing.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
-    if (type === "AFTER" && beforeRequired && !hasBeforePhoto) {
-        showToast("Ambil minimal satu foto BEFORE terlebih dahulu.", "warning");
-        return;
-    }
-    let nextSeq = Math.max(Number(currentInspectionRecord.NextPhotoSeqNo || 1),
-        existing.reduce((max, photo) => Math.max(max, Number(photo.SeqNo || photo.OrderNo || 0)), 0) + 1);
-    let added = 0;
-    for (const file of files) {
-        if (!file.type.startsWith("image/")) {
-            showToast("File harus berupa gambar.", "warning");
-            continue;
-        }
+
+    // Prevent Save/Submit from racing an in-progress photo compression + IndexedDB write.
+    // Without this guard, a user can select multiple photos and immediately press Save;
+    // the inspection record may then be persisted before the remaining photo writes finish.
+    const photoWritePromise = (async function () {
+        const saveButton = document.getElementById("btnSaveInspectionDraft");
+        const completeButton = document.getElementById("btnCompleteInspection");
+        const previousSaveDisabled = saveButton ? saveButton.disabled : false;
+        const previousCompleteDisabled = completeButton ? completeButton.disabled : false;
+        if (saveButton) saveButton.disabled = true;
+        if (completeButton) completeButton.disabled = true;
+
         try {
-            if (typeof compressImage !== "function")
-                throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");
-            const blob = await compressImage(file, {
-                maxWidth: 640, maxHeight: 640, maxSize: 100 * 1024, quality: .70, minQuality: .25
-            });
-            const baseName = (file.name || ("inspection-" + type.toLowerCase())).replace(/\\.[^.]+$/, "");
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction("inspection_photos", "readwrite");
-                tx.objectStore("inspection_photos").add({
-                    LocalInspectionID: currentInspectionRecord.LocalInspectionID,
-                    PointID: getActiveInspectionPointPhotoID(),
-                    Type: type,
-                    FileName: baseName + ".jpg",
-                    Blob: blob,
-                    SeqNo: nextSeq,
-                    CreatedAt: new Date().toISOString()
-                });
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-                tx.onabort = () => reject(tx.error || new Error("Gagal menyimpan foto."));
-            });
-            nextSeq++;
-            added++;
-        } catch (error) {
-            console.error(error);
-            showToast("Foto gagal disimpan: " + (error.message || error), "danger");
+            const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
+            const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
+            const afterRequired = requirement === "AFTER" || requirement === "BOTH";
+            if ((type === "BEFORE" && !beforeRequired) || (type === "AFTER" && !afterRequired)) {
+                showToast("Foto " + type + " tidak diaktifkan pada Template Version ini.", "warning");
+                return;
+            }
+
+            const existing = await getCurrentInspectionPhotos();
+            const hasBeforePhoto = existing.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+            if (type === "AFTER" && beforeRequired && !hasBeforePhoto) {
+                showToast("Ambil minimal satu foto BEFORE terlebih dahulu.", "warning");
+                return;
+            }
+
+            let nextSeq = Math.max(Number(currentInspectionRecord.NextPhotoSeqNo || 1),
+                existing.reduce((max, photo) => Math.max(max, Number(photo.SeqNo || photo.OrderNo || 0)), 0) + 1);
+            let added = 0;
+
+            for (const file of files) {
+                if (!file.type.startsWith("image/")) {
+                    showToast("File harus berupa gambar.", "warning");
+                    continue;
+                }
+                try {
+                    if (typeof compressImage !== "function")
+                        throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");
+
+                    const blob = await compressImage(file, {
+                        maxWidth: 640, maxHeight: 640, maxSize: 100 * 1024, quality: .70, minQuality: .25
+                    });
+                    if (!blob || typeof blob.size !== "number" || blob.size <= 0)
+                        throw new Error("Hasil kompresi foto kosong.");
+
+                    const baseName = (file.name || ("inspection-" + type.toLowerCase())).replace(/\\.[^.]+$/, "");
+                    await new Promise((resolve, reject) => {
+                        const tx = db.transaction("inspection_photos", "readwrite");
+                        tx.objectStore("inspection_photos").add({
+                            LocalInspectionID: currentInspectionRecord.LocalInspectionID,
+                            PointID: getActiveInspectionPointPhotoID(),
+                            Type: type,
+                            FileName: baseName + ".jpg",
+                            Blob: blob,
+                            SeqNo: nextSeq,
+                            CreatedAt: new Date().toISOString()
+                        });
+                        tx.oncomplete = () => resolve();
+                        tx.onerror = () => reject(tx.error);
+                        tx.onabort = () => reject(tx.error || new Error("Gagal menyimpan foto."));
+                    });
+                    nextSeq++;
+                    added++;
+                } catch (error) {
+                    console.error(error);
+                    showToast("Foto gagal disimpan: " + (error.message || error), "danger");
+                }
+            }
+
+            if (added) {
+                currentInspectionRecord.NextPhotoSeqNo = nextSeq;
+                currentInspectionRecord.SyncStatus = "PENDING";
+                currentInspectionRecord.UpdatedAt = new Date().toISOString();
+            }
+            await renderInspectionPhotos();
+            await updateInspectionChecklistGate();
+            scheduleInspectionAutosave();
+        } finally {
+            if (saveButton) saveButton.disabled = previousSaveDisabled;
+            if (completeButton) completeButton.disabled = previousCompleteDisabled;
         }
+    })();
+
+    inspectionPhotoWritePromise = photoWritePromise;
+    try {
+        await photoWritePromise;
+    } finally {
+        if (inspectionPhotoWritePromise === photoWritePromise)
+            inspectionPhotoWritePromise = null;
     }
-    if (added) {
-        currentInspectionRecord.NextPhotoSeqNo = nextSeq;
-        currentInspectionRecord.SyncStatus = "PENDING";
-        currentInspectionRecord.UpdatedAt = new Date().toISOString();
-    }
-    await renderInspectionPhotos();
-    await updateInspectionChecklistGate();
-    scheduleInspectionAutosave();
 }
+
 
 async function handleInspectionPhotoDelete(event){const b=event.target.closest("[data-delete-inspection-photo]");if(!b||!currentInspectionRecord||currentInspectionReadOnly)return;const confirmed=await showConfirmation({title:"Hapus Foto",message:"Hapus foto ini?",yesText:"Hapus"});if(!confirmed)return;const existing=await getCurrentInspectionPhotos();const nextSeq=Math.max(Number(currentInspectionRecord.NextPhotoSeqNo||1),existing.reduce((max,p)=>Math.max(max,Number(p.SeqNo||p.OrderNo||0)),0)+1);currentInspectionRecord.NextPhotoSeqNo=nextSeq;currentInspectionRecord.SyncStatus="PENDING";currentInspectionRecord.UpdatedAt=new Date().toISOString();await new Promise((resolve,reject)=>{const tx=db.transaction("inspection_photos","readwrite");tx.objectStore("inspection_photos").delete(Number(b.dataset.deleteInspectionPhoto));tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("Hapus foto gagal."));});await renderInspectionPhotos();await updateInspectionChecklistGate();scheduleInspectionAutosave();}
 async function updateInspectionChecklistGate() {
