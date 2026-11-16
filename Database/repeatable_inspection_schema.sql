@@ -165,6 +165,11 @@ BEGIN
     DROP TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField;
     EXEC sp_rename 'dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity','PIP_M_CheckListWOPM_ItemRepeatField';
 
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        DROP CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity;
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        ADD CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField PRIMARY KEY CLUSTERED (IDRepeat);
+
     CREATE NONCLUSTERED INDEX IX_PIP_M_ItemRepeatField_Order
         ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,IDRepeat);
 END;
