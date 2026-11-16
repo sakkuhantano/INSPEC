@@ -669,6 +669,18 @@ SELECT ID FROM @AutoNumResult;",
                     }
                 }
 
+                // Do not allow a successful SQL sync when a staged photo disappeared or was written as an empty file.
+                // This is especially important for STANDARD inspections because the client treats the whole
+                // inspection as synced after the server returns success.
+                foreach (string stagedPhotoPath in writtenFiles)
+                {
+                    if (!System.IO.File.Exists(stagedPhotoPath))
+                        throw new Exception("Inspection photo was not written to the server: " + stagedPhotoPath);
+                    System.IO.FileInfo stagedPhotoInfo = new System.IO.FileInfo(stagedPhotoPath);
+                    if (stagedPhotoInfo.Length <= 0)
+                        throw new Exception("Inspection photo was written as an empty file: " + stagedPhotoPath);
+                }
+
                 var procParameters = new List<SqlParameter>();
                 if (parameters != null) procParameters.AddRange(parameters);
                 procParameters.Add(new SqlParameter("@p_InspectionNo", inspectionNo));
@@ -706,6 +718,25 @@ SELECT ID FROM @AutoNumResult;",
                             }
                         }
                         writtenFiles.Clear();
+                    }
+                    else
+                    {
+                        // Verify the database photo metadata count against the exact files staged above
+                        // before committing the BRC-owned transaction. A mismatch must make the whole sync fail.
+                        DataTable savedPhotoCount = common.EQueryP(@"
+SELECT COUNT(*) AS PhotoCount
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID",
+                            new SqlParameter[] {
+                                new SqlParameter("@InspectionID", Convert.ToInt64(saved.Rows[0]["InspectionID"]))
+                            }, false, ref _mainConnection, ref _transaction);
+                        int persistedPhotoCount = savedPhotoCount == null || savedPhotoCount.Rows.Count == 0
+                            ? -1
+                            : Convert.ToInt32(savedPhotoCount.Rows[0]["PhotoCount"]);
+                        if (persistedPhotoCount != photoTable.Rows.Count)
+                            throw new Exception("Inspection photo count mismatch after SQL save. Expected " +
+                                photoTable.Rows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                                ", persisted " + persistedPhotoCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".");
                     }
 
                     commitAttempted = true;
