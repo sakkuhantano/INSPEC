@@ -1109,6 +1109,18 @@
         body.inspection-map-mobile-active #contentbody > .master-footer {
             display: none !important;
         }
+        /* The ContentPlaceHolder wrapper must also stretch; otherwise the editor
+           is trapped at its normal document-flow height instead of the viewport. */
+        body.inspection-map-mobile-active #contentbody > .container-fluid.px-2.px-md-3.pb-4 {
+            display: flex;
+            flex: 1 1 0%;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            padding-bottom: 0 !important;
+        }
         body.inspection-map-mobile-active #contentbody #inspectionInputPanel {
             display: flex;
             flex: 1 1 0%;
