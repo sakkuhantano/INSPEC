@@ -1619,7 +1619,6 @@ async function uploadPendingInspections() {
             ownedRecords.filter(record => conflicts.some(x => x.ClientInspectionID === record.LocalInspectionID)).forEach(record => {
                 const outcome = conflicts.find(x => x.ClientInspectionID === record.LocalInspectionID);
                 const technicalReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
-                const lowerReason = technicalReason.toLowerCase();
                 record.SyncStatus = "CONFLICT";
                 record.ConflictTechnicalReason = technicalReason;
                 // Keep the actual server diagnostic visible in the conflict row.
