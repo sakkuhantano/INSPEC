@@ -278,6 +278,8 @@ namespace INSPEC.Secure
                     oldSection = hidSPVOriginalSection.Value;
                     if (section == "" || spv == "")
                         throw new InvalidOperationException("Lengkapi Section dan NIK SPV pada form Add New Record.");
+                    if (oldSection == "" && GetCommonValue(Scope + ";SPV;" + section) != "")
+                        throw new InvalidOperationException("Section tersebut sudah memiliki mapping SPV. Gunakan Edit pada baris yang ada.");
                     using (var br = new WAL.BR.CF())
                     {
                         DataTable d = br.EQueryP(
@@ -319,6 +321,7 @@ namespace INSPEC.Secure
                 LoadEmailModeSettings();
                 ClearSPVEditor();
                 pnlSPVEditor.Visible = false;
+                btnNewSPV.Visible = true;
                 BindSPVGrid();
                 ShowMessage("Seluruh pengaturan Inspection berhasil disimpan.", false);
             }
@@ -357,6 +360,7 @@ namespace INSPEC.Secure
                     lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Name: " + spvName;
                     hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
+                    btnNewSPV.Visible = false;
                 }
                 else if (e.CommandName == "DeleteMapping")
                 {
@@ -371,6 +375,7 @@ namespace INSPEC.Secure
                         );
                     ClearSPVEditor();
                     pnlSPVEditor.Visible = false;
+                    btnNewSPV.Visible = true;
                     BindSPVGrid();
                     ShowMessage("Mapping SPV dihapus.", false);
                 }
@@ -385,12 +390,14 @@ namespace INSPEC.Secure
         {
             ClearSPVEditor();
             pnlSPVEditor.Visible = true;
+            btnNewSPV.Visible = false;
             PrepareEmployeeSearch();
         }
         protected void btnCancelSPV_Click(object sender, EventArgs e)
         {
             ClearSPVEditor();
             pnlSPVEditor.Visible = false;
+            btnNewSPV.Visible = true;
             PrepareEmployeeSearch();
         }
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
