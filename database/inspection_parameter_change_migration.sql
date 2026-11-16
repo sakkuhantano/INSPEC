@@ -232,6 +232,9 @@ BEGIN
         UNION ALL
     	SELECT 1 Result FROM SysWebUserCompanyLocation AS swucl
     	WHERE swucl.UserID=@p_UpdateUser AND swucl.AppID='inspecfo' AND swucl.CompanyID=@p_CompanyID AND swucl.LocationID=@p_LocationID
+        UNION ALL
+        SELECT 1 Result FROM SysWebUserGroup AS swug
+        WHERE swug.UserID=@p_UpdateUser AND swug.UserGroupID='administrator'
     )
     BEGIN
         RAISERROR('Employee is not authorized for this company/location.', 16, 1);
@@ -248,6 +251,9 @@ BEGIN
     	WHERE a.UserID=@p_UpdateUser 
     	AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(a.SectionList,';') b 
     	            WHERE b.val=@p_SectionID)
+        UNION ALL
+        SELECT 1 FROM SysWebUserGroup AS swug
+        WHERE swug.UserID=@p_UpdateUser AND swug.UserGroupID='administrator'
     )
     BEGIN
         RAISERROR('Employee is not authorized for this inspection section.', 16, 1);
