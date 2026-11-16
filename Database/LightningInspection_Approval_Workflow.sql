@@ -341,8 +341,31 @@ BEGIN
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
     IF @V_EmailEnabled=1 AND ISNULL(@V_TechnicianEmail,'')=''
     BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
-    IF @V_EmailEnabled=1 AND ISNULL(@V_ActorEmail,'')=''
-    BEGIN RAISERROR('Approver email is missing from M_HRD_Employee.emailaddress; it is used as the outbox sender address.',16,1); RETURN; END;
+    IF @V_EmailEnabled=1 AND @V_Stage IN ('CHIEF_ENG','CHIEF_SEC')
+       AND EXISTS
+       (
+           SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X
+           WHERE NOT EXISTS
+           (
+               SELECT 1 FROM dbo.M_HRD_Employee E
+               WHERE E.EmployeeID=LTRIM(RTRIM(X.val))
+                 AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+           )
+       )
+    BEGIN RAISERROR('Email address is missing for one or more configured SPV recipients.',16,1); RETURN; END;
+
+    IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_SEC'
+       AND EXISTS
+       (
+           SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X
+           WHERE NOT EXISTS
+           (
+               SELECT 1 FROM dbo.M_HRD_Employee E
+               WHERE E.EmployeeID=LTRIM(RTRIM(X.val))
+                 AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+           )
+       )
+    BEGIN RAISERROR('Email address is missing for one or more configured Chief Engineering recipients.',16,1); RETURN; END;
 
     IF @p_Action='APPROVE' AND @V_Stage IN ('SPV','CHIEF_ENG')
     BEGIN
@@ -411,7 +434,7 @@ BEGIN
             END;
 
             /* Notify lower approval levels when a higher level VOIDs the inspection. */
-            IF @V_Stage='CHIEF_ENG'
+            IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_ENG'
                 INSERT dbo.PIP_T_InspectionEmailOutbox
                 (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                  EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
@@ -426,7 +449,7 @@ BEGIN
                       JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
                       WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'') X;
 
-            IF @V_Stage='CHIEF_SEC'
+            IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_SEC'
             BEGIN
                 INSERT dbo.PIP_T_InspectionEmailOutbox
                 (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
