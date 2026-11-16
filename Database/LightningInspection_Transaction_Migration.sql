@@ -101,6 +101,16 @@ BEGIN
 END;
 GO
 
+/* Separate VOID reasons for the three Lightning approval stages.
+   ReasonVoid remains the SPV reason; the new fields are additive and do not
+   change STANDARD/BATCH workflow consumers. */
+IF COL_LENGTH('dbo.PIP_T_Inspection','ReasonVoid1') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid1 VARCHAR(500) NULL;
+GO
+IF COL_LENGTH('dbo.PIP_T_Inspection','ReasonVoid2') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD ReasonVoid2 VARCHAR(500) NULL;
+GO
+
 /* The daily header and point ScheduleTime values are the only transaction schedule storage. */
 IF OBJECT_ID('dbo.PIP_T_InspectionLightningSchedule','U') IS NOT NULL
     DROP TABLE dbo.PIP_T_InspectionLightningSchedule;
