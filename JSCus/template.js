@@ -9498,7 +9498,7 @@ async function validateCurrentTemplate() {
                     const runtimeRepeatId=Number(field.RuntimeRepeatID||0);
                     const identity=idRepeat>0?idRepeat:runtimeRepeatId;
                     const fieldType=String(field.FieldType || "").toUpperCase();
-                    if (!Number.isInteger(identity) || identity===0 || identities.has(String(identity)))
+                    if (!Number.isInteger(identity) || identity===0 || (idRepeat<=0 && runtimeRepeatId>=0) || identities.has(String(identity)))
                         addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"IDRepeat","Every REPEAT child field must have a unique IDRepeat identity.");
                     identities.add(String(identity));
                     if (!String(field.FieldLabel || "").trim())
