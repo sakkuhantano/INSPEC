@@ -3559,54 +3559,8 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
 
         private static object DispatchInspectionEmailOutbox(int batchSize)
         {
-            string host = (System.Configuration.ConfigurationManager.AppSettings["smtpHost"] ?? "").Trim();
-            string fromAddress = (System.Configuration.ConfigurationManager.AppSettings["smtpFrom"] ?? "").Trim();
-            string smtpUser = (System.Configuration.ConfigurationManager.AppSettings["smtpUser"] ?? "").Trim();
-            string smtpPassword = System.Configuration.ConfigurationManager.AppSettings["smtpPassword"] ?? "";
-            bool useSsl = String.Equals(System.Configuration.ConfigurationManager.AppSettings["smtpUseSSL"], "true", StringComparison.OrdinalIgnoreCase);
-            int port;
-            if (!Int32.TryParse(System.Configuration.ConfigurationManager.AppSettings["smtpPort"], out port)) port = 25;
-
             using (var br = new WAL.BR.CF())
             {
-                if (host == "" || fromAddress == "")
-                {
-                    br.EQuery(@"
-UPDATE dbo.PIP_T_InspectionEmailOutbox
-SET LastError='SMTP host or smtpFrom is not configured. Configure Web.config before email dispatch.',
-    NextAttemptDate=GETDATE()
-WHERE DeliveryStatus='PENDING' AND NextAttemptDate<=GETDATE();");
-                    DataTable pendingRows = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED')");
-                    int pending = pendingRows.Rows.Count > 0 ? Convert.ToInt32(pendingRows.Rows[0]["PendingCount"]) : 0;
-                    return new { attempted = 0, sent = 0, failed = 0, pending = pending, configured = false };
-                }
-
-                // Recover dispatches abandoned by an app-pool recycle or process crash.
-                // LastAttemptDate is refreshed atomically when a row is claimed below.
-                br.EQuery(@"
-UPDATE dbo.PIP_T_InspectionEmailOutbox
-SET DeliveryStatus='FAILED',
-    LastError=ISNULL(LastError,'') +
-        CASE WHEN ISNULL(LastError,'')='' THEN '' ELSE ' | ' END +
-        'Recovered stale SENDING row after dispatcher interruption.',
-    NextAttemptDate=GETDATE()
-WHERE DeliveryStatus='SENDING'
-  AND AttemptCount<5
-  AND (
-      LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
-      OR (LastAttemptDate IS NULL AND EntryDate<DATEADD(MINUTE,-30,GETDATE()))
-  );
-UPDATE dbo.PIP_T_InspectionEmailOutbox
-SET DeliveryStatus='FAILED',
-    LastError='Dispatch interrupted and retry limit reached.',
-    NextAttemptDate=GETDATE()
-WHERE DeliveryStatus='SENDING'
-  AND AttemptCount>=5
-  AND (
-      LastAttemptDate<DATEADD(MINUTE,-30,GETDATE())
-      OR (LastAttemptDate IS NULL AND EntryDate<DATEADD(MINUTE,-30,GETDATE()))
-  );");
-
                 DataTable queue = br.EQueryP(@"
 ;WITH EmailQueue AS
 (
@@ -3629,38 +3583,25 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
                     long outboxId = Convert.ToInt64(row["EmailOutboxID"]);
                     try
                     {
-                        using (var message = new MailMessage())
-                        {
-                            message.From = new MailAddress(fromAddress, "INSPEC");
-                            message.To.Add(new MailAddress(Convert.ToString(row["RecipientEmail"])));
-                            message.Subject = Convert.ToString(row["EmailSubject"]);
-                            message.SubjectEncoding = Encoding.UTF8;
-                            message.BodyEncoding = Encoding.UTF8;
-                            string plainBody = row["PlainBody"] == DBNull.Value ? "" : Convert.ToString(row["PlainBody"]);
-                            message.Body = plainBody;
-                            message.IsBodyHtml = false;
-                            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(
-                                plainBody, Encoding.UTF8, "text/plain"));
-                            AlternateView htmlView;
-                            string entityType = Convert.ToString(row["EntityType"]);
-                            if (String.Equals(entityType, "LIGHTNING", StringComparison.OrdinalIgnoreCase) ||
-                                String.Equals(entityType, "INSPECTION", StringComparison.OrdinalIgnoreCase))
-                                htmlView = CreateInspectionEmailView(Convert.ToInt64(row["EntityID"]), Convert.ToString(row["HtmlBody"]));
-                            else
-                                htmlView = AlternateView.CreateAlternateViewFromString(Convert.ToString(row["HtmlBody"]), Encoding.UTF8, "text/html");
-                            message.AlternateViews.Add(htmlView);
+                        string toAddress = Convert.ToString(row["RecipientEmail"]).Trim();
+                        string subject = Convert.ToString(row["EmailSubject"]);
+                        string htmlBody = Convert.ToString(row["HtmlBody"]);
 
-                            using (var smtp = new SmtpClient(host, port))
-                            {
-                                smtp.EnableSsl = useSsl;
-                                smtp.Timeout = 20000;
-                                if (!String.IsNullOrWhiteSpace(smtpUser))
-                                    smtp.Credentials = new System.Net.NetworkCredential(smtpUser, smtpPassword);
-                                else
-                                    smtp.UseDefaultCredentials = true;
-                                smtp.Send(message);
-                            }
-                        }
+                        if (String.IsNullOrWhiteSpace(toAddress))
+                            throw new InvalidOperationException("Recipient email is empty.");
+
+                        if (!GF.SendEmail(
+                                "",
+                                "INSPEC",
+                                toAddress,
+                                subject,
+                                htmlBody,
+                                "",
+                                "",
+                                "",
+                                ""))
+                            throw new InvalidOperationException("GF.SendEmail returned false.");
+
                         br.EQueryP(@"UPDATE dbo.PIP_T_InspectionEmailOutbox
 SET DeliveryStatus='SENT',SentDate=GETDATE(),LastError=NULL
 WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
@@ -3669,7 +3610,7 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                     }
                     catch (Exception ex)
                     {
-                        string error = ex.Message ?? "SMTP send failed.";
+                        string error = ex.Message ?? "Email send failed.";
                         if (error.Length > 1900) error = error.Substring(0, 1900);
                         br.EQueryP(@"
 UPDATE dbo.PIP_T_InspectionEmailOutbox
@@ -3685,6 +3626,7 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                         failed++;
                     }
                 }
+
                 DataTable pending = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
                 return new {
                     attempted = queue.Rows.Count,
