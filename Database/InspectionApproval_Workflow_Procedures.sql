@@ -183,7 +183,7 @@ BEGIN
  SET @p_Remark=LTRIM(RTRIM(ISNULL(@p_Remark,N'')));
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
- DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(50),
+ DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(4000),
          @Mode VARCHAR(10),@EmailEnabled BIT,@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
          @EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
