@@ -745,7 +745,7 @@ BEGIN
         IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
         DECLARE @V_RepeatError NVARCHAR(4000);
         SET @V_RepeatError=ERROR_MESSAGE();
-        RAISERROR(@V_RepeatError,16,1);
+        RAISERROR('%s',16,1,@V_RepeatError);
         RETURN;
     END CATCH;
 END;
