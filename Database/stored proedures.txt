@@ -682,22 +682,67 @@ FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN @tbl_ResolvedRepeat R ON R.IDItem=F.IDItem
 JOIN @tbl_RepeatField S ON S.RuntimeItemID=R.RuntimeItemID AND S.IDRepeat=F.IDRepeat;
 
-MERGE dbo.PIP_M_CheckListWOPM_ItemRepeatField AS target
-USING
+/* Allocate manual IDRepeat values under an exclusive table lock.
+   The lock is held until the inserts and identity-map output are committed. */
+DECLARE @tbl_NewRepeatField TABLE
 (
-    SELECT R.IDItem,S.RuntimeRepeatID,S.FieldLabel,S.FieldType,S.OptionList,S.Unit,
-           S.MinValue,S.MaxValue,S.IsRequired,S.GroupName,S.DisplayOrder,S.MinInclusive,S.MaxInclusive
-    FROM @tbl_RepeatField S
-    JOIN @tbl_ResolvedRepeat R ON R.RuntimeItemID=S.RuntimeItemID
-    WHERE S.IDRepeat IS NULL
-) AS source
-ON 1=0
-WHEN NOT MATCHED THEN
-    INSERT (IDItem,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,IsRequired,GroupName,DisplayOrder,MinInclusive,MaxInclusive)
-    VALUES (source.IDItem,source.FieldLabel,source.FieldType,source.OptionList,source.Unit,source.MinValue,source.MaxValue,
-            source.IsRequired,source.GroupName,source.DisplayOrder,source.MinInclusive,source.MaxInclusive)
-OUTPUT 'RepeatField',source.RuntimeRepeatID,inserted.IDRepeat
-INTO @tbl_Identity (Entity,RuntimeID,ID);
+    IDRepeat INT NOT NULL PRIMARY KEY,
+    IDItem INT NOT NULL,
+    RuntimeRepeatID INT NOT NULL,
+    FieldLabel NVARCHAR(100),
+    FieldType VARCHAR(20),
+    OptionList NVARCHAR(1000),
+    Unit NVARCHAR(30),
+    MinValue DECIMAL(18,4),
+    MaxValue DECIMAL(18,4),
+    IsRequired BIT,
+    GroupName NVARCHAR(100),
+    DisplayOrder INT,
+    MinInclusive BIT,
+    MaxInclusive BIT
+);
+DECLARE @V_NextRepeatID INT;
+
+IF EXISTS (SELECT 1 FROM @tbl_RepeatField WHERE IDRepeat IS NULL)
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        SELECT @V_NextRepeatID=ISNULL(MAX(IDRepeat),0)+1
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField WITH (TABLOCKX,HOLDLOCK);
+
+        INSERT @tbl_NewRepeatField
+            (IDRepeat,IDItem,RuntimeRepeatID,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,
+             IsRequired,GroupName,DisplayOrder,MinInclusive,MaxInclusive)
+        SELECT @V_NextRepeatID+CONVERT(INT,ROW_NUMBER() OVER(ORDER BY R.IDItem,S.RuntimeRepeatID))-1,
+               R.IDItem,S.RuntimeRepeatID,S.FieldLabel,S.FieldType,S.OptionList,S.Unit,S.MinValue,S.MaxValue,
+               S.IsRequired,S.GroupName,S.DisplayOrder,S.MinInclusive,S.MaxInclusive
+        FROM @tbl_RepeatField S
+        JOIN @tbl_ResolvedRepeat R ON R.RuntimeItemID=S.RuntimeItemID
+        WHERE S.IDRepeat IS NULL;
+
+        MERGE dbo.PIP_M_CheckListWOPM_ItemRepeatField AS target
+        USING @tbl_NewRepeatField AS source
+        ON 1=0
+        WHEN NOT MATCHED THEN
+            INSERT (IDRepeat,IDItem,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,IsRequired,
+                    GroupName,DisplayOrder,MinInclusive,MaxInclusive)
+            VALUES (source.IDRepeat,source.IDItem,source.FieldLabel,source.FieldType,source.OptionList,source.Unit,
+                    source.MinValue,source.MaxValue,source.IsRequired,source.GroupName,source.DisplayOrder,
+                    source.MinInclusive,source.MaxInclusive)
+        OUTPUT 'RepeatField',source.RuntimeRepeatID,inserted.IDRepeat
+        INTO @tbl_Identity (Entity,RuntimeID,ID);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
+        DECLARE @V_RepeatError NVARCHAR(4000);
+        SET @V_RepeatError=ERROR_MESSAGE();
+        RAISERROR(@V_RepeatError,16,1);
+        RETURN;
+    END CATCH;
+END;
 
 -- Remove REPEAT definitions when an item is changed back to a scalar type.
 DELETE F
