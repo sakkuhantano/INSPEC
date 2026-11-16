@@ -115,6 +115,7 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Batch_Sync
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
     @p_InspectionNo VARCHAR(10),
+    @p_ApprovalUrl NVARCHAR(1000) = NULL,
     @p_Points dbo.Type_N_Tbl_C13 READONLY,
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
@@ -432,6 +433,13 @@ BEGIN
                P.PhotoType,P.FileName,P.FileType,P.SeqNo,@p_UpdateUser,GETDATE()
         FROM PhotoRows P
         JOIN @V_PointMap PM ON PM.ClientPointID=P.ClientPointID;
+
+        /* Submit only after header, points, checklist values, and photos are all saved.
+           The caller's transaction keeps data and workflow state atomic. */
+        EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
+            @p_InspectionID=@V_InspectionID,
+            @p_ActorEmployeeID=@p_UpdateUser,
+            @p_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
 
         IF @V_EntryTranCount=0 COMMIT TRANSACTION;
 
