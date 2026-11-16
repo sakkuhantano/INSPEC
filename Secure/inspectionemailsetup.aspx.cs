@@ -307,6 +307,7 @@ namespace INSPEC.Secure
                 }
                 SaveCommonValue(Scope + ";SPV;" + sec, spv);
                 ClearSPVEditor();
+                pnlSPVEditor.Visible = false;
                 BindSPVGrid();
                 ShowMessage("Mapping SPV tersimpan.", false);
             }
@@ -328,6 +329,7 @@ namespace INSPEC.Secure
                     lblSPVName.Text = GetEmployeeName(txtSPV.Text);
                     hidSPVOriginalSection.Value = sec;
                     btnSaveSPV.Text = "Update Mapping";
+                    pnlSPVEditor.Visible = true;
                 }
                 else if (e.CommandName == "DeleteMapping")
                 {
@@ -341,6 +343,7 @@ namespace INSPEC.Secure
                             }
                         );
                     ClearSPVEditor();
+                    pnlSPVEditor.Visible = false;
                     BindSPVGrid();
                     ShowMessage("Mapping SPV dihapus.", false);
                 }
@@ -354,11 +357,13 @@ namespace INSPEC.Secure
         protected void btnNewSPV_Click(object sender, EventArgs e)
         {
             ClearSPVEditor();
+            pnlSPVEditor.Visible = true;
             PrepareEmployeeSearch();
         }
         protected void btnCancelSPV_Click(object sender, EventArgs e)
         {
             ClearSPVEditor();
+            pnlSPVEditor.Visible = false;
             PrepareEmployeeSearch();
         }
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
