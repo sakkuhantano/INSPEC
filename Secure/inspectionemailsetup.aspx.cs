@@ -35,11 +35,6 @@ namespace INSPEC.Secure
                 ConfigurationManager.AppSettings["smtpHost"]
             );
             PrepareEmployeeSearch();
-            if (IsPostBack)
-            {
-                lblChiefEngName.Text = FormatEmployeeName(txtChiefEng.Text.Trim());
-                lblChiefSecName.Text = FormatEmployeeName(txtChiefSec.Text.Trim());
-            }
             if (!IsPostBack)
             {
                 Master.Mn_lit_Title = WAL.PB.AppID + " -> Inspection Email & Approval Routing";
@@ -169,17 +164,63 @@ namespace INSPEC.Secure
                 return d.Rows.Count == 0 ? "" : Convert.ToString(d.Rows[0]["Name"]);
             }
         }
-        private string FormatEmployeeName(string id)
+        private string FindEmployeeName(string id, string employeeFilter, string sectionId)
         {
-            string name = GetEmployeeName((id ?? "").Trim());
-            return String.IsNullOrWhiteSpace(name) ? "" : "Name: " + name;
+            id = (id ?? "").Trim();
+            if (id == "")
+                return "";
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable d = br.EQueryP(
+                    @"SELECT TOP 1 Name FROM dbo.M_HRD_Employee WHERE EmployeeID=@ID AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND " + employeeFilter,
+                    new SqlParameter[]
+                    {
+                        new SqlParameter("@ID", id),
+                        new SqlParameter("@C", Master.Mn_CompanyID),
+                        new SqlParameter("@S", sectionId ?? "")
+                    }
+                );
+                return d.Rows.Count == 0 ? "" : Convert.ToString(d.Rows[0]["Name"]);
+            }
+        }
+        private void ValidateEmployeeText(TextBox input, Label nameLabel, string employeeFilter, string sectionId)
+        {
+            string id = (input.Text ?? "").Trim();
+            input.Text = id;
+            nameLabel.Text = "";
+            if (id == "")
+                return;
+            string name = FindEmployeeName(id, employeeFilter, sectionId);
+            if (String.IsNullOrWhiteSpace(name))
+            {
+                GF.MsgBox(this, "Employee not found", "BS-5.3.0");
+                return;
+            }
+            nameLabel.Text = "Name: " + name;
+        }
+        protected void txtChiefEng_TextChanged(object sender, EventArgs e)
+        {
+            ValidateEmployeeText(txtChiefEng, lblChiefEngName, "ProfitCenterNo='PENG'", "");
+            PrepareEmployeeSearch();
+        }
+        protected void txtChiefSec_TextChanged(object sender, EventArgs e)
+        {
+            ValidateEmployeeText(txtChiefSec, lblChiefSecName, "ProfitCenterNo='PSEC'", "");
+            PrepareEmployeeSearch();
+        }
+        protected void txtSPV_TextChanged(object sender, EventArgs e)
+        {
+            ValidateEmployeeText(txtSPV, lblSPVName, "SectionID=@S", ddlSection.SelectedValue);
+            PrepareEmployeeSearch();
         }
         private void LoadHeader()
         {
             txtChiefEng.Text = GetCommonValue(Scope + ";CHIEF_ENG");
             txtChiefSec.Text = GetCommonValue(Scope + ";CHIEF_SEC");
-            lblChiefEngName.Text = FormatEmployeeName(txtChiefEng.Text);
-            lblChiefSecName.Text = FormatEmployeeName(txtChiefSec.Text);
+            string chiefEngName = FindEmployeeName(txtChiefEng.Text, "ProfitCenterNo='PENG'", "");
+            string chiefSecName = FindEmployeeName(txtChiefSec.Text, "ProfitCenterNo='PSEC'", "");
+            lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Name: " + chiefEngName;
+            lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Name: " + chiefSecName;
         }
         private void LoadEmailModeSettings()
         {
@@ -312,7 +353,9 @@ namespace INSPEC.Secure
                 {
                     ddlSection.SelectedValue = sec;
                     txtSPV.Text = GetCommonValue(Scope + ";SPV;" + sec);
-                            hidSPVOriginalSection.Value = sec;
+                    string spvName = FindEmployeeName(txtSPV.Text, "SectionID=@S", sec);
+                    lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Name: " + spvName;
+                    hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
                 }
                 else if (e.CommandName == "DeleteMapping")
@@ -353,6 +396,7 @@ namespace INSPEC.Secure
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
         {
             txtSPV.Text = "";
+            lblSPVName.Text = "";
             hidSPVOriginalSection.Value = "";
             PrepareEmployeeSearch();
         }
@@ -360,6 +404,7 @@ namespace INSPEC.Secure
         {
             hidSPVOriginalSection.Value = "";
             txtSPV.Text = "";
+            lblSPVName.Text = "";
             if (ddlSection.Items.Count > 0)
                 ddlSection.SelectedIndex = 0;
             PrepareEmployeeSearch();
