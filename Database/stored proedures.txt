@@ -2858,17 +2858,19 @@ BEGIN
 	WHERE NOT EXISTS (SELECT * FROM PIP_T_D_WO_Employee BB WHERE BB.KeyHD=A.KeyHD AND BB.EmployeeID=b.val) 
 	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0
 	
-	IF EXISTS(SELECT * FROM @p_Dt1 WHERE CAST(C5 AS BIT)=1) -- send email utk anomali
-       AND EXISTS
+	IF EXISTS
        (
            SELECT 1
-           FROM dbo.SysWebCommonValue WOEmail
-           WHERE WOEmail.AppID='INSPEC'
-             AND WOEmail.CommonGroup='EmailApproval'
-             AND WOEmail.IsDelete=0
-             AND WOEmail.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';EMAIL;WO'
-             AND LTRIM(RTRIM(WOEmail.Description))='1'
-       )
+           FROM @p_Dt1 Anomaly
+           JOIN dbo.PIP_T_WO WOHeader ON WOHeader.KeyHD=Anomaly.C1
+           JOIN dbo.SysWebCommonValue WOEmail
+             ON WOEmail.AppID='INSPEC'
+            AND WOEmail.CommonGroup='EmailApproval'
+            AND WOEmail.IsDelete=0
+            AND WOEmail.ID=CONVERT(VARCHAR(30),WOHeader.CompanyID)+CONVERT(VARCHAR(30),WOHeader.LocationID)+';EMAIL;WO'
+            AND LTRIM(RTRIM(WOEmail.Description))='1'
+           WHERE CAST(Anomaly.C5 AS BIT)=1
+       ) -- send email utk anomali only when WO email is enabled
 	BEGIN
 		DECLARE @V_BCC_EmailAddress VARCHAR(MAX)
 		SELECT 
