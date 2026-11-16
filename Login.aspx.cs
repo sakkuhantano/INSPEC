@@ -274,7 +274,14 @@ namespace INSPEC
                              ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
                       FROM SysWebUser U
                       LEFT JOIN INSPEC_User L ON L.UserID = U.employeeid
-                      LEFT JOIN UserSession us ON us.IsActive = 1 AND U.EmployeeID = us.UserID
+                      OUTER APPLY
+                      (
+                          SELECT TOP 1 LastSyncMaster, LastSyncWO
+                          FROM UserSession
+                          WHERE IsActive = 1 AND UserID = U.EmployeeID
+                            AND ExpireTime > GETDATE()
+                          ORDER BY LoginTime DESC, ID DESC
+                      ) us
                       CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
                       WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
                     "@EmployeeID=" + p_employeeid);
@@ -350,8 +357,9 @@ namespace INSPEC
 BEGIN TRANSACTION;
 DECLARE @NewID INT;
 SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
-UPDATE UserSession SET IsActive = 0 WHERE IsActive = 1 AND UserID = @EmployeeID;
-DELETE FROM UserSession WHERE ISNULL(IsActive, 0) = 0;
+-- Keep other devices' active sessions. Only purge sessions that can no longer authenticate.
+DELETE FROM UserSession
+WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
 SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
 INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
 VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
