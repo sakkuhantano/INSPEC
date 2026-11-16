@@ -826,134 +826,81 @@ WHERE InspectionID=@InspectionID",
                                 throw new Exception("Could not load existing Inspection photo records before sync.");
                         }
 
-                        if (String.IsNullOrWhiteSpace(inspectionNo))
+                        string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+                        string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+                        string inspectionApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
+                        SqlParameter[] commonParameters = new SqlParameter[]
                         {
-                            // Both STANDARD and BATCH use the same canonical InspectionNo generator.
-                            // The number is obtained before staging photos because the photo folder is keyed by InspectionNo.
-                            syncStage = "generate InspectionNo";
-                            DataTable generatedNo = br.EQueryP(@"
-DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
-INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
-SELECT ID FROM @AutoNumResult;",
-                                new SqlParameter[] { new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId) });
-                            if (generatedNo == null || generatedNo.Rows.Count == 0 || generatedNo.Rows[0]["ID"] == DBNull.Value ||
-                                String.IsNullOrWhiteSpace(Convert.ToString(generatedNo.Rows[0]["ID"])))
-                                throw new Exception("Failed to generate InspectionNo before saving transaction data.");
-                            inspectionNo = Convert.ToString(generatedNo.Rows[0]["ID"]);
+                            new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
+                            new SqlParameter("@p_CompanyID", companyId),
+                            new SqlParameter("@p_LocationID", locationId),
+                            new SqlParameter("@p_SectionID", sectionId),
+                            new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
+                            new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
+                            new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
+                            new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
+                            new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
+                            new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
+                            new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
+                            new SqlParameter("@p_InspectionDate", inspectionDate),
+                            new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
+                            new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
+                            new SqlParameter("@p_Status", status),
+                            new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
+                            new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
+                            new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
+                            new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
+                            new SqlParameter("@p_UpdateUser", Limit(userId, 50))
+                        };
+                        string procedureName;
+                        var syncParameters = new List<SqlParameter>(commonParameters);
+                        if (isLightningInspection)
+                        {
+                            syncStage = "execute Lightning inspection sync procedure";
+                            procedureName = "spUTL_PIP_T_Inspection_Lightning_Sync";
+                            syncParameters.Add(new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl));
+                            syncParameters.Add(new SqlParameter("@p_Points", batchPoints));
+                            syncParameters.Add(new SqlParameter("@p_Schedules", lightningSchedules));
+                            syncParameters.Add(new SqlParameter("@p_Items", batchItems));
+                            syncParameters.Add(new SqlParameter("@p_ItemValues", batchItemValues));
+                        }
+                        else if (isBatchInspection)
+                        {
+                            syncStage = "execute Batch inspection sync procedure";
+                            procedureName = "spUTL_PIP_T_Inspection_Batch_Sync";
+                            syncParameters.Add(new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl));
+                            syncParameters.Add(new SqlParameter("@p_Points", batchPoints));
+                            syncParameters.Add(new SqlParameter("@p_Items", batchItems));
+                            syncParameters.Add(new SqlParameter("@p_ItemValues", batchItemValues));
+                        }
+                        else
+                        {
+                            syncStage = "execute Standard inspection sync procedure";
+                            procedureName = "spUTL_PIP_T_Inspection_Sync";
+                            syncParameters.Add(new SqlParameter("@p_Items", items));
+                            syncParameters.Add(new SqlParameter("@p_ItemValues", itemValues));
+                            syncParameters.Add(new SqlParameter("@p_InspectionMode", inspectionMode));
+                            syncParameters.Add(new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl));
                         }
 
-                        string photoFolder = GetInspectionPhotoFolder(companyId, locationId, inspectionDate, inspectionNo);
-                        var createdPhotoPaths = new List<string>();
-                        // dbo.Type_N_Tbl_C5: C1=PhotoType, C2=FileName, C3=FileType, C4=SeqNo; C5 unused.
-                        DataTable photoTable = new DataTable();
-                        for (int i = 1; i <= 5; i++)
-                            photoTable.Columns.Add("C" + i, typeof(string));
-
-                        // Keep this flag outside the try so the catch can inspect it.
-                        bool sqlCallReturned = false;
-                        try
+                        syncStage = "save inspection and photos in one BRC transaction";
+                        DataTable saved;
+                        using (var inspectionBr = new INSPEC.BRC.PIP_T_WO())
                         {
-                            syncStage = "stage photo files before SQL transaction";
-                            if (incomingPhotos.Count > 0 && !Directory.Exists(photoFolder))
-                                Directory.CreateDirectory(photoFolder);
-
-                            foreach (var photo in incomingPhotos)
-                            {
-                                string fileName = "INS" + clientId.Replace("-", "").Substring(0, Math.Min(12, clientId.Replace("-", "").Length)) +
-                                    "_" + photo.Item2.ToString(CultureInfo.InvariantCulture) +
-                                    "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-                                string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item3);
-                                createdPhotoPaths.Add(fullPath);
-                                File.WriteAllBytes(fullPath, photo.Item4);
-                                photoTable.Rows.Add(photo.Item1, fileName, photo.Item3,
-                                    photo.Item2.ToString(CultureInfo.InvariantCulture), "");
-                            }
-
-                            foreach (var photo in incomingBatchPhotos)
-                            {
-                                string safePoint = new string((photo.Item1 ?? "").Where(Char.IsLetterOrDigit).ToArray());
-                                string fileName = "INS" + clientId.Replace("-", "").Substring(0, Math.Min(12, clientId.Replace("-", "").Length)) +
-                                    "_" + safePoint.Substring(0, Math.Min(8, safePoint.Length)) +
-                                    "_" + photo.Item3.ToString(CultureInfo.InvariantCulture) +
-                                    "_" + Guid.NewGuid().ToString("N").Substring(0, 8);
-                                string fullPath = Path.Combine(photoFolder, fileName + "." + photo.Item4);
-                                createdPhotoPaths.Add(fullPath);
-                                File.WriteAllBytes(fullPath, photo.Item5);
-                                photoTable.Rows.Add(photo.Item1, photo.Item2, fileName, photo.Item4,
-                                    photo.Item3.ToString(CultureInfo.InvariantCulture));
-                            }
-
-                            syncStage = "save header, point checklist, and photo metadata atomically";
-                            SqlParameter[] commonParameters = new SqlParameter[]
-                            {
-                                new SqlParameter("@p_ClientInspectionID", Limit(clientId, 36)),
-                                new SqlParameter("@p_CompanyID", companyId),
-                                new SqlParameter("@p_LocationID", locationId),
-                                new SqlParameter("@p_SectionID", sectionId),
-                                new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
-                                new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
-                                new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
-                                new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
-                                new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
-                                new SqlParameter("@p_TemplateNo", Limit(TokenString(record, "TemplateNo"), 50)),
-                                new SqlParameter("@p_TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
-                                new SqlParameter("@p_InspectionDate", inspectionDate),
-                                new SqlParameter("@p_StartDateTime", ParseNullableDate(TokenString(record, "StartDateTime"))),
-                                new SqlParameter("@p_EndDateTime", ParseNullableDate(TokenString(record, "EndDateTime"))),
-                                new SqlParameter("@p_Status", status),
-                                new SqlParameter("@p_Summary", Limit(TokenString(record, "Summary"), 500)),
-                                new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
-                                new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
-                                new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
-                                new SqlParameter("@p_UpdateUser", Limit(userId, 50))
-                            };
-                            string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
-                            string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-                            string inspectionApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
-                            DataTable saved;
-                            if (isLightningInspection)
-                            {
-                                syncStage = "execute Lightning inspection sync procedure";
-                                string lightningApprovalUrl = inspectionApprovalUrl;
-                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Lightning_Sync",
-                                    commonParameters.Concat(new SqlParameter[] {
-                                        new SqlParameter("@p_ApprovalUrl", lightningApprovalUrl),
-                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
-                                        new SqlParameter("@p_Points", batchPoints),
-                                        new SqlParameter("@p_Schedules", lightningSchedules),
-                                        new SqlParameter("@p_Photos", photoTable),
-                                        new SqlParameter("@p_Items", batchItems),
-                                        new SqlParameter("@p_ItemValues", batchItemValues)
-                                    }).ToArray(), true, true);
-                            }
-                            else if (isBatchInspection)
-                            {
-                                syncStage = "execute Batch inspection sync procedure";
-                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Batch_Sync",
-                                    commonParameters.Concat(new SqlParameter[] {
-                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
-                                        new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl),
-                                        new SqlParameter("@p_Points", batchPoints),
-                                        new SqlParameter("@p_Photos", photoTable),
-                                        new SqlParameter("@p_Items", batchItems),
-                                        new SqlParameter("@p_ItemValues", batchItemValues)
-                                    }).ToArray(), true, true);
-                            }
-                            else
-                            {
-                                syncStage = "execute Standard inspection sync procedure";
-                                saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync",
-                                    commonParameters.Concat(new SqlParameter[] {
-                                        new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
-                                        new SqlParameter("@p_Photos", photoTable),
-                                        new SqlParameter("@p_Items", items),
-                                        new SqlParameter("@p_ItemValues", itemValues),
-                                        new SqlParameter("@p_InspectionMode", inspectionMode),
-                                        new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl)
-                                    }).ToArray(), true, true);
-                            }
-                            sqlCallReturned = true;
-                            syncStage = "validate saved inspection result";
+                            saved = inspectionBr.SyncInspection(
+                                procedureName,
+                                syncParameters.ToArray(),
+                                companyId,
+                                locationId,
+                                inspectionDate,
+                                inspectionNo,
+                                clientId,
+                                isBatchInspection,
+                                incomingPhotos,
+                                incomingBatchPhotos,
+                                out inspectionNo);
+                        }
+                        syncStage = "validate saved inspection result";
 
                             if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
                                 throw new Exception("Inspection sync procedure returned no saved header.");
@@ -993,20 +940,7 @@ SELECT ID FROM @AutoNumResult;",
                                 message = ""
                             });
                         }
-                        catch
-                        {
-                            /* If the SQL call threw, its transaction rolled back and staged files are safe to remove.
-                               If it returned, preserve files even if the response shape is unexpected: SQL may already have committed metadata. */
-                            if (!sqlCallReturned)
-                            {
-                                foreach (string path in createdPhotoPaths)
-                                {
-                                    try { if (File.Exists(path)) File.Delete(path); }
-                                    catch { }
-                                }
-                            }
-                            throw;
-                        }
+
                     }
                 }
                 catch (Exception ex)
