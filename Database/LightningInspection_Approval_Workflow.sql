@@ -129,7 +129,11 @@ BEGIN
            @V_ChiefSecEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
 
     IF @V_EmailEnabled=1
-       AND (ISNULL(@V_TechnicianEmail,'')='' OR ISNULL(@V_ChiefEngEmail,'')='' OR ISNULL(@V_ChiefSecEmail,'')='')
+       AND (
+            ISNULL(@V_TechnicianEmail,'')=''
+            OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))
+            OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))
+       )
     BEGIN RAISERROR('Email address is missing for Technician, Chief Engineering, or Chief Security. Complete M_HRD_Employee.emailaddress before submitting.',16,1); RETURN; END;
 
     SELECT @V_ExistingStatus=CASE
