@@ -288,7 +288,8 @@ BEGIN
             @p_InspectionNo=@V_InspectionNo,
             @p_Photos=@V_EmptyPhotos,
             @p_Items=@V_EmptyItems,
-            @p_ItemValues=@V_EmptyValues;
+            @p_ItemValues=@V_EmptyValues,
+            @p_InspectionMode='BATCH';
 
         DECLARE @V_InspectionID BIGINT;
         SELECT @V_InspectionID=InspectionID
