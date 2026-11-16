@@ -559,7 +559,7 @@ async function loadCompanyDropdown() {
 }
 
 function logout() {
-    localStorage.clear();
+    localStorage.removeItem("loginData");
     window.location = "Login.aspx";
 }
 
