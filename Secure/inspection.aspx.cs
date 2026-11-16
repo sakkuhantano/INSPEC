@@ -910,6 +910,7 @@ SELECT ID FROM @AutoNumResult;",
                             DataTable saved;
                             if (isLightningInspection)
                             {
+                                syncStage = "execute Lightning inspection sync procedure";
                                 string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
                                 string lightningApprovalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval";
@@ -926,6 +927,7 @@ SELECT ID FROM @AutoNumResult;",
                             }
                             else if (isBatchInspection)
                             {
+                                syncStage = "execute Batch inspection sync procedure";
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Batch_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
                                         new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
@@ -937,6 +939,7 @@ SELECT ID FROM @AutoNumResult;",
                             }
                             else
                             {
+                                syncStage = "execute Standard inspection sync procedure";
                                 saved = br.EQueryP("spUTL_PIP_T_Inspection_Sync",
                                     commonParameters.Concat(new SqlParameter[] {
                                         new SqlParameter("@p_InspectionNo", Limit(inspectionNo, 10)),
@@ -946,6 +949,7 @@ SELECT ID FROM @AutoNumResult;",
                                     }).ToArray(), true, true);
                             }
                             sqlCallReturned = true;
+                            syncStage = "validate saved inspection result";
 
                             if (saved == null || saved.Rows.Count == 0 || !saved.Columns.Contains("InspectionID") || saved.Rows[0]["InspectionID"] == DBNull.Value)
                                 throw new Exception("Inspection sync procedure returned no saved header.");
@@ -955,6 +959,7 @@ SELECT ID FROM @AutoNumResult;",
 
                             if (!isLightningInspection)
                             {
+                                syncStage = "update InspectionMode after sync";
                                 br.EQueryP(@"UPDATE dbo.PIP_T_Inspection SET InspectionMode=@InspectionMode
 WHERE InspectionID=@InspectionID",
                                     new SqlParameter[] {
@@ -965,6 +970,7 @@ WHERE InspectionID=@InspectionID",
                                 string siteOrigin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
                                 string approvalUrl = siteOrigin + appRoot + "/Secure/inspection.aspx?type=approval&inspectionId=" +
                                     inspectionId.ToString(CultureInfo.InvariantCulture);
+                                syncStage = "submit Standard/Batch inspection workflow";
                                 br.EQueryP("spUTL_PIP_T_Inspection_SubmitWorkflow", new SqlParameter[] {
                                     new SqlParameter("@p_InspectionID", inspectionId),
                                     new SqlParameter("@p_ActorEmployeeID", userId),
