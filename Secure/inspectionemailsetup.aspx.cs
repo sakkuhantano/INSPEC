@@ -163,20 +163,58 @@ namespace INSPEC.Secure
         }
         private string GetEmployeeName(string id)
         {
-            if (id == "")
-                return "";
-            using (var br = new WAL.BR.CF())
+            return FindEmployeeName(id, "", "");
+        }
+
+        private string NormalizeEmployeeList(string value)
+        {
+            string[] parts = (value ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var result = new System.Collections.Generic.List<string>();
+            foreach (string part in parts)
             {
-                DataTable d = br.EQueryP(
-                    @"SELECT TOP 1 Name FROM dbo.M_HRD_Employee WHERE EmployeeID=@ID AND CompanyID=@C AND ISNULL(TerminationDate,'')=''",
-                    new SqlParameter[]
-                    {
-                        new SqlParameter("@ID", id),
-                        new SqlParameter("@C", Master.Mn_CompanyID)
-                    }
-                );
-                return d.Rows.Count == 0 ? "" : Convert.ToString(d.Rows[0]["Name"]);
+                string id = part.Trim();
+                if (id == "")
+                    continue;
+                if (!seen.Add(id))
+                    throw new InvalidOperationException("NIK approval tidak boleh duplikat: " + id);
+                result.Add(id);
             }
+            return String.Join(";", result.ToArray());
+        }
+
+        private string GetEmployeeNames(string ids, string employeeFilter, string sectionId)
+        {
+            string normalized = NormalizeEmployeeList(ids);
+            if (normalized == "")
+                return "";
+            var names = new System.Collections.Generic.List<string>();
+            foreach (string id in normalized.Split(';'))
+            {
+                string name = FindEmployeeName(id, employeeFilter, sectionId);
+                if (String.IsNullOrWhiteSpace(name))
+                    return "";
+                names.Add(id + " - " + name);
+            }
+            return String.Join("; ", names.ToArray());
+        }
+
+        private void ValidateEmployeeList(TextBox input, Label nameLabel, string employeeFilter, string sectionId, bool required)
+        {
+            string normalized = NormalizeEmployeeList(input.Text);
+            input.Text = normalized;
+            nameLabel.Text = "";
+            if (normalized == "")
+            {
+                if (required)
+                    throw new InvalidOperationException("NIK approval wajib diisi.");
+                return;
+            }
+
+            string display = GetEmployeeNames(normalized, employeeFilter, sectionId);
+            if (display == "")
+                throw new InvalidOperationException("Salah satu NIK approval tidak ditemukan atau tidak memenuhi mapping.");
+            nameLabel.Text = "Approver: " + display;
         }
         private string FindEmployeeName(string id, string employeeFilter, string sectionId)
         {
@@ -214,27 +252,30 @@ namespace INSPEC.Secure
         }
         protected void txtChiefEng_TextChanged(object sender, EventArgs e)
         {
-            ValidateEmployeeText(txtChiefEng, lblChiefEngName, "ProfitCenterNo='PENG'", "");
+            try { ValidateEmployeeList(txtChiefEng, lblChiefEngName, "ProfitCenterNo='PENG'", "", true); }
+            catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
         protected void txtChiefSec_TextChanged(object sender, EventArgs e)
         {
-            ValidateEmployeeText(txtChiefSec, lblChiefSecName, "ProfitCenterNo='PSEC'", "");
+            try { ValidateEmployeeList(txtChiefSec, lblChiefSecName, "ProfitCenterNo='PSEC'", "", true); }
+            catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
         protected void txtSPV_TextChanged(object sender, EventArgs e)
         {
-            ValidateEmployeeText(txtSPV, lblSPVName, "SectionID=@S", ddlSection.SelectedValue);
+            try { ValidateEmployeeList(txtSPV, lblSPVName, "SectionID=@S", ddlSection.SelectedValue, true); }
+            catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
         private void LoadHeader()
         {
             txtChiefEng.Text = GetCommonValue(Scope + ";CHIEF_ENG");
             txtChiefSec.Text = GetCommonValue(Scope + ";CHIEF_SEC");
-            string chiefEngName = FindEmployeeName(txtChiefEng.Text, "ProfitCenterNo='PENG'", "");
-            string chiefSecName = FindEmployeeName(txtChiefSec.Text, "ProfitCenterNo='PSEC'", "");
-            lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Name: " + chiefEngName;
-            lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Name: " + chiefSecName;
+            string chiefEngName = GetEmployeeNames(txtChiefEng.Text, "ProfitCenterNo='PENG'", "");
+            string chiefSecName = GetEmployeeNames(txtChiefSec.Text, "ProfitCenterNo='PSEC'", "");
+            lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Approver: " + chiefEngName;
+            lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Approver: " + chiefSecName;
         }
         private void LoadEmailModeSettings()
         {
@@ -263,17 +304,20 @@ namespace INSPEC.Secure
             try
             {
                 EnsureAdministrator();
-                string ce = txtChiefEng.Text.Trim();
-                string chiefSec = txtChiefSec.Text.Trim();
+                string ce = NormalizeEmployeeList(txtChiefEng.Text);
+                string chiefSec = NormalizeEmployeeList(txtChiefSec.Text);
                 if (ce == "" || chiefSec == "")
-                    throw new InvalidOperationException("Pilih NIK Chief Engineering dan Chief Security.");
-                if (ce == chiefSec)
-                    throw new InvalidOperationException("Chief Approver harus employee berbeda.");
+                    throw new InvalidOperationException("Pilih minimal satu NIK Chief Engineering dan Chief Security.");
+
+                var ceSet = new System.Collections.Generic.HashSet<string>(ce.Split(';'), StringComparer.OrdinalIgnoreCase);
+                foreach (string id in chiefSec.Split(';'))
+                    if (ceSet.Contains(id))
+                        throw new InvalidOperationException("NIK tidak boleh terdaftar sebagai Chief Engineering dan Chief Security sekaligus: " + id);
 
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(
-                        @"IF NOT EXISTS(SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG') RAISERROR('Chief Engineering wajib employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF NOT EXISTS(SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=@S AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC') RAISERROR('Chief Security wajib employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
+                        @"IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@E,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=X.val AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG')) RAISERROR('Chief Engineering wajib seluruhnya employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@S,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=X.val AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC')) RAISERROR('Chief Security wajib seluruhnya employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
                         new SqlParameter[] {
                             new SqlParameter("@E", ce),
                             new SqlParameter("@S", chiefSec),
@@ -288,24 +332,24 @@ namespace INSPEC.Secure
                 if (pnlSPVEditor.Visible)
                 {
                     section = ddlSection.SelectedValue;
-                    spv = txtSPV.Text.Trim();
+                    spv = NormalizeEmployeeList(txtSPV.Text);
                     oldSection = hidSPVOriginalSection.Value;
                     if (section == "" || spv == "")
-                        throw new InvalidOperationException("Lengkapi Section dan NIK SPV pada form Add New Record.");
+                        throw new InvalidOperationException("Lengkapi Section dan minimal satu NIK SPV pada form Add New Record.");
                     if (oldSection == "" && GetCommonValue(Scope + ";SPV;" + section) != "")
                         throw new InvalidOperationException("Section tersebut sudah memiliki mapping SPV. Gunakan Edit pada baris yang ada.");
                     using (var br = new WAL.BR.CF())
                     {
                         DataTable d = br.EQueryP(
-                            @"SELECT COUNT(1) Cnt FROM dbo.M_HRD_Employee WHERE EmployeeID=@E AND CompanyID=@C AND SectionID=@S AND ISNULL(TerminationDate,'')=''",
+                            @"SELECT COUNT(DISTINCT X.val) Cnt FROM dbo.SplitStringConvertToTable(@E,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val AND E.CompanyID=@C AND E.SectionID=@S AND ISNULL(E.TerminationDate,'')=''",
                             new SqlParameter[] {
                                 new SqlParameter("@E", spv),
                                 new SqlParameter("@C", Master.Mn_CompanyID),
                                 new SqlParameter("@S", section)
                             }
                         );
-                        if (d.Rows.Count == 0 || Convert.ToInt32(d.Rows[0]["Cnt"]) != 1)
-                            throw new InvalidOperationException("SPV harus employee aktif pada Company dan Section terpilih.");
+                        if (d.Rows.Count == 0 || Convert.ToInt32(d.Rows[0]["Cnt"]) != spv.Split(';').Length)
+                            throw new InvalidOperationException("Seluruh NIK SPV harus employee aktif pada Company dan Section terpilih.");
                     }
                 }
 
@@ -349,7 +393,14 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable d = br.EQueryP(
-                    @"SELECT SUBSTRING(C.ID,LEN(@P)+6,100) SectionID,C.Description EmployeeID,E.Name EmployeeName FROM dbo.SysWebCommonValue C INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=C.Description AND E.CompanyID=@C AND ISNULL(E.TerminationDate,'')='' AND E.SectionID=SUBSTRING(C.ID,LEN(@P)+6,100) WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID LIKE @P+';SPV;%' ORDER BY C.ID",
+                    @"SELECT SUBSTRING(C.ID,LEN(@P)+6,100) SectionID,C.Description EmployeeID,
+                             STUFF((SELECT '; '+X.val+' - '+ISNULL(E2.Name,X.val)
+                                    FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                                    LEFT JOIN dbo.M_HRD_Employee E2 ON E2.EmployeeID=X.val AND E2.CompanyID=@C AND ISNULL(E2.TerminationDate,'')=''
+                                    ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,'') EmployeeName
+                       FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID LIKE @P+';SPV;%'
+                       ORDER BY C.ID",
                     new SqlParameter[]
                     {
                         new SqlParameter("@P", Scope),
@@ -370,8 +421,8 @@ namespace INSPEC.Secure
                 {
                     ddlSection.SelectedValue = sec;
                     txtSPV.Text = GetCommonValue(Scope + ";SPV;" + sec);
-                    string spvName = FindEmployeeName(txtSPV.Text, "SectionID=@S", sec);
-                    lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Name: " + spvName;
+                    string spvName = GetEmployeeNames(txtSPV.Text, "SectionID=@S", sec);
+                    lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Approver: " + spvName;
                     hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
                     btnNewSPV.Visible = false;
