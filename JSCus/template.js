@@ -204,6 +204,16 @@ function generateRuntimeID()
 {
     return ++nextRuntimeId;
 }
+
+// REPEAT child-field identities are database IDs. Clones get temporary negative IDs.
+function resetRepeatFieldIdentities(item)
+{
+    if (!item || !Array.isArray(item.RepeatFields)) return;
+    item.RepeatFields.forEach(function(field) {
+        field.IDRepeat = 0;
+        field.RuntimeRepeatID = -Math.abs(generateRuntimeID());
+    });
+}
 // ========================================================
 // EVENTS
 // ========================================================
@@ -2350,7 +2360,7 @@ function cloneVersionStructureForTemplate(sourceStructure, sourceVersionInfo)
         const clonedItems = (sec.Items || []).map(function(item) {
             const oldSubID = Number(item.RuntimeSubSectionID || item.IDSubSection || 0);
             const newSubID = oldSubsectionMap[oldSubID] || 0;
-            return Object.assign({}, item, {
+            const clonedItem = Object.assign({}, item, {
                 IDItem: 0,
                 RuntimeItemID: generateRuntimeID(),
                 IDSubSection: newSubID,
@@ -2362,6 +2372,8 @@ function cloneVersionStructureForTemplate(sourceStructure, sourceVersionInfo)
                     });
                 })
             });
+            resetRepeatFieldIdentities(clonedItem);
+            return clonedItem;
         });
         return Object.assign({}, sec, {
             IDSection: 0,
@@ -5542,6 +5554,7 @@ function duplicateSection(sectionId)
     });
 
     copy.Items.forEach(item => {
+        resetRepeatFieldIdentities(item);
         const oldSubIDs = [item.RuntimeSubSectionID, item.IDSubSection]
             .map(value => Number(value || 0)).filter(value => value > 0);
         const newSubID = oldSubIDs.map(value => subsectionIdMap.get(value)).find(Boolean) || 0;
@@ -5595,6 +5608,7 @@ function duplicateItem()
 
         copy.IDItem = 0;
         copy.RuntimeItemID = generateRuntimeID();
+        resetRepeatFieldIdentities(copy);
 
         if(copy.Groups)
         {
@@ -5862,6 +5876,7 @@ function duplicateSubSection(sectionId, subSectionId)
         item.IDSubSection = 0;
         item.RuntimeSubSectionID = copy.RuntimeSubSectionID;
         item.DisplayOrder = index + 1;
+        resetRepeatFieldIdentities(item);
         if (Array.isArray(item.Groups)) {
             item.Groups.forEach(group => {
                 group.IDGroup = 0;
@@ -8052,13 +8067,13 @@ function initItemOptionTagManager(optionList, itemData) {
 
 // --- Group Configuration Manager ---
 function createRepeatField() {
-    const id = generateRuntimeID();
-    return { FieldKey:'field_'+id, FieldLabel:'New Field', FieldType:'NUMBER', OptionList:[], Unit:'', MinValue:null, MaxValue:null, MinInclusive:true, MaxInclusive:true, IsRequired:false, GroupName:'', DisplayOrder:1 };
+    const id = -Math.abs(generateRuntimeID());
+    return { IDRepeat:0, RuntimeRepeatID:id, FieldLabel:'New Field', FieldType:'NUMBER', OptionList:[], Unit:'', MinValue:null, MaxValue:null, MinInclusive:true, MaxInclusive:true, IsRequired:false, GroupName:'', DisplayOrder:1 };
 }
 function renderRepeatEditor(item) {
     item.Repeat = item.Repeat || { RepeatMode:'FIELDS', ColumnCount:3, ObjectLabel:'Object', CountMode:'FLEX', FixedCount:null, MinCount:1, MaxCount:null };
     item.RepeatFields = Array.isArray(item.RepeatFields) ? item.RepeatFields : [];
-    item.RepeatFields.forEach((field,index)=>{ if(!field.FieldKey) field.FieldKey='field_'+generateRuntimeID(); field.DisplayOrder=index+1; if(field.MinInclusive==null)field.MinInclusive=true; if(field.MaxInclusive==null)field.MaxInclusive=true; });
+    item.RepeatFields.forEach((field,index)=>{ if(field.IDRepeat==null)field.IDRepeat=0; if(!Number(field.IDRepeat) && !Number(field.RuntimeRepeatID))field.RuntimeRepeatID=-Math.abs(generateRuntimeID()); field.DisplayOrder=index+1; if(field.MinInclusive==null)field.MinInclusive=true; if(field.MaxInclusive==null)field.MaxInclusive=true; });
     const cfg=item.Repeat, get=id=>document.getElementById(id), put=(id,v)=>{if(get(id))get(id).value=v==null?'':v;};
     item.IsValueRequired=false;
     const parentRequired=get('propMandatoryValue'); if(parentRequired){parentRequired.checked=false;parentRequired.disabled=true;}
@@ -8067,8 +8082,8 @@ function renderRepeatEditor(item) {
     const mode=String(cfg.RepeatMode||'FIELDS').toUpperCase();
     host.innerHTML=item.RepeatFields.map((f,i)=>{
         const type=String(f.FieldType||'NUMBER').toUpperCase(), isRange=type==='RANGE', isOption=type==='OPTION', isObjects=mode==='OBJECTS', dis=isReadonlyMode?'disabled':'';
-        const key=escapeHtml(f.FieldKey||''), options=Array.isArray(f.OptionList)?f.OptionList.join(';'):String(f.OptionList||'');
-        let html='<div class="border rounded p-2 mb-2 repeat-field-card" data-field-key="'+key+'" data-index="'+i+'">';
+        const identity=Number(f.IDRepeat)>0?Number(f.IDRepeat):Number(f.RuntimeRepeatID||0), options=Array.isArray(f.OptionList)?f.OptionList.join(';'):String(f.OptionList||'');
+        let html='<div class="border rounded p-2 mb-2 repeat-field-card" data-field-id="'+identity+'" data-index="'+i+'">';
         html+='<div class="d-flex justify-content-between align-items-center mb-2"><div><div class="small fw-semibold">Field '+(i+1)+'</div><div class="text-muted text-xs repeat-field-summary">'+escapeHtml(f.FieldLabel||'New Field')+'</div></div><button type="button" class="btn btn-sm btn-link text-danger repeat-remove-field" data-index="'+i+'" '+dis+'>Remove</button></div>';
         html+='<div class="row g-2"><div class="col-8"><label class="form-label text-xs mb-1">Field Label <span class="text-danger">*</span></label><input class="form-control form-control-sm" data-rfield="FieldLabel" data-index="'+i+'" maxlength="100" value="'+escapeHtml(f.FieldLabel||'')+'" '+dis+'></div>';
         html+='<div class="col-4"><label class="form-label text-xs mb-1">Type</label><select class="form-select form-select-sm" data-rfield="FieldType" data-index="'+i+'" '+dis+'><option value="NUMBER">NUMBER</option><option value="RANGE">RANGE</option><option value="OPTION">OPTION</option><option value="TEXT">TEXT</option></select></div>';
@@ -8086,7 +8101,7 @@ function renderRepeatEditor(item) {
     host.querySelectorAll('[data-rfield="FieldType"]').forEach(el=>{el.value=item.RepeatFields[Number(el.dataset.index)].FieldType||'NUMBER';});
     const syncConfig=()=>{cfg.RepeatMode=get('repeatMode').value;cfg.ColumnCount=Math.max(1,Math.min(6,Number(get('repeatColumnCount').value||3)));cfg.ObjectLabel=get('repeatObjectLabel').value||'Object';cfg.CountMode=get('repeatCountMode').value;cfg.FixedCount=cfg.CountMode==='FIXED'?Math.max(1,Number(get('repeatFixedCount').value||1)):null;cfg.MinCount=cfg.CountMode==='FLEX'?(get('repeatMinCount').value===''?null:Number(get('repeatMinCount').value)):null;cfg.MaxCount=cfg.CountMode==='FLEX'?(get('repeatMaxCount').value===''?null:Number(get('repeatMaxCount').value)):null;get('repeatObjectConfig').style.display=cfg.RepeatMode==='OBJECTS'?'':'none';const fixed=cfg.CountMode==='FIXED';get('repeatFixedCount').disabled=isReadonlyMode||!fixed;get('repeatMinCount').disabled=isReadonlyMode||fixed;get('repeatMaxCount').disabled=isReadonlyMode||fixed;renderRepeatEditor(item);markCurrentVersionDirty();};
     ['repeatMode','repeatColumnCount','repeatObjectLabel','repeatCountMode','repeatFixedCount','repeatMinCount','repeatMaxCount'].forEach(id=>get(id).onchange=syncConfig);
-    host.querySelectorAll('[data-rfield]').forEach(el=>el.addEventListener('change',()=>{const card=el.closest('.repeat-field-card');const key=card&&card.dataset.fieldKey;const f=item.RepeatFields.find(x=>String(x.FieldKey)===String(key));if(!f)return;const k=el.dataset.rfield;let v=el.type==='checkbox'?el.checked:el.value;if(k==='OptionList')v=v.split(';').map(x=>x.trim()).filter(Boolean);if(k==='MinValue'||k==='MaxValue')v=v===''?null:Number(v);f[k]=v;f.DisplayOrder=item.RepeatFields.indexOf(f)+1;if(k==='FieldType'){if(v!=='RANGE'){f.MinValue=null;f.MaxValue=null;f.MinInclusive=true;f.MaxInclusive=true;}if(v!=='OPTION')f.OptionList=[];renderRepeatEditor(item);}else if(k==='FieldLabel'){const summary=card.querySelector('.repeat-field-summary');if(summary)summary.textContent=v||'New Field';}markCurrentVersionDirty();}));
+    host.querySelectorAll('[data-rfield]').forEach(el=>el.addEventListener('change',()=>{const card=el.closest('.repeat-field-card');const identity=card&&Number(card.dataset.fieldId);const f=item.RepeatFields.find(x=>(Number(x.IDRepeat)>0?Number(x.IDRepeat):Number(x.RuntimeRepeatID))===identity);if(!f)return;const k=el.dataset.rfield;let v=el.type==='checkbox'?el.checked:el.value;if(k==='OptionList')v=v.split(';').map(x=>x.trim()).filter(Boolean);if(k==='MinValue'||k==='MaxValue')v=v===''?null:Number(v);f[k]=v;f.DisplayOrder=item.RepeatFields.indexOf(f)+1;if(k==='FieldType'){if(v!=='RANGE'){f.MinValue=null;f.MaxValue=null;f.MinInclusive=true;f.MaxInclusive=true;}if(v!=='OPTION')f.OptionList=[];renderRepeatEditor(item);}else if(k==='FieldLabel'){const summary=card.querySelector('.repeat-field-summary');if(summary)summary.textContent=v||'New Field';}markCurrentVersionDirty();}));
     get('addRepeatFieldBtn').onclick=()=>{if(isReadonlyMode)return;item.RepeatFields.push(createRepeatField());renderRepeatEditor(item);markCurrentVersionDirty();};
     host.querySelectorAll('.repeat-remove-field').forEach(el=>el.addEventListener('click',()=>{if(isReadonlyMode)return;item.RepeatFields.splice(Number(el.dataset.index),1);renderRepeatEditor(item);markCurrentVersionDirty();}));
     const fixed=cfg.CountMode==='FIXED';get('repeatFixedCount').disabled=isReadonlyMode||!fixed;get('repeatMinCount').disabled=isReadonlyMode||fixed;get('repeatMaxCount').disabled=isReadonlyMode||fixed;
@@ -9477,14 +9492,15 @@ async function validateCurrentTemplate() {
                     addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"ColumnCount","REPEAT columns must be between 1 and 6.");
                 if (!fields.length)
                     addValidationError(result,"ITEM",section.RuntimeSectionID,item.RuntimeItemID,null,"RepeatFields","At least one REPEAT child field is required.");
-                const keys = new Set();
+                const identities = new Set();
                 fields.forEach(function(field,index) {
-                    const key=String(field.FieldKey || "").trim();
+                    const idRepeat=Number(field.IDRepeat||0);
+                    const runtimeRepeatId=Number(field.RuntimeRepeatID||0);
+                    const identity=idRepeat>0?idRepeat:runtimeRepeatId;
                     const fieldType=String(field.FieldType || "").toUpperCase();
-                    const normalizedKey=key.toLowerCase();
-                    if (!key || key.length>50 || keys.has(normalizedKey))
-                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldKey","Every child field requires a unique stable Field Key (max 50 characters).");
-                    keys.add(normalizedKey);
+                    if (!Number.isInteger(identity) || identity===0 || identities.has(String(identity)))
+                        addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"IDRepeat","Every REPEAT child field must have a unique IDRepeat identity.");
+                    identities.add(String(identity));
                     if (!String(field.FieldLabel || "").trim())
                         addValidationError(result,"REPEAT",section.RuntimeSectionID,item.RuntimeItemID,index,"FieldLabel","REPEAT field label is required.");
                     if (!["NUMBER","RANGE","OPTION","TEXT"].includes(fieldType))
@@ -10185,6 +10201,10 @@ function patchSavedIdentity(saveResult)
                         {
                             if (m.Entity === "Group" && group.RuntimeGroupID == m.RuntimeID)
                                 group.IDGroup = m.ID;
+                        });
+                        (item.RepeatFields || []).forEach(function(field) {
+                            if (m.Entity === "RepeatField" && Number(field.RuntimeRepeatID) === Number(m.RuntimeID))
+                                field.IDRepeat = Number(m.ID);
                         });
                     });
                 });
