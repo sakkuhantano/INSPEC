@@ -10,7 +10,7 @@ namespace INSPEC.Secure
 {
     public partial class inspectionemailsetup : WAL.PB
     {
-        private const string MenuID = "10013";
+        private const string MenuID = "10014";
         protected override void OnInit(EventArgs e)
         {
             if (
