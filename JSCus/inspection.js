@@ -2453,8 +2453,39 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         "inspectionSection"
     );
     renderBatchPointCondition(masterPoint, point, pointReadOnly);
+    // Keep the active map point identifiable in the compact mobile header.
+    // The transaction info popover is extended with the point identity so the
+    // technician can always confirm which plotted location owns this checklist.
     const title = document.getElementById("inspectionFormTitle");
-    if (title) title.textContent = point.PointCode + " · " + point.PointName;
+    if (title) {
+        title.textContent = point.PointCode || "Inspection Point";
+        title.title = [point.PointCode, point.PointName].filter(Boolean).join(" · ");
+        title.classList.remove("text-truncate");
+    }
+    const pointInfoButton = document.getElementById("btnInspectionFormInfo");
+    if (pointInfoButton && window.bootstrap && bootstrap.Popover) {
+        const existingPointInfo = bootstrap.Popover.getInstance(pointInfoButton);
+        if (existingPointInfo) existingPointInfo.dispose();
+        const pointInfoLines = [
+            "Inspection No: " + (currentInspectionRecord.InspectionNo || "TEMP-" +
+                String(currentInspectionRecord.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase()),
+            "Point Code: " + (point.PointCode || "—"),
+            "Point Description: " + (point.PointName || "—"),
+            "Inspection Point ID: " + point.InspectionPointID,
+            scheduleTime ? "Schedule: " + scheduleTime : ""
+        ].filter(Boolean);
+        const pointInfoContent = pointInfoLines.map(line =>
+            '<div class="mb-1">' + escInspection(line) + '</div>'
+        ).join("");
+        pointInfoButton.disabled = false;
+        bootstrap.Popover.getOrCreateInstance(pointInfoButton, {
+            container: "body",
+            trigger: "focus",
+            placement: "bottom",
+            html: true,
+            content: pointInfoContent
+        });
+    }
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
     if (followUp) followUp.classList.add("d-none");
