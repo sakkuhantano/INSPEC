@@ -160,7 +160,7 @@ BEGIN
         SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
             IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
             IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
-            ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+            ApprovalRemark='',ReasonVoid='',ReasonVoid1='',ReasonVoid2='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
         WHERE InspectionID=@p_InspectionID;
 
         INSERT dbo.PIP_T_InspectionApprovalHistory
@@ -317,7 +317,10 @@ BEGIN
                 IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
                 IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
                 IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
-                ApprovalRemark='',ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
+                ApprovalRemark='',
+                ReasonVoid=CASE WHEN @V_Stage='SPV' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid END,
+                ReasonVoid1=CASE WHEN @V_Stage='CHIEF_ENG' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
+                ReasonVoid2=CASE WHEN @V_Stage='CHIEF_SEC' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid2 END,
                 UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID;
 
@@ -340,13 +343,13 @@ BEGIN
             IF @V_Stage='CHIEF_ENG'
                 UPDATE dbo.PIP_T_Inspection
                 SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
-                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',
+                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),
                     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
                 WHERE InspectionID=@p_InspectionID;
             ELSE
                 UPDATE dbo.PIP_T_Inspection
                 SET IsApprovedFinal=1,ApprovedFinalBy=@p_ActorEmployeeID,ApprovedFinalDate=GETDATE(),
-                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',
+                    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),
                     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
                 WHERE InspectionID=@p_InspectionID;
 
