@@ -476,7 +476,7 @@ JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion",
                                 new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
                             DataTable versionRepeatFields = br.EQueryP(@"
-SELECT F.IDItem,F.IDRepeat,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
@@ -559,31 +559,32 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                             foreach (DataRow field in repeatFields)
                                             {
                                                 string repeatId = Convert.ToString(field["IDRepeat"]);
+                                                string repeatFieldLabel = Convert.ToString(field["FieldLabel"]);
                                                 JToken childValue = childValues == null ? null : childValues[repeatId];
                                                 string childText = childValue == null || childValue.Type == JTokenType.Null ? "" : childValue.ToString().Trim();
                                                 if (Convert.ToBoolean(field["IsRequired"]) && childText.Length == 0)
-                                                    throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " wajib diisi.");
+                                                    throw new Exception(pointPrefix + repeatFieldLabel + " pada " + itemLabel + " wajib diisi.");
                                                 if (childText.Length == 0) continue;
                                                 string fieldType = Convert.ToString(field["FieldType"]).ToUpperInvariant();
                                                 if (fieldType == "OPTION")
                                                 {
                                                     string options = Convert.ToString(field["OptionList"]);
                                                     if (String.IsNullOrWhiteSpace(options) || !options.Split(';').Any(x => String.Equals(x.Trim(), childText, StringComparison.OrdinalIgnoreCase)))
-                                                        throw new Exception(pointPrefix + "Pilihan " + repeatId + " pada " + itemLabel + " tidak valid.");
+                                                        throw new Exception(pointPrefix + "Pilihan " + repeatFieldLabel + " pada " + itemLabel + " tidak valid.");
                                                 }
                                                 if (fieldType == "NUMBER" || fieldType == "RANGE")
                                                 {
                                                     decimal numeric;
                                                     if (!Decimal.TryParse(childText, NumberStyles.Any, CultureInfo.InvariantCulture, out numeric))
-                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " harus berupa angka.");
+                                                        throw new Exception(pointPrefix + repeatFieldLabel + " pada " + itemLabel + " harus berupa angka.");
                                                     bool minInclusive = field["MinInclusive"] == DBNull.Value || Convert.ToBoolean(field["MinInclusive"]);
                                                     bool maxInclusive = field["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(field["MaxInclusive"]);
                                                     if (field["MinValue"] != DBNull.Value &&
                                                         (numeric < Convert.ToDecimal(field["MinValue"]) || (!minInclusive && numeric == Convert.ToDecimal(field["MinValue"]))))
-                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " di bawah atau tepat pada batas minimum eksklusif.");
+                                                        throw new Exception(pointPrefix + repeatFieldLabel + " pada " + itemLabel + " di bawah atau tepat pada batas minimum eksklusif.");
                                                     if (field["MaxValue"] != DBNull.Value &&
                                                         (numeric > Convert.ToDecimal(field["MaxValue"]) || (!maxInclusive && numeric == Convert.ToDecimal(field["MaxValue"]))))
-                                                        throw new Exception(pointPrefix + repeatId + " pada " + itemLabel + " di atas atau tepat pada batas maksimum eksklusif.");
+                                                        throw new Exception(pointPrefix + repeatFieldLabel + " pada " + itemLabel + " di atas atau tepat pada batas maksimum eksklusif.");
                                                 }
                                             }
                                         }
