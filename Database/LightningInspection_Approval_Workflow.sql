@@ -229,10 +229,10 @@ BEGIN
 
     DECLARE @V_CompanyID VARCHAR(10),@V_LocationID VARCHAR(3),@V_SectionID VARCHAR(10);
     DECLARE @V_OwnerEmployeeID VARCHAR(50),@V_InspectionNo VARCHAR(10),@V_Stage VARCHAR(20);
-    DECLARE @V_ChiefEngID VARCHAR(50),@V_ChiefSecID VARCHAR(50);
+    DECLARE @V_ChiefEngID VARCHAR(4000),@V_ChiefSecID VARCHAR(4000);
     DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200),@V_ActorName VARCHAR(200);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
-    DECLARE @V_NextEmployeeID VARCHAR(50),@V_NextEmail VARCHAR(320),@V_NextName VARCHAR(200);
+    DECLARE @V_NextEmployeeID VARCHAR(4000),@V_NextEmail VARCHAR(4000),@V_NextName VARCHAR(4000);
     DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
 
     SELECT @V_CompanyID=I.CompanyID,@V_LocationID=I.LocationID,@V_SectionID=I.SectionID,
@@ -266,8 +266,8 @@ BEGIN
     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
       AND C.ID=@V_ConfigScope+';CHIEF_SEC';
 
-    IF (@V_Stage='CHIEF_ENG' AND @p_ActorEmployeeID<>@V_ChiefEngID)
-       OR (@V_Stage='CHIEF_SEC' AND @p_ActorEmployeeID<>@V_ChiefSecID)
+    IF (@V_Stage='CHIEF_ENG' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
+       OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
     BEGIN RAISERROR('You are not the configured approver for the current Lightning stage.',16,1); RETURN; END;
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
@@ -278,8 +278,8 @@ BEGIN
     IF @p_Action='APPROVE' AND @V_Stage='CHIEF_ENG'
     BEGIN
         SELECT @V_NextEmployeeID=@V_ChiefSecID;
-        SELECT @V_NextEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_NextName=ISNULL(Name,@V_NextEmployeeID)
-        FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_NextEmployeeID;
+        SELECT @V_NextEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),''),
+               @V_NextName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val))) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_NextEmployeeID);
         IF @V_EmailEnabled=1 AND ISNULL(@V_NextEmail,'')=''
         BEGIN RAISERROR('Chief Security email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
         SET @V_NewStatus='ACKNOWLEDGE 1'; SET @V_NextStage='CHIEF_SEC';
@@ -363,12 +363,19 @@ BEGIN
                     INSERT dbo.PIP_T_InspectionEmailOutbox
                     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-                    VALUES
-                    ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC',
-                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',@V_NextEmployeeID,@V_NextEmail,
+                    SELECT
+                    'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_SEC:'+X.EmployeeID,
+                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
                      N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
-                     N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review Chief Security '+ISNULL(@V_NextName,@V_NextEmployeeID)+N' ('+ISNULL(@V_NextEmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
-                     N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval Chief Security '+ISNULL(@V_NextName,@V_NextEmployeeID)+N' ('+ISNULL(@V_NextEmployeeID,'')+N') setelah di-approve Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE());
+                     N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review Chief Security '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                     N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval Chief Security '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
+                    FROM
+                    (
+                      SELECT LTRIM(RTRIM(S.val)) EmployeeID,E.emailaddress EmailAddress,ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+                      FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') S
+                      JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+                      WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+                    ) X;
             END;
         END;
 
