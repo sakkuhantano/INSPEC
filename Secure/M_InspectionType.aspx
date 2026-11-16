@@ -205,6 +205,13 @@
 </script>
 
     <script type="text/javascript" src="../../WebFolder/bootstrap/js/bootstrap-datepicker.min.js"></script>   
+<script type="text/javascript">
+document.addEventListener("DOMContentLoaded", function () {
+    var info = document.getElementById("btnInspectionModeInfo");
+    if (info && window.bootstrap && bootstrap.Tooltip)
+        bootstrap.Tooltip.getOrCreateInstance(info, { trigger: "click focus", container: "body" });
+});
+</script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
 <table border="0" cellspacing="0" cellpadding="0" style="width:100%;">
@@ -270,12 +277,16 @@
             <div class="row mt-1">
                 <div class="col-sm-4 d-flex align-items-center">Inspection Mode</div>
                 <div class="col-sm-8">
-                    <asp:DropDownList ID="ddlInspectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
-                        <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
-                        <asp:ListItem Text="Batch Map" Value="BATCH"></asp:ListItem>
-                        <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
-                    </asp:DropDownList>
-                    <small class="text-muted d-block mx-1">Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian.</small>
+                    <div class="d-flex align-items-center gap-2">
+                        <asp:DropDownList ID="ddlInspectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                            <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
+                            <asp:ListItem Text="Batch Map" Value="BATCH"></asp:ListItem>
+                            <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
+                        </asp:DropDownList>
+                        <button type="button" id="btnInspectionModeInfo" class="btn btn-link text-info p-0 flex-shrink-0" data-bs-toggle="tooltip" data-bs-trigger="click focus" data-bs-placement="top" data-bs-container="body" title="Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian." aria-label="Informasi Lightning">
+                            <i class="bi bi-info-circle-fill"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="row mt-1">
