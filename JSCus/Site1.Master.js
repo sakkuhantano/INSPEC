@@ -2249,13 +2249,13 @@ for (const itemData of rawItems) {
             if (item.Type === "REPEAT" && Array.isArray(item.RepeatValues)) {
                 for (const objectRow of item.RepeatValues) {
                     const objectValues = objectRow && objectRow.Values ? objectRow.Values : {};
-                    for (const fieldKey in objectValues) {
+                    for (const repeatId in objectValues) {
                         itemPayload.checklistrepeats.push({
                             KeyHD: data.KeyHD,
                             IDItem: item.IDItem,
                             ObjectIndex: Number(objectRow.ObjectIndex || 0),
-                            FieldKey: fieldKey,
-                            Value: objectValues[fieldKey] == null ? "" : objectValues[fieldKey]
+                            IDRepeat: Number(repeatId),
+                            Value: objectValues[repeatId] == null ? "" : objectValues[repeatId]
                         });
                     }
                 }
