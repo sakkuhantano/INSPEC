@@ -1097,7 +1097,7 @@
         body.inspection-map-mobile-active #pageStickyBar {
             display: none !important;
         }
-        #contentbody.inspection-map-mobile-active {
+        body.inspection-map-mobile-active #contentbody {
             display: flex;
             flex-direction: column;
             height: calc(100dvh - 44px);
@@ -1106,45 +1106,60 @@
             overflow: hidden;
             padding: .2rem .35rem 0 !important;
         }
-        #contentbody.inspection-map-mobile-active > .master-footer {
+        body.inspection-map-mobile-active #contentbody > .master-footer {
             display: none !important;
         }
-        #contentbody.inspection-map-mobile-active #inspectionInputPanel {
+        body.inspection-map-mobile-active #contentbody #inspectionInputPanel {
             display: flex;
             flex: 1 1 auto;
             flex-direction: column;
             min-height: 0;
             overflow: hidden;
         }
-        #contentbody.inspection-map-mobile-active #inspectionEditorStickyHeader {
+        body.inspection-map-mobile-active #contentbody #inspectionEditorStickyHeader {
             flex: 0 0 auto;
             margin-bottom: .15rem !important;
             padding-top: .15rem;
             padding-bottom: .15rem;
         }
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace {
             display: flex;
             flex: 1 1 0;
             height: auto !important;
             min-height: 0 !important;
             margin-bottom: 0 !important;
         }
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-toolbar,
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-summary,
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSelectWrap,
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSummaryHost,
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSubmitBar {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-toolbar,
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-summary,
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSelectWrap,
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSummaryHost,
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSubmitBar {
             flex: 0 0 auto;
         }
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > .inspection-map-content {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-content:not(.d-none) {
+            display: grid;
             flex: 1 1 0;
             min-height: 0;
+            height: 100%;
         }
-        #contentbody.inspection-map-mobile-active #inspectionMapWorkspace > #inspectionMapSubmitBar {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas {
+            display: flex;
+            flex: 1 1 auto;
+            height: 100% !important;
+            min-height: 220px !important;
+            max-height: none !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSubmitBar {
             padding: .35rem .5rem calc(.35rem + env(safe-area-inset-bottom)) !important;
         }
-        #contentbody.inspection-map-mobile-active #btnSubmitInspectionBatch {
+        body.inspection-map-mobile-active #contentbody #btnSubmitInspectionBatch {
             min-height: 40px;
             padding: .45rem 1rem;
         }
