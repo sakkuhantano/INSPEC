@@ -1094,6 +1094,9 @@
 
     /* Phone full-height Batch/Lightning map workspace: keep Submit Batch visible. */
     @media (max-width: 767.98px) {
+        body:has(#inspectionMapWorkspace:not(.d-none)) #pageStickyBar {
+            display: none !important;
+        }
         #contentbody:has(#inspectionMapWorkspace:not(.d-none)) {
             display: flex;
             flex-direction: column;
