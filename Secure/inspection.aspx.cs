@@ -1048,8 +1048,11 @@ WHERE InspectionID=@InspectionID",
             }
 
             bool allSuccess = outcomes.All(x => Convert.ToBoolean(x.GetType().GetProperty("success").GetValue(x, null)));
+            string emailCompanyId = records.OfType<JObject>()
+                .Select(record => TokenString(record, "CompanyID"))
+                .FirstOrDefault(value => !String.IsNullOrWhiteSpace(value)) ?? "";
             object emailDispatch;
-            try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
+            try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, emailCompanyId); }
             catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
             return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
         }
@@ -2201,7 +2204,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                     new SqlParameter("@p_CorrectionUrl", correctionUrl)
                 }, true, true);
                 object emailDispatch;
-                try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, companyId); }
+                try { emailDispatch = DispatchInspectionEmailOutbox(20, employeeId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
                 return new {
                     success = true,
@@ -3573,8 +3576,10 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
                         new SqlParameter("@C", companyId ?? "")
                     });
                 if (sender != null && sender.Rows.Count > 0)
+                {
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
                     fromName = Convert.ToString(sender.Rows[0]["EmployeeName"]).Trim();
+                }
             }
 
             using (var br = new WAL.BR.CF())
