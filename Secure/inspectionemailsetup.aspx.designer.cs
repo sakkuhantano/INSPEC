@@ -12,6 +12,7 @@ namespace INSPEC.Secure
   protected global::System.Web.UI.WebControls.LinkButton lBtnChiefSec;
   protected global::System.Web.UI.WebControls.Label lblChiefSecName;
   protected global::System.Web.UI.WebControls.Button btnSaveHeader;
+  protected global::System.Web.UI.WebControls.Panel pnlSPVEditor;
   protected global::System.Web.UI.WebControls.HiddenField hidSPVOriginalSection;
   protected global::System.Web.UI.WebControls.DropDownList ddlSection;
   protected global::System.Web.UI.WebControls.TextBox txtSPV;
