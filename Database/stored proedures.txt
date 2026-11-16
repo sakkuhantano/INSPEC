@@ -708,8 +708,13 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @V_NextRepeatID=ISNULL(MAX(IDRepeat),0)+1
+        SELECT @V_NextRepeatID=CASE WHEN MAX(IDRepeat)=2147483647 THEN NULL ELSE ISNULL(MAX(IDRepeat),0)+1 END
         FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField WITH (TABLOCKX,HOLDLOCK);
+
+        IF @V_NextRepeatID IS NULL
+        BEGIN
+            RAISERROR('IDRepeat has reached the INT limit; no new REPEAT field ID can be allocated.',16,1);
+        END;
 
         INSERT @tbl_NewRepeatField
             (IDRepeat,IDItem,RuntimeRepeatID,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,
