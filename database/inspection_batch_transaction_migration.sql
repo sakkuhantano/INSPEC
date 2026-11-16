@@ -407,9 +407,10 @@ BEGIN
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
-            InspectionResultID,FieldName,Value,EntryUser,EntryDate,UpdateUser,UpdateDate
+            InspectionResultID,FieldName,ObjectIndex,Value,EntryUser,EntryDate,UpdateUser,UpdateDate
         )
-        SELECT RM.InspectionResultID,V.C3,ISNULL(V.C4,''),
+        SELECT RM.InspectionResultID,V.C3,
+               CAST(ISNULL(NULLIF(V.C5,''),'0') AS INT),ISNULL(V.C4,''),
                @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM @p_ItemValues V
         JOIN @V_PointMap PM ON PM.ClientPointID=V.C1
