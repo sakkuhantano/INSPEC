@@ -1701,6 +1701,9 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
   AND ISNULL(I.IsActive,1)=1
