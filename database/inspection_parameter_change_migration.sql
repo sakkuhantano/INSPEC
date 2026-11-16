@@ -223,23 +223,11 @@ BEGIN
 
     IF NOT EXISTS
     (
-        SELECT 1
-        FROM dbo.UTL_User U
-        WHERE U.EmployeeID=@p_UpdateUser
-          AND
-          (
-              EXISTS
-              (
-                  SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.UserID AND C.AppID='pip'
-                    AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID
-              )
-              OR EXISTS
-              (
-                  SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
-                  WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID
-              )
-          )
+        SELECT 1 Result FROM dbo.F_SelectOneLogin('inspec', @p_UpdateUser, '') L
+        WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID
+        UNION ALL
+    	SELECT 1 Result FROM SysWebUserCompanyLocation AS swucl
+    	WHERE swucl.UserID=@p_UpdateUser AND swucl.AppID='inspecfo' AND swucl.CompanyID=@p_CompanyID AND swucl.LocationID=@p_LocationID
     )
     BEGIN
         RAISERROR('Employee is not authorized for this company/location.', 16, 1);
@@ -248,13 +236,14 @@ BEGIN
 
     IF NOT EXISTS
     (
-        SELECT 1
-        FROM dbo.UTL_User U
-        WHERE U.EmployeeID=@p_UpdateUser
-          AND ISNULL(U.IsWO,0)=1
-          AND EXISTS
-              (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
-               WHERE S.val=@p_SectionID)
+    	SELECT 1 Result FROM dbo.F_SelectOneLogin('inspec', @p_UpdateUser, '') L
+    	JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=L.EmployeeID
+    	WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID AND mhe.SectionID=@p_SectionID
+    	UNION ALL
+    	SELECT 1 FROM INSPEC_User a 
+    	WHERE a.UserID=@p_UpdateUser 
+    	AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(a.SectionList,';') b 
+    	            WHERE b.val=@p_SectionID)
     )
     BEGIN
         RAISERROR('Employee is not authorized for this inspection section.', 16, 1);
@@ -331,7 +320,7 @@ BEGIN
              (SELECT 1 FROM dbo.PIP_T_Inspection Existing
               WHERE Existing.ClientInspectionID=@p_ClientInspectionID
                 AND Existing.IDTemplate=T.IDTemplate AND Existing.IDVersion=V.IDVersion
-                AND Existing.OwnerEmployeeID=@p_UpdateUser AND ISNULL(Existing.IsApprove,0)=0)))
+                AND Existing.OwnerEmployeeID=@p_UpdateUser AND ISNULL(Existing.IsApproved,0)=0)))
           AND
           (
               ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @p_UpdateUser + ';%')
@@ -425,7 +414,7 @@ BEGIN
             IF EXISTS
             (
                 SELECT 1 FROM dbo.PIP_T_Inspection
-                WHERE InspectionID=@V_InspectionID AND ISNULL(IsApprove,0)=1
+                WHERE InspectionID=@V_InspectionID AND ISNULL(IsApproved,0)=1
             )
             BEGIN
                 RAISERROR('Approved inspections are locked and cannot be changed.', 16, 1);
@@ -443,7 +432,7 @@ BEGIN
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
-                IsApprove=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
+                IsApproved=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
                 ReasonVoid='',
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
