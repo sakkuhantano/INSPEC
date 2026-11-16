@@ -1622,9 +1622,8 @@ async function uploadPendingInspections() {
                 const lowerReason = technicalReason.toLowerCase();
                 record.SyncStatus = "CONFLICT";
                 record.ConflictTechnicalReason = technicalReason;
-                record.ConflictReason = /already exists|duplicate|another inspection|sudah memiliki data di server|sudah tercatat di server|sudah ada di server|jadwal inspeksi ini sudah|inspeksi .* sudah tercatat/.test(lowerReason)
-                    ? "Jadwal inspeksi yang sama sudah tercatat di server. Periksa data inspeksi yang sudah ada sebelum mencoba mengirim ulang."
-                    : "Inspeksi belum dapat dikirim karena data tidak sesuai dengan kondisi di server. Silakan periksa kembali atau hubungi supervisor.";
+                // Keep the actual server diagnostic visible in the conflict row.
+                record.ConflictReason = technicalReason;
                 record.LastSyncAt = new Date().toISOString();
                 store.put(record);
             });
@@ -1632,7 +1631,13 @@ async function uploadPendingInspections() {
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error("Conflict status update aborted"));
         });
-        showToast(conflicts.length + " inspeksi konflik. Buka daftar inspeksi untuk melihat alasan dan menangani data lokal.", "warning");
+        const firstConflict = conflicts[0] || {};
+        showToast(
+            conflicts.length + " inspeksi konflik. " +
+            String(firstConflict.ClientInspectionID || "") + " — " +
+            String(firstConflict.message || "Server menolak transaksi."),
+            "warning"
+        );
         window.dispatchEvent(new CustomEvent("inspectionConflict", { detail: { count: conflicts.length } }));
     }
     const retryableOutcomes = failed.filter(x => !isValidationConflict(x.message));
