@@ -752,7 +752,7 @@ async function getInspectionData() {
         }
         const masters = masterResult.d || { types: [], details: [] };
         const batchInspectionTypes = new Set((masters.types || [])
-            .filter(function (type) { return String(type.InspectionMode || "STANDARD").trim().toUpperCase() === "BATCH"; })
+            .filter(function (type) { return ["BATCH", "LIGHTNING"].includes(String(type.InspectionMode || "STANDARD").trim().toUpperCase()); })
             .map(function (type) { return String(type.InspectionTypeCode || "").trim().toUpperCase(); }));
         const asInspectionFlag = function (value) {
             if (value === undefined || value === null || value === "") return false;
@@ -843,11 +843,11 @@ async function getInspectionData() {
             return Object.assign({}, detail, { ScheduleTime: times.join(";") });
         });
 
-        // Cache BATCH map metadata only during Sync All.
+        // Cache BATCH and LIGHTNING map metadata during Sync All.
         // PDF/image files are loaded lazily when the user opens the map workspace;
         // downloading every floor plan here makes mobile master sync unnecessarily slow.
         const batchTypes = (masters.types || []).filter(type =>
-            String(type.InspectionMode || "STANDARD").toUpperCase() === "BATCH");
+            ["BATCH", "LIGHTNING"].includes(String(type.InspectionMode || "STANDARD").toUpperCase()));
         const mapTasks = [];
         const runInspectionTasks = async (items, concurrency, worker) => {
             let nextIndex = 0;
@@ -1195,7 +1195,7 @@ async function downloadReturnedInspections() {
             local.ServerInspectionID = Number(serverRecord.InspectionID || local.ServerInspectionID || 0);
             local.InspectionNo = serverRecord.InspectionNo || local.InspectionNo || "";
             local.InspectionMode = String(serverRecord.InspectionMode || local.InspectionMode || "STANDARD").toUpperCase();
-            if (local.InspectionMode === "BATCH") {
+            if (["BATCH", "LIGHTNING"].includes(local.InspectionMode)) {
                 local.Points = Array.isArray(serverRecord.Points) ? serverRecord.Points : (local.Points || []);
                 try {
                     const typeRows = await new Promise((resolve, reject) => {
