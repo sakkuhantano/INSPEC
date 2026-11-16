@@ -13,6 +13,13 @@ namespace INSPEC.Secure
 {
     public partial class dashboard : System.Web.UI.Page
     {
+        private static string GetCurrentSessionToken()
+        {
+            HttpContext context = HttpContext.Current;
+            HttpCookie cookie = context == null ? null : context.Request.Cookies[GFC.CookieName];
+            return cookie == null ? String.Empty : Convert.ToString(cookie.Value).Trim();
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             try
@@ -482,11 +489,15 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
         public static object getEmployees(string employeeid, string lastSync)
         {
             employeeid = GFC.RequireMenuEmployee("20011");
+            string sessionToken = GetCurrentSessionToken();
+            if (String.IsNullOrWhiteSpace(sessionToken))
+                throw new HttpException(401, "INSPEC device session is missing.");
             using (var br=new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncMaster=@V_GetDate WHERE IsActive=1 AND UserID=@EmployeeID
+UPDATE UserSession SET LastSyncMaster=@V_GetDate
+ WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
 SELECT e.EmployeeID, e.Name, @V_GetDate LastSync   --, e.CompanyID, e.LocationID, e.ProfitCenterNo
 FROM M_HRD_Employee e
 WHERE EXISTS (
@@ -505,6 +516,7 @@ ORDER BY e.CompanyID, e.LocationID, e.EmployeeID",
 new SqlParameter[] 
 { 
     new SqlParameter("@EmployeeID", employeeid),
+     new SqlParameter("@SessionToken", sessionToken),
     new SqlParameter("@LastSync", Convert.ToDateTime(lastSync))
 });
                 return GFC.getData(dt);
