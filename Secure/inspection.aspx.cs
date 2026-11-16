@@ -1661,7 +1661,6 @@ LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeC
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND I.OwnerEmployeeID=@EmployeeID
   AND ISNULL(I.IsActive,1)=1
@@ -1737,7 +1736,6 @@ LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeC
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
@@ -1754,7 +1752,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   )
   AND (
        (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
-        AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0)
+        AND ISNULL(I.IsApproved,0)=0)
        OR
        (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
         AND ISNULL(I.IsApprovedFinal,0)=1
@@ -1842,7 +1840,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,
+       
        I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode" + fromWhere + @"
@@ -1891,8 +1889,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.Status,
                         I.IsSubmitted,
                         I.IsApproved,
-                        I.IsApprovedFinal,
-                        I.ApprovedFinalDate,
+
                         I.ReasonVoid,
                         I.CompanyID,
                         I.LocationID,
@@ -2080,7 +2077,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         CASE
                             WHEN Status = 'DONE'
                              AND IsSubmitted = 1
-                             AND IsApprovedFinal = 0
+                             AND IsApproved = 0
                              AND CanApprove = 1
                             THEN 1 ELSE 0
                         END
@@ -2088,8 +2085,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
 
                     ISNULL(SUM(
                         CASE
-                            WHEN IsApprovedFinal = 1
-                             AND ApprovedFinalDate >=
+                            WHEN IsApproved = 1
+                             AND ApprovedDate >=
                                  CONVERT(DATETIME,
                                      CONVERT(VARCHAR(10), GETDATE(), 120),
                                      120)
@@ -2230,7 +2227,6 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
@@ -2286,13 +2282,13 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) ApprovedFinalByName,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        'LIGHTNING' InspectionMode,
        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
             WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE'
             WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END WorkflowStatus,
-       CASE WHEN I.IsApproved=0 THEN 'CHIEF_ENG' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
+       CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                 var data = new List<Dictionary<string, object>>();
@@ -2418,21 +2414,20 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGE' WHEN I.IsApproved=1 THEN 'ACKNOWLEDGE 1' ELSE 'CHECKED' END
             WHEN I.IsApprovedFinal=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'CHIEF_ENG' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
+       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,I.ApprovalRemark,I.ReasonVoid,
+       I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 WHERE I.InspectionID=@InspectionID
   AND EXISTS (
       SELECT 1
@@ -2926,7 +2921,7 @@ FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
-  AND I.Status='DRAFT' AND I.IsApproved=0 AND I.IsApprovedFinal=0
+  AND I.Status='DRAFT' AND I.IsApproved=0
   AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
 
@@ -3499,7 +3494,7 @@ WHERE I.InspectionID=@InspectionID
         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
         AND C.Description=@EmployeeID
   )
-  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0
   AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
 ",
                     new SqlParameter[] {
