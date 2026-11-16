@@ -8,7 +8,7 @@ using System.Web.UI.WebControls;
 using WAL;
 namespace INSPEC.Secure
 {
-    public partial class inspectionemailsetup : WAL.PB
+    public partial class inspectionemailsetup : WAL.PB, WAL.I_ToolBar_2
     {
         private const string MenuID = "10014";
         protected override void OnInit(EventArgs e)
@@ -31,19 +31,33 @@ namespace INSPEC.Secure
                 Master.Mn_LocationID
             );
             EnsureAdministrator();
+            InitToolbar();
             pnlSmtpWarning.Visible = String.IsNullOrWhiteSpace(
                 ConfigurationManager.AppSettings["smtpHost"]
             );
             PrepareEmployeeSearch();
             if (!IsPostBack)
             {
-                Master.Mn_lit_Title = WAL.PB.AppID + " -> Inspection Email & Approval Routing";
                 BindSections();
                 LoadHeader();
                 LoadEmailModeSettings();
                 BindSPVGrid();
                 ClearSPVEditor();
             }
+        }
+        private void InitToolbar()
+        {
+            Master.TB_VisibleToolbar(true);
+            Master.TB_VisibleButton(ToolbarItem_2.New, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Save, true);
+            Master.TB_VisibleButton(ToolbarItem_2.Delete, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
+            Master.TB_VisibleButton(ToolbarItem_2.Next, false);
+        }
+        public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
+        {
+            if (e.ToolbarItem == ToolbarItem_2.Save)
+                SaveAllSettings();
         }
         private bool IsAdministrator()
         {
@@ -244,7 +258,7 @@ namespace INSPEC.Secure
                 );
             }
         }
-        protected void btnSaveAll_Click(object sender, EventArgs e)
+        private void SaveAllSettings()
         {
             try
             {
