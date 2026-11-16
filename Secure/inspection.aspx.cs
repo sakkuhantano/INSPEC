@@ -887,15 +887,15 @@ WHERE InspectionID=@InspectionID",
                         DataTable saved;
                         using (var inspectionBr = new INSPEC.BRC.PIP_T_WO())
                         {
+                            string requestedInspectionNo = inspectionNo;
                             saved = inspectionBr.SyncInspection(
                                 procedureName,
                                 syncParameters.ToArray(),
                                 companyId,
                                 locationId,
                                 inspectionDate,
-                                inspectionNo,
+                                requestedInspectionNo,
                                 clientId,
-                                isBatchInspection,
                                 incomingPhotos,
                                 incomingBatchPhotos,
                                 out inspectionNo);
@@ -922,7 +922,7 @@ WHERE InspectionID=@InspectionID",
                                     try
                                     {
                                         string oldPath = GetInspectionPhotoPath(oldCompanyId, oldLocationId, oldInspectionDate, oldInspectionNo, oldName, oldType);
-                                        if (!createdPhotoPaths.Contains(oldPath) && File.Exists(oldPath)) File.Delete(oldPath);
+                                        if (File.Exists(oldPath)) File.Delete(oldPath);
                                     }
                                     catch (Exception cleanupError)
                                     {
