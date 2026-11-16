@@ -1200,8 +1200,8 @@ WHERE a.SectionID = @SectionID
                                                     string fieldLabel = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : "";
                                                     string fieldUnit = repeatField.ContainsKey("Unit") ? GF.GetString(repeatField["Unit"]) : "";
                                                     string fieldGroup = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
-                                                    if (repeatIdentity == 0)
-                                                        throw new Exception("Every REPEAT child field requires a valid IDRepeat identity.");
+                                                    if (repeatIdentity == 0 || (idRepeat <= 0 && runtimeRepeatID >= 0))
+                                                        throw new Exception("Every REPEAT child field requires a persisted IDRepeat or a negative RuntimeRepeatID.");
                                                     if (!repeatFieldIDs.Add(repeatIdentity))
                                                         throw new Exception("Duplicate IDRepeat " + repeatIdentity.ToString(CultureInfo.InvariantCulture) + " in one REPEAT item.");
                                                     if (fieldLabel.Length == 0 || fieldLabel.Length > 100) throw new Exception("REPEAT child field label is required and limited to 100 characters.");
