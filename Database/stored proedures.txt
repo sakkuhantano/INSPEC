@@ -2875,7 +2875,7 @@ BEGIN
 <body>
 	<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.5;">
 	<tr>
-		<td colspan=3 valign=top> Dear Mr/Mrs. ' + mhe.Name + ', </td>
+		<td colspan=3 valign=top> Dear Approver, </td>
 	</tr>
 	<tr><td colspan="3" height="15"></td></tr>
 	<tr>
@@ -3002,19 +3002,12 @@ BEGIN
 				AND CV.CommonGroup='EmailApproval'
 				AND CV.IsDelete=0
 				AND CV.ID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
-			JOIN M_HRD_Employee AS mhe ON EXISTS
-			(
-				SELECT 1
-				FROM dbo.SplitStringConvertToTable(CV.Description,';') ap
-				WHERE LTRIM(RTRIM(ap.val))=mhe.EmployeeID
-			)
 			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
 			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
 			CROSS JOIN M_HRD_Employee AS mhe2  
 			WHERE mhe2.EmployeeID=@p_UpdateUser
 			AND EXISTS (SELECT 1 FROM PIP_T_WO_CheckList a JOIN @p_Dt1 aa ON aa.C1=a.KeyHD
 			            WHERE a.IsAnomali=1 AND a.KeyHD=b.KeyHD)
-			GROUP BY b.CompanyID,b.LocationID,b.SectionID,b.WONo,pme.EquipmentName,mhe2.EmailAddress,mhe2.Name,@V_BCC_EmailAddress,CV.Description
 	END
 END
 
