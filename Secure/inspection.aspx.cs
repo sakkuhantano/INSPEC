@@ -3560,10 +3560,11 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
         private static object DispatchInspectionEmailOutbox(int batchSize, string senderEmployeeId, string companyId)
         {
             string fromAddress = "";
+            string fromName = "";
             using (var senderBr = new WAL.BR.CF())
             {
                 DataTable sender = senderBr.EQueryP(@"
-SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') AS EmailAddress
+SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') AS EmailAddress, ISNULL(LTRIM(RTRIM(Name)),'') AS EmployeeName
 FROM dbo.M_HRD_Employee
 WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
   AND ISNULL(LTRIM(RTRIM(emailaddress)),'')<>''",
@@ -3573,6 +3574,7 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
                     });
                 if (sender != null && sender.Rows.Count > 0)
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
+                    fromName = Convert.ToString(sender.Rows[0]["EmployeeName"]).Trim();
             }
 
             using (var br = new WAL.BR.CF())
@@ -3610,7 +3612,7 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
 
                         if (!GF.SendEmail(
                                 fromAddress,
-                                "INSPEC",
+                                fromName,
                                 toAddress,
                                 subject,
                                 htmlBody,
