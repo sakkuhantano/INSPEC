@@ -39,7 +39,6 @@ namespace INSPEC.Secure
             {
                 lblChiefEngName.Text = FormatEmployeeName(txtChiefEng.Text.Trim());
                 lblChiefSecName.Text = FormatEmployeeName(txtChiefSec.Text.Trim());
-                lblSPVName.Text = FormatEmployeeName(txtSPV.Text.Trim());
             }
             if (!IsPostBack)
             {
@@ -204,50 +203,83 @@ namespace INSPEC.Secure
                 );
             }
         }
-        protected void btnSaveHeader_Click(object sender, EventArgs e)
+        protected void btnSaveAll_Click(object sender, EventArgs e)
         {
             try
             {
                 EnsureAdministrator();
-                string ce = txtChiefEng.Text.Trim(),
-                    cs = txtChiefSec.Text.Trim();
-                if (ce == "" || cs == "")
-                    throw new InvalidOperationException(
-                        "Pilih NIK Chief Engineering dan Chief Security."
-                    );
-                if (ce == cs)
+                string ce = txtChiefEng.Text.Trim();
+                string chiefSec = txtChiefSec.Text.Trim();
+                if (ce == "" || chiefSec == "")
+                    throw new InvalidOperationException("Pilih NIK Chief Engineering dan Chief Security.");
+                if (ce == chiefSec)
                     throw new InvalidOperationException("Chief Approver harus employee berbeda.");
+
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(
                         @"IF NOT EXISTS(SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG') RAISERROR('Chief Engineering wajib employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF NOT EXISTS(SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=@S AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC') RAISERROR('Chief Security wajib employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
-                        new SqlParameter[]
-                        {
+                        new SqlParameter[] {
                             new SqlParameter("@E", ce),
-                            new SqlParameter("@S", cs),
+                            new SqlParameter("@S", chiefSec),
                             new SqlParameter("@C", Master.Mn_CompanyID)
                         }
                     );
                 }
+
+                string section = "";
+                string spv = "";
+                string oldSection = "";
+                if (pnlSPVEditor.Visible)
+                {
+                    section = ddlSection.SelectedValue;
+                    spv = txtSPV.Text.Trim();
+                    oldSection = hidSPVOriginalSection.Value;
+                    if (section == "" || spv == "")
+                        throw new InvalidOperationException("Lengkapi Section dan NIK SPV pada form Add New Record.");
+                    using (var br = new WAL.BR.CF())
+                    {
+                        DataTable d = br.EQueryP(
+                            @"SELECT COUNT(1) Cnt FROM dbo.M_HRD_Employee WHERE EmployeeID=@E AND CompanyID=@C AND SectionID=@S AND ISNULL(TerminationDate,'')=''",
+                            new SqlParameter[] {
+                                new SqlParameter("@E", spv),
+                                new SqlParameter("@C", Master.Mn_CompanyID),
+                                new SqlParameter("@S", section)
+                            }
+                        );
+                        if (d.Rows.Count == 0 || Convert.ToInt32(d.Rows[0]["Cnt"]) != 1)
+                            throw new InvalidOperationException("SPV harus employee aktif pada Company dan Section terpilih.");
+                    }
+                }
+
                 SaveCommonValue(Scope + ";CHIEF_ENG", ce);
-                SaveCommonValue(Scope + ";CHIEF_SEC", cs);
-                LoadHeader();
-                ShowMessage("Chief approver berhasil disimpan.", false);
-            }
-            catch (Exception ex)
-            {
-                ShowMessage(ex.Message, true);
-            }
-        }
-        protected void btnSaveEmailMode_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                EnsureAdministrator();
+                SaveCommonValue(Scope + ";CHIEF_SEC", chiefSec);
                 SaveCommonValue(Scope + ";EMAIL;STANDARD", chkEmailStandard.Checked ? "1" : "0");
                 SaveCommonValue(Scope + ";EMAIL;BATCH", chkEmailBatch.Checked ? "1" : "0");
                 SaveCommonValue(Scope + ";EMAIL;LIGHTNING", chkEmailLightning.Checked ? "1" : "0");
-                ShowMessage("Email settings berhasil disimpan.", false);
+
+                if (pnlSPVEditor.Visible)
+                {
+                    if (oldSection != "" && oldSection != section)
+                    {
+                        using (var br = new WAL.BR.CF())
+                            br.EQueryP(
+                                @"UPDATE dbo.SysWebCommonValue SET IsDelete=1,UpdateUser=LEFT(@U,10),UpdateDate=GETDATE() WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ID",
+                                new SqlParameter[] {
+                                    new SqlParameter("@U", Master.Mn_EmployeeID),
+                                    new SqlParameter("@ID", Scope + ";SPV;" + oldSection)
+                                }
+                            );
+                    }
+                    SaveCommonValue(Scope + ";SPV;" + section, spv);
+                }
+
+                LoadHeader();
+                LoadEmailModeSettings();
+                ClearSPVEditor();
+                pnlSPVEditor.Visible = false;
+                BindSPVGrid();
+                ShowMessage("Seluruh pengaturan Inspection berhasil disimpan.", false);
             }
             catch (Exception ex)
             {
@@ -270,52 +302,6 @@ namespace INSPEC.Secure
                 gvSPV.DataBind();
             }
         }
-        protected void btnSaveSPV_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                EnsureAdministrator();
-                string sec = ddlSection.SelectedValue,
-                    spv = txtSPV.Text.Trim(),
-                    old = hidSPVOriginalSection.Value;
-                if (sec == "" || spv == "")
-                    throw new InvalidOperationException("Pilih Section dan NIK SPV.");
-                using (var br = new WAL.BR.CF())
-                {
-                    DataTable d = br.EQueryP(
-                        @"SELECT COUNT(1) Cnt FROM dbo.M_HRD_Employee WHERE EmployeeID=@E AND CompanyID=@C AND SectionID=@S AND ISNULL(TerminationDate,'')=''",
-                        new SqlParameter[]
-                        {
-                            new SqlParameter("@E", spv),
-                            new SqlParameter("@C", Master.Mn_CompanyID),
-                            new SqlParameter("@S", sec)
-                        }
-                    );
-                    if (d.Rows.Count == 0 || Convert.ToInt32(d.Rows[0]["Cnt"]) != 1)
-                        throw new InvalidOperationException(
-                            "SPV harus employee aktif pada Company dan Section terpilih."
-                        );
-                    if (old != "" && old != sec)
-                        br.EQueryP(
-                            @"UPDATE dbo.SysWebCommonValue SET IsDelete=1,UpdateUser=LEFT(@U,10),UpdateDate=GETDATE() WHERE AppID='INSPEC' AND CommonGroup='EmailApproval' AND ID=@ID",
-                            new SqlParameter[]
-                            {
-                                new SqlParameter("@U", Master.Mn_EmployeeID),
-                                new SqlParameter("@ID", Scope + ";SPV;" + old)
-                            }
-                        );
-                }
-                SaveCommonValue(Scope + ";SPV;" + sec, spv);
-                ClearSPVEditor();
-                pnlSPVEditor.Visible = false;
-                BindSPVGrid();
-                ShowMessage("Mapping SPV tersimpan.", false);
-            }
-            catch (Exception ex)
-            {
-                ShowMessage(ex.Message, true);
-            }
-        }
         protected void gvSPV_RowCommand(object sender, GridViewCommandEventArgs e)
         {
             try
@@ -326,9 +312,7 @@ namespace INSPEC.Secure
                 {
                     ddlSection.SelectedValue = sec;
                     txtSPV.Text = GetCommonValue(Scope + ";SPV;" + sec);
-                    lblSPVName.Text = GetEmployeeName(txtSPV.Text);
-                    hidSPVOriginalSection.Value = sec;
-                    btnSaveSPV.Text = "Update Mapping";
+                            hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
                 }
                 else if (e.CommandName == "DeleteMapping")
@@ -369,7 +353,6 @@ namespace INSPEC.Secure
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
         {
             txtSPV.Text = "";
-            lblSPVName.Text = "";
             hidSPVOriginalSection.Value = "";
             PrepareEmployeeSearch();
         }
@@ -378,7 +361,6 @@ namespace INSPEC.Secure
             hidSPVOriginalSection.Value = "";
             txtSPV.Text = "";
             lblSPVName.Text = "";
-            btnSaveSPV.Text = "Save Mapping";
             if (ddlSection.Items.Count > 0)
                 ddlSection.SelectedIndex = 0;
             PrepareEmployeeSearch();
