@@ -78,6 +78,7 @@ BEGIN
         RecipientType VARCHAR(20) NOT NULL,
         RecipientEmployeeID VARCHAR(50) NOT NULL,
         RecipientEmail VARCHAR(320) NOT NULL,
+        ApprovalToken UNIQUEIDENTIFIER NULL,
         EmailSubject NVARCHAR(300) NOT NULL,
         HtmlBody NVARCHAR(MAX) NOT NULL,
         PlainBody NVARCHAR(MAX) NULL,
@@ -101,6 +102,23 @@ BEGIN
         CONSTRAINT CK_PIP_T_InspectionEmailOutbox_Status
             CHECK (DeliveryStatus IN ('PENDING', 'SENDING', 'SENT', 'FAILED'))
     );
+END;
+GO
+
+/* Per-recipient approval links. Tokens are unique and bound to one outbox recipient. */
+IF COL_LENGTH('dbo.PIP_T_InspectionEmailOutbox','ApprovalToken') IS NULL
+    ALTER TABLE dbo.PIP_T_InspectionEmailOutbox ADD ApprovalToken UNIQUEIDENTIFIER NULL;
+GO
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionEmailOutbox')
+      AND name='UX_PIP_T_InspectionEmailOutbox_ApprovalToken'
+)
+BEGIN
+    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionEmailOutbox_ApprovalToken
+        ON dbo.PIP_T_InspectionEmailOutbox(ApprovalToken)
+        WHERE ApprovalToken IS NOT NULL;
 END;
 GO
 
