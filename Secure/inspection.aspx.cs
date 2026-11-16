@@ -262,73 +262,73 @@ namespace INSPEC.Secure
                     if (status != "DONE")
                         throw new Exception("Invalid inspection status.");
 
-                        syncStage = "parse inspection photos";
-                        JArray photoArray = record["Photos"] as JArray ?? new JArray();
-                        var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
-                        var incomingBatchPhotos = new List<Tuple<string, string, int, string, byte[]>>();
-                        var pointPhotoSeqs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        var usedSeqNos = new HashSet<int>();
-                        foreach (JObject photo in photoArray.OfType<JObject>())
+                    syncStage = "parse inspection photos";
+                    JArray photoArray = record["Photos"] as JArray ?? new JArray();
+                    var incomingPhotos = new List<Tuple<string, int, string, byte[]>>();
+                    var incomingBatchPhotos = new List<Tuple<string, string, int, string, byte[]>>();
+                    var pointPhotoSeqs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var usedSeqNos = new HashSet<int>();
+                    foreach (JObject photo in photoArray.OfType<JObject>())
+                    {
+                        string type = TokenString(photo, "Type").ToUpperInvariant();
+                        if (type != "BEFORE" && type != "AFTER")
+                            throw new Exception("Invalid inspection photo type.");
+
+                        int seqNo = TokenInt(photo, "SeqNo");
+                        if (seqNo <= 0 || !usedSeqNos.Add(seqNo))
+                            throw new Exception("Inspection photo SeqNo must be unique and greater than zero.");
+
+                        string dataUrl = TokenString(photo, "Data");
+                        int comma = dataUrl.IndexOf(',');
+                        if (comma < 0)
+                            throw new Exception("Inspection photo data is invalid.");
+                        string header = dataUrl.Substring(0, comma).ToLowerInvariant();
+                        string extension;
+                        if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
+                        else if (header.StartsWith("data:image/png;")) extension = "png";
+                        else if (header.StartsWith("data:image/webp;")) extension = "webp";
+                        else if (header.StartsWith("data:image/gif;")) extension = "gif";
+                        else throw new Exception("Unsupported Inspection photo format. Use JPEG, PNG, WEBP, or GIF.");
+
+                        byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
+                        if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
+                            throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
+                        incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
+                    }
+
+                    if (isBatchInspection)
+                    {
+                        JArray pointArray = record["Points"] as JArray ?? new JArray();
+                        foreach (JObject point in pointArray.OfType<JObject>())
                         {
-                            string type = TokenString(photo, "Type").ToUpperInvariant();
-                            if (type != "BEFORE" && type != "AFTER")
-                                throw new Exception("Invalid inspection photo type.");
-
-                            int seqNo = TokenInt(photo, "SeqNo");
-                            if (seqNo <= 0 || !usedSeqNos.Add(seqNo))
-                                throw new Exception("Inspection photo SeqNo must be unique and greater than zero.");
-
-                            string dataUrl = TokenString(photo, "Data");
-                            int comma = dataUrl.IndexOf(',');
-                            if (comma < 0)
-                                throw new Exception("Inspection photo data is invalid.");
-                            string header = dataUrl.Substring(0, comma).ToLowerInvariant();
-                            string extension;
-                            if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
-                            else if (header.StartsWith("data:image/png;")) extension = "png";
-                            else if (header.StartsWith("data:image/webp;")) extension = "webp";
-                            else if (header.StartsWith("data:image/gif;")) extension = "gif";
-                            else throw new Exception("Unsupported Inspection photo format. Use JPEG, PNG, WEBP, or GIF.");
-
-                            byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
-                            if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
-                                throw new Exception("Inspection photo must be between 1 byte and 1 MB.");
-                            incomingPhotos.Add(Tuple.Create(type, seqNo, extension, bytes));
-                        }
-
-                        if (isBatchInspection)
-                        {
-                            JArray pointArray = record["Points"] as JArray ?? new JArray();
-                            foreach (JObject point in pointArray.OfType<JObject>())
+                            string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
+                            JArray pointPhotos = point["Photos"] as JArray ?? new JArray();
+                            foreach (JObject photo in pointPhotos.OfType<JObject>())
                             {
-                                string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
-                                JArray pointPhotos = point["Photos"] as JArray ?? new JArray();
-                                foreach (JObject photo in pointPhotos.OfType<JObject>())
-                                {
-                                    string type = TokenString(photo, "Type").ToUpperInvariant();
-                                    if (type != "BEFORE" && type != "AFTER")
-                                        throw new Exception("Invalid BATCH inspection photo type.");
-                                    int seqNo = TokenInt(photo, "SeqNo");
-                                    string sequenceKey = clientPointID + "|" + seqNo.ToString(CultureInfo.InvariantCulture);
-                                    if (seqNo <= 0 || !pointPhotoSeqs.Add(sequenceKey))
-                                        throw new Exception("BATCH photo SeqNo must be unique within each Inspection Point.");
-                                    string dataUrl = TokenString(photo, "Data");
-                                    int comma = dataUrl.IndexOf(',');
-                                    if (comma < 0) throw new Exception("BATCH inspection photo data is invalid.");
-                                    string header = dataUrl.Substring(0, comma).ToLowerInvariant();
-                                    string extension;
-                                    if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
-                                    else if (header.StartsWith("data:image/png;")) extension = "png";
-                                    else if (header.StartsWith("data:image/webp;")) extension = "webp";
-                                    else if (header.StartsWith("data:image/gif;")) extension = "gif";
-                                    else throw new Exception("Unsupported BATCH inspection photo format.");
-                                    byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
-                                    if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
-                                        throw new Exception("Each BATCH inspection photo must be between 1 byte and 1 MB.");
-                                    incomingBatchPhotos.Add(Tuple.Create(clientPointID, type, seqNo, extension, bytes));
-                                }
+                                string type = TokenString(photo, "Type").ToUpperInvariant();
+                                if (type != "BEFORE" && type != "AFTER")
+                                    throw new Exception("Invalid BATCH inspection photo type.");
+                                int seqNo = TokenInt(photo, "SeqNo");
+                                string sequenceKey = clientPointID + "|" + seqNo.ToString(CultureInfo.InvariantCulture);
+                                if (seqNo <= 0 || !pointPhotoSeqs.Add(sequenceKey))
+                                    throw new Exception("BATCH photo SeqNo must be unique within each Inspection Point.");
+                                string dataUrl = TokenString(photo, "Data");
+                                int comma = dataUrl.IndexOf(',');
+                                if (comma < 0) throw new Exception("BATCH inspection photo data is invalid.");
+                                string header = dataUrl.Substring(0, comma).ToLowerInvariant();
+                                string extension;
+                                if (header.StartsWith("data:image/jpeg;") || header.StartsWith("data:image/jpg;")) extension = "jpg";
+                                else if (header.StartsWith("data:image/png;")) extension = "png";
+                                else if (header.StartsWith("data:image/webp;")) extension = "webp";
+                                else if (header.StartsWith("data:image/gif;")) extension = "gif";
+                                else throw new Exception("Unsupported BATCH inspection photo format.");
+                                byte[] bytes = Convert.FromBase64String(dataUrl.Substring(comma + 1));
+                                if (bytes.Length == 0 || bytes.Length > 1024 * 1024)
+                                    throw new Exception("Each BATCH inspection photo must be between 1 byte and 1 MB.");
+                                incomingBatchPhotos.Add(Tuple.Create(clientPointID, type, seqNo, extension, bytes));
                             }
                         }
+                    }
 
                     string companyId = Limit(TokenString(record, "CompanyID"), 10);
                     string locationId = Limit(TokenString(record, "LocationID"), 3);
@@ -1009,7 +1009,8 @@ WHERE InspectionID=@InspectionID",
                             {
                                 foreach (string path in createdPhotoPaths)
                                 {
-                                    try { if (File.Exists(path)) File.Delete(path); } catch { }
+                                    try { if (File.Exists(path)) File.Delete(path); }
+                                    catch { }
                                 }
                             }
                             throw;
@@ -1226,7 +1227,8 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@InspectionDate", ParseDate(inspectionDate, DateTime.Today))
                     });
 
-                return new {
+                return new
+                {
                     success = true,
                     duplicate = duplicate.Rows.Count > 0,
                     InspectionNo = duplicate.Rows.Count > 0 ? Convert.ToString(duplicate.Rows[0]["InspectionNo"]) : "",
@@ -1659,14 +1661,17 @@ ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
 
                 DataRow t = type.Rows[0];
                 DataRow d = detail.Rows[0];
-                return new {
+                return new
+                {
                     success = true,
-                    inspectionType = new {
+                    inspectionType = new
+                    {
                         InspectionTypeCode = GF.GetString(t["InspectionTypeCode"]),
                         InspectionTypeName = GF.GetString(t["InspectionTypeName"]),
                         SectionID = GF.GetString(t["SectionID"])
                     },
-                    inspectionDetail = new {
+                    inspectionDetail = new
+                    {
                         InspectionTypeDetailCode = GF.GetString(d["InspectionTypeDetailCode"]),
                         InspectionTypeDetailName = GF.GetString(d["InspectionTypeDetailName"]),
                         ScheduleTime = GF.GetString(d["ScheduleTime"])
@@ -1960,75 +1965,244 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                 throw new HttpException(403, "Supervisor identity is required.");
             using (var br = new WAL.BR.CF())
             {
-                DataTable rows = br.EQueryP(@"
-SELECT
-    SUM(CASE WHEN I.Status='DONE' AND I.IsSubmitted=1 AND I.IsApprovedFinal=0 AND (
-        (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
-            (I.IsApproved=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND C.Description=@EmployeeID))
-            OR (I.IsApproved=1 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND C.Description=@EmployeeID))
-        ))
-        OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND I.IsApproved=0
-            AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND C.Description=@EmployeeID))
-    ) THEN 1 ELSE 0 END) PendingApproval,
-    SUM(CASE WHEN I.IsApprovedFinal=1 AND I.ApprovedFinalDate>=CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120) THEN 1 ELSE 0 END) ApprovedToday,
-    SUM(CASE WHEN I.Status='DRAFT' AND I.IsSubmitted=0 AND ISNULL(I.ReasonVoid,'')<>'' THEN 1 ELSE 0 END) VoidCount
-FROM dbo.PIP_T_Inspection I
-LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND ISNULL(I.IsActive,1)=1
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM T
-      WHERE T.IDTemplate=I.IDTemplate
-        AND T.SectionID=I.SectionID
-        AND ISNULL(T.TemplateType,'W')='I'
-        AND (ISNULL(T.CompanyScope,'S')='A'
-             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
-        AND (ISNULL(T.EmployeeList,'')=''
-             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  )
-  AND EXISTS (
-      SELECT 1 FROM dbo.SysWebUser SU
 
-WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-        AND (
-          EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.Description=@EmployeeID
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
-          )
-          OR EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.Description=@EmployeeID
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
-          )
-          OR EXISTS (
-              SELECT 1 FROM dbo.SysWebCommonValue C
-              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                AND C.Description=@EmployeeID
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
-          )
-        )
-        AND (
-          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
-        )
-  )",
-                    new SqlParameter[] {
-                        new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId)
-                    });
+                DataTable rows = br.EQueryP(@"
+                ;WITH InspectionData AS
+                (
+                    SELECT
+                        I.Status,
+                        I.IsSubmitted,
+                        I.IsApproved,
+                        I.IsApprovedFinal,
+                        I.ApprovedFinalDate,
+                        I.ReasonVoid,
+                        I.CompanyID,
+                        I.LocationID,
+                        I.SectionID,
+                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')
+                            AS InspectionMode
+                    FROM dbo.PIP_T_Inspection I
+                    LEFT JOIN dbo.PIP_M_InspectionType IT
+                        ON IT.InspectionTypeCode = I.InspectionTypeCode
+                    WHERE I.CompanyID = @CompanyID
+                      AND I.LocationID = @LocationID
+                      AND ISNULL(I.IsActive, 1) = 1
+
+                      AND EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.PIP_M_CheckListWOPM T
+                          WHERE T.IDTemplate = I.IDTemplate
+                            AND T.SectionID = I.SectionID
+                            AND ISNULL(T.TemplateType, 'W') = 'I'
+                            AND
+                            (
+                                ISNULL(T.CompanyScope, 'S') = 'A'
+                                OR
+                                (
+                                    ';' + ISNULL(T.CompanyLocationList, '') + ';'
+                                    LIKE '%;' + I.CompanyID + I.LocationID + ';%'
+                                )
+                            )
+                            AND
+                            (
+                                ISNULL(T.EmployeeList, '') = ''
+                                OR
+                                (
+                                    ';' + ISNULL(T.EmployeeList, '') + ';'
+                                    LIKE '%;' + I.OwnerEmployeeID + ';%'
+                                )
+                            )
+                      )
+
+                      AND EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.SysWebUser SU
+                          WHERE SU.EmployeeID = @EmployeeID
+                            AND SU.IsActive = 1
+
+                            AND EXISTS
+                            (
+                                SELECT 1
+                                FROM dbo.F_SelectALLMenuAuthorization(
+                                    'inspecfo', @EmployeeID, ''
+                                ) AM
+                                WHERE AM.MenuID = '20022'
+                            )
+
+                            AND
+                            (
+                                EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND C.Description = @EmployeeID
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';SPV;' + I.SectionID
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND C.Description = @EmployeeID
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';CHIEF_ENG'
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND C.Description = @EmployeeID
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';CHIEF_SEC'
+                                )
+                            )
+
+                            AND
+                            (
+                                EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID = SU.EmployeeID
+                                      AND C.AppID = 'pip'
+                                      AND C.CompanyID = I.CompanyID
+                                      AND C.LocationID = I.LocationID
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.F_SelectOneLogin(
+                                        'pip', SU.EmployeeID, ''
+                                    ) L
+                                    WHERE L.CompanyID = I.CompanyID
+                                      AND L.LocationID = I.LocationID
+                                )
+                            )
+                      )
+                ),
+                ApprovalFlags AS
+                (
+                    SELECT
+                        I.*,
+                        CASE
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND I.IsApproved = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1
+                                     FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC'
+                                       AND C.CommonGroup = 'EmailApproval'
+                                       AND C.IsDelete = 0
+                                       AND C.ID =
+                                           CONVERT(VARCHAR(30), I.CompanyID) +
+                                           CONVERT(VARCHAR(30), I.LocationID) +
+                                           ';CHIEF_ENG'
+                                       AND C.Description = @EmployeeID
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND I.IsApproved = 1
+                                 AND EXISTS
+                                 (
+                                     SELECT 1
+                                     FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC'
+                                       AND C.CommonGroup = 'EmailApproval'
+                                       AND C.IsDelete = 0
+                                       AND C.ID =
+                                           CONVERT(VARCHAR(30), I.CompanyID) +
+                                           CONVERT(VARCHAR(30), I.LocationID) +
+                                           ';CHIEF_SEC'
+                                       AND C.Description = @EmployeeID
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode <> 'LIGHTNING'
+                                 AND I.IsApproved = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1
+                                     FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC'
+                                       AND C.CommonGroup = 'EmailApproval'
+                                       AND C.IsDelete = 0
+                                       AND C.ID =
+                                           CONVERT(VARCHAR(30), I.CompanyID) +
+                                           CONVERT(VARCHAR(30), I.LocationID) +
+                                           ';SPV;' + I.SectionID
+                                       AND C.Description = @EmployeeID
+                                 )
+                            THEN 1
+
+                            ELSE 0
+                        END AS CanApprove
+                    FROM InspectionData I
+                )
+                SELECT
+                    ISNULL(SUM(
+                        CASE
+                            WHEN Status = 'DONE'
+                             AND IsSubmitted = 1
+                             AND IsApprovedFinal = 0
+                             AND CanApprove = 1
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS PendingApproval,
+
+                    ISNULL(SUM(
+                        CASE
+                            WHEN IsApprovedFinal = 1
+                             AND ApprovedFinalDate >=
+                                 CONVERT(DATETIME,
+                                     CONVERT(VARCHAR(10), GETDATE(), 120),
+                                     120)
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS ApprovedToday,
+
+                    ISNULL(SUM(
+                        CASE
+                            WHEN Status = 'DRAFT'
+                             AND IsSubmitted = 0
+                             AND ISNULL(ReasonVoid, '') <> ''
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS VoidCount
+                FROM ApprovalFlags;
+                ",
+                                new SqlParameter[]
+                {
+                    new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@SectionList",
+                        GFC.GetEmployeeSection(employeeId)),
+                    new SqlParameter("@CompanyID", companyId),
+                    new SqlParameter("@LocationID", locationId)
+                });
+
                 if (rows.Rows.Count == 0)
                     return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
                 DataRow row = rows.Rows[0];
-                return new {
+                return new
+                {
                     success = true,
                     pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
                     approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
@@ -2248,7 +2422,8 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
                 object emailDispatch;
                 try { emailDispatch = DispatchInspectionEmailOutbox(20, employeeId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
-                return new {
+                return new
+                {
                     success = true,
                     action = action.ToUpperInvariant(),
                     inspectionId = inspectionId,
@@ -2586,7 +2761,7 @@ ORDER BY D.ScheduleTime",
                 var h = new Dictionary<string, object>();
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
-object approvalTemplateSnapshot = null;
+                object approvalTemplateSnapshot = null;
                 DataTable meta = br.EQueryP(@"
 SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
    V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
@@ -2645,16 +2820,19 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                         new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
 
                     var sections = templateItems.AsEnumerable()
-                        .GroupBy(row => new {
+                        .GroupBy(row => new
+                        {
                             IDSection = Convert.ToInt32(row["IDSection"]),
                             SectionName = row["SectionName"].ToString(),
                             SectionOrder = Convert.ToInt32(row["SectionOrder"])
                         })
                         .OrderBy(group => group.Key.SectionOrder)
-                        .Select(group => new {
+                        .Select(group => new
+                        {
                             idSection = group.Key.IDSection,
                             sectionName = group.Key.SectionName,
-                            items = group.Select(itemRow => {
+                            items = group.Select(itemRow =>
+                            {
                                 string itemType = itemRow["ItemType"].ToString();
                                 string optionList = itemType == "OPTION"
                                     ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
@@ -2663,7 +2841,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                 var itemGroups = templateGroups.AsEnumerable()
                                     .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
                                     .OrderBy(g => g["DisplayOrder"])
-                                    .Select(g => new {
+                                    .Select(g => new
+                                    {
                                         groupName = g["GroupName"].ToString(),
                                         fieldList = g["FieldList"].ToString(),
                                         unit = g["Unit"].ToString()
@@ -2672,7 +2851,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                 DataRow repeatConfigRow = templateRepeatConfig.AsEnumerable()
                                     .FirstOrDefault(row => Convert.ToInt32(row["IDItem"]) == repeatItemId);
                                 var itemRepeatFields = BuildInspectionRepeatFields(templateRepeatFields, repeatItemId);
-                                return new {
+                                return new
+                                {
                                     idItem = Convert.ToInt32(itemRow["IDItem"]),
                                     idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
                                     subSectionName = itemRow["SubSectionName"] == DBNull.Value ? "" : itemRow["SubSectionName"].ToString(),
@@ -2686,7 +2866,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                     unit = itemRow["Unit"].ToString(),
                                     showUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                     isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                    
+
                                     versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                     versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                     versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -2708,7 +2888,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                 };
                             }).ToList()
                         }).ToList();
-                    approvalTemplateSnapshot = new {
+                    approvalTemplateSnapshot = new
+                    {
                         IDTemplate = Convert.ToInt32(m["IDTemplate"]),
                         IDVersion = Convert.ToInt32(m["IDVersion"]),
                         Version = m["Version"].ToString(),
@@ -2751,8 +2932,17 @@ ORDER BY P.SeqNo",
                         { "Data", dataUrl }
                     });
                 }
-                return new { success = true, header = h, items = itemRows, photos = photos, template = approvalTemplateSnapshot,
-                    points = batchPointRows, maps = batchMapRows, schedules = batchScheduleRows };
+                return new
+                {
+                    success = true,
+                    header = h,
+                    items = itemRows,
+                    photos = photos,
+                    template = approvalTemplateSnapshot,
+                    points = batchPointRows,
+                    maps = batchMapRows,
+                    schedules = batchScheduleRows
+                };
             }
         }
 
@@ -2953,7 +3143,8 @@ JOIN dbo.PIP_M_InspectionTypeDetail D
 WHERE I.InspectionID=@InspectionID
 ORDER BY D.ScheduleTime",
                                 new SqlParameter[] { new SqlParameter("@InspectionID", id) });
-                            record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new {
+                            record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new
+                            {
                                 ScheduleTime = GF.GetString(row["ScheduleTime"]),
                                 ScheduleStatus = GF.GetString(row["ScheduleStatus"]),
                                 SubmittedDate = row["SubmittedDate"] == DBNull.Value ? "" :
@@ -3022,16 +3213,19 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                             new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 
                         var sections = templateItems.AsEnumerable()
-                            .GroupBy(row => new {
+                            .GroupBy(row => new
+                            {
                                 IDSection = Convert.ToInt32(row["IDSection"]),
                                 SectionName = row["SectionName"].ToString(),
                                 SectionOrder = Convert.ToInt32(row["SectionOrder"])
                             })
                             .OrderBy(group => group.Key.SectionOrder)
-                            .Select(group => new {
+                            .Select(group => new
+                            {
                                 idSection = group.Key.IDSection,
                                 sectionName = group.Key.SectionName,
-                                items = group.Select(itemRow => {
+                                items = group.Select(itemRow =>
+                                {
                                     string itemType = itemRow["ItemType"].ToString();
                                     string optionList = itemType == "OPTION"
                                         ? (String.IsNullOrEmpty(itemRow["OptionList"].ToString())
@@ -3040,7 +3234,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                     var itemGroups = templateGroups.AsEnumerable()
                                         .Where(g => g["IDItem"].ToString() == itemRow["IDItem"].ToString())
                                         .OrderBy(g => g["DisplayOrder"])
-                                        .Select(g => new {
+                                        .Select(g => new
+                                        {
                                             groupName = g["GroupName"].ToString(),
                                             fieldList = g["FieldList"].ToString(),
                                             unit = g["Unit"].ToString()
@@ -3049,7 +3244,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                     DataRow repeatConfigRow = templateRepeatConfig.AsEnumerable()
                                         .FirstOrDefault(row => Convert.ToInt32(row["IDItem"]) == repeatItemId);
                                     var itemRepeatFields = BuildInspectionRepeatFields(templateRepeatFields, repeatItemId);
-                                    return new {
+                                    return new
+                                    {
                                         idItem = Convert.ToInt32(itemRow["IDItem"]),
                                         idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
                                         subSectionName = itemRow["SubSectionName"] == DBNull.Value ? "" : itemRow["SubSectionName"].ToString(),
@@ -3061,9 +3257,9 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                         min = itemRow["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinValue"]),
                                         max = itemRow["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxValue"]),
                                         unit = itemRow["Unit"].ToString(),
-                                    showUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
+                                        showUnitInRange = Convert.ToBoolean(itemRow["ShowUnitInRange"]),
                                         isValueRequired = Convert.ToBoolean(itemRow["IsValueRequired"]),
-                                    
+
                                         versionIsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                                         versionIsRemark2Required = Convert.ToBoolean(m["VersionIsRemark2Required"]),
                                         versionRemark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -3085,7 +3281,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                                     };
                                 }).ToList()
                             }).ToList();
-                        record["TemplateSnapshot"] = new {
+                        record["TemplateSnapshot"] = new
+                        {
                             IDTemplate = Convert.ToInt32(m["IDTemplate"]),
                             IDVersion = Convert.ToInt32(m["IDVersion"]),
                             Version = m["Version"].ToString(),
@@ -3097,7 +3294,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                             StatusOption = m["StatusOption"].ToString(),
                             PhotoRequirement = GF.GetString(m["PhotoRequirement"]),
                             SummarySampleText = GF.GetString(m["SummarySampleText"]),
-                        IsSummaryRequired = m["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsSummaryRequired"]),
+                            IsSummaryRequired = m["VersionIsSummaryRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsSummaryRequired"]),
                             IsFollowUpRequired = m["VersionIsFollowUpRequired"] == DBNull.Value || Convert.ToBoolean(m["VersionIsFollowUpRequired"]),
                             IsRemark1Required = Convert.ToBoolean(m["VersionIsRemark1Required"]),
                             Remark1Text = GF.GetString(m["VersionRemark1Text"]),
@@ -3378,9 +3575,13 @@ WHERE I.InspectionID=@InspectionID
                 object emailDispatch;
                 try { emailDispatch = DispatchInspectionEmailOutbox(20, employeeId, companyId); }
                 catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
-                return new {
-                    success = true, action = action.ToUpperInvariant(), inspectionId = inspectionId,
-                    followUpWONo = followUpWONo, emailDispatch = emailDispatch
+                return new
+                {
+                    success = true,
+                    action = action.ToUpperInvariant(),
+                    inspectionId = inspectionId,
+                    followUpWONo = followUpWONo,
+                    emailDispatch = emailDispatch
                 };
             }
         }
@@ -3499,7 +3700,8 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                             string fileName = GF.GetString(photo["FileName"]);
                             string fileType = GF.GetString(photo["FileType"]);
                             string photoPath = "";
-                            try { photoPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionNo, fileName, fileType); } catch { }
+                            try { photoPath = GetInspectionPhotoPath(companyId, locationId, inspectionDate, inspectionNo, fileName, fileType); }
+                            catch { }
                             if (photoPath == "" || !File.Exists(photoPath)) continue;
                             string cid = "inspection-photo-standard-" + Convert.ToString(photo["PhotoType"]).ToLowerInvariant() + "-" + Convert.ToString(photo["SeqNo"]);
                             var linkedPhoto = new LinkedResource(photoPath, GetInspectionEmailMimeType(fileName + "." + fileType));
@@ -3781,7 +3983,8 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                 }
 
                 DataTable pending = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
-                return new {
+                return new
+                {
                     attempted = queue.Rows.Count,
                     sent = sent,
                     failed = failed,
