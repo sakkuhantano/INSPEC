@@ -1158,7 +1158,7 @@ WHERE a.SectionID = @SectionID
                                                 }
                                             }
 
-                                            // Native REPEAT configuration. Child fields use stable FieldKey values;
+                                            // Native REPEAT configuration. Child fields use stable numeric IDRepeat values;
                                             // RuntimeItemID is resolved to the database ID inside the save procedure.
                                             if (itemType == "REPEAT")
                                             {
