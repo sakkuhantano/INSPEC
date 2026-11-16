@@ -2218,6 +2218,44 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
             }
         }
 
+        private static object BuildInspectionRepeatConfig(DataRow row)
+        {
+            if (row == null) return null;
+            return new Dictionary<string, object>
+            {
+                { "repeatMode", GF.GetString(row["RepeatMode"]) },
+                { "columnCount", Convert.ToInt32(row["ColumnCount"]) },
+                { "objectLabel", GF.GetString(row["ObjectLabel"]) },
+                { "countMode", GF.GetString(row["CountMode"]) },
+                { "fixedCount", row["FixedCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["FixedCount"]) },
+                { "minCount", row["MinCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["MinCount"]) },
+                { "maxCount", row["MaxCount"] == DBNull.Value ? (int?)null : Convert.ToInt32(row["MaxCount"]) }
+            };
+        }
+
+        private static List<Dictionary<string, object>> BuildInspectionRepeatFields(DataTable fields, int idItem)
+        {
+            if (fields == null) return new List<Dictionary<string, object>>();
+            return fields.AsEnumerable()
+                .Where(row => Convert.ToInt32(row["IDItem"]) == idItem)
+                .OrderBy(row => Convert.ToInt32(row["DisplayOrder"]))
+                .Select(row => new Dictionary<string, object>
+                {
+                    { "idRepeat", Convert.ToInt32(row["IDRepeat"]) },
+                    { "fieldLabel", GF.GetString(row["FieldLabel"]) },
+                    { "fieldType", GF.GetString(row["FieldType"]) },
+                    { "optionList", String.IsNullOrWhiteSpace(GF.GetString(row["OptionList"])) ? new string[0] : GF.GetString(row["OptionList"]).Split(';') },
+                    { "unit", GF.GetString(row["Unit"]) },
+                    { "min", row["MinValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MinValue"]) },
+                    { "max", row["MaxValue"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(row["MaxValue"]) },
+                    { "minInclusive", row["MinInclusive"] == DBNull.Value || Convert.ToBoolean(row["MinInclusive"]) },
+                    { "maxInclusive", row["MaxInclusive"] == DBNull.Value || Convert.ToBoolean(row["MaxInclusive"]) },
+                    { "isRequired", Convert.ToBoolean(row["IsRequired"]) },
+                    { "groupName", GF.GetString(row["GroupName"]) },
+                    { "displayOrder", Convert.ToInt32(row["DisplayOrder"]) }
+                }).ToList();
+        }
+
         [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
@@ -2548,6 +2586,22 @@ WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
                         new SqlParameter[] {
 new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
 
                     var sections = templateItems.AsEnumerable()
                         .GroupBy(row => new {
@@ -2573,6 +2627,10 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                                         fieldList = g["FieldList"].ToString(),
                                         unit = g["Unit"].ToString()
                                     }).ToList();
+                                int repeatItemId = Convert.ToInt32(itemRow["IDItem"]);
+                                DataRow repeatConfigRow = templateRepeatConfig.AsEnumerable()
+                                    .FirstOrDefault(row => Convert.ToInt32(row["IDItem"]) == repeatItemId);
+                                var itemRepeatFields = BuildInspectionRepeatFields(templateRepeatFields, repeatItemId);
                                 return new {
                                     idItem = Convert.ToInt32(itemRow["IDItem"]),
                                     idSubSection = itemRow["IDSubSection"] == DBNull.Value ? 0 : Convert.ToInt32(itemRow["IDSubSection"]),
@@ -2603,7 +2661,9 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
                                     mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
                                     maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
                                     modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
-                                    groups = itemGroups.Count > 0 ? itemGroups : null
+                                    groups = itemGroups.Count > 0 ? itemGroups : null,
+                                    repeat = itemType == "REPEAT" ? BuildInspectionRepeatConfig(repeatConfigRow) : null,
+                                    repeatFields = itemType == "REPEAT" && itemRepeatFields.Count > 0 ? itemRepeatFields : null
                                 };
                             }).ToList()
                         }).ToList();
@@ -2903,6 +2963,22 @@ WHERE S.IDVersion=@IDVersion
 ORDER BY G.DisplayOrder",
                             new SqlParameter[] {
 new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 
                         var sections = templateItems.AsEnumerable()
                             .GroupBy(row => new {
@@ -2958,7 +3034,9 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
                                         mintol = itemRow["MinTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MinTolerance"]),
                                         maxtol = itemRow["MaxTolerance"] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(itemRow["MaxTolerance"]),
                                         modelcode = itemRow["ModelCode"] == DBNull.Value ? "" : itemRow["ModelCode"].ToString(),
-                                        groups = itemGroups.Count > 0 ? itemGroups : null
+                                        groups = itemGroups.Count > 0 ? itemGroups : null,
+                                        repeat = itemType == "REPEAT" ? BuildInspectionRepeatConfig(repeatConfigRow) : null,
+                                        repeatFields = itemType == "REPEAT" && itemRepeatFields.Count > 0 ? itemRepeatFields : null
                                     };
                                 }).ToList()
                             }).ToList();
