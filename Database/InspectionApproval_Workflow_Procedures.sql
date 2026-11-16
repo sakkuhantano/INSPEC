@@ -113,10 +113,8 @@ BEGIN
   IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
-  IF XACT_STATE()=-1
+  IF XACT_STATE()=-1 AND @TranCount=0
   BEGIN
-   /* A doomed transaction cannot roll back to a savepoint. Abort the complete
-      caller transaction; inspection header and workflow must remain atomic. */
    ROLLBACK TRANSACTION;
   END
   ELSE IF XACT_STATE()=1
