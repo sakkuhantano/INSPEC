@@ -1419,7 +1419,7 @@ async function uploadPendingInspections() {
             const requirement = ["NONE", "BEFORE", "AFTER", "BOTH"].includes(requirementValue) ? requirementValue : "BOTH";
             const requiredTypes = requirement === "BOTH" ? ["BEFORE", "AFTER"] :
                 requirement === "BEFORE" ? ["BEFORE"] : requirement === "AFTER" ? ["AFTER"] : [];
-            if (String(record.InspectionMode || "STANDARD").toUpperCase() === "BATCH") {
+            if (["BATCH", "LIGHTNING"].includes(String(record.InspectionMode || "STANDARD").toUpperCase())) {
                 const pointRows = record.Points || [];
                 const eachPointReady = pointRows.length > 0 && pointRows.every(point => {
                     const pointPhotos = photos.filter(photo => String(photo.PointID || "") === String(point.ClientPointID || ""));
@@ -1513,7 +1513,7 @@ async function uploadPendingInspections() {
             PhotoRequirement: requirement
         };
 
-        if (common.InspectionMode === "BATCH") {
+        if (common.InspectionMode === "BATCH" || common.InspectionMode === "LIGHTNING") {
             const pointPayloads = [];
             for (const point of (record.Points || [])) {
                 const pointPhotos = photos.filter(photo => String(photo.PointID || "") === String(point.ClientPointID || ""));
@@ -1524,11 +1524,19 @@ async function uploadPendingInspections() {
                     PointName: point.PointName || "",
                     InspectionDateTime: inspectionWallClockDateTime(point.InspectionDateTime),
                     Status: point.Status,
+                    PointCondition: point.PointCondition || "",
+                    AbnormalRemark: point.AbnormalRemark || "",
+                    ScheduleTime: point.ScheduleTime || "",
                     Items: point.Items || [],
                     Photos: await serializePhotoRows(pointPhotos)
                 });
             }
-            return Object.assign(common, { Points: pointPayloads, Items: [], Photos: [] });
+            const schedules = common.InspectionMode === "LIGHTNING"
+                ? (record.Schedules || []).map(item => ({
+                    ScheduleTime: String(item.ScheduleTime || item).trim()
+                }))
+                : [];
+            return Object.assign(common, { Points: pointPayloads, Schedules: schedules, Items: [], Photos: [] });
         }
 
         const serializedPhotos = await serializePhotoRows(photos);
