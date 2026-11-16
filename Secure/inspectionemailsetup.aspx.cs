@@ -323,11 +323,11 @@ namespace INSPEC.Secure
                 pnlSPVEditor.Visible = false;
                 btnNewSPV.Visible = true;
                 BindSPVGrid();
-                ShowMessage("Seluruh pengaturan Inspection berhasil disimpan.", false);
+                GF.MsgBox(this, "Seluruh pengaturan Inspection berhasil disimpan.", "BS-5.3.0");
             }
             catch (Exception ex)
             {
-                ShowMessage(ex.Message, true);
+                GF.MsgBox(this, ex.Message, "BS-5.3.0");
             }
         }
         private void BindSPVGrid()
@@ -377,12 +377,12 @@ namespace INSPEC.Secure
                     pnlSPVEditor.Visible = false;
                     btnNewSPV.Visible = true;
                     BindSPVGrid();
-                    ShowMessage("Mapping SPV dihapus.", false);
+                    GF.MsgBox(this, "Mapping SPV dihapus.", "BS-5.3.0");
                 }
             }
             catch (Exception ex)
             {
-                ShowMessage(ex.Message, true);
+                GF.MsgBox(this, ex.Message, "BS-5.3.0");
             }
             PrepareEmployeeSearch();
         }
@@ -416,11 +416,6 @@ namespace INSPEC.Secure
                 ddlSection.SelectedIndex = 0;
             PrepareEmployeeSearch();
         }
-        private void ShowMessage(string m, bool err)
-        {
-            pnlMessage.Visible = true;
-            pnlMessage.CssClass = err ? "alert alert-danger mb-3" : "alert alert-success mb-3";
-            litMessage.Text = Server.HtmlEncode(m ?? "");
-        }
+
     }
 }
