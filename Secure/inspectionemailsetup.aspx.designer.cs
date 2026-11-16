@@ -15,6 +15,7 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.HiddenField hidSPVOriginalSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlSection;
         protected global::System.Web.UI.WebControls.TextBox txtSPV;
+        protected global::System.Web.UI.WebControls.Label lblSPVName;
         protected global::System.Web.UI.WebControls.LinkButton lBtnSPV;
         protected global::System.Web.UI.WebControls.Button btnNewSPV;
         protected global::System.Web.UI.WebControls.Button btnCancelSPV;
