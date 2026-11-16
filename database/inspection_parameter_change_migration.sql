@@ -119,7 +119,8 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
     @p_ItemValues dbo.Type_N_Tbl_C5 READONLY,
-    @p_InspectionMode VARCHAR(10) = 'STANDARD'
+    @p_InspectionMode VARCHAR(10) = 'STANDARD',
+    @p_ApprovalUrl NVARCHAR(1000) = NULL
 )
 AS
 BEGIN
@@ -534,6 +535,16 @@ BEGIN
         SELECT P.NewInspectionPhotoID, @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
                CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
         FROM PhotoRows P;
+
+        /* Standard workflow is part of this same transaction. Batch submits only
+           after its point-level children have also been persisted by the wrapper. */
+        IF @p_InspectionMode='STANDARD'
+        BEGIN
+            EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
+                @p_InspectionID=@V_InspectionID,
+                @p_ActorEmployeeID=@p_UpdateUser,
+                @p_ApprovalUrl=ISNULL(@p_ApprovalUrl,N'') + N'&inspectionId=' + CONVERT(NVARCHAR(20),@V_InspectionID);
+        END;
 
         IF @V_EntryTranCount = 0
             COMMIT TRANSACTION;
