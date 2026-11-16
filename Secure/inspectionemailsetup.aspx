@@ -7,9 +7,24 @@
     <div class="card-header bg-body-tertiary fw-semibold py-2">Email Notification per Inspection Mode</div>
     <div class="card-body pt-2">
       <div class="row g-3">
+        <div class="col-md-4">
+          <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" /> STANDARD
+        </div>
+        <div class="col-md-4">
+          <asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" /> BATCH
+        </div>
+        <div class="col-md-4">
+          <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-body-tertiary fw-semibold py-2">Chief Approver</div>
+    <div class="card-body pt-2">
+      <div class="row g-3">
         <div class="col-lg-6">
-          <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span>
-          </label>
+          <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span></label>
           <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefEng_TextChanged" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
@@ -17,8 +32,7 @@
           <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
         <div class="col-lg-6">
-          <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span>
-          </label>
+          <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span></label>
           <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtChiefSec_TextChanged" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
@@ -26,7 +40,6 @@
           <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
       </div>
-      
     </div>
   </div>
   <div class="card border-0 shadow-sm mb-3">
@@ -38,21 +51,21 @@
       <asp:Panel ID="pnlSPVEditor" runat="server" Visible="false">
         <asp:HiddenField ID="hidSPVOriginalSection" runat="server" />
         <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label">Section</label>
-          <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select form-select-sm" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
-        </div>
-        <div class="col-md-5">
-          <label class="form-label">SPV NIK</label>
-          <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtSPV_TextChanged" placeholder="Pilih NIK SPV" />
-            <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
+          <div class="col-md-4">
+            <label class="form-label">Section</label>
+            <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select form-select-sm" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
           </div>
-          <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
-        </div>
+          <div class="col-md-5">
+            <label class="form-label">SPV NIK</label>
+            <div class="d-flex gap-2 align-items-center">
+              <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="true" OnTextChanged="txtSPV_TextChanged" placeholder="Pilih NIK SPV" />
+              <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
+            </div>
+            <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <asp:Button ID="btnCancelSPV" runat="server" Text="Cancel" CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClick="btnCancelSPV_Click" />
+          </div>
         </div>
       </asp:Panel>
       <hr />
@@ -63,29 +76,12 @@
           <asp:BoundField DataField="EmployeeName" HeaderText="Nama SPV" />
           <asp:TemplateField HeaderText="Action">
             <ItemTemplate>
-              <asp:LinkButton runat="server" CommandName="EditMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm CUS-btn-outline-PColor-1" CausesValidation="false">Edit </asp:LinkButton>
-              <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClientClick="return confirm('Hapus mapping ini?');">Delete </asp:LinkButton>
+              <asp:LinkButton runat="server" CommandName="EditMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm CUS-btn-outline-PColor-1" CausesValidation="false">Edit</asp:LinkButton>
+              <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClientClick="return confirm('Hapus mapping ini?');">Delete</asp:LinkButton>
             </ItemTemplate>
           </asp:TemplateField>
         </Columns>
       </asp:GridView>
-    </div>
-  </div>
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-body-tertiary fw-semibold py-2">Chief Approver</div>
-    <div class="card-body pt-2">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" /> STANDARD
-        </div>
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" /> BATCH
-        </div>
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING
-        </div>
-      </div>
-      
     </div>
   </div>
 </asp:Content>
