@@ -1,21 +1,5 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %><%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %> <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
-  <style>
-    .email-setup-card {
-      border: 1px solid var(--bs-border-color);
-      border-radius: .75rem
-    }
 
-    .email-setup-card .card-header {
-      background: var(--bs-tertiary-bg);
-      font-weight: 600
-    }
-
-    .employee-picker {
-      display: flex;
-      gap: .5rem;
-      align-items: center
-    }
-  </style>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
   <div class="mb-3">
@@ -32,7 +16,7 @@
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span>
           </label>
-          <div class="employee-picker">
+          <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
@@ -41,7 +25,7 @@
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span>
           </label>
-          <div class="employee-picker">
+          <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
@@ -67,7 +51,7 @@
         </div>
         <div class="col-md-5">
           <label class="form-label">SPV NIK</label>
-          <div class="employee-picker">
+          <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK SPV" />
             <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
