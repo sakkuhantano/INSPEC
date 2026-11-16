@@ -904,8 +904,13 @@ WHERE InspectionID=@InspectionID",
                             /* Standard and Batch submit their workflow inside the same SQL transaction
                                as the inspection header and child data. No second EQueryP call is required. */
 
-                            /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely. */
-                            if (oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
+                            bool alreadySubmitted = saved.Columns.Contains("WorkflowStatus") &&
+                                String.Equals(Convert.ToString(saved.Rows[0]["WorkflowStatus"]),
+                                    "ALREADY_SUBMITTED", StringComparison.OrdinalIgnoreCase);
+
+                            /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely.
+                               Do not remove the persisted photos when Lightning reports an idempotent retry. */
+                            if (!alreadySubmitted && oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
                             {
                                 foreach (DataRow oldPhoto in oldPhotoRows.Rows)
                                 {
@@ -929,7 +934,8 @@ WHERE InspectionID=@InspectionID",
                                 ClientInspectionID = clientId,
                                 success = true,
                                 InspectionID = inspectionId,
-                                InspectionNo = saved.Rows[0]["InspectionNo"] == DBNull.Value ? inspectionNo : Convert.ToString(saved.Rows[0]["InspectionNo"]),
+                                InspectionNo = saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value
+                                    ? Convert.ToString(saved.Rows[0]["InspectionNo"]) : inspectionNo,
                                 message = ""
                             });
                         }
