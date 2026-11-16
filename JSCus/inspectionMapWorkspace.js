@@ -805,12 +805,16 @@
         var displayViewport = currentPdfPage.getViewport({ scale: currentPdfFitScale });
         canvas.width = Math.max(1, Math.floor(viewport.width));
         canvas.height = Math.max(1, Math.floor(viewport.height));
-        canvas.style.width = Math.floor(displayViewport.width) + 'px';
-        canvas.style.height = Math.floor(displayViewport.height) + 'px';
+        canvas.style.width = Math.max(1, displayViewport.width) + 'px';
+        canvas.style.height = Math.max(1, displayViewport.height) + 'px';
         var stage = document.getElementById('inspectionMapPdfStage');
         if (stage) {
+            // Keep the floor plan and point overlay in one exact CSS coordinate space.
             stage.style.width = canvas.style.width;
+            stage.style.height = canvas.style.height;
             stage.style.minHeight = '0';
+            stage.style.maxWidth = 'none';
+            stage.style.maxHeight = 'none';
         }
         var context = canvas.getContext('2d');
         try {
@@ -878,11 +882,19 @@
                     var mapViewport = document.getElementById('inspectionMapCanvas');
                     var availableWidth = Math.max(300, Math.min(2400, mapViewport.clientWidth - 16));
                     var availableHeight = Math.max(260, mapViewport.clientHeight - 16);
-                    image.style.width = 'auto'; image.style.height = 'auto';
-                    image.style.maxWidth = availableWidth + 'px'; image.style.maxHeight = availableHeight + 'px';
-                    image.style.objectFit = 'contain'; image.style.display = 'block';
-                    stage.style.width = image.clientWidth + 'px';
-                    stage.style.width = Math.min(image.naturalWidth || image.clientWidth, availableWidth) + 'px'; stage.style.minHeight = '0';
+                    var naturalWidth = image.naturalWidth || image.clientWidth;
+                    var naturalHeight = image.naturalHeight || image.clientHeight;
+                    var imageScale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight, 1);
+                    var displayWidth = Math.max(1, Math.round(naturalWidth * imageScale));
+                    var displayHeight = Math.max(1, Math.round(naturalHeight * imageScale));
+                    image.style.width = displayWidth + 'px';
+                    image.style.height = displayHeight + 'px';
+                    image.style.maxWidth = 'none'; image.style.maxHeight = 'none';
+                    image.style.objectFit = 'fill'; image.style.display = 'block';
+                    stage.style.width = displayWidth + 'px';
+                    stage.style.height = displayHeight + 'px';
+                    stage.style.minHeight = '0';
+                    stage.style.maxWidth = 'none'; stage.style.maxHeight = 'none';
                     if (message) message.classList.add('d-none'); applyMapTransform(); renderPoints();
                 };
                 image.onerror = function () {
