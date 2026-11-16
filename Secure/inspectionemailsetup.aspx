@@ -18,20 +18,15 @@
   </style>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h4>Inspection Email &amp; Approval Routing</h4>
-      <div class="small text-muted">Company: <b><%= Server.HtmlEncode(Master.Mn_CompanyID) %> </b> · Location scope: <b><%= Server.HtmlEncode(Master.Mn_LocationID) %> </b>
-      </div>
-    </div>
-    <a class="btn btn-outline-secondary btn-sm" href="inspectionmaster.aspx">Inspection Setup</a>
+  <div class="mb-3">
+    <h4 class="mb-1">Inspection Email &amp; Approval Routing</h4>
   </div>
   <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert mb-3">
     <asp:Literal ID="litMessage" runat="server" />
   </asp:Panel>
   <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
-  <div class="card email-setup-card mb-3">
-    <div class="card-header">Chief Approver</div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-body-tertiary fw-semibold">Chief Approver</div>
     <div class="card-body">
       <div class="row g-3">
         <div class="col-lg-6">
@@ -41,7 +36,7 @@
             <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text" />
+          <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span>
@@ -50,7 +45,7 @@
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text" />
+          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
       </div>
       <div class="text-end mt-3">
@@ -58,8 +53,8 @@
       </div>
     </div>
   </div>
-  <div class="card email-setup-card mb-3">
-    <div class="card-header d-flex justify-content-between align-items-center">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
       <span>SPV Mapping per Section</span>
       <asp:Button ID="btnNewSPV" runat="server" Text="Add New Record" CssClass="btn btn-sm btn-primary" CausesValidation="false" OnClick="btnNewSPV_Click" />
     </div>
@@ -76,7 +71,7 @@
             <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK SPV" />
             <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblSPVName" runat="server" CssClass="form-text" />
+          <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
         <div class="col-md-3 d-flex gap-2">
           <asp:Button ID="btnSaveSPV" runat="server" Text="Save Mapping" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" />
@@ -99,8 +94,8 @@
       </asp:GridView>
     </div>
   </div>
-  <div class="card email-setup-card">
-    <div class="card-header">Email Notification per Inspection Mode</div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-body-tertiary fw-semibold">Email Notification per Inspection Mode</div>
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-4">
