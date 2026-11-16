@@ -37,9 +37,9 @@ namespace INSPEC.Secure
             PrepareEmployeeSearch();
             if (IsPostBack)
             {
-                lblChiefEngName.Text = GetEmployeeName(txtChiefEng.Text.Trim());
-                lblChiefSecName.Text = GetEmployeeName(txtChiefSec.Text.Trim());
-                lblSPVName.Text = GetEmployeeName(txtSPV.Text.Trim());
+                lblChiefEngName.Text = FormatEmployeeName(txtChiefEng.Text.Trim());
+                lblChiefSecName.Text = FormatEmployeeName(txtChiefSec.Text.Trim());
+                lblSPVName.Text = FormatEmployeeName(txtSPV.Text.Trim());
             }
             if (!IsPostBack)
             {
@@ -170,12 +170,17 @@ namespace INSPEC.Secure
                 return d.Rows.Count == 0 ? "" : Convert.ToString(d.Rows[0]["Name"]);
             }
         }
+        private string FormatEmployeeName(string id)
+        {
+            string name = GetEmployeeName((id ?? "").Trim());
+            return String.IsNullOrWhiteSpace(name) ? "" : "Name: " + name;
+        }
         private void LoadHeader()
         {
             txtChiefEng.Text = GetCommonValue(Scope + ";CHIEF_ENG");
             txtChiefSec.Text = GetCommonValue(Scope + ";CHIEF_SEC");
-            lblChiefEngName.Text = GetEmployeeName(txtChiefEng.Text);
-            lblChiefSecName.Text = GetEmployeeName(txtChiefSec.Text);
+            lblChiefEngName.Text = FormatEmployeeName(txtChiefEng.Text);
+            lblChiefSecName.Text = FormatEmployeeName(txtChiefSec.Text);
         }
         private void LoadEmailModeSettings()
         {
