@@ -4,9 +4,12 @@
     Run after:
       1. inspection_transaction_schema.sql
       2. master_template_inspection_schema.sql
-      3. inspection_parameter_change_migration.sql
-      4. inspection_mode_migration.sql
-      5. the PIP_M_InspectionMap / PIP_M_InspectionPoint master schema
+      3. inspection_mode_migration.sql
+      4. the PIP_M_InspectionMap / PIP_M_InspectionPoint master schema
+      5. Database/InspectionApproval_Workflow_Procedures.sql
+      6. inspection_parameter_change_migration.sql
+    Batch submission now executes inside this same atomic SQL transaction after all
+    point-level child rows and photos have been persisted.
     Requires dbo.Type_N_Tbl_C13 and dbo.Type_N_Tbl_C5 (used by the existing sync SP).
     One PIP_T_Inspection row is one batch header. Checklist results and photos
     are linked to an InspectionPointTransactionID, never only to the batch.
