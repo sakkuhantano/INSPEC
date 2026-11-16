@@ -140,6 +140,16 @@ IF EXISTS
 )
 BEGIN RAISERROR('Duplicate IDRepeat identity in one REPEAT item.',16,1); RETURN; END;
 
+IF EXISTS
+(
+    SELECT RuntimeRepeatID
+    FROM @tbl_RepeatField
+    WHERE IDRepeat IS NULL
+    GROUP BY RuntimeRepeatID
+    HAVING COUNT(*)>1
+)
+BEGIN RAISERROR('Duplicate RuntimeRepeatID submitted for new REPEAT fields.',16,1); RETURN; END;
+
 DECLARE @tbl_DelTemplate TABLE (IDTemplate INT)
 INSERT @tbl_DelTemplate SELECT C1 FROM @p_dt_DelTemplate
 
