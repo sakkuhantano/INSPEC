@@ -1574,5 +1574,5 @@
 <script type="text/javascript" src="../JSCus/inspection.js?v=20261114-lightning-daily-5"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261114-lightning-daily-1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261116-mobile-map-fix-2"></script>
 </asp:Content>
