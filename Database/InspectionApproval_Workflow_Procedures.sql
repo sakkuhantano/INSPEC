@@ -98,6 +98,8 @@ BEGIN
    
   END;
   IF @TranCount=0 COMMIT TRANSACTION;
+  /* EQueryP consumes a tabular result; return an explicit success row. */
+  SELECT @p_InspectionID AS InspectionID, CAST(1 AS BIT) AS WorkflowSubmitted;
  END TRY
  BEGIN CATCH
   IF XACT_STATE()=1 BEGIN IF @TranCount=0 ROLLBACK TRANSACTION; ELSE ROLLBACK TRANSACTION InspectionWorkflowSubmitSave; END
