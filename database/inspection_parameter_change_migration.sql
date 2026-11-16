@@ -565,3 +565,40 @@ BEGIN
     END CATCH;
 END;
 GO
+
+
+/* Keep the post-sync mode update behind a stored procedure. EQueryP's
+   inline UPDATE path raised NullReferenceException on the deployed runtime. */
+IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_SetMode', 'P') IS NULL
+    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_SetMode AS RETURN 0;');
+GO
+
+ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_SetMode
+(
+    @p_InspectionID BIGINT,
+    @p_InspectionMode VARCHAR(20)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @p_InspectionMode NOT IN ('STANDARD', 'BATCH')
+    BEGIN
+        RAISERROR('Invalid InspectionMode.', 16, 1);
+        RETURN;
+    END;
+
+    UPDATE dbo.PIP_T_Inspection
+       SET InspectionMode = @p_InspectionMode
+     WHERE InspectionID = @p_InspectionID;
+
+    IF @@ROWCOUNT = 0
+    BEGIN
+        RAISERROR('Inspection record was not found while setting InspectionMode.', 16, 1);
+        RETURN;
+    END;
+
+    SELECT @p_InspectionID AS InspectionID,
+           @p_InspectionMode AS InspectionMode;
+END;
+GO
