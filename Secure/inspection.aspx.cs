@@ -1889,7 +1889,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.Status,
                         I.IsSubmitted,
                         I.IsApproved,
-
+                        I.IsApproved1,
+                        I.IsApproved2,
+                        I.IsSubmitted,
                         I.ReasonVoid,
                         I.CompanyID,
                         I.LocationID,
@@ -1955,7 +1957,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                     WHERE C.AppID = 'INSPEC'
                                       AND C.CommonGroup = 'EmailApproval'
                                       AND C.IsDelete = 0
-                                      AND C.Description = @EmployeeID
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                       AND C.ID =
                                           CONVERT(VARCHAR(30), I.CompanyID) +
                                           CONVERT(VARCHAR(30), I.LocationID) +
@@ -1968,7 +1970,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                     WHERE C.AppID = 'INSPEC'
                                       AND C.CommonGroup = 'EmailApproval'
                                       AND C.IsDelete = 0
-                                      AND C.Description = @EmployeeID
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                       AND C.ID =
                                           CONVERT(VARCHAR(30), I.CompanyID) +
                                           CONVERT(VARCHAR(30), I.LocationID) +
@@ -1981,7 +1983,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                     WHERE C.AppID = 'INSPEC'
                                       AND C.CommonGroup = 'EmailApproval'
                                       AND C.IsDelete = 0
-                                      AND C.Description = @EmployeeID
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                       AND C.ID =
                                           CONVERT(VARCHAR(30), I.CompanyID) +
                                           CONVERT(VARCHAR(30), I.LocationID) +
@@ -2018,53 +2020,52 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.*,
                         CASE
                             WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND I.IsApproved = 0
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 0
                                  AND EXISTS
                                  (
-                                     SELECT 1
-                                     FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC'
-                                       AND C.CommonGroup = 'EmailApproval'
-                                       AND C.IsDelete = 0
-                                       AND C.ID =
-                                           CONVERT(VARCHAR(30), I.CompanyID) +
-                                           CONVERT(VARCHAR(30), I.LocationID) +
-                                           ';CHIEF_ENG'
-                                       AND C.Description = @EmployeeID
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                  )
                             THEN 1
 
                             WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND I.IsApproved = 1
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 1
+                                 AND ISNULL(I.IsApproved1, 0) = 0
                                  AND EXISTS
                                  (
-                                     SELECT 1
-                                     FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC'
-                                       AND C.CommonGroup = 'EmailApproval'
-                                       AND C.IsDelete = 0
-                                       AND C.ID =
-                                           CONVERT(VARCHAR(30), I.CompanyID) +
-                                           CONVERT(VARCHAR(30), I.LocationID) +
-                                           ';CHIEF_SEC'
-                                       AND C.Description = @EmployeeID
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved1, 0) = 1
+                                 AND ISNULL(I.IsApproved2, 0) = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                  )
                             THEN 1
 
                             WHEN I.InspectionMode <> 'LIGHTNING'
-                                 AND I.IsApproved = 0
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 0
                                  AND EXISTS
                                  (
-                                     SELECT 1
-                                     FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC'
-                                       AND C.CommonGroup = 'EmailApproval'
-                                       AND C.IsDelete = 0
-                                       AND C.ID =
-                                           CONVERT(VARCHAR(30), I.CompanyID) +
-                                           CONVERT(VARCHAR(30), I.LocationID) +
-                                           ';SPV;' + I.SectionID
-                                       AND C.Description = @EmployeeID
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                  )
                             THEN 1
 
