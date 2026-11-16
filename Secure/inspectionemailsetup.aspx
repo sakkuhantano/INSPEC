@@ -1,8 +1,5 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %><%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %> <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 
-  <div class="d-flex justify-content-end mt-3 mb-3">
-    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />
-  </div>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
   <div class="mb-3">
@@ -49,13 +46,13 @@
         <div class="row g-3 align-items-end">
         <div class="col-md-4">
           <label class="form-label">Section</label>
-          <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
+          <asp:DropDownList ID="ddlSection" runat="server" CssClass="form-select form-select-sm" AutoPostBack="true" OnSelectedIndexChanged="ddlSection_SelectedIndexChanged" />
         </div>
         <div class="col-md-5">
           <label class="form-label">SPV NIK</label>
           <div class="d-flex gap-2 align-items-center">
-            <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK SPV" />
-            <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
+            <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" placeholder="Pilih NIK SPV" />
+            <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
           
         </div>
@@ -96,5 +93,8 @@
       </div>
       
     </div>
+  </div>
+  <div class="d-flex justify-content-end mt-3 mb-3">
+    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />
   </div>
 </asp:Content>
