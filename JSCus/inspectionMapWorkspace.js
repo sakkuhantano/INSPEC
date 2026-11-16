@@ -1026,6 +1026,7 @@
     }
 
     window.resetInspectionMapWorkspace = async function () {
+        document.body.classList.remove("inspection-map-mobile-active");
         currentMapRecord = null;
         currentScheduleTime = "";
         var scheduleTabs = document.getElementById("inspectionLightningScheduleTabs");
@@ -1115,7 +1116,8 @@
         }) || null;
 
         if (activate) {
-            // Make the map viewport measurable before PDF.js calculates its canvas size.
+            // Apply the mobile full-height layout before revealing the map so PDF.js measures a real viewport.
+            document.body.classList.add("inspection-map-mobile-active");
             workspace.classList.remove("d-none");
             var paramPane = document.getElementById("inspectionParamsPane");
             var checklistPane = document.getElementById("inspectionChecklistPane");
