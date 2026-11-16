@@ -18,6 +18,13 @@ namespace INSPEC.Secure
 {
     public partial class workorder : System.Web.UI.Page
     {
+        private static string GetCurrentSessionToken()
+        {
+            HttpContext context = HttpContext.Current;
+            HttpCookie cookie = context == null ? null : context.Request.Cookies[GFC.CookieName];
+            return cookie == null ? String.Empty : Convert.ToString(cookie.Value).Trim();
+        }
+
         private static DateTime ParseLastSync(string value)
         {
             DateTime parsed;
@@ -132,6 +139,9 @@ WHERE W.KeyHD=@KeyHD
             string employeeID = isApprovalMode
                 ? GFC.RequireMenuEmployee("20012")
                 : GFC.RequireMenuEmployee("20011");
+            string sessionToken = GetCurrentSessionToken();
+            if (String.IsNullOrWhiteSpace(sessionToken))
+                throw new HttpException(401, "INSPEC device session is missing.");
             string[] scope = (companyLocation ?? "").Split(';');
             if (scope.Length != 2) throw new HttpException(400, "Invalid company/location.");
             GFC.RequireCompanyLocation(employeeID, scope[0], scope[1]);
@@ -177,7 +187,8 @@ WHERE W.KeyHD=@KeyHD
                 string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
 @"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncWO=@V_GetDate WHERE IsActive=1 AND UserID=@EmployeeID
+UPDATE UserSession SET LastSyncWO=@V_GetDate
+ WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
 SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
 Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
 ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
@@ -225,6 +236,7 @@ AND " + _condition +
                                 new SqlParameter[] 
                                 {
                                     new SqlParameter("@EmployeeID", employeeID),
+                                     new SqlParameter("@SessionToken", sessionToken),
                                     new SqlParameter("@CompanyLocation", companyLocation),
                                     new SqlParameter("@sectionlist", section),
                                     new SqlParameter("@CompanyID", selectedCompanyID),
