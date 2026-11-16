@@ -2,9 +2,7 @@ namespace INSPEC.Secure
 {
     public partial class inspectionemailsetup
     {
-        protected global::System.Web.UI.WebControls.Panel pnlMessage;
         protected global::System.Web.UI.WebControls.Panel pnlSmtpWarning;
-        protected global::System.Web.UI.WebControls.Literal litMessage;
         protected global::System.Web.UI.WebControls.TextBox txtChiefEng;
         protected global::System.Web.UI.WebControls.LinkButton lBtnChiefEng;
         protected global::System.Web.UI.WebControls.Label lblChiefEngName;
