@@ -3594,7 +3594,7 @@ async function openServerSubmittedInspection(inspectionId) {
     if (!host) return;
     try {
         showToast("Memuat detail checklist dari server...", "info");
-        const result = await inspectionApprovalPost("GetInspectionApprovalDetail", {
+        const result = await inspectionApprovalPost("GetTechnicianSubmittedInspectionDetail", {
             inspectionId: Number(inspectionId), employeeId: inspectionLogin.employeeid
         });
         const h = result.header || {};
@@ -3665,7 +3665,7 @@ async function openServerSubmittedInspection(inspectionId) {
         showInspectionEditorTab("checklist");
         showToast("Detail checklist berhasil dimuat dari server (read-only).", "success");
     } catch (err) {
-        showToast("Gagal membuka detail inspeksi dari server. Pastikan koneksi tersedia lalu coba lagi.", "warning");
+        showToast((err && err.message) || "Gagal membuka detail inspeksi dari server.", "warning");
         console.warn("Open server inspection detail failed:", err);
     }
 }
