@@ -80,7 +80,17 @@ BEGIN
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  IF @EmailEnabled=1
  BEGIN
-  IF ISNULL(@SPVEmail,'')='' OR ISNULL(@TechEmail,'')=''
+  IF EXISTS
+  (
+   SELECT 1
+   FROM dbo.SplitStringConvertToTable(@SPV,';') X
+   WHERE NOT EXISTS
+   (
+    SELECT 1 FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=LTRIM(RTRIM(X.val))
+      AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+   )
+  ) OR ISNULL(@TechEmail,'')=''
   BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
  SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1 THEN CASE WHEN ISNULL(IsApprovedFinal,0)=1 THEN 'APPROVED' ELSE 'SUBMITTED' END
