@@ -2859,6 +2859,16 @@ BEGIN
 	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0
 	
 	IF EXISTS(SELECT * FROM @p_Dt1 WHERE CAST(C5 AS BIT)=1) -- send email utk anomali
+       AND EXISTS
+       (
+           SELECT 1
+           FROM dbo.SysWebCommonValue WOEmail
+           WHERE WOEmail.AppID='INSPEC'
+             AND WOEmail.CommonGroup='EmailApproval'
+             AND WOEmail.IsDelete=0
+             AND WOEmail.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';EMAIL;WO'
+             AND LTRIM(RTRIM(WOEmail.Description))='1'
+       )
 	BEGIN
 		DECLARE @V_BCC_EmailAddress VARCHAR(MAX)
 		SELECT 
