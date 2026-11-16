@@ -165,10 +165,12 @@ BEGIN
     (
         IDItem INT NOT NULL,
         FieldName VARCHAR(100) NOT NULL,
-        Value VARCHAR(500) NULL
+        Value VARCHAR(500) NULL,
+        ObjectIndex INT NOT NULL
     );
-    INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value)
-    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,'')
+    INSERT INTO @tbl_ItemValues (IDItem, FieldName, Value, ObjectIndex)
+    SELECT CAST(C1 AS INT), ISNULL(C2,''), ISNULL(C3,''),
+           CAST(ISNULL(NULLIF(C4,''),'0') AS INT)
     FROM @p_ItemValues;
 
     /* Drafts are device-local only. SQL may persist completed inspections only. */
@@ -513,9 +515,9 @@ BEGIN
 
         INSERT dbo.PIP_T_InspectionResultValue
         (
-            InspectionResultID, FieldName, Value, EntryUser, EntryDate, UpdateUser, UpdateDate
+            InspectionResultID, FieldName, ObjectIndex, Value, EntryUser, EntryDate, UpdateUser, UpdateDate
         )
-        SELECT M.InspectionResultID, V.FieldName, V.Value,
+        SELECT M.InspectionResultID, V.FieldName, V.ObjectIndex, V.Value,
                @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
         FROM @tbl_ItemValues V
         JOIN @V_ResultMap M ON M.IDItem=V.IDItem;
