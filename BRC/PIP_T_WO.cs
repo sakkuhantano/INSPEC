@@ -586,14 +586,26 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             {
                 if (String.IsNullOrWhiteSpace(inspectionNo))
                 {
-                    using (SqlCommand autoNumCommand = new SqlCommand(@"
+                    using (WAL.BR.CF autoNumCommon = new WAL.BR.CF())
+                    {
+                        SqlParameter[] autoNumParameters = new SqlParameter[]
+                        {
+                            new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId)
+                        };
+
+                        // Use the same EQueryP gateway, connection and transaction as the
+                        // inspection sync procedure. Do not let EQueryP create its own transaction.
+                        DataTable autoNumResult = autoNumCommon.EQueryP(@"
 DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
 INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
-SELECT ID FROM @AutoNumResult;", _mainConnection, _transaction))
-                    {
-                        autoNumCommand.Parameters.AddWithValue("@AutoNum", "PIPINS" + companyId + locationId);
-                        object generated = autoNumCommand.ExecuteScalar();
-                        inspectionNo = generated == null || generated == DBNull.Value ? "" : Convert.ToString(generated);
+SELECT ID FROM @AutoNumResult;",
+                            autoNumParameters, false, ref _mainConnection, ref _transaction);
+
+                        if (autoNumResult == null || autoNumResult.Rows.Count == 0 ||
+                            autoNumResult.Rows[0]["ID"] == DBNull.Value)
+                            inspectionNo = "";
+                        else
+                            inspectionNo = Convert.ToString(autoNumResult.Rows[0]["ID"]);
                     }
                     if (String.IsNullOrWhiteSpace(inspectionNo))
                         throw new Exception("Failed to generate InspectionNo inside the inspection sync transaction.");
