@@ -117,7 +117,7 @@ namespace INSPEC.MasterPages
             // No valid INSPEC token exists. Allow the legacy cache to create a
             // token only once per ASP.NET browser session. If a migration was
             // already attempted, require an explicit login instead of issuing
-            // another token (F_LoginWithHash revokes the previous active token).
+            // duplicate tokens for the same legacy browser session.
             if (!String.IsNullOrEmpty(legacyEmployeeID))
             {
                 string savedEmployeeID = Convert.ToString(
