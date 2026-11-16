@@ -2989,16 +2989,15 @@ BEGIN
 			JOIN PIP_T_H_WO_Employee AS pthwe ON pthwe.KeyHD = b.KeyHD
 			JOIN
 			(
-				SELECT SU.EmployeeID, b.SectionID
+				SELECT SU.EmployeeID, CV.ID AS ScopeID
 				FROM dbo.SysWebUser SU
 				JOIN dbo.SysWebCommonValue CV
 					ON CV.AppID='INSPEC'
 					AND CV.CommonGroup='EmailApproval'
 					AND CV.IsDelete=0
-					AND CV.ID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
 					AND CV.Description=SU.EmployeeID
 				WHERE SU.IsActive=1
-			) d ON d.SectionID=b.SectionID
+			) d ON d.ScopeID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
 			JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=d.EmployeeID
 			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
 			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
