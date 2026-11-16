@@ -3559,6 +3559,8 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
 
         private static object DispatchInspectionEmailOutbox(int batchSize)
         {
+            string fromAddress = (System.Configuration.ConfigurationManager.AppSettings["smtpFrom"] ?? "").Trim();
+
             using (var br = new WAL.BR.CF())
             {
                 DataTable queue = br.EQueryP(@"
@@ -3589,9 +3591,11 @@ OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
 
                         if (String.IsNullOrWhiteSpace(toAddress))
                             throw new InvalidOperationException("Recipient email is empty.");
+                        if (String.IsNullOrWhiteSpace(fromAddress))
+                            throw new InvalidOperationException("smtpFrom is not configured.");
 
                         if (!GF.SendEmail(
-                                "",
+                                fromAddress,
                                 "INSPEC",
                                 toAddress,
                                 subject,
