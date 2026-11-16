@@ -207,7 +207,7 @@ BEGIN
              @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
              N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
              N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N').</p>',
-             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu review Chief Engineering '+ISNULL(@V_ChiefEngName,@V_ChiefEngID)+N' ('+ISNULL(@V_ChiefEngID,'')+N'). Status: CHECKED.','PENDING',0,GETDATE());
+             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N' ('+ISNULL(@V_SPVID,'')+N'). Status: CHECKED.','PENDING',0,GETDATE());
         END;
 
         IF @V_TranCount=0 COMMIT TRANSACTION;
@@ -395,7 +395,7 @@ BEGIN
                     'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+CASE WHEN @V_Stage='SPV' THEN ':CHIEF_ENG:' ELSE ':CHIEF_SEC:' END+X.EmployeeID,
                      @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
                      N'Lightning Inspection menunggu approval Chief Security - '+ISNULL(@V_InspectionNo,''),
-                     N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review Chief Security '+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                     N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
                      N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve '+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
                     FROM
                     (
