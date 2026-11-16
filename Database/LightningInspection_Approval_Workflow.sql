@@ -271,7 +271,7 @@ BEGIN
     DECLARE @V_CompanyID VARCHAR(10),@V_LocationID VARCHAR(3),@V_SectionID VARCHAR(10);
     DECLARE @V_OwnerEmployeeID VARCHAR(50),@V_InspectionNo VARCHAR(10),@V_Stage VARCHAR(20);
     DECLARE @V_SPVID VARCHAR(4000),@V_ChiefEngID VARCHAR(4000),@V_ChiefSecID VARCHAR(4000);
-    DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200),@V_ActorName VARCHAR(200);
+    DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200),@V_ActorName VARCHAR(200),@V_ActorEmail VARCHAR(320);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_NextEmployeeID VARCHAR(4000),@V_NextEmail VARCHAR(4000),@V_NextName VARCHAR(4000);
     DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
@@ -318,8 +318,13 @@ BEGIN
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
+    SELECT @V_ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID),
+           @V_ActorEmail=LTRIM(RTRIM(ISNULL(emailaddress,'')))
+    FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
     IF @V_EmailEnabled=1 AND ISNULL(@V_TechnicianEmail,'')=''
     BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+    IF @V_EmailEnabled=1 AND ISNULL(@V_ActorEmail,'')=''
+    BEGIN RAISERROR('Approver email is missing from M_HRD_Employee.emailaddress; it is used as the outbox sender address.',16,1); RETURN; END;
 
     IF @p_Action='APPROVE' AND @V_Stage IN ('SPV','CHIEF_ENG')
     BEGIN
