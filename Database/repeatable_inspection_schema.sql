@@ -48,7 +48,7 @@ IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NULL
 BEGIN
     CREATE TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
     (
-        IDRepeat INT IDENTITY(1,1) NOT NULL,
+        IDRepeat INT NOT NULL,
         IDItem INT NOT NULL,
         FieldLabel NVARCHAR(100) NOT NULL,
         FieldType VARCHAR(20) NOT NULL,
@@ -93,8 +93,18 @@ BEGIN
             DROP CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField;
 
     IF COL_LENGTH('dbo.PIP_M_CheckListWOPM_ItemRepeatField','IDRepeat') IS NULL
-        ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField
-            ADD IDRepeat INT IDENTITY(1,1) NOT NULL;
+    BEGIN
+        ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField ADD IDRepeat INT NULL;
+        ;WITH NumberedFields AS
+        (
+            SELECT IDItem,FieldKey,ROW_NUMBER() OVER(ORDER BY IDItem,DisplayOrder,FieldKey) AS NewID
+            FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField
+        )
+        UPDATE F SET IDRepeat=CONVERT(INT,N.NewID)
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+        JOIN NumberedFields N ON N.IDItem=F.IDItem AND N.FieldKey=F.FieldKey;
+        ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField ALTER COLUMN IDRepeat INT NOT NULL;
+    END;
 
     /* Preserve saved REPEAT values by replacing old textual keys with IDRepeat.
        Legacy GROUP FieldName values are not touched. */
@@ -113,6 +123,50 @@ BEGIN
     JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.FieldKey=IV.FieldName;
 
     ALTER TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField DROP COLUMN FieldKey;
+END;
+GO
+
+/* Older deployments briefly used IDENTITY for IDRepeat. Rebuild the table
+   with the same numeric keys but a normal INT column (no IDENTITY property). */
+IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField','U') IS NOT NULL
+   AND COLUMNPROPERTY(OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField'),'IDRepeat','IsIdentity')=1
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField') AND name='IX_PIP_M_ItemRepeatField_Order')
+        DROP INDEX IX_PIP_M_ItemRepeatField_Order ON dbo.PIP_M_CheckListWOPM_ItemRepeatField;
+
+    IF OBJECT_ID('dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity','U') IS NOT NULL
+        DROP TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity;
+
+    CREATE TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity
+    (
+        IDRepeat INT NOT NULL,
+        IDItem INT NOT NULL,
+        FieldLabel NVARCHAR(100) NOT NULL,
+        FieldType VARCHAR(20) NOT NULL,
+        OptionList NVARCHAR(1000) NULL,
+        Unit NVARCHAR(30) NULL,
+        MinValue DECIMAL(18,4) NULL,
+        MaxValue DECIMAL(18,4) NULL,
+        MinInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MinInclusive_NoIdentity DEFAULT (1),
+        MaxInclusive BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_MaxInclusive_NoIdentity DEFAULT (1),
+        IsRequired BIT NOT NULL CONSTRAINT DF_PIP_M_ItemRepeatField_IsRequired_NoIdentity DEFAULT (0),
+        GroupName NVARCHAR(100) NULL,
+        DisplayOrder INT NOT NULL,
+        CONSTRAINT PK_PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity PRIMARY KEY CLUSTERED (IDRepeat),
+        CONSTRAINT CK_PIP_M_ItemRepeatField_Type_NoIdentity CHECK (FieldType IN ('NUMBER','RANGE','OPTION','TEXT')),
+        CONSTRAINT CK_PIP_M_ItemRepeatField_Range_NoIdentity CHECK (MinValue IS NULL OR MaxValue IS NULL OR MinValue <= MaxValue)
+    );
+
+    INSERT dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity
+        (IDRepeat,IDItem,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,MinInclusive,MaxInclusive,IsRequired,GroupName,DisplayOrder)
+    SELECT IDRepeat,IDItem,FieldLabel,FieldType,OptionList,Unit,MinValue,MaxValue,MinInclusive,MaxInclusive,IsRequired,GroupName,DisplayOrder
+    FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField;
+
+    DROP TABLE dbo.PIP_M_CheckListWOPM_ItemRepeatField;
+    EXEC sp_rename 'dbo.PIP_M_CheckListWOPM_ItemRepeatField_NoIdentity','PIP_M_CheckListWOPM_ItemRepeatField';
+
+    CREATE NONCLUSTERED INDEX IX_PIP_M_ItemRepeatField_Order
+        ON dbo.PIP_M_CheckListWOPM_ItemRepeatField(IDItem,DisplayOrder,IDRepeat);
 END;
 GO
 
