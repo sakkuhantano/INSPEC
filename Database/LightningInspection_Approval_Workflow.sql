@@ -36,12 +36,12 @@ BEGIN
     DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_SectionID VARCHAR(10);
     DECLARE @V_OwnerEmployeeID VARCHAR(50), @V_InspectionNo VARCHAR(10);
     DECLARE @V_InspectionTypeName VARCHAR(100), @V_InspectionDetailName VARCHAR(100);
-    DECLARE @V_ChiefEngID VARCHAR(50), @V_ChiefSecID VARCHAR(50);
+    DECLARE @V_ChiefEngID VARCHAR(4000), @V_ChiefSecID VARCHAR(4000);
     DECLARE @V_ChiefEngSectionID VARCHAR(10),@V_ChiefSecSectionID VARCHAR(10);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200);
-    DECLARE @V_ChiefEngEmail VARCHAR(320), @V_ChiefEngName VARCHAR(200);
-    DECLARE @V_ChiefSecEmail VARCHAR(320), @V_ChiefSecName VARCHAR(200);
+    DECLARE @V_ChiefEngEmail VARCHAR(4000), @V_ChiefEngName VARCHAR(4000);
+    DECLARE @V_ChiefSecEmail VARCHAR(4000), @V_ChiefSecName VARCHAR(4000);
     DECLARE @V_ExistingStatus VARCHAR(30), @V_Action VARCHAR(20);
     DECLARE @V_EventID BIGINT, @V_TranCount INT, @V_LastActionCode VARCHAR(20);
 
@@ -72,16 +72,7 @@ BEGIN
     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
       AND C.ID=@V_ConfigScope+';CHIEF_SEC';
 
-    SELECT @V_ChiefEngSectionID=E.SectionID
-    FROM dbo.M_HRD_Employee E
-    WHERE E.EmployeeID=@V_ChiefEngID AND E.CompanyID=@V_CompanyID;
-
-    SELECT @V_ChiefSecSectionID=E.SectionID
-    FROM dbo.M_HRD_Employee E
-    WHERE E.EmployeeID=@V_ChiefSecID AND E.CompanyID=@V_CompanyID;
-
-    IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')='' OR
-       ISNULL(@V_ChiefEngSectionID,'')='' OR ISNULL(@V_ChiefSecSectionID,'')=''
+    IF ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')=''
     BEGIN RAISERROR('Chief Engineering / Chief Security routing is not configured for this Company and Location.',16,1); RETURN; END;
 
     SELECT @V_EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
@@ -90,41 +81,52 @@ BEGIN
       AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
     SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
 
-    IF @V_ChiefEngID=@V_ChiefSecID
-    BEGIN RAISERROR('Chief Engineering and Chief Security must be different employees.',16,1); RETURN; END;
-
-    IF NOT EXISTS
-    (
-        SELECT 1 FROM dbo.M_HRD_Employee E
-        WHERE E.EmployeeID=@V_ChiefEngID AND E.CompanyID=@V_CompanyID
-          AND E.SectionID=@V_ChiefEngSectionID AND ISNULL(E.TerminationDate,'')=''
-          AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-              AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-          AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+    IF EXISTS (
+        SELECT 1
+        FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') E
+        JOIN dbo.SplitStringConvertToTable(@V_ChiefSecID,';') S
+          ON LTRIM(RTRIM(E.val))=LTRIM(RTRIM(S.val))
     )
-    BEGIN RAISERROR('Configured Chief Engineering employee is not active, not in the selected section, or lacks approval access for this location.',16,1); RETURN; END;
+    BEGIN RAISERROR('Chief Engineering and Chief Security must not contain the same employee.',16,1); RETURN; END;
 
-    IF NOT EXISTS
+    IF EXISTS
     (
-        SELECT 1 FROM dbo.M_HRD_Employee E
-        WHERE E.EmployeeID=@V_ChiefSecID AND E.CompanyID=@V_CompanyID
-          AND E.SectionID=@V_ChiefSecSectionID AND ISNULL(E.TerminationDate,'')=''
-          AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
-              AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
-          AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
-              WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+        SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.M_HRD_Employee E
+            WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@V_CompanyID AND ISNULL(E.TerminationDate,'')=''
+              AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+              AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+        )
     )
-    BEGIN RAISERROR('Configured Chief Security employee is not active, not in the selected section, or lacks approval access for this location.',16,1); RETURN; END;
+    BEGIN RAISERROR('One or more configured Chief Engineering employees are not active or lack approval access for this location.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X
+        WHERE NOT EXISTS
+        (
+            SELECT 1 FROM dbo.M_HRD_Employee E
+            WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@V_CompanyID AND ISNULL(E.TerminationDate,'')=''
+              AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+              AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID)
+        )
+    )
+    BEGIN RAISERROR('One or more configured Chief Security employees are not active or lack approval access for this location.',16,1); RETURN; END;
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
     SELECT @V_ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
-    SELECT @V_ChiefEngEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_ChiefEngName=ISNULL(Name,@V_ChiefEngID)
-    FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_ChiefEngID;
-    SELECT @V_ChiefSecEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_ChiefSecName=ISNULL(Name,@V_ChiefSecID)
-    FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_ChiefSecID;
+    SELECT @V_ChiefEngName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)) FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_ChiefEngID),
+           @V_ChiefEngEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
+    SELECT @V_ChiefSecName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)) FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_ChiefSecID),
+           @V_ChiefSecEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
 
     IF @V_EmailEnabled=1
        AND (ISNULL(@V_TechnicianEmail,'')='' OR ISNULL(@V_ChiefEngEmail,'')='' OR ISNULL(@V_ChiefSecEmail,'')='')
