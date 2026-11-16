@@ -5341,6 +5341,16 @@ async function confirmInspectionApprovalAction() {
     await executeInspectionApprovalAction(pending.ids, pending.action, remark);
 }
 
+function getLightningApprovalEmailToken(inspectionId) {
+    var search = (window.location && window.location.search) || "";
+    var tokenMatch = /(?:^|[?&])approvalToken=([^&]*)/i.exec(search);
+    var idMatch = /(?:^|[?&])inspectionId=([^&]*)/i.exec(search);
+    if (!tokenMatch || !idMatch) return "";
+    var linkedId = parseInt(decodeURIComponent(idMatch[1]), 10);
+    if (!linkedId || linkedId !== Number(inspectionId)) return "";
+    return decodeURIComponent(tokenMatch[1] || "");
+}
+
 async function executeInspectionApprovalAction(ids, action, remark) {
     const isSingleVoid = action === "VOID" && ids.length === 1 &&
         selectedInspectionApproval && Number(selectedInspectionApproval.InspectionID) === Number(ids[0]);
@@ -5355,7 +5365,8 @@ async function executeInspectionApprovalAction(ids, action, remark) {
             lightningResults.push(await inspectionApprovalPost("ProcessLightningInspectionApproval", {
                 inspectionId: Number(id), action: action,
                 employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
-                locationId: inspectionLocationID, remark: remark
+                locationId: inspectionLocationID, remark: remark,
+                approvalToken: getLightningApprovalEmailToken(id)
             }));
         }
         let standardResult = null;
@@ -5958,7 +5969,8 @@ async function processInspectionApproval(action) {
             isLightning ? "ProcessLightningInspectionApproval" : "ProcessInspectionApproval", {
                 inspectionId: Number(selectedInspectionApproval.InspectionID), action: "APPROVE",
                 employeeId: inspectionLogin.employeeid, companyId: inspectionCompanyID,
-                locationId: inspectionLocationID, remark: remark
+                locationId: inspectionLocationID, remark: remark,
+                approvalToken: getLightningApprovalEmailToken(selectedInspectionApproval.InspectionID)
             });
         showInspectionApprovalQueueView();
         const message = isLightning
