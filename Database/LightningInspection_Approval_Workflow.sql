@@ -327,6 +327,10 @@ BEGIN
              AND O.EntityID=@p_InspectionID
              AND O.RecipientType='APPROVER'
              AND O.RecipientEmployeeID=@p_ActorEmployeeID
+             AND O.ApprovalEventID=
+                 (SELECT MAX(H.ApprovalEventID)
+                  FROM dbo.PIP_T_InspectionApprovalHistory H
+                  WHERE H.EntityType='LIGHTNING' AND H.EntityID=@p_InspectionID)
        )
     BEGIN RAISERROR('This approval email link is invalid or belongs to another approver.',16,1); RETURN; END;
 
