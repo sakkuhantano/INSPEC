@@ -118,7 +118,8 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Sync
     @p_InspectionNo VARCHAR(10),
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
-    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY
+    @p_ItemValues dbo.Type_N_Tbl_C5 READONLY,
+    @p_InspectionMode VARCHAR(10) = 'STANDARD'
 )
 AS
 BEGIN
@@ -132,6 +133,13 @@ BEGIN
     SET @p_FollowUp = ISNULL(NULLIF(LTRIM(RTRIM(@p_FollowUp)), ''), 'No Follow Up');
     SET @p_FollowUpSection = ISNULL(@p_FollowUpSection, '');
     SET @p_FollowUpRemark = ISNULL(@p_FollowUpRemark, '');
+    SET @p_InspectionMode = UPPER(LTRIM(RTRIM(ISNULL(@p_InspectionMode, 'STANDARD'))));
+
+    IF @p_InspectionMode NOT IN ('STANDARD', 'BATCH', 'LIGHTNING')
+    BEGIN
+        RAISERROR('Invalid InspectionMode.', 16, 1);
+        RETURN;
+    END;
 
     /* Map shared generic TVPs to the inspection-specific row shape. */
     DECLARE @tbl_Items TABLE
@@ -429,6 +437,7 @@ BEGIN
                 InspectionTypeCode=@p_InspectionTypeCode, InspectionTypeName=@V_InspectionTypeName,
                 InspectionTypeDetailCode=@p_InspectionTypeDetailCode,
                 InspectionTypeDetailName=@V_InspectionTypeDetailName, ScheduledTime=@p_ScheduledTime,
+                InspectionMode=@p_InspectionMode,
                 IDTemplate=@p_IDTemplate, IDVersion=@p_IDVersion, TemplateNo=@p_TemplateNo,
                 TemplateName=@V_TemplateName, TemplateVersion=@p_TemplateVersion,
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
@@ -467,7 +476,7 @@ BEGIN
                 InspectionID, ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
                 InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
-                TemplateNo, TemplateName, TemplateVersion, InspectionDate,
+                TemplateNo, TemplateName, TemplateVersion, InspectionDate, InspectionMode,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
                 EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate, IsActive
             )
@@ -476,7 +485,7 @@ BEGIN
                 @V_InspectionID, @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
                 @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
-                @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
+                @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate, @p_InspectionMode,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE(), 1
@@ -567,38 +576,4 @@ END;
 GO
 
 
-/* Keep the post-sync mode update behind a stored procedure. EQueryP's
-   inline UPDATE path raised NullReferenceException on the deployed runtime. */
-IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_SetMode', 'P') IS NULL
-    EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_SetMode AS RETURN 0;');
-GO
 
-ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_SetMode
-(
-    @p_InspectionID BIGINT,
-    @p_InspectionMode VARCHAR(20)
-)
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    IF @p_InspectionMode NOT IN ('STANDARD', 'BATCH')
-    BEGIN
-        RAISERROR('Invalid InspectionMode.', 16, 1);
-        RETURN;
-    END;
-
-    UPDATE dbo.PIP_T_Inspection
-       SET InspectionMode = @p_InspectionMode
-     WHERE InspectionID = @p_InspectionID;
-
-    IF @@ROWCOUNT = 0
-    BEGIN
-        RAISERROR('Inspection record was not found while setting InspectionMode.', 16, 1);
-        RETURN;
-    END;
-
-    SELECT @p_InspectionID AS InspectionID,
-           @p_InspectionMode AS InspectionMode;
-END;
-GO
