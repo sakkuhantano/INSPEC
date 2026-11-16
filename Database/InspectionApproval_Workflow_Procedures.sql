@@ -40,7 +40,13 @@ BEGIN
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
- IF ISNULL(@SPV,'')='' BEGIN RAISERROR('SPV routing is not configured for this Company, Location, and Section.',16,1); RETURN; END;
+ IF ISNULL(@SPV,'')=''
+ BEGIN
+  DECLARE @MissingSPVKey VARCHAR(100);
+  SET @MissingSPVKey=@ConfigScope+';SPV;'+@S;
+  RAISERROR('SPV routing is not configured. Required SysWebCommonValue.ID: %s',16,1,@MissingSPVKey);
+  RETURN;
+ END;
  IF NOT EXISTS
  (
   SELECT 1 FROM dbo.M_HRD_Employee E
@@ -101,8 +107,17 @@ BEGIN
   IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
-  IF XACT_STATE()=1 BEGIN IF @TranCount=0 ROLLBACK TRANSACTION; ELSE ROLLBACK TRANSACTION InspectionWorkflowSubmitSave; END
-  ELSE IF XACT_STATE()=-1 AND @TranCount=0 ROLLBACK TRANSACTION;
+  IF XACT_STATE()=-1
+  BEGIN
+   /* A doomed transaction cannot roll back to a savepoint. Abort the complete
+      caller transaction; inspection header and workflow must remain atomic. */
+   ROLLBACK TRANSACTION;
+  END
+  ELSE IF XACT_STATE()=1
+  BEGIN
+   IF @TranCount=0 ROLLBACK TRANSACTION;
+   ELSE ROLLBACK TRANSACTION InspectionWorkflowSubmitSave;
+  END
   DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
   SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
   RAISERROR(@Err,@Sev,@State);
@@ -201,8 +216,15 @@ BEGIN
   IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
-  IF XACT_STATE()=1 BEGIN IF @TranCount=0 ROLLBACK TRANSACTION; ELSE ROLLBACK TRANSACTION InspectionApprovalWorkflowSave; END
-  ELSE IF XACT_STATE()=-1 AND @TranCount=0 ROLLBACK TRANSACTION;
+  IF XACT_STATE()=-1
+  BEGIN
+   ROLLBACK TRANSACTION;
+  END
+  ELSE IF XACT_STATE()=1
+  BEGIN
+   IF @TranCount=0 ROLLBACK TRANSACTION;
+   ELSE ROLLBACK TRANSACTION InspectionApprovalWorkflowSave;
+  END
   DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
   SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
   RAISERROR(@Err,@Sev,@State);
