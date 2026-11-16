@@ -343,12 +343,12 @@ JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion;
 
-SELECT F.IDItem,F.FieldKey,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
 JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
 JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
 WHERE S.IDVersion=@IDVersion
-ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
 "@IDVersion=" + idVersion);
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
@@ -481,7 +481,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.FieldKey;",
                                                 .OrderBy(fRow => Convert.ToInt32(fRow["DisplayOrder"]))
                                                 .Select(fRow => (object)new
                                                 {
-                                                    FieldKey = fRow["FieldKey"].ToString(),
+                                                    IDRepeat = Convert.ToInt32(fRow["IDRepeat"]),
                                                     FieldLabel = fRow["FieldLabel"].ToString(),
                                                     FieldType = fRow["FieldType"].ToString(),
                                                     OptionList = String.IsNullOrWhiteSpace(GF.GetString(fRow["OptionList"])) ? new string[0] : GF.GetString(fRow["OptionList"]).Split(';'),
@@ -1188,20 +1188,22 @@ WHERE a.SectionID = @SectionID
                                                 repeatRow["C9"] = repeat.ContainsKey("MaxCount") && repeat["MaxCount"] != null ? Convert.ToString(repeat["MaxCount"], CultureInfo.InvariantCulture) : "";
                                                 dtRepeatConfig.Rows.Add(repeatRow);
 
-                                                var repeatFieldKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                                var repeatFieldIDs = new HashSet<int>();
                                                 foreach (object repeatFieldNode in repeatFields)
                                                 {
                                                     Dictionary<string, object> repeatField = repeatFieldNode as Dictionary<string, object>;
                                                     if (repeatField == null) throw new Exception("Invalid REPEAT child field.");
-                                                    string fieldKey = Convert.ToString(repeatField.ContainsKey("FieldKey") ? repeatField["FieldKey"] : "").Trim();
+                                                    int idRepeat = repeatField.ContainsKey("IDRepeat") && repeatField["IDRepeat"] != null ? Convert.ToInt32(repeatField["IDRepeat"], CultureInfo.InvariantCulture) : 0;
+                                                    int runtimeRepeatID = repeatField.ContainsKey("RuntimeRepeatID") && repeatField["RuntimeRepeatID"] != null ? Convert.ToInt32(repeatField["RuntimeRepeatID"], CultureInfo.InvariantCulture) : 0;
+                                                    int repeatIdentity = idRepeat > 0 ? idRepeat : runtimeRepeatID;
                                                     string fieldType = Convert.ToString(repeatField.ContainsKey("FieldType") ? repeatField["FieldType"] : "").Trim().ToUpperInvariant();
-                                                    string fieldLabel = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : fieldKey;
+                                                    string fieldLabel = repeatField.ContainsKey("FieldLabel") ? GF.GetString(repeatField["FieldLabel"]) : "";
                                                     string fieldUnit = repeatField.ContainsKey("Unit") ? GF.GetString(repeatField["Unit"]) : "";
                                                     string fieldGroup = repeatField.ContainsKey("GroupName") ? GF.GetString(repeatField["GroupName"]) : "";
-                                                    if (fieldKey.Length == 0 || fieldKey.Length > 50)
-                                                        throw new Exception("Every REPEAT child field requires a stable FieldKey (maximum 50 characters).");
-                                                    if (!repeatFieldKeys.Add(fieldKey))
-                                                        throw new Exception("Duplicate REPEAT FieldKey '" + fieldKey + "'. FieldKey must be unique within one REPEAT item.");
+                                                    if (repeatIdentity == 0)
+                                                        throw new Exception("Every REPEAT child field requires a valid IDRepeat identity.");
+                                                    if (!repeatFieldIDs.Add(repeatIdentity))
+                                                        throw new Exception("Duplicate IDRepeat " + repeatIdentity.ToString(CultureInfo.InvariantCulture) + " in one REPEAT item.");
                                                     if (fieldLabel.Length == 0 || fieldLabel.Length > 100) throw new Exception("REPEAT child field label is required and limited to 100 characters.");
                                                     if (fieldUnit.Length > 30 || fieldGroup.Length > 100) throw new Exception("REPEAT unit is limited to 30 characters and group heading to 100 characters.");
                                                     if (fieldType != "NUMBER" && fieldType != "RANGE" && fieldType != "OPTION" && fieldType != "TEXT")
@@ -1213,7 +1215,7 @@ WHERE a.SectionID = @SectionID
                                                     if (fieldType == "OPTION" && String.IsNullOrWhiteSpace(childOptionList)) throw new Exception("REPEAT OPTION child requires at least one option.");
                                                     DataRow fieldRow = dtRepeatField.NewRow();
                                                     fieldRow["C1"] = runtimeItemID.ToString(CultureInfo.InvariantCulture);
-                                                    fieldRow["C2"] = fieldKey;
+                                                    fieldRow["C2"] = repeatIdentity.ToString(CultureInfo.InvariantCulture);
                                                     fieldRow["C3"] = fieldLabel;
                                                     fieldRow["C4"] = fieldType;
                                                     fieldRow["C5"] = childOptionList;
