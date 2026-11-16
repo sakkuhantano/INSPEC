@@ -2982,29 +2982,39 @@ BEGIN
     </td>
   </tr>
 '		
-			, EmailAddressFrom=mhe2.EmailAddress, [From]=mhe2.Name, EmailAddressTo=mhe.EmailAddress, b.WONo 
+			, EmailAddressFrom=mhe2.EmailAddress, [From]=mhe2.Name,
+			  EmailAddressTo=ISNULL(
+			    STUFF((
+			      SELECT ';'+LTRIM(RTRIM(mheEmail.EmailAddress))
+			      FROM dbo.SplitStringConvertToTable(CV.Description,';') ap
+			      JOIN dbo.M_HRD_Employee mheEmail ON mheEmail.EmployeeID=LTRIM(RTRIM(ap.val))
+			      WHERE ISNULL(LTRIM(RTRIM(mheEmail.EmailAddress)),'')<>''
+			      ORDER BY ap.id
+			      FOR XML PATH(''),TYPE
+			    ).value('.','NVARCHAR(MAX)'),1,1,''),''),
+			  b.WONo
 			, [Subject]='[ACTION REQUIRED] PM Anomaly – ['+b.SectionID+'] ['+pme.EquipmentName+'] – [WO-PM-'+b.WONo+']'
 			, BCC_EmailAddress=@V_BCC_EmailAddress
 			FROM PIP_T_WO b 
 			JOIN PIP_T_H_WO_Employee AS pthwe ON pthwe.KeyHD = b.KeyHD
-			JOIN
+			JOIN dbo.SysWebCommonValue CV
+				ON CV.AppID='INSPEC'
+				AND CV.CommonGroup='EmailApproval'
+				AND CV.IsDelete=0
+				AND CV.ID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
+			JOIN M_HRD_Employee AS mhe ON EXISTS
 			(
-				SELECT SU.EmployeeID, CV.ID AS ScopeID
-				FROM dbo.SysWebUser SU
-				JOIN dbo.SysWebCommonValue CV
-					ON CV.AppID='INSPEC'
-					AND CV.CommonGroup='EmailApproval'
-					AND CV.IsDelete=0
-					AND CV.Description=SU.EmployeeID
-				WHERE SU.IsActive=1
-			) d ON d.ScopeID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
-			JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=d.EmployeeID
+				SELECT 1
+				FROM dbo.SplitStringConvertToTable(CV.Description,';') ap
+				WHERE LTRIM(RTRIM(ap.val))=mhe.EmployeeID
+			)
 			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
 			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
 			CROSS JOIN M_HRD_Employee AS mhe2  
 			WHERE mhe2.EmployeeID=@p_UpdateUser
 			AND EXISTS (SELECT 1 FROM PIP_T_WO_CheckList a JOIN @p_Dt1 aa ON aa.C1=a.KeyHD
 			            WHERE a.IsAnomali=1 AND a.KeyHD=b.KeyHD)
+			GROUP BY b.CompanyID,b.LocationID,b.SectionID,b.WONo,pme.EquipmentName,mhe2.EmailAddress,mhe2.Name,@V_BCC_EmailAddress,CV.Description
 	END
 END
 
