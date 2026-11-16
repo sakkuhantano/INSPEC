@@ -4942,7 +4942,7 @@ function isInspectionApprovalApproved(row) {
 function isInspectionApprovalVoided(row) {
     return !!row &&
         String(row.Status || "").toUpperCase() === "DRAFT" &&
-        String(row.ReasonVoid || "").trim() !== "" &&
+        [row.ReasonVoid, row.ReasonVoid1, row.ReasonVoid2].some(value => String(value || "").trim() !== "") &&
         (row.IsSubmitted === false || row.IsSubmitted === 0 || String(row.IsSubmitted) === "0");
 }
 
