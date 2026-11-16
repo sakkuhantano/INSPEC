@@ -1018,6 +1018,7 @@ WHERE InspectionID=@InspectionID",
                 }
                 catch (Exception ex)
                 {
+                    WriteInspectionSyncError(syncStage, clientId, userId, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
                     string userMessage;
@@ -1056,6 +1057,43 @@ WHERE InspectionID=@InspectionID",
             try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, emailCompanyId); }
             catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
             return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
+        }
+
+        private static void WriteInspectionSyncError(string stage, string clientInspectionId, string userId, Exception error)
+        {
+            try
+            {
+                HttpContext context = HttpContext.Current;
+                if (context == null || context.Server == null)
+                    return;
+
+                string appDataPath = context.Server.MapPath("~/App_Data");
+                if (String.IsNullOrWhiteSpace(appDataPath))
+                    return;
+
+                Directory.CreateDirectory(appDataPath);
+                string logPath = Path.Combine(appDataPath, "InspectionSyncErrors.log");
+                string entry = String.Format(
+                    CultureInfo.InvariantCulture,
+                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} UTC ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}{5}{1}{1}",
+                    DateTime.UtcNow,
+                    Environment.NewLine,
+                    stage ?? "",
+                    clientInspectionId ?? "",
+                    userId ?? "",
+                    error == null ? "(no exception details)" : error.ToString());
+
+                lock (typeof(inspection))
+                {
+                    File.AppendAllText(logPath, entry, Encoding.UTF8);
+                }
+            }
+            catch (Exception logError)
+            {
+                System.Diagnostics.Trace.TraceError(
+                    "Unable to write InspectionSyncErrors.log: {0}",
+                    logError.ToString());
+            }
         }
 
         private static string GetInspectionPhotoFolder(string companyId, string locationId, DateTime inspectionDate, string inspectionNo)
