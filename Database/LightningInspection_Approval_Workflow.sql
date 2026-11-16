@@ -468,13 +468,13 @@ BEGIN
 
                 IF @V_Stage IN ('SPV','CHIEF_ENG')
                     INSERT dbo.PIP_T_InspectionEmailOutbox
-                    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+                    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,ApprovalToken,
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
                     SELECT
                     'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+CASE WHEN @V_Stage='SPV' THEN ':CHIEF_ENG:' ELSE ':CHIEF_SEC:' END+X.EmployeeID,
-                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
+                     @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,T.ApprovalToken,
                      N'Lightning Inspection menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering - ' ELSE N'Chief Security - ' END+ISNULL(@V_InspectionNo,''),
-                     N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'">Buka halaman approval INSPEC</a></p>',
+                     N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'&approvalToken='+CONVERT(NVARCHAR(36),T.ApprovalToken)+N'">Buka halaman approval INSPEC</a></p>',
                      N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve '+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
                     FROM
                     (
@@ -482,7 +482,8 @@ BEGIN
                       FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') S
                       JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
                       WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
-                    ) X;
+                    ) X
+                    CROSS APPLY (SELECT NEWID() ApprovalToken) T;
 
                 /* Notify all lower approval levels after a higher-level approval. */
                 IF @V_Stage='CHIEF_ENG'
