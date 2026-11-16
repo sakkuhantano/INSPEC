@@ -688,6 +688,26 @@ SELECT ID FROM @AutoNumResult;",
                     if (saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value)
                         inspectionNo = Convert.ToString(saved.Rows[0]["InspectionNo"]);
 
+                    // Lightning retries may be acknowledged by SQL as ALREADY_SUBMITTED.
+                    // In that case the procedure intentionally performs no writes, so
+                    // discard the photo files staged for this no-op retry before commit.
+                    bool alreadySubmitted = saved.Columns.Contains("WorkflowStatus") &&
+                        String.Equals(Convert.ToString(saved.Rows[0]["WorkflowStatus"]),
+                            "ALREADY_SUBMITTED", StringComparison.OrdinalIgnoreCase);
+                    if (alreadySubmitted)
+                    {
+                        foreach (string path in writtenFiles)
+                        {
+                            try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+                            catch (Exception cleanupError)
+                            {
+                                System.Diagnostics.Trace.TraceWarning(
+                                    "Could not remove staged photo for already-submitted Inspection: {0}", cleanupError.Message);
+                            }
+                        }
+                        writtenFiles.Clear();
+                    }
+
                     commitAttempted = true;
                     CommitTrans();
                     return saved;
