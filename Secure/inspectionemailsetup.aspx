@@ -1,6 +1,6 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %><%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %> <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 
-</asp:Content>
+  <div class="d-flex justify-content-end mt-3 mb-3">\n    <asp:Button ID="btnSaveAll" runat="server" Text="Save All Settings" CssClass="btn btn-primary" OnClick="btnSaveAll_Click" />\n  </div>\n</asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
   <div class="mb-3">
     <h4 class="mb-1">Inspection Email &amp; Approval Routing</h4>
@@ -18,7 +18,7 @@
           </label>
           <div class="d-flex gap-2 align-items-center">
             <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK" />
-            <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
+            <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
           <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" />
         </div>
@@ -40,7 +40,7 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
       <span>SPV Mapping per Section</span>
-      <asp:Button ID="btnNewSPV" runat="server" Text="Add New Record" CssClass="btn btn-sm btn-primary" CausesValidation="false" OnClick="btnNewSPV_Click" />
+      <asp:Button ID="btnNewSPV" runat="server" Text="Add New Record" CssClass="btn btn-sm CUS-btn-outline-PColor-1" CausesValidation="false" OnClick="btnNewSPV_Click" />
     </div>
     <div class="card-body">
       <asp:Panel ID="pnlSPVEditor" runat="server" Visible="false">
@@ -56,7 +56,7 @@
             <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control" ReadOnly="false" placeholder="Pilih NIK SPV" />
             <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-outline-primary">Search</asp:LinkButton>
           </div>
-          <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" />
+          
         </div>
         <div class="col-md-3 d-flex gap-2">
           <asp:Button ID="btnSaveSPV" runat="server" Text="Save Mapping" CssClass="btn btn-primary" OnClick="btnSaveSPV_Click" />
@@ -65,15 +65,15 @@
         </div>
       </asp:Panel>
       <hr />
-      <asp:GridView ID="gvSPV" runat="server" AutoGenerateColumns="false" CssClass="table table-sm table-hover align-middle" EmptyDataText="Belum ada mapping SPV." OnRowCommand="gvSPV_RowCommand">
+      <asp:GridView ID="gvSPV" runat="server" AutoGenerateColumns="false" CssClass="table table-sm table-hover align-middle" EmptyDataText="" OnRowCommand="gvSPV_RowCommand">
         <Columns>
           <asp:BoundField DataField="SectionID" HeaderText="Section" />
           <asp:BoundField DataField="EmployeeID" HeaderText="NIK SPV" />
           <asp:BoundField DataField="EmployeeName" HeaderText="Nama SPV" />
           <asp:TemplateField HeaderText="Action">
             <ItemTemplate>
-              <asp:LinkButton runat="server" CommandName="EditMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-primary" CausesValidation="false">Edit </asp:LinkButton>
-              <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-danger" CausesValidation="false" OnClientClick="return confirm('Hapus mapping ini?');">Delete </asp:LinkButton>
+              <asp:LinkButton runat="server" CommandName="EditMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm CUS-btn-outline-PColor-1" CausesValidation="false">Edit </asp:LinkButton>
+              <asp:LinkButton runat="server" CommandName="DeleteMapping" CommandArgument='<%# Eval("SectionID") %>' CssClass="btn btn-sm btn-outline-secondary" CausesValidation="false" OnClientClick="return confirm('Hapus mapping ini?');">Delete </asp:LinkButton>
             </ItemTemplate>
           </asp:TemplateField>
         </Columns>
