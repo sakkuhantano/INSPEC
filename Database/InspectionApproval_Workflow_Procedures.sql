@@ -23,9 +23,10 @@ BEGIN
          @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT,@LastActionCode VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
-        @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
+        @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApprovedFinal,0)=0
+   AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for SPV workflow.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
@@ -98,8 +99,6 @@ BEGIN
    
   END;
   IF @TranCount=0 COMMIT TRANSACTION;
-  /* EQueryP consumes a tabular result; return an explicit success row. */
-  SELECT @p_InspectionID AS InspectionID, CAST(1 AS BIT) AS WorkflowSubmitted;
  END TRY
  BEGIN CATCH
   IF XACT_STATE()=1 BEGIN IF @TranCount=0 ROLLBACK TRANSACTION; ELSE ROLLBACK TRANSACTION InspectionWorkflowSubmitSave; END
