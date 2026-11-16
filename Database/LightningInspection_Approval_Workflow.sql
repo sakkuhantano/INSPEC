@@ -40,7 +40,7 @@ BEGIN
     DECLARE @V_ChiefEngID VARCHAR(4000), @V_ChiefSecID VARCHAR(4000);
     DECLARE @V_ChiefEngSectionID VARCHAR(10),@V_ChiefSecSectionID VARCHAR(10);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
-    DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200);
+    DECLARE @V_TechnicianEmail VARCHAR(320), @V_TechnicianName VARCHAR(200), @V_ActorName VARCHAR(200);
     DECLARE @V_ChiefEngEmail VARCHAR(4000), @V_ChiefEngName VARCHAR(4000);
     DECLARE @V_ChiefSecEmail VARCHAR(4000), @V_ChiefSecName VARCHAR(4000);
     DECLARE @V_ExistingStatus VARCHAR(30), @V_Action VARCHAR(20);
