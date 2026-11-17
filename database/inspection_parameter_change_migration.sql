@@ -219,7 +219,7 @@ BEGIN
             END;
         END;
     END
-
+    ELSE
     BEGIN
         SET @p_FollowUpSection = '';
         SET @p_FollowUpRemark = '';
@@ -438,7 +438,7 @@ BEGIN
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
-
+        ELSE
         BEGIN
             DECLARE @V_InspectionNo VARCHAR(10);
             DECLARE @V_AutoNum VARCHAR(30);
