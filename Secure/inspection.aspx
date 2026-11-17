@@ -183,6 +183,10 @@
     .inspection-map-pdf-message.d-none{display:none}
     .inspection-point-list{min-height:320px;max-height:65vh;overflow:auto}
     .inspection-point-navigator-list{max-height:min(62vh,560px);overflow-y:auto;overscroll-behavior:contain}
+    .inspection-point-list-row.selected{border-color:var(--bs-primary);box-shadow:0 0 0 .15rem rgba(var(--bs-primary-rgb),.14)}
+    .inspection-map-svg-path.selected{stroke:#0d6efd!important;stroke-width:3!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.55))}
+    @media(max-width:575.98px){#btnInspectionPointNavigator .inspection-point-navigator-button-label{display:none}}
+
     .inspection-point-navigator-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .7rem;border:1px solid var(--bs-border-color);border-radius:.65rem;background:var(--bs-body-bg)}
     .inspection-point-navigator-row+.inspection-point-navigator-row{margin-top:.4rem}
     .inspection-point-navigator-main{min-width:0;flex:1 1 auto}
@@ -1495,7 +1499,7 @@
             </div>
             <div class="inspection-map-actions">
 
-                <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i>Navigator</button>
+                <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
