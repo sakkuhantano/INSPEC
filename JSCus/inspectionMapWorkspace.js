@@ -1108,10 +1108,16 @@
         var setup = record.BatchMapSetup || {};
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
         if (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING") {
-            if (!currentScheduleTime || !Array.isArray(record.Schedules) ||
-                !record.Schedules.some(function (item) { return String(item.ScheduleTime || item) === currentScheduleTime; }))
-                currentScheduleTime = String(record.ActiveScheduleTime || (record.Schedules && record.Schedules.length
-                    ? (record.Schedules[0].ScheduleTime || record.Schedules[0]) : ""));
+            var recordActiveSchedule = String(record.ActiveScheduleTime || "");
+            var scheduleExists = function (value) {
+                return Array.isArray(record.Schedules) &&
+                    record.Schedules.some(function (item) { return String(item.ScheduleTime || item) === value; });
+            };
+            if (recordActiveSchedule && scheduleExists(recordActiveSchedule))
+                currentScheduleTime = recordActiveSchedule;
+            else if (!currentScheduleTime || !scheduleExists(currentScheduleTime))
+                currentScheduleTime = String(record.Schedules && record.Schedules.length
+                    ? (record.Schedules[0].ScheduleTime || record.Schedules[0]) : "");
             if (typeof window.setInspectionActiveScheduleTime === "function")
                 window.setInspectionActiveScheduleTime(currentScheduleTime);
         } else currentScheduleTime = "";
