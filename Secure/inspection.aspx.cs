@@ -941,7 +941,6 @@ WHERE InspectionID=@InspectionID",
                         }
 
                     }
-                }
                 catch (Exception ex)
                 {
                     WriteInspectionSyncError(syncStage, clientId, userId, ex);
