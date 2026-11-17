@@ -3941,6 +3941,27 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
     WHERE DeliveryStatus IN ('PENDING','FAILED')
       AND NextAttemptDate<=GETDATE()
       AND AttemptCount<5
+      /* Fail closed: never dispatch queued mail unless the matching
+         inspection email switch is explicitly enabled for its scope. */
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.PIP_T_Inspection I
+          JOIN dbo.SysWebCommonValue C
+            ON C.AppID='INSPEC'
+           AND C.CommonGroup='EmailApproval'
+           AND C.IsDelete=0
+           AND C.Description='1'
+           AND
+           (
+               (PIP_T_InspectionEmailOutbox.EntityType='LIGHTNING'
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+               OR
+               (PIP_T_InspectionEmailOutbox.EntityType='INSPECTION'
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
+           )
+          WHERE I.InspectionID=PIP_T_InspectionEmailOutbox.EntityID
+      )
     ORDER BY EmailOutboxID
 )
 UPDATE EmailQueue
@@ -4001,7 +4022,29 @@ WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
                     }
                 }
 
-                DataTable pending = br.EQuery("SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox WHERE DeliveryStatus IN ('PENDING','FAILED','SENDING')");
+                DataTable pending = br.EQuery(@"
+SELECT COUNT(1) PendingCount
+FROM dbo.PIP_T_InspectionEmailOutbox O
+WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
+  AND EXISTS
+  (
+      SELECT 1
+      FROM dbo.PIP_T_Inspection I
+      JOIN dbo.SysWebCommonValue C
+        ON C.AppID='INSPEC'
+       AND C.CommonGroup='EmailApproval'
+       AND C.IsDelete=0
+       AND C.Description='1'
+       AND
+       (
+           (O.EntityType='LIGHTNING'
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+           OR
+           (O.EntityType='INSPECTION'
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
+       )
+      WHERE I.InspectionID=O.EntityID
+  )");
                 return new
                 {
                     attempted = queue.Rows.Count,
