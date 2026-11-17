@@ -233,7 +233,7 @@ BEGIN
     	SELECT 1 Result FROM SysWebUserCompanyLocation AS swucl
     	WHERE swucl.UserID=@p_UpdateUser AND swucl.AppID='inspecfo' AND swucl.CompanyID=@p_CompanyID AND swucl.LocationID=@p_LocationID
         UNION ALL
-        SELECT 1 Result FROM SysWebUserGroup AS swug
+        SELECT 1 Result FROM SysWebUserUserGroup AS swug
         WHERE swug.UserID=@p_UpdateUser AND swug.UserGroupID='administrator'
     )
     BEGIN
