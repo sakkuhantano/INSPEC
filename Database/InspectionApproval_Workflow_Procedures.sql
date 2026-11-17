@@ -20,7 +20,7 @@ BEGIN
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
          @EmailEnabled BIT,@SPV VARCHAR(4000),@SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),
           @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
-         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@TranCount INT,@LastActionCode VARCHAR(20);
+         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
@@ -103,10 +103,8 @@ BEGIN
  WHERE EntityType='INSPECTION' AND EntityID=@p_InspectionID
  ORDER BY ApprovalEventID DESC;
  SET @Action=CASE WHEN @LastActionCode='VOIDED' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
- SET @TranCount=@@TRANCOUNT;
  BEGIN TRY
-  IF @TranCount=0 BEGIN TRANSACTION; ELSE SAVE TRANSACTION InspectionWorkflowSubmitSave;
-  UPDATE dbo.PIP_T_Inspection
+UPDATE dbo.PIP_T_Inspection
   SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
       IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
       ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
@@ -150,19 +148,9 @@ BEGIN
     N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.',
     'PENDING',0,GETDATE());
   END;
-  IF @TranCount=0 COMMIT TRANSACTION;
- END TRY
+  END TRY
  BEGIN CATCH
-  IF XACT_STATE()=-1 AND @TranCount=0
-  BEGIN
-   ROLLBACK TRANSACTION;
-  END
-  ELSE IF XACT_STATE()=1
-  BEGIN
-   IF @TranCount=0 ROLLBACK TRANSACTION;
-   ELSE ROLLBACK TRANSACTION InspectionWorkflowSubmitSave;
-  END
-  DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
+DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
   SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
   RAISERROR(@Err,@Sev,@State);
  END CATCH
