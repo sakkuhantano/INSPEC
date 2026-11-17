@@ -282,9 +282,21 @@
     .inspection-form-header { padding-left: .55rem; }
 
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
-    /* Keep the approval detail header aligned with the list header and directly below the compact master header. */
-    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 48px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
+    /* Approval detail header stays fixed below the compact master header.
+       The spacer is applied to the detail tab-content so mobile layout is preserved. */
+    #inspectionApprovalStickyHeader {
+        position: fixed !important;
+        top: 48px !important;
+        left: .5rem !important;
+        right: .5rem !important;
+        z-index: 1080 !important;
+        background: var(--bs-body-bg);
+        padding: .35rem 0 .4rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        margin-bottom: 0 !important;
+    }
     #inspectionApprovalDetailPanel { border-top: 0 !important; padding-top: 0 !important; }
+    #inspectionApprovalDetailPanel > .tab-content { padding-top: 128px; }
     .inspection-section-nav-host { width: 100%; }
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
@@ -310,7 +322,12 @@
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
         #inspectionEditorStickyHeader { top: 58px !important; }
-        #inspectionApprovalStickyHeader { top: 44px !important; }
+        #inspectionApprovalStickyHeader {
+            top: 44px !important;
+            left: .5rem !important;
+            right: .5rem !important;
+        }
+        #inspectionApprovalDetailPanel > .tab-content { padding-top: 126px; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
