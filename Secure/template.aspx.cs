@@ -1535,7 +1535,9 @@ BEGIN
   JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val
   WHERE (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+E.CompanyID+E.LocationID+';%')
   FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
- FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
+ FROM dbo.PIP_M_CheckListWOPM T
+ WHERE T.IDTemplate=@IDTemplate
+   AND ISNULL(T.EmployeeList,'')<>';';
 END;
 COMMIT TRANSACTION;",
                     "@TemplateType=" + templateType + GF.Str2 +
