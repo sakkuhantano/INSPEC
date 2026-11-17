@@ -1323,6 +1323,7 @@ BEGIN
     BEGIN RAISERROR('A BATCH REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
 
     BEGIN TRY
+        -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
 
         DECLARE @V_InspectionNo VARCHAR(10);
         SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))), '');
@@ -1926,6 +1927,7 @@ BEGIN
     END;
 
     BEGIN TRY
+        -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
 
         /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
            ClientInspectionID is excluded so syncing an existing offline record remains an update. */
