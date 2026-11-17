@@ -359,7 +359,7 @@ WHERE SU.EmployeeID=@UserID
                         .Select(x => x.Trim());
                     if (!employeeSections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                         throw new HttpException(403, "Inspection section is not assigned to the logged-in employee.");
-                    string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 50);
+                    string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 10);
                     string inspectionTypeDetailCode = Limit(TokenString(record, "InspectionTypeDetailCode"), 20);
                     DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                     string inspectionNo = "";
@@ -1356,7 +1356,7 @@ new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
                         new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
-                        new SqlParameter("@InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 2)),
+                        new SqlParameter("@InspectionTypeCode", Limit(TokenString(record, "InspectionTypeCode"), 10)),
                         new SqlParameter("@InspectionTypeDetailCode", Limit(TokenString(record, "InspectionTypeDetailCode"), 20)),
                         new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                         new SqlParameter("@InspectionDate", ParseDate(TokenString(record, "InspectionDate"), DateTime.Today)),
