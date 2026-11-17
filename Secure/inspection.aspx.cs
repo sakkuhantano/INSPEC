@@ -3911,6 +3911,29 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
 
         private static object DispatchInspectionEmailOutbox(int batchSize, string senderEmployeeId, string companyId)
         {
+            /* Email is an optional feature. If no explicit scope switch is enabled,
+               do not inspect sender details, touch old outbox rows, or report a send failure. */
+            bool emailConfigured = false;
+            using (var configBr = new WAL.BR.CF())
+            {
+                DataTable emailConfig = configBr.EQueryP(@"
+SELECT TOP 1 1 AS IsEnabled
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.SysWebCommonValue C
+  ON C.AppID='INSPEC'
+ AND C.CommonGroup='EmailApproval'
+ AND C.IsDelete=0
+ AND C.Description='1'
+ AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)
+          +';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
+WHERE I.CompanyID=@C",
+                    new SqlParameter[] { new SqlParameter("@C", companyId ?? "") });
+                emailConfigured = emailConfig != null && emailConfig.Rows.Count > 0;
+            }
+
+            if (!emailConfigured)
+                return new { attempted = 0, sent = 0, failed = 0, pending = 0, configured = false };
+
             string fromAddress = "";
             string fromName = "";
             using (var senderBr = new WAL.BR.CF())
