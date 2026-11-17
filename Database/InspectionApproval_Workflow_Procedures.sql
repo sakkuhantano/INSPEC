@@ -104,7 +104,8 @@ BEGIN
  ORDER BY ApprovalEventID DESC;
  SET @Action=CASE WHEN @LastActionCode='VOIDED' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
  BEGIN TRY
-UPDATE dbo.PIP_T_Inspection
+  -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
+  UPDATE dbo.PIP_T_Inspection
   SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
       IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
       ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
@@ -150,7 +151,7 @@ UPDATE dbo.PIP_T_Inspection
   END;
   END TRY
  BEGIN CATCH
-DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
+  DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
   SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
   RAISERROR(@Err,@Sev,@State);
  END CATCH
