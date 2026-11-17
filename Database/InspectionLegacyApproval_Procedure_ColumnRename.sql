@@ -23,6 +23,9 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    DECLARE @V_TranCount INT;
+    SET @V_TranCount=@@TRANCOUNT;
+
     SET @p_Action = UPPER(LTRIM(RTRIM(ISNULL(@p_Action, ''))));
     IF @p_Action NOT IN ('APPROVE', 'VOID')
     BEGIN
@@ -41,7 +44,10 @@ BEGIN
     END;
 
     BEGIN TRY
-        BEGIN TRANSACTION;
+        IF @V_TranCount=0
+            BEGIN TRANSACTION;
+        ELSE
+            SAVE TRANSACTION InspectionLegacyApprovalSave;
 
         DECLARE @V_SectionID VARCHAR(10);
         DECLARE @V_Status VARCHAR(10);
@@ -232,12 +238,19 @@ BEGIN
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
         END;
 
-        COMMIT TRANSACTION;
+        IF @V_TranCount=0
+            COMMIT TRANSACTION;
         SELECT @p_InspectionID AS InspectionID, @p_Action AS Action,
                (SELECT FollowUpWONo FROM dbo.PIP_T_Inspection WHERE InspectionID=@p_InspectionID) AS FollowUpWONo;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        IF XACT_STATE()=-1 AND @V_TranCount=0
+            ROLLBACK TRANSACTION;
+        ELSE IF XACT_STATE()=1
+        BEGIN
+            IF @V_TranCount=0 ROLLBACK TRANSACTION;
+            ELSE ROLLBACK TRANSACTION InspectionLegacyApprovalSave;
+        END;
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
         DECLARE @V_ErrorState INT;
