@@ -95,28 +95,28 @@ namespace INSPEC.Secure
                 txtChiefEng.ClientID,
                 false,
                 c + ";PENG" + GF.Str + ";" + GF.Str 
-            );
+            ) + ";return false;";
             txtChiefEng.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
                 "330",
                 "Chief Engineering",
                 txtChiefEng.ClientID,
                 true,
                 c + ";PENG" + GF.Str + ";" + GF.Str 
-            );
+            ) + ";return false;";
             lBtnChiefSec.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "330",
                 "Chief Security",
                 txtChiefSec.ClientID,
                 false,
                 c + ";PSEC" + GF.Str + ";" + GF.Str 
-            );
+            ) + ";return false;";
             txtChiefSec.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
                 "330",
                 "Chief Security",
                 txtChiefSec.ClientID,
                 true,
                 c + ";PSEC" + GF.Str + ";" + GF.Str 
-            );
+            ) + ";return false;";
             lBtnSPV.Enabled = !String.IsNullOrWhiteSpace(ddlSection.SelectedValue);
             lBtnSPV.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "330",
@@ -124,14 +124,14 @@ namespace INSPEC.Secure
                 txtSPV.ClientID,
                 false,
                 c + ";" + GF.Str + ";" + ddlSection.ClientID
-            );
+            ) + ";return false;";
             txtSPV.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
                 "330",
                 "SPV per Section",
                 txtSPV.ClientID,
                 true,
                 c + ";" + GF.Str + ";" + ddlSection.ClientID
-            );
+            ) + ";return false;";
         }
         private void BindSections()
         {
