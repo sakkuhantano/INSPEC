@@ -3163,7 +3163,8 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     return true;
 };
 
-async function saveBatchInspectionPoint(status, options) {\n    options = options || {};
+async function saveBatchInspectionPoint(status, options) {
+    options = options || {};
     const record = currentInspectionRecord;
     const point = getActiveInspectionPoint();
     if (!record || !point) { showToast("Pilih Inspection Point terlebih dahulu.", "warning"); return; }
