@@ -1501,7 +1501,12 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         startTime + " - " + endTime
     ]);
     const summaryInput = document.getElementById("txtInspectionSummary");
-    if (summaryInput) summaryInput.value = record.Summary || "";
+    if (summaryInput) {
+        // This shared field may still carry readOnly=true from the server-submitted detail view.
+        // Reset it for the technician form; currentInspectionReadOnly controls actual access.
+        summaryInput.readOnly = false;
+        summaryInput.value = record.Summary || "";
+    }
     const followUpValue = record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up";
     const existingFollowUpWONo = String(record.FollowUpWONo || "").trim();
     let followUpWONoPanel = document.getElementById("inspectionFollowUpWONoPanel");
@@ -1541,7 +1546,9 @@ async function renderInspectionForm(record, readOnly, initialTab) {
             scheduleInspectionAutosave();
         }));
     }
-    document.getElementById("txtInspectionFollowUpRemark").value = record.FollowUpRemark || "";
+    const followUpRemarkInput = document.getElementById("txtInspectionFollowUpRemark");
+    followUpRemarkInput.readOnly = false;
+    followUpRemarkInput.value = record.FollowUpRemark || "";
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => input.disabled = currentInspectionReadOnly);
     followUpSection.disabled = currentInspectionReadOnly;
     document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly;
