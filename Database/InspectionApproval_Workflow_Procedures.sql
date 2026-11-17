@@ -206,8 +206,12 @@ BEGIN
  /* Administrator group may approve any Standard/Batch section; workflow state and company/location checks remain enforced by the caller and this procedure. */
  IF NOT EXISTS
  (
-  SELECT 1 FROM dbo.SysWebUserUserGroup
-  WHERE UserID=@p_ActorEmployeeID AND UserGroupID='administrator'
+  SELECT 1
+  FROM dbo.SysWebUser SU
+  JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+  WHERE SU.EmployeeID=@p_ActorEmployeeID
+    AND SU.IsActive=1
+    AND UG.UserGroupID='administrator'
  )
  AND NOT EXISTS
  (
