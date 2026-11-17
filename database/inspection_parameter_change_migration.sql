@@ -252,7 +252,7 @@ BEGIN
     	AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(a.SectionList,';') b 
     	            WHERE b.val=@p_SectionID)
         UNION ALL
-        SELECT 1 FROM SysWebUserGroup AS swug
+        SELECT 1 FROM SysWebUserUserGroup AS swug
         WHERE swug.UserID=@p_UpdateUser AND swug.UserGroupID='administrator'
     )
     BEGIN
