@@ -6330,18 +6330,22 @@ async function refreshInspectionDetailDropdown(template) {
     if (!host || !template) return;
     const typeCode = template.InspectionTypeCode || "";
     const selectAll = document.getElementById("btnSelectAllInspectionDetails");
+    const unselectAll = document.getElementById("btnUnselectAllInspectionDetails");
     const search = document.getElementById("txtInspectionDetailSearch");
     if (!typeCode) {
         host.innerHTML = '<div class="small text-muted">Pilih Inspection Type terlebih dahulu.</div>';
         if (selectAll) selectAll.disabled = true;
+        if (unselectAll) unselectAll.disabled = true;
         return;
     }
     if (selectAll) selectAll.disabled = false;
+    if (unselectAll) unselectAll.disabled = false;
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
         const details = JSON.parse(raw || "[]");
         renderTemplateInspectionDetailTags(template, details);
         if (selectAll) selectAll.disabled = !details.length;
+        if (unselectAll) unselectAll.disabled = !details.length;
         if (search) {
             search.oninput = function() {
                 renderTemplateInspectionDetailTags(template, details);
@@ -6350,6 +6354,13 @@ async function refreshInspectionDetailDropdown(template) {
         if (selectAll) {
             selectAll.onclick = function() {
                 template.InspectionTypeDetailCode = details.map(x => String(x.InspectionTypeDetailCode)).join(";");
+                markTemplateMetadataDirty(template);
+                refreshInspectionDetailDropdown(template);
+            };
+        }
+        if (unselectAll) {
+            unselectAll.onclick = function() {
+                template.InspectionTypeDetailCode = "";
                 markTemplateMetadataDirty(template);
                 refreshInspectionDetailDropdown(template);
             };
@@ -6509,6 +6520,7 @@ async function appendTemplateMetadataControls(template)
                     '<div class="d-flex flex-wrap gap-2 align-items-center mb-2">' +
                         '<input type="search" id="txtInspectionDetailSearch" class="form-control form-control-sm" placeholder="Search detail code / name..." style="flex:1 1 180px;min-width:0;" />' +
                         '<button type="button" id="btnSelectAllInspectionDetails" class="btn btn-sm btn-outline-primary text-nowrap py-1 px-2">Select All</button>' +
+                        '<button type="button" id="btnUnselectAllInspectionDetails" class="btn btn-sm btn-outline-secondary text-nowrap py-1 px-2">Unselect All</button>' +
                     '</div>' +
                     '<div id="propInspectionDetailList" class="border rounded p-2" style="max-height:260px;overflow-y:auto;min-width:0;"></div>' +
                     '<div class="form-text">Centang detail code yang diperbolehkan. Hilangkan centang untuk menghapus. Tidak ada yang dicentang = semua detail diperbolehkan.</div>' +
@@ -6757,7 +6769,7 @@ async function renderTemplateEmployeeAssignments(template)
         const unselectAll = document.createElement('button');
         unselectAll.type = 'button';
         unselectAll.className = 'btn btn-sm btn-outline-danger text-nowrap';
-        unselectAll.textContent = 'Unselect All';
+        unselectAll.textContent = 'Remove All';
         const removeSelected = document.createElement('button');
         removeSelected.type = 'button';
         removeSelected.className = 'btn btn-sm btn-outline-danger text-nowrap';
@@ -6907,7 +6919,7 @@ async function renderTemplateEmployeeAssignments(template)
             }
         }
         unselectAll.addEventListener('click', function() {
-            removeEmployeeAssignments(employeeRows, 'Unselect All Employees',
+            removeEmployeeAssignments(employeeRows, 'Remove All Employees',
                 'Hapus assignment seluruh employee yang saat ini ter-assign?');
         });
         removeSelected.addEventListener('click', function() {
