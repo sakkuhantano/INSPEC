@@ -16,6 +16,20 @@ namespace INSPEC.Secure
 {
     public partial class inspection : System.Web.UI.Page
     {
+        private static bool IsInspectionAdministrator(string employeeId)
+        {
+            if (String.IsNullOrWhiteSpace(employeeId)) return false;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable admin = br.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.SysWebUserUserGroup
+WHERE UserID=@UserID AND UserGroupID='administrator'",
+                    new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
+                return admin != null && admin.Rows.Count > 0;
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             // Handle report downloads first. Download URLs use ?download=TOKEN.
@@ -35,7 +49,11 @@ namespace INSPEC.Secure
             if (mode == "entry")
                 GFC.RequireMenuEmployee("20021");
             else if (mode == "approval")
-                GFC.RequireMenuEmployee("20022");
+            {
+                string currentEmployee = GFC.CurrentEmployeeID();
+                if (!IsInspectionAdministrator(currentEmployee))
+                    GFC.RequireMenuEmployee("20022");
+            }
             else
                 throw new HttpException(400, "Invalid Inspection mode.");
         }
@@ -1710,7 +1728,9 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId)
         {
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
             catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
@@ -1770,6 +1790,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
                  FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
                  WHERE AM.MenuID='20022'
              )
+             OR @IsAdministrator=1
              OR (
                  EXISTS (
                      SELECT 1
@@ -1779,12 +1800,12 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
                  AND I.OwnerEmployeeID=SU.EmployeeID
              )
         )
-        AND EXISTS (
+        AND (@IsAdministrator=1 OR EXISTS (
             SELECT 1 FROM dbo.SysWebCommonValue C
             WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
               AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-        )
+        ))
         AND (ISNULL(I.IsSubmitted,0)=1 OR (I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>''))
         AND (
             EXISTS (
@@ -1806,6 +1827,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
 
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                 new SqlParameter("@CompanyID", companyId),
                 new SqlParameter("@LocationID", locationId),
@@ -1849,6 +1871,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
@@ -1874,7 +1897,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
         [WebMethod]
         public static object GetInspectionDashboardSummary(string employeeId, string companyId, string locationId)
         {
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
@@ -1938,17 +1963,22 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                           WHERE SU.EmployeeID = @EmployeeID
                             AND SU.IsActive = 1
 
-                            AND EXISTS
-                            (
-                                SELECT 1
-                                FROM dbo.F_SelectALLMenuAuthorization(
-                                    'inspecfo', @EmployeeID, ''
-                                ) AM
-                                WHERE AM.MenuID = '20022'
+                            AND (
+                                @IsAdministrator=1
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.F_SelectALLMenuAuthorization(
+                                        'inspecfo', @EmployeeID, ''
+                                    ) AM
+                                    WHERE AM.MenuID = '20022'
+                                )
                             )
 
                             AND
                             (
+                                @IsAdministrator=1
+                                OR (
                                 EXISTS
                                 (
                                     SELECT 1
@@ -1988,7 +2018,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           CONVERT(VARCHAR(30), I.LocationID) +
                                           ';CHIEF_SEC'
                                 )
-                            )
+                            ))
 
                             AND
                             (
@@ -2018,6 +2048,12 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     SELECT
                         I.*,
                         CASE
+                            WHEN @IsAdministrator=1
+                                 AND ISNULL(I.IsSubmitted,0)=1
+                                 AND ((I.InspectionMode<>'LIGHTNING' AND ISNULL(I.IsApproved,0)=0)
+                                      OR (I.InspectionMode='LIGHTNING' AND ISNULL(I.IsApproved2,0)=0))
+                            THEN 1
+
                             WHEN I.InspectionMode = 'LIGHTNING'
                                  AND ISNULL(I.IsSubmitted, 0) = 1
                                  AND ISNULL(I.IsApproved, 0) = 0
@@ -2107,6 +2143,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                 new SqlParameter[]
                 {
                     new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@SectionList",
                         GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
