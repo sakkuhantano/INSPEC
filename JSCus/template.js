@@ -511,7 +511,7 @@ async function onTemplateClick(event,idTemplate, sectionId)
     }
     catch(ex)
     {
-        if (versionsRequestId !== templateVersionsLoadRequestId)
+        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
             return;
         console.error(ex);
 
