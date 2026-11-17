@@ -1781,7 +1781,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
         AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
        OR
        (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
-  ))
+  )
   AND EXISTS (
       SELECT 1
       FROM dbo.SysWebUser SU
