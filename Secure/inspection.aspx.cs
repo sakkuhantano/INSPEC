@@ -2230,7 +2230,9 @@ ORDER BY P.SeqNo",
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId)
         {
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
             catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
@@ -2250,6 +2252,7 @@ ORDER BY P.SeqNo",
             {
                 SqlParameter[] parameters = new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
                     new SqlParameter("@ApprovalTab", approvalTab),
@@ -2269,12 +2272,14 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND ISNULL(I.IsActive,1)=1
   AND (
       (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
-       AND ((ISNULL(I.IsApproved,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+       AND ((@IsAdministrator=1 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+         OR (ISNULL(I.IsApproved,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
          OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
          OR (ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))))
       OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1
        AND (
-            (ISNULL(I.IsApproved,0)=1
+            @IsAdministrator=1
+            OR (ISNULL(I.IsApproved,0)=1
              AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
          OR (ISNULL(I.IsApproved1,0)=1
              AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
@@ -2284,7 +2289,7 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
       OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
        AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
          OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
-         OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))))
+         OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) OR @IsAdministrator=1)
   )
   AND (@ApprovalTab='OUTSTANDING' OR
        (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
