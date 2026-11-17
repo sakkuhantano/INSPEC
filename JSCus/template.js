@@ -1849,26 +1849,16 @@ function renderTemplates(data, container, sectionId)
 }
 function canDeleteTemplate(sectionId,idTemplate)
 {
-    const cache =
-        getTemplateCache(
-            sectionId,
-            idTemplate
-        );
-
-    const versions =
-        Object.values(
-            cache.Versions
-        );
-
-    if(versions.length==0)
-        return false;
-
-    return versions.every(
-        x =>
-            x.VersionInfo.Status
-            ==
-            "Draft"
-    );
+    const cache = getTemplateCache(sectionId, idTemplate);
+    return !!(cache && cache.Template &&
+        Number(cache.Template.IDTemplate) > 0 &&
+        cache.Template.CanDeleted === true);
+}
+function canPublishTemplate(sectionId,idTemplate)
+{
+    const cache = getTemplateCache(sectionId,idTemplate);
+    const versions = cache ? Object.values(cache.Versions || {}) : [];
+    return versions.length > 0 && versions.every(x => x.VersionInfo.Status === "Draft");
 }
 function showTemplateMenu(event,sectionId,idTemplate)
 {
@@ -1898,7 +1888,7 @@ function showTemplateMenu(event,sectionId,idTemplate)
 
         </div>-->
         ${
-            canDeleteTemplate(sectionId,idTemplate)
+            canPublishTemplate(sectionId,idTemplate)
             ?
                 `
                 <div
@@ -1985,116 +1975,43 @@ function showTemplateMenu(event,sectionId,idTemplate)
 async function deleteTemplate(sectionId,idTemplate)
 {
     hideContextMenu();
-    const ok =
-        await showConfirmation(
-        {
-            title:
-                "Delete Template",
-            message:
-                "Delete template ?",
-            yesText:
-                "Delete"
-        });
-    if(!ok)
+    const section = getSectionCache(sectionId);
+    const templateNode = section && section.Templates[idTemplate];
+    if (!templateNode) return;
+    const templateId = Number(templateNode.Template.IDTemplate || 0);
+    if (!templateId) {
+        showToast("Simpan template terlebih dahulu sebelum menonaktifkannya.", "warning");
         return;
-    //--------------------------------
-    // Cache
-    //--------------------------------
-    const section =
-        getSectionCache(
-            sectionId
-        );
-    const templateNode =
-        section.Templates[
-            idTemplate
-        ];
-    if(!templateNode)
-        return;
-    //--------------------------------
-    // Deleted Versions
-    //--------------------------------
-    Object.values(
-        templateNode.Versions
-    )
-    .forEach(
-        x =>
-        {
-            const idVersion =
-                x.VersionInfo
-                .IDVersion;
-            if(idVersion>0)
-            {
-                templateCache.deleted.versions.push(
-                {
-                    IDTemplate:
-                        templateNode.Template.IDTemplate,
-                    IDVersion:
-                        idVersion
-                });                
-            }
+    }
+    const ok = await showConfirmation({
+        title: "Deactivate Template",
+        message: "Template akan dinonaktifkan (IsActive = 0). Proses hanya diizinkan jika tidak ada version berstatus Active.",
+        yesText: "Deactivate"
+    });
+    if (!ok) return;
+    try {
+        showLoading();
+        const result = await promisifyPageMethod(PageMethods.SoftDeleteTemplate, String(templateId));
+        if (!result || !result.success)
+            throw new Error((result && result.message) || "Template gagal dinonaktifkan.");
+        templateNode.Template.IsActive = false;
+        templateNode.Template.CanDeleted = false;
+        if (currentTemplate && Number(currentTemplate.IDTemplate) === templateId) {
+            currentTemplate.IsActive = false;
+            currentTemplate = null;
+            currentVersions = [];
+            currentVersion = null;
+            currentVersionData = null;
+            clearBuilderPanel();
+            clearPropertiesPanel();
         }
-    );
-    //--------------------------------
-    // Deleted Template
-    //--------------------------------
-    if(templateNode.Template.IDTemplate>0)
-    {
-        templateCache.deleted.templates.push(
-        {
-            IDTemplate:
-                templateNode.Template.IDTemplate
-        });
+        await refreshSavedTemplateSection(sectionId);
+        showToast(result.message || "Template berhasil dinonaktifkan.", "success");
+    } catch (ex) {
+        showToast(ex.message || String(ex), "warning");
+    } finally {
+        hideLoading();
     }
-    //--------------------------------
-    // Remove Cache
-    //--------------------------------
-    delete
-    section.Templates[
-        idTemplate
-    ];
-    //--------------------------------
-    // Remove Explorer
-    //--------------------------------
-    const btn =
-        document.querySelector(
-            '[data-bs-target="#collapseTemplate_' +
-            sectionId +
-            '_' +
-            idTemplate +
-            '"]'
-        );
-    if(btn)
-    {
-        const node =
-            btn.closest(
-                '.accordion-item'
-            );
-        if(node)
-            node.remove();
-    }
-    //--------------------------------
-    // Clear Current
-    //--------------------------------
-    if(
-        currentTemplate &&
-        currentTemplate.RuntimeTemplateID==
-        idTemplate
-    )
-    {
-        currentTemplate=null;
-        currentVersions=[];
-        currentVersion=null;
-        currentVersionData=null;
-        clearBuilderPanel();
-        clearPropertiesPanel();
-    }
-    templateCache.Dirty=true;
-    section.Dirty=true;
-    // evaluateDirtyIcon();
-    evaluateDirtyState();
-    showToast(
-        "Template deleted."
-    );
 }
 function positionContextMenu(menu, event)
 {
@@ -8638,6 +8555,57 @@ function canPublishVersion(versionNode)
 
     return false;
 }
+async function revertVersionToDraft(version)
+{
+    if (!currentTemplate || !version) return;
+    const versionId = Number(version.IDVersion || version.RuntimeVersionID || 0);
+    const templateId = Number(currentTemplate.IDTemplate || 0);
+    if (!templateId || !versionId) return;
+    const ok = await showConfirmation({
+        title: "Return Version to Draft",
+        message: "Version " + (version.Version || "") + " akan dikembalikan ke Draft. Aksi ditolak jika sudah pernah dipakai pada Inspection atau Work Order.",
+        yesText: "Return to Draft"
+    });
+    if (!ok) return;
+    try {
+        showLoading();
+        const result = await promisifyPageMethod(
+            PageMethods.RevertTemplateVersionToDraft,
+            String(templateId),
+            String(versionId)
+        );
+        if (!result || !result.success)
+            throw new Error((result && result.message) || "Version gagal dikembalikan ke Draft.");
+        const node = getVersionCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID, version.RuntimeVersionID);
+        if (node) {
+            node.VersionInfo.Status = "Draft";
+            node.VersionInfo.EffectiveDate = null;
+            if (node.Structure && node.Structure.VersionInfo) {
+                node.Structure.VersionInfo.Status = "Draft";
+                node.Structure.VersionInfo.EffectiveDate = null;
+            }
+        }
+        if (currentVersion && Number(currentVersion.IDVersion) === versionId) {
+            currentVersion.Status = "Draft";
+            currentVersion.EffectiveDate = null;
+            isReadonlyMode = false;
+            if (currentVersionData && currentVersionData.VersionInfo) {
+                currentVersionData.VersionInfo.Status = "Draft";
+                currentVersionData.VersionInfo.EffectiveDate = null;
+            }
+            await showTemplateRootProperties(currentTemplate, currentVersion);
+            renderVersionStructure(currentVersionData);
+        }
+        const tpl = getTemplateCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID);
+        const container = document.querySelector('.template-version-container[data-template-id="' + currentTemplate.RuntimeTemplateID + '"]');
+        if (tpl && container) renderTemplateVersions(Object.values(tpl.Versions), container);
+        showToast(result.message || "Version berhasil dikembalikan ke Draft.", "success");
+    } catch (ex) {
+        showToast(ex.message || String(ex), "warning");
+    } finally {
+        hideLoading();
+    }
+}
 function showVersionContextMenu(e, version)
 {
     e.preventDefault();
@@ -8722,6 +8690,18 @@ function showVersionContextMenu(e, version)
                     )
             });
         }
+    }
+
+    //---------------------------------
+    // ACTIVE / ARCHIVED -> DRAFT
+    //---------------------------------
+
+    if (version.Status === "Active" || version.Status === "Archieved") {
+        items.push({
+            text: "Return to Draft",
+            icon: "bi-arrow-counterclockwise",
+            action: () => revertVersionToDraft(version)
+        });
     }
 
     //---------------------------------
