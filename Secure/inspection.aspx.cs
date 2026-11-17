@@ -2336,7 +2336,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
-ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
+ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters.Select(p => (SqlParameter)((ICloneable)p).Clone()).ToArray());
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
