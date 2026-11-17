@@ -207,7 +207,7 @@ namespace INSPEC.Secure
                 string filter;
                 if (role == "PENG") filter = "ProfitCenterNo='PENG'";
                 else if (role == "PSEC") filter = "ProfitCenterNo='PSEC'";
-                else if (role == "SPV") filter = "SectionID=@S";
+                else if (role == "SPV") filter = "ProfitCenterNo IN (SELECT ProfitCenterNo FROM dbo.PIP_M_Section WHERE SectionID=@S)";
                 else throw new HttpException(400, "Invalid employee role.");
 
                 using (var br = new WAL.BR.CF())
@@ -308,7 +308,7 @@ namespace INSPEC.Secure
         }
         protected void txtSPV_TextChanged(object sender, EventArgs e)
         {
-            try { ValidateEmployeeList(txtSPV, lblSPVName, "SectionID=@S", ddlSection.SelectedValue, true); }
+            try { ValidateEmployeeList(txtSPV, lblSPVName, "ProfitCenterNo IN (SELECT ProfitCenterNo FROM dbo.PIP_M_Section WHERE SectionID=@S)", ddlSection.SelectedValue, true); }
             catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
@@ -388,7 +388,7 @@ namespace INSPEC.Secure
                     using (var br = new WAL.BR.CF())
                     {
                         DataTable d = br.EQueryP(
-                            @"SELECT COUNT(DISTINCT X.val) Cnt FROM dbo.SplitStringConvertToTable(@E,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val AND E.CompanyID=@C AND E.SectionID=@S AND ISNULL(E.TerminationDate,'')=''",
+                            @"SELECT COUNT(DISTINCT X.val) Cnt FROM dbo.SplitStringConvertToTable(@E,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val AND E.CompanyID=@C AND ISNULL(E.TerminationDate,'')='' WHERE EXISTS (SELECT 1 FROM dbo.PIP_M_Section S WHERE S.SectionID=@S AND S.ProfitCenterNo=E.ProfitCenterNo)",
                             new SqlParameter[] {
                                 new SqlParameter("@E", spv),
                                 new SqlParameter("@C", Master.Mn_CompanyID),
@@ -470,7 +470,7 @@ namespace INSPEC.Secure
                     ddlSection.SelectedValue = sec;
                     hidSPVEmployees.Value = GetCommonValue(Scope + ";SPV;" + sec);
                     txtSPV.Text = "";
-                    string spvName = GetEmployeeNames(hidSPVEmployees.Value, "SectionID=@S", sec);
+                    string spvName = GetEmployeeNames(hidSPVEmployees.Value, "ProfitCenterNo IN (SELECT ProfitCenterNo FROM dbo.PIP_M_Section WHERE SectionID=@S)", sec);
                     lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Approver: " + spvName;
                     hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
