@@ -172,7 +172,8 @@ BEGIN
     ORDER BY ApprovalEventID DESC;
     SET @V_Action=CASE WHEN @V_LastActionCode='VOIDED' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
     BEGIN TRY
-UPDATE dbo.PIP_T_Inspection
+        -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
+        UPDATE dbo.PIP_T_Inspection
         SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
             IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
             IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
@@ -223,7 +224,7 @@ UPDATE dbo.PIP_T_Inspection
              N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'. Status: CHECKED.','PENDING',0,GETDATE());
         END;
 
-        END TRY
+    END TRY
     BEGIN CATCH
         DECLARE @V_Error NVARCHAR(4000),@V_Severity INT,@V_State INT;
         SELECT @V_Error=ERROR_MESSAGE(),@V_Severity=ERROR_SEVERITY(),@V_State=ERROR_STATE();
@@ -395,7 +396,8 @@ BEGIN
     END;
 
     BEGIN TRY
-INSERT dbo.PIP_T_InspectionApprovalHistory
+        -- Transaction lifecycle is owned by WAL.BR.CF for this approval call.
+        INSERT dbo.PIP_T_InspectionApprovalHistory
         (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
         VALUES ('LIGHTNING',@p_InspectionID,@V_CompanyID,@V_LocationID,@V_SectionID,
                 @V_Stage,CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
