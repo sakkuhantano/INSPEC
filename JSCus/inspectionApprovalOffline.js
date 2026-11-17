@@ -15,6 +15,26 @@
     const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
     let approvalSyncInProgress = false;
 
+    function syncApprovalStickyHeaderSpace() {
+        const header = document.getElementById("inspectionApprovalStickyHeader");
+        const panel = document.getElementById("inspectionApprovalDetailPanel");
+        if (!header || !panel) return;
+
+        const update = function () {
+            panel.style.setProperty("--inspection-approval-header-space", Math.ceil(header.getBoundingClientRect().height) + "px");
+        };
+
+        update();
+        if (typeof ResizeObserver !== "undefined") {
+            if (header.__inspectionApprovalResizeObserver) {
+                header.__inspectionApprovalResizeObserver.disconnect();
+            }
+            const observer = new ResizeObserver(update);
+            observer.observe(header);
+            header.__inspectionApprovalResizeObserver = observer;
+        }
+    }
+
     function scope() {
         return {
             EmployeeID: String(inspectionLogin && inspectionLogin.employeeid || ""),
@@ -427,6 +447,12 @@
             tx.objectStore(CACHE_STORE).delete(row.CacheKey);
             await new Promise(resolve => { tx.oncomplete = resolve; tx.onerror = resolve; tx.onabort = resolve; });
         }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", syncApprovalStickyHeaderSpace);
+    } else {
+        syncApprovalStickyHeaderSpace();
     }
 
     window.addEventListener("online", async function () {
