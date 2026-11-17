@@ -1842,7 +1842,7 @@ ELSE IF EXISTS (
     FROM dbo.PIP_T_WO W
     WHERE W.TemplateWOPM=@TemplateNo
       AND W.TemplateVersion=@TemplateVersion
-      AND ISNULL(W.IsDelete,0)=0
+
 )
     SELECT 'WORK ORDER' UsedIn;",
                     new SqlParameter[] {
