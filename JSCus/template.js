@@ -34,6 +34,7 @@ let isReadonlyMode = false;
 
 // Prevent slower, earlier version loads from overwriting a more recent selection.
 let versionStructureLoadRequestId = 0;
+let templateVersionsLoadRequestId = 0;
 
 // Undo/Redo is an in-memory history for edits that have not been committed by Save All.
 let templateUndoStack = [];
@@ -310,6 +311,7 @@ document.addEventListener('click', function () {
 async function onTemplateClick(event,idTemplate, sectionId)
 {
     event?.stopPropagation();
+    const versionsRequestId = ++templateVersionsLoadRequestId;
 
     if(!sectionId) {
         console.error(
@@ -387,6 +389,8 @@ async function onTemplateClick(event,idTemplate, sectionId)
                 currentTemplate,
                 currentVersion
             );
+        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
+            return;
 
         renderTemplateVersions(
             currentVersions,
@@ -421,6 +425,8 @@ async function onTemplateClick(event,idTemplate, sectionId)
                 idTemplate
             );
 
+        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
+            return;
         const data =
             JSON.parse(
                 result || "[]"
@@ -487,6 +493,8 @@ async function onTemplateClick(event,idTemplate, sectionId)
                 currentTemplate,
                 null
             );
+        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
+            return;
 
         currentVersions.sort(
             (a,b)=>
@@ -503,6 +511,8 @@ async function onTemplateClick(event,idTemplate, sectionId)
     }
     catch(ex)
     {
+        if (versionsRequestId !== templateVersionsLoadRequestId)
+            return;
         console.error(ex);
 
         container.innerHTML =
@@ -3197,6 +3207,7 @@ function showVersionProperties(version, isNewTemplate)
 
 async function loadTemplateVersions(idTemplate)
 {
+    const versionsRequestId = ++templateVersionsLoadRequestId;
     // const ok = await confirmDiscardChanges();
 
     // if (!ok)
@@ -3241,6 +3252,9 @@ async function loadTemplateVersions(idTemplate)
         // selectedDocument.Item = null;
             
         await showTemplateRootProperties(currentTemplate.Template, null);
+        if (versionsRequestId !== templateVersionsLoadRequestId ||
+            !currentTemplate || String(currentTemplate.Template.RuntimeTemplateID) !== String(idTemplate))
+            return;
         // =========================
         // PREVENT RELOAD
         // =========================
@@ -3269,6 +3283,9 @@ async function loadTemplateVersions(idTemplate)
             hideLoading();
         }
 
+        if (versionsRequestId !== templateVersionsLoadRequestId ||
+            !currentTemplate || String(currentTemplate.Template.RuntimeTemplateID) !== String(idTemplate))
+            return;
         // Always render the versions returned for the selected template.
         // Using the previous global currentVersions value can leave this panel
         // empty/stale, especially after a Save All validation or metadata error.
@@ -3302,6 +3319,7 @@ async function loadTemplateVersions(idTemplate)
     }
     catch(ex)
     {
+        if (versionsRequestId !== templateVersionsLoadRequestId) return;
         console.error(ex);
         alert('Failed load versions');
     }
@@ -6391,7 +6409,9 @@ async function refreshInspectionDetailDropdown(template) {
     select.disabled = !typeCode;
     select.innerHTML = '<option value="">-- Select Inspection Detail --</option>';
     const addButton = document.getElementById("btnAddInspectionDetail");
+    const addAllButton = document.getElementById("btnAddAllInspectionDetails");
     if (addButton) addButton.disabled = !typeCode;
+    if (addAllButton) addAllButton.disabled = !typeCode;
     if (!typeCode) {
         renderTemplateInspectionDetailTags(template, []);
         return;
@@ -6404,6 +6424,8 @@ async function refreshInspectionDetailDropdown(template) {
             if (selectedCodes.indexOf(code) >= 0) return;
             select.add(new Option(code + " - " + item.InspectionTypeDetailName, code));
         });
+        if (addAllButton) addAllButton.disabled = !typeCode || select.options.length === 0;
+        if (addButton) addButton.disabled = !typeCode || select.options.length === 0;
         renderTemplateInspectionDetailTags(template, details);
     } catch (ex) {
         select.innerHTML = '<option value="">Failed to load inspection details</option>';
@@ -6560,10 +6582,13 @@ async function appendTemplateMetadataControls(template)
                     '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
                     '<div id="propInspectionDetailTags" class="d-flex flex-wrap gap-2 border rounded p-2 mb-2" style="min-height:42px;"></div>' +
                     '<div class="input-group input-group-sm">' +
-                        '<select id="propInspectionDetail" class="form-select form-select-compact"><option value="">-- Select Inspection Detail --</option></select>' +
-                        '<button type="button" id="btnAddInspectionDetail" class="btn btn-outline-primary" ' + (isReadonlyMode ? 'disabled' : '') + '>Add</button>' +
+                        '<select id="propInspectionDetail" class="form-select form-select-compact" multiple size="7" aria-label="Select multiple inspection details"></select>' +
+                        '<div class="d-flex flex-column gap-1">' +
+                            '<button type="button" id="btnAddInspectionDetail" class="btn btn-outline-primary text-nowrap" ' + (isReadonlyMode ? 'disabled' : '') + '>Add Selected</button>' +
+                            '<button type="button" id="btnAddAllInspectionDetails" class="btn btn-outline-secondary text-nowrap" ' + (isReadonlyMode ? 'disabled' : '') + '>Add All Available</button>' +
+                        '</div>' +
                     '</div>' +
-                    '<div class="form-text">Pilih detail lalu klik Add. Klik × pada tag untuk menghapus. Tidak ada tag = semua detail. Kode disimpan dipisahkan dengan semicolon (;).</div>' +
+                    '<div class="form-text">Pilih beberapa detail sekaligus (Ctrl/Shift), lalu Add Selected. Add All Available untuk memasukkan seluruh detail yang belum dipilih. Klik × pada tag untuk menghapus. Tidak ada tag = semua detail.</div>' +
                 '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
@@ -6625,15 +6650,21 @@ async function appendTemplateMetadataControls(template)
         await refreshInspectionDetailDropdown(template);
     });
 
-    document.getElementById('btnAddInspectionDetail').addEventListener('click', function() {
-        const code = inspectionDetailSelect.value;
-        if (!code) return;
+    function addInspectionDetailCodes(codes) {
         const selected = getTemplateInspectionDetailCodes(template);
-        if (selected.indexOf(code) >= 0) return;
-        selected.push(code);
+        (codes || []).forEach(function(code) {
+            code = String(code || '').trim();
+            if (code && selected.indexOf(code) < 0) selected.push(code);
+        });
         template.InspectionTypeDetailCode = selected.join(';');
         markMetadataDirty();
         refreshInspectionDetailDropdown(template);
+    }
+    document.getElementById('btnAddInspectionDetail').addEventListener('click', function() {
+        addInspectionDetailCodes(Array.from(inspectionDetailSelect.selectedOptions).map(option => option.value));
+    });
+    document.getElementById('btnAddAllInspectionDetails').addEventListener('click', function() {
+        addInspectionDetailCodes(Array.from(inspectionDetailSelect.options).map(option => option.value));
     });
 
     // Reload the eligible employee list whenever the Employees tab is opened,
@@ -6767,6 +6798,10 @@ async function renderTemplateCompanyAssignments(template)
 async function renderTemplateEmployeeAssignments(template)
 {
     const host = document.getElementById('templateEmployeeAssignments');
+    const renderTemplateId = String(template && template.IDTemplate || '');
+    const isCurrentTemplate = function() {
+        return currentTemplate && String(currentTemplate.IDTemplate || '') === renderTemplateId;
+    };
     if (!host) return;
     if (template.TemplateType !== 'I') {
         host.textContent = 'Employee assignment is only available for Inspection templates.';
@@ -6783,6 +6818,7 @@ async function renderTemplateEmployeeAssignments(template)
     try {
         const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId, getLoginData().employeeid);
         const rows = JSON.parse(raw || '[]');
+        if (!isCurrentTemplate()) return;
         host.innerHTML = '';
         if (!rows.length) {
             host.textContent = 'No active employees found for this SectionID and company/location scope.';
@@ -6812,6 +6848,14 @@ async function renderTemplateEmployeeAssignments(template)
         assignAll.className = 'btn btn-sm btn-outline-primary text-nowrap';
         assignAll.textContent = 'Assign All';
         assignAll.disabled = false;
+        const unselectAll = document.createElement('button');
+        unselectAll.type = 'button';
+        unselectAll.className = 'btn btn-sm btn-outline-danger text-nowrap';
+        unselectAll.textContent = 'Unselect All';
+        const removeSelected = document.createElement('button');
+        removeSelected.type = 'button';
+        removeSelected.className = 'btn btn-sm btn-outline-danger text-nowrap';
+        removeSelected.textContent = 'Remove Selected';
         const clearSearch = document.createElement('button');
         clearSearch.type = 'button';
         clearSearch.className = 'btn btn-sm btn-outline-secondary text-nowrap';
@@ -6819,6 +6863,8 @@ async function renderTemplateEmployeeAssignments(template)
         const actionButtons = document.createElement('div');
         actionButtons.className = 'd-flex flex-nowrap gap-2 ms-auto';
         actionButtons.appendChild(assignAll);
+        actionButtons.appendChild(unselectAll);
+        actionButtons.appendChild(removeSelected);
         actionButtons.appendChild(clearSearch);
         toolbar.appendChild(search);
         toolbar.appendChild(sortLabel);
@@ -6827,7 +6873,7 @@ async function renderTemplateEmployeeAssignments(template)
 
         const table = document.createElement('table');
         table.className = 'table table-sm align-middle';
-        table.innerHTML = '<thead><tr><th>Assign</th><th>NIK</th></tr></thead><tbody></tbody>';
+        table.innerHTML = '<thead><tr><th>Assign</th><th>Select</th><th>NIK</th></tr></thead><tbody></tbody>';
         const tbody = table.querySelector('tbody');
         const employeeRows = [];
         rows.forEach(function(row) {
@@ -6861,6 +6907,12 @@ async function renderTemplateEmployeeAssignments(template)
                 }
             });
             tdCheck.appendChild(check);
+            const tdSelect = document.createElement('td');
+            const bulkCheck = document.createElement('input');
+            bulkCheck.type = 'checkbox';
+            bulkCheck.className = 'form-check-input';
+            bulkCheck.setAttribute('aria-label', 'Select ' + row.EmployeeID + ' for bulk removal');
+            tdSelect.appendChild(bulkCheck);
             const tdEmployee = document.createElement('td');
             tdEmployee.textContent = row.EmployeeID + ' - ' + row.Name;
             // const tdCompany = document.createElement('td');
@@ -6868,11 +6920,12 @@ async function renderTemplateEmployeeAssignments(template)
             // const tdLocation = document.createElement('td');
             // tdLocation.textContent = row.LocationID;
             tr.appendChild(tdCheck);
+            tr.appendChild(tdSelect);
             tr.appendChild(tdEmployee);
             // tr.appendChild(tdCompany);
             // tr.appendChild(tdLocation);
             tbody.appendChild(tr);
-            employeeRows.push({ row: row, element: tr, checkbox: check });
+            employeeRows.push({ row: row, element: tr, checkbox: check, bulkCheckbox: bulkCheck });
         });
         function applyEmployeeFilterAndSort() {
             const term = search.value.trim().toLowerCase();
@@ -6900,6 +6953,58 @@ async function renderTemplateEmployeeAssignments(template)
             search.focus();
         });
         applyEmployeeFilterAndSort();
+        async function removeEmployeeAssignments(items, title, message) {
+            const targets = (items || []).filter(item => item && item.row.IsAssigned);
+            if (!targets.length) {
+                showToast('Tidak ada employee yang perlu di-unassign.', 'info');
+                return;
+            }
+            const confirmed = await showConfirmation({
+                title: title,
+                message: message + ' (' + targets.length + ' employee)',
+                yesText: 'Remove'
+            });
+            if (!confirmed) return;
+            assignAll.disabled = true;
+            unselectAll.disabled = true;
+            removeSelected.disabled = true;
+            showLoading();
+            let failed = null;
+            try {
+                for (const item of targets) {
+                    const result = await promisifyPageMethod(
+                        PageMethods.SetTemplateEmployeeAssignment,
+                        String(template.IDTemplate), item.row.EmployeeID,
+                        'REMOVE', getLoginData().employeeid, companyId, locationId
+                    );
+                    if (!result || !result.success)
+                        throw new Error((result && result.message) || ('Unable to remove ' + item.row.EmployeeID));
+                    item.row.IsAssigned = false;
+                    item.checkbox.checked = false;
+                    item.bulkCheckbox.checked = false;
+                }
+                showToast('Employee assignment berhasil dihapus (' + targets.length + ').', 'success');
+            } catch (ex) {
+                failed = ex;
+                showToast(ex.message || String(ex), 'warning');
+                await renderTemplateEmployeeAssignments(template);
+            } finally {
+                hideLoading();
+                if (!failed) {
+                    assignAll.disabled = false;
+                    unselectAll.disabled = false;
+                    removeSelected.disabled = false;
+                }
+            }
+        }
+        unselectAll.addEventListener('click', function() {
+            removeEmployeeAssignments(employeeRows, 'Unselect All Employees',
+                'Hapus assignment seluruh employee yang saat ini ter-assign?');
+        });
+        removeSelected.addEventListener('click', function() {
+            removeEmployeeAssignments(employeeRows.filter(item => item.bulkCheckbox.checked),
+                'Remove Selected Employees', 'Hapus assignment employee yang dipilih?');
+        });
         assignAll.addEventListener('click', async function() {
             const confirmed = await showConfirmation({
                 title: 'Assign Template',
@@ -6921,6 +7026,7 @@ async function renderTemplateEmployeeAssignments(template)
                 employeeRows.forEach(function(item) {
                     item.row.IsAssigned = true;
                     item.checkbox.checked = true;
+                    item.bulkCheckbox.checked = false;
                 });
                 showToast('All eligible employees assigned. EmployeeList remains empty.', 'success');
             } catch (ex) {
