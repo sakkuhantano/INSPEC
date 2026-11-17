@@ -5931,7 +5931,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
               '</div>'
             : "";
         checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
-            (isBatchApproval ? "" : afterPhotoHtml) + checklistHtml + followUpHtml + summaryHtml + reasonVoidHtml;
+            checklistHtml + (isBatchApproval ? "" : afterPhotoHtml) + followUpHtml + summaryHtml + reasonVoidHtml;
         if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h);
         document.getElementById("btnApproveInspection").disabled = isApproved ||
             (isBatchApproval && (!batchPoints.length || !templateAvailable));
