@@ -470,12 +470,25 @@ namespace INSPEC
                 case "330":
                     using (WAL.BR.CF ocom = new WAL.BR.CF())
                     {
-                        _retval = ocom.EQuery("SELECT top " + MaxRecord + " " +
-                                              "x.EmployeeID, x.Name " +
-                                              "FROM M_HRD_Employee x " +
-                                              (Condition.Trim() != "" ? "WHERE " + Condition.Trim() : " ") +
-                                              "Order By x.EmployeeID " +
-                                              "").DefaultView;
+                        string companyId = Convert.ToString(Request.QueryString["0"]);
+                        string profitCenterNo = Convert.ToString(Request.QueryString["1"]);
+                        string sectionId = Convert.ToString(Request.QueryString["2"]);
+                        string where = "x.CompanyID=@CompanyID AND ISNULL(x.TerminationDate,'')=''";
+                        if (!String.IsNullOrWhiteSpace(profitCenterNo))
+                            where += " AND x.ProfitCenterNo=@ProfitCenterNo";
+                        if (!String.IsNullOrWhiteSpace(sectionId))
+                            where += " AND EXISTS (SELECT 1 FROM dbo.PIP_M_Section S WHERE S.SectionID=@SectionID AND S.ProfitCenterNo=x.ProfitCenterNo)";
+                        if (Condition.Trim() != "")
+                            where += " AND (" + Condition.Trim() + ")";
+
+                        _retval = ocom.EQueryP(
+                            "SELECT TOP " + MaxRecord + " x.EmployeeID,x.Name FROM dbo.M_HRD_Employee x WHERE " + where + " ORDER BY x.EmployeeID",
+                            new System.Data.SqlClient.SqlParameter[] {
+                                new System.Data.SqlClient.SqlParameter("@CompanyID", companyId),
+                                new System.Data.SqlClient.SqlParameter("@ProfitCenterNo", profitCenterNo),
+                                new System.Data.SqlClient.SqlParameter("@SectionID", sectionId)
+                            }
+                        ).DefaultView;
                     }
                     break;
                 case "51":
