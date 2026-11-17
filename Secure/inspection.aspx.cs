@@ -2253,7 +2253,7 @@ ORDER BY P.SeqNo",
 
             using (var br = new WAL.BR.CF())
             {
-                SqlParameter[] parameters = new SqlParameter[] {
+                Func<SqlParameter[]> createParameters = () => new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
                     new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@CompanyID", companyId),
@@ -2311,7 +2311,7 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
                 DataTable filtersTable = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
        I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo " + scope + @"
-ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo", parameters);
+ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo", createParameters());
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filtersTable.Rows)
                 {
@@ -2336,7 +2336,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
-ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters.Select(p => (SqlParameter)((ICloneable)p).Clone()).ToArray());
+ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters());
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
