@@ -338,7 +338,7 @@ namespace INSPEC.Secure
                         .Select(x => x.Trim());
                     if (!employeeSections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                         throw new HttpException(403, "Inspection section is not assigned to the logged-in employee.");
-                    string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 2);
+                    string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 50);
                     string inspectionTypeDetailCode = Limit(TokenString(record, "InspectionTypeDetailCode"), 20);
                     DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                     string inspectionNo = "";
