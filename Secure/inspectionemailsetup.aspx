@@ -36,7 +36,9 @@
    input.addEventListener("blur",function(){add(f[0],f[1],f[2]);});
    input.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();add(f[0],f[1],f[2]);}});
   }render(f[0],f[1],f[2]);});
-  window.addEventListener("focus",function(){fields.forEach(function(f){add(f[0],f[1],f[2]);});});
+  function collectAfterPopup(){[100,300,700,1200].forEach(function(delay){window.setTimeout(function(){if(!document.hidden){fields.forEach(function(f){add(f[0],f[1],f[2]);});}},delay);});}
+  window.addEventListener("focus",collectAfterPopup);
+  document.addEventListener("visibilitychange",function(){if(!document.hidden)collectAfterPopup();});
  });
 })();
 </script>
