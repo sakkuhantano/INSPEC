@@ -325,6 +325,16 @@
         }
     }
 
+    /* Desktop sidebar pushes #content to the right. The approval header is fixed
+       to the viewport, so mirror that same offset only while the sidebar is open.
+       On tablet/mobile the sidebar overlays the page and must not shift this header. */
+    @media (min-width: 992px) {
+        #content:not(.expanded) #inspectionApprovalStickyHeader {
+            left: calc(var(--sidebar-width) + 1.5rem) !important;
+            right: 1.5rem !important;
+        }
+    }
+
     @media (max-width: 575.98px) {
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
