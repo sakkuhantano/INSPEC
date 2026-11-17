@@ -270,10 +270,12 @@ namespace INSPEC.Secure
         }
         private void LoadHeader()
         {
-            txtChiefEng.Text = GetCommonValue(Scope + ";CHIEF_ENG");
-            txtChiefSec.Text = GetCommonValue(Scope + ";CHIEF_SEC");
-            string chiefEngName = GetEmployeeNames(txtChiefEng.Text, "ProfitCenterNo='PENG'", "");
-            string chiefSecName = GetEmployeeNames(txtChiefSec.Text, "ProfitCenterNo='PSEC'", "");
+            hidChiefEngEmployees.Value = GetCommonValue(Scope + ";CHIEF_ENG");
+            hidChiefSecEmployees.Value = GetCommonValue(Scope + ";CHIEF_SEC");
+            txtChiefEng.Text = "";
+            txtChiefSec.Text = "";
+            string chiefEngName = GetEmployeeNames(hidChiefEngEmployees.Value, "ProfitCenterNo='PENG'", "");
+            string chiefSecName = GetEmployeeNames(hidChiefSecEmployees.Value, "ProfitCenterNo='PSEC'", "");
             lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Approver: " + chiefEngName;
             lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Approver: " + chiefSecName;
         }
@@ -305,8 +307,8 @@ namespace INSPEC.Secure
             try
             {
                 EnsureAdministrator();
-                string ce = NormalizeEmployeeList(txtChiefEng.Text);
-                string chiefSec = NormalizeEmployeeList(txtChiefSec.Text);
+                string ce = NormalizeEmployeeList(hidChiefEngEmployees.Value);
+                string chiefSec = NormalizeEmployeeList(hidChiefSecEmployees.Value);
                 if (ce == "" || chiefSec == "")
                     throw new InvalidOperationException("Pilih minimal satu NIK Chief Engineering dan Chief Security.");
 
@@ -333,7 +335,7 @@ namespace INSPEC.Secure
                 if (pnlSPVEditor.Visible)
                 {
                     section = ddlSection.SelectedValue;
-                    spv = NormalizeEmployeeList(txtSPV.Text);
+                    spv = NormalizeEmployeeList(hidSPVEmployees.Value);
                     oldSection = hidSPVOriginalSection.Value;
                     if (section == "" || spv == "")
                         throw new InvalidOperationException("Lengkapi Section dan minimal satu NIK SPV pada form Add New Record.");
@@ -422,8 +424,9 @@ namespace INSPEC.Secure
                 if (e.CommandName == "EditMapping")
                 {
                     ddlSection.SelectedValue = sec;
-                    txtSPV.Text = GetCommonValue(Scope + ";SPV;" + sec);
-                    string spvName = GetEmployeeNames(txtSPV.Text, "SectionID=@S", sec);
+                    hidSPVEmployees.Value = GetCommonValue(Scope + ";SPV;" + sec);
+                    txtSPV.Text = "";
+                    string spvName = GetEmployeeNames(hidSPVEmployees.Value, "SectionID=@S", sec);
                     lblSPVName.Text = String.IsNullOrWhiteSpace(spvName) ? "" : "Approver: " + spvName;
                     hidSPVOriginalSection.Value = sec;
                     pnlSPVEditor.Visible = true;
@@ -470,6 +473,7 @@ namespace INSPEC.Secure
         protected void ddlSection_SelectedIndexChanged(object sender, EventArgs e)
         {
             txtSPV.Text = "";
+            hidSPVEmployees.Value = "";
             lblSPVName.Text = "";
             hidSPVOriginalSection.Value = "";
             PrepareEmployeeSearch();
@@ -478,6 +482,7 @@ namespace INSPEC.Secure
         {
             hidSPVOriginalSection.Value = "";
             txtSPV.Text = "";
+            hidSPVEmployees.Value = "";
             lblSPVName.Text = "";
             if (ddlSection.Items.Count > 0)
                 ddlSection.SelectedIndex = 0;
