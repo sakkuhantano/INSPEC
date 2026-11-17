@@ -4586,16 +4586,15 @@ async function updateInspectionChecklistGate() {
         .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
     document.querySelectorAll("#inspectionPointConditionPanel input, #inspectionPointConditionPanel textarea")
         .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
-    // Summary and Follow Up are inspection-level fields, not checklist controls.
-    // A missing BEFORE photo may lock checklist entry, but must not lock Summary.
-    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly;
-    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly;
-    document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly;
+    // Summary and Follow Up must follow the same BEFORE-photo prerequisite as checklist entry.
+    document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || checklistLocked;
+    document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || checklistLocked;
+    document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || checklistLocked;
     document.querySelectorAll('input[name="inspectionFollowUpSectionChoice"]').forEach(element => {
-        element.disabled = currentInspectionReadOnly;
+        element.disabled = currentInspectionReadOnly || checklistLocked;
     });
     document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(element => {
-        element.disabled = currentInspectionReadOnly;
+        element.disabled = currentInspectionReadOnly || checklistLocked;
     });
     const afterInput = document.getElementById("inspectionPhotoAfterInput");
     const afterEnabled = afterRequired && (!beforeRequired || before);
