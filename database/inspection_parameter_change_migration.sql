@@ -219,7 +219,7 @@ BEGIN
             END;
         END;
     END
-    ELSE
+
     BEGIN
         SET @p_FollowUpSection = '';
         SET @p_FollowUpRemark = '';
@@ -346,16 +346,7 @@ BEGIN
         RETURN;
     END;
 
-    /* EQueryP may already own a transaction. Use a savepoint when nested so this
-       procedure never rolls back the caller's transaction on a handled conflict. */
-    DECLARE @V_EntryTranCount INT;
-    SET @V_EntryTranCount = @@TRANCOUNT;
-
     BEGIN TRY
-        IF @V_EntryTranCount = 0
-            BEGIN TRANSACTION;
-        ELSE
-            SAVE TRANSACTION InspectionSyncSave;
 
         /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
            ClientInspectionID is excluded so syncing an existing offline record remains an update. */
@@ -447,7 +438,7 @@ BEGIN
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
-        ELSE
+
         BEGIN
             DECLARE @V_InspectionNo VARCHAR(10);
             DECLARE @V_AutoNum VARCHAR(30);
@@ -557,9 +548,6 @@ BEGIN
                 @p_ApprovalUrl=@V_ApprovalUrl;
         END;
 
-        IF @V_EntryTranCount = 0
-            COMMIT TRANSACTION;
-
         SELECT @V_InspectionID AS InspectionID,
                @p_ClientInspectionID AS ClientInspectionID,
                InspectionNo
@@ -567,17 +555,6 @@ BEGIN
         WHERE InspectionID=@V_InspectionID;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE() = 1
-        BEGIN
-            IF @V_EntryTranCount = 0
-                ROLLBACK TRANSACTION;
-            ELSE
-                ROLLBACK TRANSACTION InspectionSyncSave;
-        END
-        ELSE IF XACT_STATE() = -1 AND @V_EntryTranCount = 0
-            ROLLBACK TRANSACTION;
-        /* When nested in BRC, leave a doomed transaction for the BRC owner to roll back. */
-
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
         DECLARE @V_ErrorState INT;
