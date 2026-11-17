@@ -287,8 +287,8 @@
     #inspectionApprovalStickyHeader {
         position: fixed !important;
         top: 48px !important;
-        left: .5rem !important;
-        right: .5rem !important;
+        left: 1.5rem !important;
+        right: 1.5rem !important;
         z-index: 1080 !important;
         background: var(--bs-body-bg);
         padding: .35rem 0 .4rem;
@@ -318,14 +318,21 @@
     .inspection-section-tab:hover { background: var(--bs-tertiary-bg); color: var(--bs-primary); }
     .inspection-section-tab.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); border-color: var(--bs-primary-border-subtle); }
     .inspection-section-dropdown-item.active { color: var(--bs-primary); background: var(--bs-primary-bg-subtle); font-weight: 600; }
+    @media (min-width: 768px) {
+        #inspectionApprovalStickyHeader {
+            left: 2rem !important;
+            right: 2rem !important;
+        }
+    }
+
     @media (max-width: 575.98px) {
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
         #inspectionEditorStickyHeader { top: 58px !important; }
         #inspectionApprovalStickyHeader {
             top: 44px !important;
-            left: .5rem !important;
-            right: .5rem !important;
+            left: 1.5rem !important;
+            right: 1.5rem !important;
         }
         #inspectionApprovalDetailPanel > .tab-content { padding-top: var(--inspection-approval-header-space, 126px); }
         .inspection-form-heading { width: 100%; }
