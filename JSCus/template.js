@@ -6342,19 +6342,17 @@ async function refreshInspectionDetailDropdown(template) {
         const details = JSON.parse(raw || "[]");
         renderTemplateInspectionDetailTags(template, details);
         if (selectAll) selectAll.disabled = !details.length;
-        if (search && !search.dataset.bound) {
-            search.dataset.bound = "1";
-            search.addEventListener("input", function() {
+        if (search) {
+            search.oninput = function() {
                 renderTemplateInspectionDetailTags(template, details);
-            });
+            };
         }
-        if (selectAll && !selectAll.dataset.bound) {
-            selectAll.dataset.bound = "1";
-            selectAll.addEventListener("click", function() {
+        if (selectAll) {
+            selectAll.onclick = function() {
                 template.InspectionTypeDetailCode = details.map(x => String(x.InspectionTypeDetailCode)).join(";");
                 markTemplateMetadataDirty(template);
                 refreshInspectionDetailDropdown(template);
-            });
+            };
         }
     } catch (ex) {
         host.innerHTML = '<div class="small text-danger">Failed to load inspection details.</div>';
