@@ -1504,6 +1504,11 @@ WHERE LTRIM(RTRIM(X.val))<>'' AND D.InspectionTypeDetailCode IS NULL",
                 br.EQuery(@"
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
+/* Normalize legacy employee assignments: EmployeeList uses semicolon delimiters only. */
+UPDATE dbo.PIP_M_CheckListWOPM
+SET EmployeeList=REPLACE(ISNULL(EmployeeList,''),':',';')
+WHERE IDTemplate=@IDTemplate AND EmployeeList LIKE '%:%';
+
 UPDATE dbo.PIP_M_CheckListWOPM
 SET TemplateType=@TemplateType,
     InspectionTypeCode=@InspectionTypeCode,
@@ -1769,7 +1774,7 @@ WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
             {
                 DataTable dt = br.EQuery(@"
 SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
-       IsAssigned=CAST(CASE WHEN ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
+       IsAssigned=CAST(CASE WHEN ISNULL(T.EmployeeList,'')='' OR (';' + REPLACE(ISNULL(T.EmployeeList,''),':',';') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
 FROM dbo.M_HRD_Employee E JOIN SysWebCompany swc ON swc.CompanyID=E.CompanyID
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
 
@@ -1861,6 +1866,11 @@ WHERE T.IDTemplate=@IDTemplate
                 br.EQuery(@"
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
+/* Repair legacy colon-separated values before any ADD/REMOVE operation. */
+UPDATE dbo.PIP_M_CheckListWOPM
+SET EmployeeList=REPLACE(ISNULL(EmployeeList,''),':',';')
+WHERE IDTemplate=@IDTemplate AND EmployeeList LIKE '%:%';
+
 DECLARE @CurrentEmployeeList VARCHAR(8000);
 SELECT @CurrentEmployeeList=ISNULL(EmployeeList,'')
 FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
