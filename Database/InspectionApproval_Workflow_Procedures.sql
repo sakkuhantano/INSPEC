@@ -178,14 +178,14 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalWorkflow
  @p_Remark NVARCHAR(1000),@p_CorrectionUrl NVARCHAR(1000)
 AS
 BEGIN
- SET NOCOUNT ON; SET XACT_ABORT ON;
+ SET NOCOUNT ON; SET XACT_ABORT OFF;
  SET @p_Action=UPPER(LTRIM(RTRIM(ISNULL(@p_Action,''))));
  SET @p_Remark=LTRIM(RTRIM(ISNULL(@p_Remark,N'')));
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(4000),
          @Mode VARCHAR(10),@EmailEnabled BIT,@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
-         @EventID BIGINT,@TranCount INT,@NewStatus VARCHAR(30),@NextStage VARCHAR(20);
+         @EventID BIGINT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
@@ -228,11 +228,7 @@ BEGIN
   IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
   IF ISNULL(@ActorEmail,'')='' BEGIN RAISERROR('SPV email is missing from M_HRD_Employee.emailaddress; it is used as the outbox sender address.',16,1); RETURN; END;
  END;
- SET @NewStatus=CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOID' END;
- SET @NextStage=CASE WHEN @p_Action='APPROVE' THEN 'COMPLETED' ELSE 'TECHNICIAN' END;
- SET @TranCount=@@TRANCOUNT;
  BEGIN TRY
-  IF @TranCount=0 BEGIN TRANSACTION; ELSE SAVE TRANSACTION InspectionApprovalWorkflowSave;
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SPV',CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
     @p_ActorEmployeeID,GETDATE(),NULLIF(@p_Remark,N''));
@@ -273,18 +269,9 @@ BEGIN
       END;
     
    END;
-  IF @TranCount=0 COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
-  IF XACT_STATE()=-1
-  BEGIN
-   ROLLBACK TRANSACTION;
-  END
-  ELSE IF XACT_STATE()=1
-  BEGIN
-   IF @TranCount=0 ROLLBACK TRANSACTION;
-   ELSE ROLLBACK TRANSACTION InspectionApprovalWorkflowSave;
-  END
+  /* The caller (BRC/EQueryP) owns the transaction; never roll it back here. */
   DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
   SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
   RAISERROR(@Err,@Sev,@State);
@@ -304,32 +291,27 @@ IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_Approval_Execute','P') IS NULL
     EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Approval_Execute AS RETURN 0;');
 GO
 ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Approval_Execute
- @p_InspectionID BIGINT,
- @p_Action VARCHAR(10),
- @p_EmployeeID VARCHAR(50),
- @p_CompanyID VARCHAR(10),
- @p_LocationID VARCHAR(3),
- @p_Remark NVARCHAR(1000),
+ @p_InspectionID BIGINT,@p_Action VARCHAR(10),@p_EmployeeID VARCHAR(50),
+ @p_CompanyID VARCHAR(10),@p_LocationID VARCHAR(3),@p_Remark NVARCHAR(1000),
  @p_CorrectionUrl NVARCHAR(1000)
 AS
 BEGIN
  SET NOCOUNT ON;
- SET XACT_ABORT ON;
+ SET XACT_ABORT OFF;
+ /* CF.EQueryP owns the transaction for this approval operation. */
  BEGIN TRY
-  BEGIN TRANSACTION;
   EXEC dbo.spUTL_PIP_T_Inspection_Approval
    @p_InspectionID=@p_InspectionID,@p_Action=@p_Action,@p_EmployeeID=@p_EmployeeID,
    @p_CompanyID=@p_CompanyID,@p_LocationID=@p_LocationID,@p_Remark=@p_Remark;
   EXEC dbo.spUTL_PIP_T_Inspection_ApprovalWorkflow
    @p_InspectionID=@p_InspectionID,@p_ActorEmployeeID=@p_EmployeeID,@p_Action=@p_Action,
    @p_Remark=@p_Remark,@p_CorrectionUrl=@p_CorrectionUrl;
-  COMMIT TRANSACTION;
  END TRY
  BEGIN CATCH
-  IF XACT_STATE()<>0 ROLLBACK TRANSACTION;
-  DECLARE @V_ExecuteError NVARCHAR(4000),@V_ExecuteSeverity INT,@V_ExecuteState INT;
-  SELECT @V_ExecuteError=ERROR_MESSAGE(),@V_ExecuteSeverity=ERROR_SEVERITY(),@V_ExecuteState=ERROR_STATE();
-  RAISERROR(@V_ExecuteError,@V_ExecuteSeverity,@V_ExecuteState);
+  DECLARE @Err NVARCHAR(4000),@Sev INT,@State INT;
+  SELECT @Err=ERROR_MESSAGE(),@Sev=ERROR_SEVERITY(),@State=ERROR_STATE();
+  RAISERROR(@Err,@Sev,@State);
+  RETURN;
  END CATCH;
 END;
 GO
