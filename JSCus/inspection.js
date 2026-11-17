@@ -2625,7 +2625,7 @@ function getInspectionPointNavigatorStatus(point, record, scheduleTime) {
         Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
         (!lightning || String(item.ScheduleTime || "") === String(scheduleTime || "")));
     const status = String(transaction && transaction.Status || "PENDING").toUpperCase();
-    if (status === "DONE") return { key: "DONE", label: "Sudah diinspeksi", badge: "text-bg-success" };
+    if (status === "DONE" || status === "INSPECTED") return { key: "DONE", label: "Sudah diinspeksi", badge: "text-bg-success" };
     if (status === "ABNORMAL") return { key: "ABNORMAL", label: "Sudah diinspeksi · Abnormal", badge: "text-bg-danger" };
     if (status === "INCOMPLETE") return { key: "INCOMPLETE", label: "Draft / belum lengkap", badge: "text-bg-warning" };
     return { key: "PENDING", label: "Belum diinspeksi", badge: "text-bg-secondary" };
@@ -2832,7 +2832,8 @@ function wireInspectionPointNavigator() {
     document.getElementById("inspectionPointNavigatorSchedule").addEventListener("change", function () {
         inspectionPointNavigatorState.scheduleTime = this.value || "";
         if (inspectionPointNavigatorState.detail) {
-            selectInspectionPointNavigatorRecord(inspectionPointNavigatorState.detail);
+            if (String(inspectionPointNavigatorState.baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING")
+                selectInspectionPointNavigatorRecord(inspectionPointNavigatorState.detail);
             renderInspectionPointNavigatorList();
         }
     });
