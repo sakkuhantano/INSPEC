@@ -2530,6 +2530,458 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
 
 window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
+let inspectionPointNavigatorState = {
+    baseRecord: null, detail: null, setup: null, record: null,
+    scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display"
+};
+let inspectionPointNavigatorLoadSequence = 0;
+
+function getInspectionPointNavigatorDetails(record) {
+    const allowed = getInspectionTemplateDetailCodes(record.TemplateSnapshot);
+    return inspectionDetails.filter(detail =>
+        String(detail.InspectionTypeCode || "") === String(record.InspectionTypeCode || "") &&
+        String(detail.CompanyID || "") === String(record.CompanyID || "") &&
+        String(detail.LocationID || "") === String(record.LocationID || "") &&
+        (!allowed.length || allowed.indexOf(String(detail.InspectionTypeDetailCode || "").trim().toUpperCase()) >= 0)
+    ).sort((a, b) => String(a.InspectionTypeDetailName || a.InspectionTypeDetailCode || "")
+        .localeCompare(String(b.InspectionTypeDetailName || b.InspectionTypeDetailCode || "")));
+}
+
+async function getInspectionPointNavigatorSetup(record, detail) {
+    const key = String(detail.InspectionTypeDetailCode || "").trim().toUpperCase();
+    if (String(record.InspectionTypeDetailCode || "").trim().toUpperCase() === key &&
+        record.BatchMapSetup && Array.isArray(record.BatchMapSetup.points))
+        return record.BatchMapSetup;
+
+    const type = inspectionTypes.find(item =>
+        String(item.InspectionTypeCode || "") === String(record.InspectionTypeCode || ""));
+    if (!type) throw new Error("Inspection Type tidak ditemukan pada cache perangkat.");
+    type.BatchMapSetups = type.BatchMapSetups || {};
+    let setup = type.BatchMapSetups[key] || null;
+    if (setup && setup.success === true && Array.isArray(setup.points)) return setup;
+    if (!navigator.onLine)
+        throw new Error("Map untuk detail ini belum tersimpan offline. Jalankan Sync saat online terlebih dahulu.");
+
+    const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({
+            inspectionTypeCode: record.InspectionTypeCode,
+            inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
+            employeeId: inspectionLogin.employeeid,
+            companyId: record.CompanyID,
+            locationId: record.LocationID
+        })
+    });
+    const payload = await response.json();
+    if (!response.ok)
+        throw new Error((payload && (payload.Message || payload.ExceptionMessage)) || "Gagal memuat Inspection Map.");
+    setup = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+    if (!setup || setup.success !== true || !Array.isArray(setup.points))
+        throw new Error("Data Inspection Map untuk detail ini tidak valid.");
+    type.BatchMapSetups[key] = setup;
+    const storeName = db.objectStoreNames.contains("inspection_types_scoped")
+        ? "inspection_types_scoped" : "inspection_types";
+    try {
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(storeName, "readwrite");
+            tx.objectStore(storeName).put(type);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan cache Inspection Map."));
+            tx.onabort = () => reject(tx.error || new Error("Penyimpanan cache Inspection Map dibatalkan."));
+        });
+    } catch (cacheError) {
+        console.warn("Inspection Point Navigator map cache could not be persisted:", cacheError);
+    }
+    return setup;
+}
+
+function getInspectionPointNavigatorRecords(baseRecord, detail) {
+    const sameDetail = String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(detail.InspectionTypeDetailCode || "").toUpperCase();
+    if (sameDetail) return [baseRecord];
+
+    return inspectionRecords.filter(record =>
+        !record.ServerOnly &&
+        record.OwnerEmployeeID === baseRecord.OwnerEmployeeID &&
+        record.CompanyID === baseRecord.CompanyID &&
+        record.LocationID === baseRecord.LocationID &&
+        record.SectionID === baseRecord.SectionID &&
+        String(record.InspectionTypeCode || "") === String(baseRecord.InspectionTypeCode || "") &&
+        String(record.InspectionTypeDetailCode || "").toUpperCase() ===
+            String(detail.InspectionTypeDetailCode || "").toUpperCase() &&
+        Number(record.IDTemplate) === Number(baseRecord.IDTemplate) &&
+        Number(record.IDVersion) === Number(baseRecord.IDVersion) &&
+        parseInspectionDate(record.InspectionDate) === parseInspectionDate(baseRecord.InspectionDate) &&
+        String(record.InspectionMode || "").toUpperCase() === String(baseRecord.InspectionMode || "").toUpperCase() &&
+        record.SyncStatus !== "DELETE_PENDING"
+    ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "")
+        .localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
+}
+
+function getInspectionPointNavigatorStatus(point, record, scheduleTime) {
+    const lightning = String(record && record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const transaction = record && (record.Points || []).find(item =>
+        Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
+        (!lightning || String(item.ScheduleTime || "") === String(scheduleTime || "")));
+    const status = String(transaction && transaction.Status || "PENDING").toUpperCase();
+    if (status === "DONE") return { key: "DONE", label: "Sudah diinspeksi", badge: "text-bg-success" };
+    if (status === "ABNORMAL") return { key: "ABNORMAL", label: "Sudah diinspeksi · Abnormal", badge: "text-bg-danger" };
+    if (status === "INCOMPLETE") return { key: "INCOMPLETE", label: "Draft / belum lengkap", badge: "text-bg-warning" };
+    return { key: "PENDING", label: "Belum diinspeksi", badge: "text-bg-secondary" };
+}
+
+function selectInspectionPointNavigatorRecord(detail) {
+    const state = inspectionPointNavigatorState;
+    const base = state.baseRecord;
+    const candidates = getInspectionPointNavigatorRecords(base, detail);
+    const lightning = String(base.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    if (String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(base.InspectionTypeDetailCode || "").toUpperCase()) {
+        state.record = base;
+        if (lightning) {
+            const active = String(base.ActiveScheduleTime || base.Schedules && base.Schedules[0] && (base.Schedules[0].ScheduleTime || base.Schedules[0]) || "");
+            state.scheduleTime = state.scheduleTimes.indexOf(active) >= 0 ? active : (state.scheduleTimes[0] || "");
+        } else {
+            state.scheduleTime = String(base.ScheduledTime || "");
+        }
+        return;
+    }
+
+    if (lightning) {
+        state.record = candidates[0] || null;
+        const active = String(state.record && state.record.ActiveScheduleTime || "");
+        state.scheduleTime = state.scheduleTimes.indexOf(active) >= 0 ? active : (state.scheduleTimes[0] || "");
+        return;
+    }
+
+    const wanted = state.scheduleTime || state.scheduleTimes[0] || "";
+    state.record = candidates.find(record => String(record.ScheduledTime || "") === wanted) || candidates[0] || null;
+    if (state.record) state.scheduleTime = String(state.record.ScheduledTime || "");
+}
+
+function renderInspectionPointNavigatorList() {
+    const state = inspectionPointNavigatorState;
+    const host = document.getElementById("inspectionPointNavigatorList");
+    const summary = document.getElementById("inspectionPointNavigatorSummary");
+    if (!host || !state.setup) return;
+
+    const maps = Array.isArray(state.setup.maps) ? state.setup.maps : [];
+    const keyword = String(state.keyword || "").trim().toLowerCase();
+    let points = (state.setup.points || []).filter(point =>
+        !keyword ||
+        String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
+        String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0
+    );
+    const statusFor = point => getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime);
+    if (state.sort === "code") points.sort((a, b) => String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
+    else if (state.sort === "name") points.sort((a, b) => String(a.PointName || "").localeCompare(String(b.PointName || "")));
+    else if (state.sort === "status") {
+        const rank = { PENDING: 0, INCOMPLETE: 1, ABNORMAL: 2, DONE: 3 };
+        points.sort((a, b) => rank[statusFor(a).key] - rank[statusFor(b).key] ||
+            Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
+    } else {
+        points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
+            String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
+    }
+
+    const all = state.setup.points || [];
+    const counts = { DONE: 0, ABNORMAL: 0, INCOMPLETE: 0, PENDING: 0 };
+    all.forEach(point => { counts[statusFor(point).key]++; });
+    summary.innerHTML =
+        '<span class="badge text-bg-light border text-dark">Total ' + all.length + '</span>' +
+        '<span class="badge text-bg-success">Selesai ' + (counts.DONE + counts.ABNORMAL) + '</span>' +
+        '<span class="badge text-bg-warning">Belum lengkap ' + counts.INCOMPLETE + '</span>' +
+        '<span class="badge text-bg-secondary">Belum diperiksa ' + counts.PENDING + '</span>';
+
+    if (!points.length) {
+        host.innerHTML = '<div class="text-muted small text-center py-4">' +
+            (all.length ? "Tidak ada Inspection Point yang cocok dengan pencarian." : "Belum ada Inspection Point pada detail ini.") +
+            '</div>';
+        return;
+    }
+    host.innerHTML = points.map(point => {
+        const status = statusFor(point);
+        const map = maps.find(item => Number(item.MapID) === Number(point.MapID));
+        return '<div class="inspection-point-navigator-row">' +
+            '<div class="inspection-point-navigator-main">' +
+                '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
+                '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
+                '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") + '</div>' +
+            '</div>' +
+            '<div class="inspection-point-navigator-actions">' +
+                '<span class="badge ' + status.badge + '">' + escInspection(status.label) + '</span>' +
+                '<button type="button" class="btn btn-sm btn-outline-primary" data-point-navigator-open="' +
+                    escInspection(point.InspectionPointID) + '"><i class="bi bi-geo-alt me-1"></i>Lihat Map</button>' +
+            '</div>' +
+        '</div>';
+    }).join("");
+}
+
+async function loadInspectionPointNavigatorDetail(detailCode) {
+    const state = inspectionPointNavigatorState;
+    const sequence = ++inspectionPointNavigatorLoadSequence;
+    const host = document.getElementById("inspectionPointNavigatorList");
+    const summary = document.getElementById("inspectionPointNavigatorSummary");
+    const detail = getInspectionPointNavigatorDetails(state.baseRecord)
+        .find(item => String(item.InspectionTypeDetailCode || "").toUpperCase() === String(detailCode || "").toUpperCase());
+    if (!detail) return;
+    state.detail = detail;
+    state.setup = null;
+    state.record = null;
+    state.scheduleTimes = getInspectionScheduleTimes(detail);
+    state.keyword = document.getElementById("inspectionPointNavigatorSearch").value || "";
+    host.innerHTML = '<div class="text-muted small text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Memuat Inspection Point...</div>';
+    summary.innerHTML = "";
+
+    const scheduleWrap = document.getElementById("inspectionPointNavigatorScheduleWrap");
+    const scheduleSelect = document.getElementById("inspectionPointNavigatorSchedule");
+    scheduleWrap.classList.toggle("d-none", !state.scheduleTimes.length);
+    scheduleSelect.innerHTML = state.scheduleTimes.map(time =>
+        '<option value="' + escInspection(time) + '">' + escInspection(time) + '</option>').join("");
+    if (state.scheduleTimes.length) {
+        const baseIsSame = String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
+            String(detail.InspectionTypeDetailCode || "").toUpperCase();
+        const preferred = baseIsSame
+            ? (state.baseRecord.ActiveScheduleTime || state.baseRecord.ScheduledTime || "")
+            : "";
+        state.scheduleTime = state.scheduleTimes.indexOf(String(preferred)) >= 0
+            ? String(preferred) : state.scheduleTimes[0];
+        scheduleSelect.value = state.scheduleTime;
+    } else state.scheduleTime = "";
+
+    try {
+        const setup = await getInspectionPointNavigatorSetup(state.baseRecord, detail);
+        if (sequence !== inspectionPointNavigatorLoadSequence) return;
+        state.setup = setup;
+        selectInspectionPointNavigatorRecord(detail);
+        if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
+            scheduleSelect.value = state.scheduleTime;
+        renderInspectionPointNavigatorList();
+    } catch (error) {
+        if (sequence !== inspectionPointNavigatorLoadSequence) return;
+        host.innerHTML = '<div class="alert alert-warning small mb-0">' + escInspection(error.message || error) + '</div>';
+    }
+}
+
+async function persistInspectionBeforePointNavigatorSwitch() {
+    const record = currentInspectionRecord;
+    if (!record || currentInspectionReadOnly) return true;
+
+    const activePoint = getActiveInspectionPoint();
+    if (activePoint) {
+        const stable = value => {
+            if (Array.isArray(value)) return value.map(stable);
+            if (value && typeof value === "object") {
+                const result = {};
+                Object.keys(value).sort().forEach(key => { result[key] = stable(value[key]); });
+                return result;
+            }
+            return value;
+        };
+        let liveItems = [];
+        try { liveItems = collectInspectionItems(); } catch (_) { liveItems = activePoint.Items || []; }
+        const liveCondition = document.querySelector('input[name="inspectionPointCondition"]:checked')?.value ||
+            String(activePoint.PointCondition || "");
+        const liveRemark = document.querySelector("#inspectionPointConditionPanel textarea")?.value ||
+            String(activePoint.AbnormalRemark || "");
+        const unchanged = JSON.stringify(stable({
+            Items: activePoint.Items || [], PointCondition: activePoint.PointCondition || "",
+            AbnormalRemark: activePoint.AbnormalRemark || ""
+        })) === JSON.stringify(stable({
+            Items: liveItems || [], PointCondition: liveCondition || "", AbnormalRemark: liveRemark || ""
+        }));
+        const currentPhotos = await getCurrentInspectionPhotos();
+        const baselinePhotos = (inspectionPhotoBaseline || []).filter(photo =>
+            String(photo.PointID || "") === String(activePoint.ClientPointID || ""));
+        const photoIds = photos => photos.map(photo => String(photo.ID || "")).sort().join("|");
+        const photosUnchanged = photoIds(currentPhotos) === photoIds(baselinePhotos);
+        await saveBatchInspectionPoint("DRAFT", {
+            silent: true,
+            preserveCompletedStatus: unchanged && photosUnchanged
+        });
+        if (Number(record.ActiveInspectionPointID || 0) > 0) return false;
+    } else {
+        const summary = document.getElementById("txtInspectionSummary");
+        if (summary) record.Summary = summary.value || "";
+        try { Object.assign(record, collectInspectionFollowUp()); } catch (_) { }
+        const hasParentData = String(record.Summary || "").trim() ||
+            String(record.FollowUp || "") !== "No Follow Up" ||
+            String(record.FollowUpSection || "").trim() || String(record.FollowUpRemark || "").trim();
+        const persisted = await isInspectionRecordPersisted(record.LocalInspectionID);
+        if (persisted || hasParentData || (record.Points || []).length) {
+            record.SyncStatus = "PENDING";
+            record.UpdatedAt = new Date().toISOString();
+            await persistInspectionRecord(record);
+        }
+    }
+
+    const index = inspectionRecords.findIndex(item => item.LocalInspectionID === record.LocalInspectionID);
+    if (index >= 0) inspectionRecords[index] = record;
+    else if (await isInspectionRecordPersisted(record.LocalInspectionID)) inspectionRecords.unshift(record);
+    return true;
+}
+
+function wireInspectionPointNavigator() {
+    const modal = document.getElementById("inspectionPointNavigatorModal");
+    if (!modal || modal.dataset.wired === "1") return;
+    modal.dataset.wired = "1";
+    document.getElementById("inspectionPointNavigatorDetail").addEventListener("change", function () {
+        loadInspectionPointNavigatorDetail(this.value);
+    });
+    document.getElementById("inspectionPointNavigatorSchedule").addEventListener("change", function () {
+        inspectionPointNavigatorState.scheduleTime = this.value || "";
+        if (inspectionPointNavigatorState.detail) {
+            selectInspectionPointNavigatorRecord(inspectionPointNavigatorState.detail);
+            renderInspectionPointNavigatorList();
+        }
+    });
+    document.getElementById("inspectionPointNavigatorSearch").addEventListener("input", function () {
+        inspectionPointNavigatorState.keyword = this.value || "";
+        renderInspectionPointNavigatorList();
+    });
+    document.getElementById("inspectionPointNavigatorSort").addEventListener("change", function () {
+        inspectionPointNavigatorState.sort = this.value || "display";
+        renderInspectionPointNavigatorList();
+    });
+    document.getElementById("inspectionPointNavigatorList").addEventListener("click", function (event) {
+        const button = event.target.closest("[data-point-navigator-open]");
+        if (!button) return;
+        openInspectionPointNavigatorTarget(Number(button.getAttribute("data-point-navigator-open")));
+    });
+}
+
+window.openInspectionPointNavigator = async function () {
+    const record = currentInspectionRecord;
+    if (!record || !isInspectionMapMode(record.InspectionMode)) return;
+    const modal = document.getElementById("inspectionPointNavigatorModal");
+    if (!modal || !window.bootstrap || !bootstrap.Modal) {
+        showToast("Point Navigator belum tersedia. Refresh aplikasi setelah update.", "warning");
+        return;
+    }
+    wireInspectionPointNavigator();
+    try {
+        const all = await readInspectionStore("inspection_records");
+        inspectionRecords = all.filter(item =>
+            !item.ServerOnly && item.OwnerEmployeeID === inspectionLogin.employeeid &&
+            item.CompanyID === inspectionCompanyID && item.LocationID === inspectionLocationID
+        ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "")
+            .localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
+    } catch (error) {
+        console.warn("Point Navigator could not refresh local inspection records:", error);
+    }
+
+    const state = inspectionPointNavigatorState;
+    state.baseRecord = currentInspectionRecord;
+    state.detail = null;
+    state.setup = null;
+    state.record = null;
+    state.keyword = "";
+    state.sort = "display";
+    document.getElementById("inspectionPointNavigatorSearch").value = "";
+    document.getElementById("inspectionPointNavigatorSort").value = "display";
+    const details = getInspectionPointNavigatorDetails(record);
+    const detailSelect = document.getElementById("inspectionPointNavigatorDetail");
+    detailSelect.innerHTML = details.map(detail =>
+        '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
+        escInspection(detail.InspectionTypeDetailCode + " · " + detail.InspectionTypeDetailName) + '</option>'
+    ).join("");
+    if (!details.length) {
+        document.getElementById("inspectionPointNavigatorList").innerHTML =
+            '<div class="alert alert-warning small mb-0">Tidak ada Inspection Detail yang sesuai dengan template ini.</div>';
+    } else {
+        detailSelect.value = record.InspectionTypeDetailCode || details[0].InspectionTypeDetailCode;
+    }
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+    if (details.length) await loadInspectionPointNavigatorDetail(detailSelect.value);
+};
+
+async function openInspectionPointNavigatorTarget(pointId) {
+    const state = inspectionPointNavigatorState;
+    const baseRecord = state.baseRecord;
+    const masterPoint = (state.setup && state.setup.points || []).find(point =>
+        Number(point.InspectionPointID) === Number(pointId));
+    if (!baseRecord || !masterPoint || !state.detail) return;
+
+    const modal = document.getElementById("inspectionPointNavigatorModal");
+    const instance = window.bootstrap && bootstrap.Modal ? bootstrap.Modal.getInstance(modal) : null;
+    if (instance) {
+        const hidden = new Promise(resolve => modal.addEventListener("hidden.bs.modal", resolve, { once: true }));
+        instance.hide();
+        await hidden;
+    }
+
+    const sameDetail = String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(state.detail.InspectionTypeDetailCode || "").toUpperCase();
+    if (!sameDetail) {
+        if (currentInspectionReadOnly && !state.record) {
+            showToast("Detail ini belum memiliki transaksi inspeksi yang dapat dibuka dari record read-only.", "warning");
+            return;
+        }
+        const saved = await persistInspectionBeforePointNavigatorSwitch();
+        if (!saved) {
+            showToast("Checklist point yang sedang dibuka belum berhasil disimpan. Detail tidak diganti.", "warning");
+            return;
+        }
+
+        let targetRecord = state.record;
+        if (targetRecord) {
+            if (String(targetRecord.InspectionMode || "").toUpperCase() === "LIGHTNING" &&
+                state.scheduleTimes.indexOf(state.scheduleTime) >= 0)
+                targetRecord.ActiveScheduleTime = state.scheduleTime;
+            await openSavedInspection(targetRecord.LocalInspectionID);
+        } else {
+            const previousRecord = currentInspectionRecord;
+            const typeSelect = document.getElementById("selInspectionType");
+            const templateSelect = document.getElementById("selInspectionTemplate");
+            const detailSelect = document.getElementById("selInspectionDetail");
+            const scheduleSelect = document.getElementById("selInspectionScheduleTime");
+            typeSelect.value = baseRecord.InspectionTypeCode;
+            onInspectionTypeChanged();
+            templateSelect.value = String(baseRecord.IDTemplate);
+            templateSelect.dispatchEvent(new Event("change"));
+            detailSelect.value = state.detail.InspectionTypeDetailCode;
+            onInspectionDetailChanged();
+            if (String(baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" && state.scheduleTimes.length)
+                scheduleSelect.value = state.scheduleTime;
+            refreshInspectionScheduleOptions();
+            await startNewInspection();
+            if (currentInspectionRecord === previousRecord ||
+                String(currentInspectionRecord && currentInspectionRecord.InspectionTypeDetailCode || "").toUpperCase() !==
+                    String(state.detail.InspectionTypeDetailCode || "").toUpperCase()) {
+                if (previousRecord) {
+                    populateInspectionParameters(previousRecord);
+                    if (typeof window.showInspectionMapWorkspace === "function")
+                        window.showInspectionMapWorkspace(previousRecord, true);
+                }
+                return;
+            }
+        }
+    }
+
+    const activeRecord = currentInspectionRecord;
+    if (!activeRecord || String(activeRecord.InspectionTypeDetailCode || "").toUpperCase() !==
+        String(state.detail.InspectionTypeDetailCode || "").toUpperCase()) return;
+    if (String(activeRecord.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+        const schedules = (activeRecord.Schedules || []).map(item => String(item.ScheduleTime || item));
+        if (schedules.indexOf(state.scheduleTime) >= 0) {
+            activeRecord.ActiveScheduleTime = state.scheduleTime;
+            activeInspectionScheduleTime = state.scheduleTime;
+            if (typeof window.setInspectionActiveScheduleTime === "function")
+                window.setInspectionActiveScheduleTime(state.scheduleTime);
+        }
+    }
+    if (typeof window.showInspectionMapWorkspace === "function")
+        window.showInspectionMapWorkspace(activeRecord, true);
+    if (typeof window.refreshInspectionMapPointStatuses === "function")
+        window.refreshInspectionMapPointStatuses();
+    const focused = typeof window.focusInspectionMapPoint === "function"
+        ? await window.focusInspectionMapPoint(pointId) : false;
+    if (!focused && typeof showToast === "function")
+        showToast("Titik ditemukan, tetapi denah/koordinat map belum tersedia. Gunakan daftar Inspection Point.", "warning");
+}
+
+
 window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNumber, value) {
     const record = currentInspectionRecord;
     if (!record || !isInspectionMapMode(record.InspectionMode))
@@ -2711,7 +3163,7 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
     return true;
 };
 
-async function saveBatchInspectionPoint(status) {
+async function saveBatchInspectionPoint(status, options) {\n    options = options || {};
     const record = currentInspectionRecord;
     const point = getActiveInspectionPoint();
     if (!record || !point) { showToast("Pilih Inspection Point terlebih dahulu.", "warning"); return; }
@@ -2779,7 +3231,11 @@ async function saveBatchInspectionPoint(status) {
                 return Object.keys(repeatFields).some(key => String(repeatFields[key] == null ? "" : repeatFields[key]).trim());
             });
         });
-        point.Status = hasAnyPointValue || photos.length ? "INCOMPLETE" : "PENDING";
+        const originalPointStatus = String(point.Status || "").toUpperCase();
+        point.Status = options.preserveCompletedStatus &&
+            ["DONE", "ABNORMAL"].indexOf(originalPointStatus) >= 0
+            ? originalPointStatus
+            : (hasAnyPointValue || photos.length ? "INCOMPLETE" : "PENDING");
     }
     point.Items = items;
     let validationIssueCount = status === "DONE" ? errors.length : validateInspectionItemsAll(items).length;
@@ -2816,7 +3272,7 @@ async function saveBatchInspectionPoint(status) {
     document.getElementById("inspectionChecklistPane").classList.add("d-none");
     if (typeof showInspectionMapWorkspace === "function") showInspectionMapWorkspace(record, true);
     if (typeof refreshInspectionMapPointStatuses === "function") refreshInspectionMapPointStatuses();
-    showToast(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
+    if (!options.silent) showToast(point.PointCode + " tersimpan dengan status " + point.Status + ".", "success");
 }
 
 
