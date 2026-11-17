@@ -347,6 +347,7 @@ BEGIN
     END;
 
     BEGIN TRY
+        -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
 
         /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
            ClientInspectionID is excluded so syncing an existing offline record remains an update. */
