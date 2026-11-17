@@ -208,11 +208,9 @@ BEGIN
                 SET FollowUpWONo=@V_WONo, UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
                 WHERE InspectionID=@p_InspectionID;
             END;
-        END
-        ELSE
-        BEGIN
-            /* VOID header reset is performed by ApprovalWorkflow. */
         END;
+
+        /* VOID header reset is performed by ApprovalWorkflow. */
 
         SELECT @p_InspectionID AS InspectionID, @p_Action AS Action,
                (SELECT FollowUpWONo FROM dbo.PIP_T_Inspection WHERE InspectionID=@p_InspectionID) AS FollowUpWONo;
