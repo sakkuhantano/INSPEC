@@ -318,21 +318,41 @@ BEGIN
        OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
     BEGIN RAISERROR('You are not the configured approver for the current Lightning stage.',16,1); RETURN; END;
 
+    /*
+       ApprovalToken is an event-scoped capability, not a permanent inspection token.
+       The token must belong to the current approver and to the latest workflow event
+       that created the current approval email:
+         SPV       -> TECHNICIAN SUBMITTED/RESUBMITTED event
+         CHIEF_ENG -> SPV APPROVED event
+         CHIEF_SEC -> CHIEF_ENG APPROVED event
+       Therefore a token from an earlier stage cannot be replayed after the workflow
+       has advanced, even when the old email is delivered later by SMTP retry.
+    */
     IF @p_ApprovalToken IS NOT NULL
        AND NOT EXISTS
        (
-           SELECT 1 FROM dbo.PIP_T_InspectionEmailOutbox O
+           SELECT 1
+           FROM dbo.PIP_T_InspectionEmailOutbox O
+           JOIN dbo.PIP_T_InspectionApprovalHistory H
+             ON H.ApprovalEventID=O.ApprovalEventID
            WHERE O.ApprovalToken=@p_ApprovalToken
              AND O.EntityType='LIGHTNING'
              AND O.EntityID=@p_InspectionID
              AND O.RecipientType='APPROVER'
              AND O.RecipientEmployeeID=@p_ActorEmployeeID
              AND O.ApprovalEventID=
-                 (SELECT MAX(H.ApprovalEventID)
-                  FROM dbo.PIP_T_InspectionApprovalHistory H
-                  WHERE H.EntityType='LIGHTNING' AND H.EntityID=@p_InspectionID)
+                 (SELECT MAX(H2.ApprovalEventID)
+                  FROM dbo.PIP_T_InspectionApprovalHistory H2
+                  WHERE H2.EntityType='LIGHTNING' AND H2.EntityID=@p_InspectionID)
+             AND H.StageCode=
+                 CASE
+                     WHEN @V_Stage='SPV' THEN 'TECHNICIAN'
+                     WHEN @V_Stage='CHIEF_ENG' THEN 'SPV'
+                     WHEN @V_Stage='CHIEF_SEC' THEN 'CHIEF_ENG'
+                 END
+             AND H.ActionCode IN ('SUBMITTED','RESUBMITTED','APPROVED')
        )
-    BEGIN RAISERROR('This approval email link is invalid or belongs to another approver.',16,1); RETURN; END;
+    BEGIN RAISERROR('This approval email link is invalid, expired, or belongs to another approver.',16,1); RETURN; END;
 
     SELECT @V_TechnicianEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))),@V_TechnicianName=ISNULL(Name,@V_OwnerEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
@@ -396,6 +416,22 @@ BEGIN
                 @V_Stage,CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
                 @p_ActorEmployeeID,GETDATE(),NULLIF(@p_Remark,N''));
         SET @V_EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
+
+        /*
+           Consume the exact email approval token that was used for this action.
+           This makes the token one-time-use even before the workflow state changes.
+           If the transaction rolls back, this invalidation rolls back with it.
+        */
+        IF @p_ApprovalToken IS NOT NULL
+        BEGIN
+            UPDATE dbo.PIP_T_InspectionEmailOutbox
+            SET ApprovalToken=NULL
+            WHERE ApprovalToken=@p_ApprovalToken
+              AND EntityType='LIGHTNING'
+              AND EntityID=@p_InspectionID
+              AND RecipientType='APPROVER'
+              AND RecipientEmployeeID=@p_ActorEmployeeID;
+        END;
 
 
         IF @p_Action='VOID'
