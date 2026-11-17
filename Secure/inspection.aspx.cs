@@ -23,8 +23,11 @@ namespace INSPEC.Secure
             {
                 DataTable admin = br.EQueryP(@"
 SELECT TOP 1 1
-FROM dbo.SysWebUserUserGroup
-WHERE UserID=@UserID AND UserGroupID='administrator'",
+FROM dbo.SysWebUser SU
+JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+WHERE SU.EmployeeID=@UserID
+  AND SU.IsActive=1
+  AND UG.UserGroupID='administrator'",
                     new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
                 return admin != null && admin.Rows.Count > 0;
             }
