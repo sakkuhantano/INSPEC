@@ -6301,7 +6301,7 @@ function renderTemplateInspectionDetailTags(template, details) {
         check.type = "checkbox";
         check.className = "form-check-input mt-1";
         check.checked = selectedCodes.indexOf(code) >= 0;
-        check.disabled = isReadonlyMode;
+        check.disabled = false;
         check.addEventListener("change", function() {
             const next = getTemplateInspectionDetailCodes(template).filter(x => x !== code);
             if (this.checked) next.push(code);
@@ -6336,12 +6336,12 @@ async function refreshInspectionDetailDropdown(template) {
         if (selectAll) selectAll.disabled = true;
         return;
     }
-    if (selectAll) selectAll.disabled = !!isReadonlyMode;
+    if (selectAll) selectAll.disabled = false;
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
         const details = JSON.parse(raw || "[]");
         renderTemplateInspectionDetailTags(template, details);
-        if (selectAll) selectAll.disabled = !!isReadonlyMode || !details.length;
+        if (selectAll) selectAll.disabled = !details.length;
         if (search && !search.dataset.bound) {
             search.dataset.bound = "1";
             search.addEventListener("input", function() {
@@ -6510,7 +6510,7 @@ async function appendTemplateMetadataControls(template)
                     '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
                     '<div class="d-flex flex-wrap gap-2 align-items-center mb-2">' +
                         '<input type="search" id="txtInspectionDetailSearch" class="form-control form-control-sm" placeholder="Search detail code / name..." style="flex:1 1 180px;min-width:0;" />' +
-                        '<button type="button" id="btnSelectAllInspectionDetails" class="btn btn-sm btn-outline-primary text-nowrap py-1 px-2" ' + (isReadonlyMode ? 'disabled' : '') + '>Select All</button>' +
+                        '<button type="button" id="btnSelectAllInspectionDetails" class="btn btn-sm btn-outline-primary text-nowrap py-1 px-2">Select All</button>' +
                     '</div>' +
                     '<div id="propInspectionDetailList" class="border rounded p-2" style="max-height:260px;overflow-y:auto;min-width:0;"></div>' +
                     '<div class="form-text">Centang detail code yang diperbolehkan. Hilangkan centang untuk menghapus. Tidak ada yang dicentang = semua detail diperbolehkan.</div>' +
