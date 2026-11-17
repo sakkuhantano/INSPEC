@@ -143,19 +143,11 @@ BEGIN
                     RAISERROR('Follow Up Work Order Description is required.', 16, 1);
             END;
 
-            UPDATE dbo.PIP_T_Inspection
-            SET IsApproved=1, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark=ISNULL(NULLIF(LTRIM(RTRIM(@p_Remark)), ''), ''),
-                ReasonVoid='', UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
-            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApproved=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
-              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
-
-            IF @@ROWCOUNT <> 1
-                RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
-
-            /* Create the internal WO in the same transaction as approval. The stored WONo
-               on the Inspection header prevents a duplicate if the approval is retried. */
+            /*
+              Do not update IsApproved here. ApprovalWorkflow owns the final
+              header transition and requires IsSubmitted=1, IsApproved=0.
+              This procedure only validates scope and creates the Follow Up WO.
+            */
             IF @V_FollowUp='Recommend Follow Up' AND ISNULL(@V_FollowUpWONo,'')=''
             BEGIN
                 DECLARE @V_KeyHDWO INT;
@@ -219,16 +211,7 @@ BEGIN
         END
         ELSE
         BEGIN
-            UPDATE dbo.PIP_T_Inspection
-            SET Status='DRAFT', IsApproved=0, ApprovedBy=@p_EmployeeID, ApprovedDate=GETDATE(),
-                ApprovalRemark='', ReasonVoid=LTRIM(RTRIM(ISNULL(@p_Remark,''))),
-                UpdateUser=@p_EmployeeID, UpdateDate=GETDATE()
-            WHERE InspectionID=@p_InspectionID AND CompanyID=@p_CompanyID AND LocationID=@p_LocationID
-              AND Status='DONE' AND IsApproved=0 AND ISNULL(ApprovedBy,'')='' AND ISNULL(ApprovedDate,CONVERT(DATETIME,'19000101',112))<=CONVERT(DATETIME,'19000101',112)
-              AND ISNULL(ApprovalRemark,'')='' AND ISNULL(ReasonVoid,'')='';
-
-            IF @@ROWCOUNT <> 1
-                RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
+            /* VOID header reset is performed by ApprovalWorkflow. */
         END;
 
         SELECT @p_InspectionID AS InspectionID, @p_Action AS Action,
