@@ -49,6 +49,12 @@
    input.addEventListener("blur",function(){add(f[0],f[1],f[2],f[3],f[4]);});
    input.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();add(f[0],f[1],f[2],f[3],f[4]);}});
   }render(f[0],f[1],f[2],f[3],f[4]);});
+  // SearchList_2 assigns textbox.value directly, so input/change events are not raised.
+  // Poll the three target textboxes and consume each newly populated value automatically.
+  window.setInterval(function(){fields.forEach(function(f){
+   var input=document.getElementById(f[0]);
+   if(input&&input.value&&input.value.trim())add(f[0],f[1],f[2],f[3],f[4]);
+  });},200);
   function collectAfterPopup(){[100,300,700,1200].forEach(function(delay){window.setTimeout(function(){if(!document.hidden){fields.forEach(function(f){add(f[0],f[1],f[2],f[3],f[4]);});}},delay);});}
   window.addEventListener("focus",collectAfterPopup);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)collectAfterPopup();});
