@@ -1259,10 +1259,11 @@
     <div id="inspectionApprovalDetailPanel" class="border-top pt-3 d-none">
         <div id="inspectionApprovalStickyHeader" class="inspection-approval-sticky mb-3">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                <div>
+                <div class="min-w-0">
                     <h5 class="mb-1">Inspection Detail</h5>
                     <div id="inspectionApprovalDetailSubtitle" class="inspection-muted"></div>
                 </div>
+                <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary text-nowrap flex-shrink-0"><i class="bi bi-arrow-left"></i> Back to List</button>
             </div>
             <ul class="nav nav-tabs mb-2" role="tablist">
                 <li class="nav-item"><button class="nav-link active" id="inspectionApprovalParamTab" data-bs-toggle="tab" data-bs-target="#inspectionApprovalParamPane" type="button" role="tab">PARAMETERS</button></li>
@@ -1379,7 +1380,6 @@
         <div class="inspection-entry-header-actions d-flex align-items-center justify-content-end flex-wrap gap-2">
             <div class="inspection-entry-heading text-end"><div class="fw-semibold">Inspection Entry</div><div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div></div>
             <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
-            <button type="button" id="btnBackToInspectionApprovalList" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
         </div>
     </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
