@@ -3431,7 +3431,9 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
         // Server-side authorization and one-InspectionType validation for selected transactions.
         public static DataTable GetAuthorizedInspectionSelection(long[] inspectionIds, string companyId, string locationId)
         {
-            string employeeId = GFC.RequireMenuEmployee("20022");
+            string employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (inspectionIds == null || inspectionIds.Length == 0)
                 throw new HttpException(400, "Pilih minimal satu transaksi inspeksi.");
@@ -3441,6 +3443,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
 
             List<SqlParameter> parameters = new List<SqlParameter>();
             parameters.Add(new SqlParameter("@EmployeeID", employeeId));
+            parameters.Add(new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0));
             parameters.Add(new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)));
             parameters.Add(new SqlParameter("@CompanyID", companyId));
             parameters.Add(new SqlParameter("@LocationID", locationId));
@@ -3469,7 +3472,7 @@ WHERE I.InspectionID IN (" + String.Join(",", idParameters.ToArray()) + @")
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
-  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
+  AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
@@ -3497,7 +3500,9 @@ ORDER BY I.InspectionID";
             string employeeId, string companyId, string locationId, string remark)
         {
             RequireSameOriginPost();
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             if (!String.Equals(action, "APPROVE", StringComparison.OrdinalIgnoreCase) &&
                 !String.Equals(action, "VOID", StringComparison.OrdinalIgnoreCase))
                 throw new HttpException(400, "Invalid inspection action.");
@@ -3518,7 +3523,9 @@ ORDER BY I.InspectionID";
             string companyId, string locationId, string remark)
         {
             RequireSameOriginPost();
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
@@ -3545,18 +3552,19 @@ WHERE I.InspectionID=@InspectionID
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
   AND (ISNULL(T.EmployeeList,'')=''
        OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  AND EXISTS (
+  AND (@IsAdministrator=1 OR EXISTS (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-  )
+  ))
   AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0
-  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022')
+  AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
 ",
                     new SqlParameter[] {
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
