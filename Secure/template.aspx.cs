@@ -1829,38 +1829,49 @@ WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
                     !String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Archieved", StringComparison.OrdinalIgnoreCase))
                     return new { success = false, message = "Hanya version Active/Archived yang dapat dikembalikan ke Draft." };
                 DataRow row = owner.Rows[0];
-                DataTable used = br.EQueryP(@"
+                br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
 IF EXISTS (
     SELECT 1
-    FROM dbo.PIP_T_Inspection I
-    JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate AND T.TemplateType='I'
+    FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+    JOIN dbo.PIP_M_CheckListWOPM T
+      ON T.IDTemplate=@IDTemplate AND T.TemplateType='I'
     WHERE I.IDTemplate=@IDTemplate AND I.IDVersion=@IDVersion
 )
-    SELECT 'INSPECTION' UsedIn
-ELSE IF EXISTS (
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Version sudah digunakan pada Inspection dan tidak dapat dikembalikan ke Draft.',16,1);
+    RETURN;
+END;
+IF EXISTS (
     SELECT 1
-    FROM dbo.PIP_T_WO W
-    WHERE W.TemplateWOPM=@TemplateNo
-      AND W.TemplateVersion=@TemplateVersion
-
+    FROM dbo.PIP_T_WO W WITH (UPDLOCK,HOLDLOCK)
+    WHERE LTRIM(RTRIM(CONVERT(VARCHAR(100), W.TemplateWOPM))) IN
+          (@TemplateNo, CONVERT(VARCHAR(20), @IDTemplate))
+      AND LTRIM(RTRIM(CONVERT(VARCHAR(50), W.TemplateVersion)))=@TemplateVersion
 )
-    SELECT 'WORK ORDER' UsedIn;",
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Version sudah digunakan pada Work Order dan tidak dapat dikembalikan ke Draft.',16,1);
+    RETURN;
+END;
+UPDATE dbo.PIP_M_CheckListWOPM_Version
+SET Status='Draft', EffectiveDate=NULL
+WHERE IDTemplate=@IDTemplate AND IDVersion=@IDVersion
+  AND Status IN ('Active','Archieved');
+IF @@ROWCOUNT=0
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Version status changed. Refresh the template and try again.',16,1);
+    RETURN;
+END;
+COMMIT TRANSACTION;",
                     new SqlParameter[] {
                         new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@IDVersion", versionId),
                         new SqlParameter("@TemplateNo", GF.GetString(row["TemplateNo"])),
                         new SqlParameter("@TemplateVersion", GF.GetString(row["Version"]))
-                    });
-                if (used.Rows.Count > 0)
-                    return new { success = false, message = "Version tidak dapat dikembalikan ke Draft karena sudah digunakan pada " + GF.GetString(used.Rows[0]["UsedIn"]) + "." };
-                br.EQueryP(@"
-UPDATE dbo.PIP_M_CheckListWOPM_Version
-SET Status='Draft', EffectiveDate=NULL
-WHERE IDTemplate=@IDTemplate AND IDVersion=@IDVersion
-  AND Status IN ('Active','Archieved');",
-                    new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", templateId),
-                        new SqlParameter("@IDVersion", versionId)
                     }, false, false);
                 return new { success = true, message = "Version berhasil dikembalikan ke Draft." };
             }
