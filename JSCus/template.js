@@ -6364,73 +6364,83 @@ function getTemplateInspectionDetailCodes(template) {
 }
 
 function renderTemplateInspectionDetailTags(template, details) {
-    const host = document.getElementById("propInspectionDetailTags");
+    const host = document.getElementById("propInspectionDetailList");
     if (!host) return;
     const selectedCodes = getTemplateInspectionDetailCodes(template);
-    const detailMap = new Map((details || []).map(item => [
-        String(item.InspectionTypeDetailCode),
-        String(item.InspectionTypeDetailName || "")
-    ]));
+    const term = String((document.getElementById("txtInspectionDetailSearch") || {}).value || "").trim().toLowerCase();
     host.innerHTML = "";
-    if (!selectedCodes.length) {
-        host.innerHTML = '<span class="text-muted small">Semua Inspection Detail diperbolehkan.</span>';
+    if (!details || !details.length) {
+        host.innerHTML = '<div class="small text-muted">Tidak ada Inspection Detail aktif.</div>';
         return;
     }
-    selectedCodes.forEach(function(code) {
-        const tag = document.createElement("span");
-        tag.className = "badge rounded-pill bg-primary-subtle text-primary border d-inline-flex align-items-center gap-2 px-3 py-2";
-        const label = document.createElement("span");
-        label.textContent = code;
-        tag.appendChild(label);
-        {
-            // Inspection Detail metadata remains editable even when the selected
-            // checklist version is published/read-only.
-            const remove = document.createElement("button");
-            remove.type = "button";
-            remove.className = "btn-close";
-            remove.setAttribute("aria-label", "Remove " + code);
-            remove.style.fontSize = ".55rem";
-            remove.addEventListener("click", function() {
-                const remaining = getTemplateInspectionDetailCodes(template).filter(x => x !== code);
-                template.InspectionTypeDetailCode = remaining.join(";");
-                markTemplateMetadataDirty(template);
-                refreshInspectionDetailDropdown(template);
-            });
-            tag.appendChild(remove);
-        }
-        host.appendChild(tag);
+    details.forEach(function(item) {
+        const code = String(item.InspectionTypeDetailCode || "");
+        const name = String(item.InspectionTypeDetailName || "");
+        const row = document.createElement("label");
+        row.className = "d-flex align-items-start gap-2 py-1 px-1 border-bottom small";
+        row.style.cursor = "pointer";
+        row.style.display = (!term || (code + " " + name).toLowerCase().indexOf(term) >= 0) ? "flex" : "none";
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.className = "form-check-input mt-1";
+        check.checked = selectedCodes.indexOf(code) >= 0;
+        check.disabled = isReadonlyMode;
+        check.addEventListener("change", function() {
+            const next = getTemplateInspectionDetailCodes(template).filter(x => x !== code);
+            if (this.checked) next.push(code);
+            template.InspectionTypeDetailCode = next.join(";");
+            markTemplateMetadataDirty(template);
+            refreshInspectionDetailDropdown(template);
+        });
+        const text = document.createElement("span");
+        text.className = "min-w-0";
+        const strong = document.createElement("strong");
+        strong.textContent = code;
+        const desc = document.createElement("span");
+        desc.className = "text-muted ms-1";
+        desc.textContent = name;
+        text.appendChild(strong);
+        text.appendChild(desc);
+        row.appendChild(check);
+        row.appendChild(text);
+        host.appendChild(row);
     });
+    if (!host.children.length) host.innerHTML = '<div class="small text-muted">Tidak ada detail yang cocok.</div>';
 }
 
 async function refreshInspectionDetailDropdown(template) {
-    const select = document.getElementById("propInspectionDetail");
-    if (!select || !template) return;
+    const host = document.getElementById("propInspectionDetailList");
+    if (!host || !template) return;
     const typeCode = template.InspectionTypeCode || "";
-    const selectedCodes = getTemplateInspectionDetailCodes(template);
-    select.disabled = !typeCode;
-    select.innerHTML = '<option value="">-- Select Inspection Detail --</option>';
-    const addButton = document.getElementById("btnAddInspectionDetail");
-    const addAllButton = document.getElementById("btnAddAllInspectionDetails");
-    if (addButton) addButton.disabled = !typeCode;
-    if (addAllButton) addAllButton.disabled = !typeCode;
+    const selectAll = document.getElementById("btnSelectAllInspectionDetails");
+    const search = document.getElementById("txtInspectionDetailSearch");
     if (!typeCode) {
-        renderTemplateInspectionDetailTags(template, []);
+        host.innerHTML = '<div class="small text-muted">Pilih Inspection Type terlebih dahulu.</div>';
+        if (selectAll) selectAll.disabled = true;
         return;
     }
+    if (selectAll) selectAll.disabled = !!isReadonlyMode;
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
         const details = JSON.parse(raw || "[]");
-        details.forEach(function(item) {
-            const code = String(item.InspectionTypeDetailCode);
-            if (selectedCodes.indexOf(code) >= 0) return;
-            select.add(new Option(code + " - " + item.InspectionTypeDetailName, code));
-        });
-        if (addAllButton) addAllButton.disabled = !typeCode || select.options.length === 0;
-        if (addButton) addButton.disabled = !typeCode || select.options.length === 0;
         renderTemplateInspectionDetailTags(template, details);
+        if (selectAll) selectAll.disabled = !!isReadonlyMode || !details.length;
+        if (search && !search.dataset.bound) {
+            search.dataset.bound = "1";
+            search.addEventListener("input", function() {
+                renderTemplateInspectionDetailTags(template, details);
+            });
+        }
+        if (selectAll && !selectAll.dataset.bound) {
+            selectAll.dataset.bound = "1";
+            selectAll.addEventListener("click", function() {
+                template.InspectionTypeDetailCode = details.map(x => String(x.InspectionTypeDetailCode)).join(";");
+                markTemplateMetadataDirty(template);
+                refreshInspectionDetailDropdown(template);
+            });
+        }
     } catch (ex) {
-        select.innerHTML = '<option value="">Failed to load inspection details</option>';
-        renderTemplateInspectionDetailTags(template, []);
+        host.innerHTML = '<div class="small text-danger">Failed to load inspection details.</div>';
         console.error(ex);
     }
 }
@@ -6581,15 +6591,12 @@ async function appendTemplateMetadataControls(template)
                 '</div>' +
                 '<div class="mb-3" id="inspectionDetailField" style="display:none;">' +
                     '<label class="form-label">Inspection Detail <span class="text-muted">(optional, multiple)</span></label>' +
-                    '<div id="propInspectionDetailTags" class="d-flex flex-wrap gap-2 border rounded p-2 mb-2" style="min-height:42px;"></div>' +
-                    '<div class="input-group input-group-sm">' +
-                        '<select id="propInspectionDetail" class="form-select form-select-compact" multiple size="7" aria-label="Select multiple inspection details"></select>' +
-                        '<div class="d-flex flex-column gap-1">' +
-                            '<button type="button" id="btnAddInspectionDetail" class="btn btn-outline-primary text-nowrap" ' + (isReadonlyMode ? 'disabled' : '') + '>Add Selected</button>' +
-                            '<button type="button" id="btnAddAllInspectionDetails" class="btn btn-outline-secondary text-nowrap" ' + (isReadonlyMode ? 'disabled' : '') + '>Add All Available</button>' +
-                        '</div>' +
+                    '<div class="d-flex flex-wrap gap-2 align-items-center mb-2">' +
+                        '<input type="search" id="txtInspectionDetailSearch" class="form-control form-control-sm" placeholder="Search detail code / name..." style="flex:1 1 180px;min-width:0;" />' +
+                        '<button type="button" id="btnSelectAllInspectionDetails" class="btn btn-sm btn-outline-primary text-nowrap py-1 px-2" ' + (isReadonlyMode ? 'disabled' : '') + '>Select All</button>' +
                     '</div>' +
-                    '<div class="form-text">Pilih beberapa detail sekaligus (Ctrl/Shift), lalu Add Selected. Add All Available untuk memasukkan seluruh detail yang belum dipilih. Klik × pada tag untuk menghapus. Tidak ada tag = semua detail.</div>' +
+                    '<div id="propInspectionDetailList" class="border rounded p-2" style="max-height:260px;overflow-y:auto;min-width:0;"></div>' +
+                    '<div class="form-text">Centang detail code yang diperbolehkan. Hilangkan centang untuk menghapus. Tidak ada yang dicentang = semua detail diperbolehkan.</div>' +
                 '</div>' +
                 '<div class="mb-3">' +
                     '<label class="form-label">Company Scope</label>' +
@@ -6649,23 +6656,6 @@ async function appendTemplateMetadataControls(template)
         template.InspectionTypeDetailCode = '';
         markMetadataDirty();
         await refreshInspectionDetailDropdown(template);
-    });
-
-    function addInspectionDetailCodes(codes) {
-        const selected = getTemplateInspectionDetailCodes(template);
-        (codes || []).forEach(function(code) {
-            code = String(code || '').trim();
-            if (code && selected.indexOf(code) < 0) selected.push(code);
-        });
-        template.InspectionTypeDetailCode = selected.join(';');
-        markMetadataDirty();
-        refreshInspectionDetailDropdown(template);
-    }
-    document.getElementById('btnAddInspectionDetail').addEventListener('click', function() {
-        addInspectionDetailCodes(Array.from(inspectionDetailSelect.selectedOptions).map(option => option.value));
-    });
-    document.getElementById('btnAddAllInspectionDetails').addEventListener('click', function() {
-        addInspectionDetailCodes(Array.from(inspectionDetailSelect.options).map(option => option.value));
     });
 
     // Reload the eligible employee list whenever the Employees tab is opened,
@@ -6861,14 +6851,17 @@ async function renderTemplateEmployeeAssignments(template)
         clearSearch.type = 'button';
         clearSearch.className = 'btn btn-sm btn-outline-secondary text-nowrap';
         clearSearch.textContent = 'Clear Search';
+        const searchRow = document.createElement('div');
+        searchRow.className = 'd-flex flex-wrap gap-2 align-items-center w-100';
+        searchRow.appendChild(search);
+        searchRow.appendChild(sortLabel);
         const actionButtons = document.createElement('div');
-        actionButtons.className = 'd-flex flex-nowrap gap-2 ms-auto';
-        actionButtons.appendChild(assignAll);
-        actionButtons.appendChild(unselectAll);
-        actionButtons.appendChild(removeSelected);
-        actionButtons.appendChild(clearSearch);
-        toolbar.appendChild(search);
-        toolbar.appendChild(sortLabel);
+        actionButtons.className = 'd-flex flex-wrap gap-1 align-items-center w-100';
+        [assignAll, unselectAll, removeSelected, clearSearch].forEach(function(button) {
+            button.className += ' py-1 px-2 small';
+            actionButtons.appendChild(button);
+        });
+        toolbar.appendChild(searchRow);
         toolbar.appendChild(actionButtons);
         host.appendChild(toolbar);
 
