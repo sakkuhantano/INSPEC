@@ -2597,11 +2597,7 @@ async function getInspectionPointNavigatorSetup(record, detail) {
 }
 
 function getInspectionPointNavigatorRecords(baseRecord, detail) {
-    const sameDetail = String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
-        String(detail.InspectionTypeDetailCode || "").toUpperCase();
-    if (sameDetail) return [baseRecord];
-
-    return inspectionRecords.filter(record =>
+    const candidates = inspectionRecords.filter(record =>
         !record.ServerOnly &&
         record.OwnerEmployeeID === baseRecord.OwnerEmployeeID &&
         record.CompanyID === baseRecord.CompanyID &&
@@ -2615,7 +2611,12 @@ function getInspectionPointNavigatorRecords(baseRecord, detail) {
         parseInspectionDate(record.InspectionDate) === parseInspectionDate(baseRecord.InspectionDate) &&
         String(record.InspectionMode || "").toUpperCase() === String(baseRecord.InspectionMode || "").toUpperCase() &&
         record.SyncStatus !== "DELETE_PENDING"
-    ).sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "")
+    );
+    if (String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(detail.InspectionTypeDetailCode || "").toUpperCase() &&
+        !candidates.some(record => record.LocalInspectionID === baseRecord.LocalInspectionID))
+        candidates.push(baseRecord);
+    return candidates.sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "")
         .localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
 }
 
@@ -2636,28 +2637,21 @@ function selectInspectionPointNavigatorRecord(detail) {
     const base = state.baseRecord;
     const candidates = getInspectionPointNavigatorRecords(base, detail);
     const lightning = String(base.InspectionMode || "").toUpperCase() === "LIGHTNING";
-    if (String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
-        String(base.InspectionTypeDetailCode || "").toUpperCase()) {
-        state.record = base;
-        if (lightning) {
-            const active = String(base.ActiveScheduleTime || base.Schedules && base.Schedules[0] && (base.Schedules[0].ScheduleTime || base.Schedules[0]) || "");
-            state.scheduleTime = state.scheduleTimes.indexOf(active) >= 0 ? active : (state.scheduleTimes[0] || "");
-        } else {
-            state.scheduleTime = String(base.ScheduledTime || "");
-        }
-        return;
-    }
-
+    const sameDetail = String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(base.InspectionTypeDetailCode || "").toUpperCase();
     if (lightning) {
         state.record = candidates[0] || null;
-        const active = String(state.record && state.record.ActiveScheduleTime || "");
+        const active = sameDetail
+            ? String(base.ActiveScheduleTime || base.Schedules && base.Schedules[0] && (base.Schedules[0].ScheduleTime || base.Schedules[0]) || "")
+            : String(state.record && state.record.ActiveScheduleTime || "");
         state.scheduleTime = state.scheduleTimes.indexOf(active) >= 0 ? active : (state.scheduleTimes[0] || "");
         return;
     }
 
-    const wanted = state.scheduleTime || state.scheduleTimes[0] || "";
-    state.record = candidates.find(record => String(record.ScheduledTime || "") === wanted) || candidates[0] || null;
-    if (state.record) state.scheduleTime = String(state.record.ScheduledTime || "");
+    const wanted = state.scheduleTime || (sameDetail ? String(base.ScheduledTime || "") : "") ||
+        state.scheduleTimes[0] || "";
+    state.record = candidates.find(record => String(record.ScheduledTime || "") === wanted) || null;
+    state.scheduleTime = wanted;
 }
 
 function renderInspectionPointNavigatorList() {
@@ -2754,6 +2748,16 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         const setup = await getInspectionPointNavigatorSetup(state.baseRecord, detail);
         if (sequence !== inspectionPointNavigatorLoadSequence) return;
         state.setup = setup;
+        if (String(state.baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" &&
+            String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() !==
+                String(detail.InspectionTypeDetailCode || "").toUpperCase() && state.scheduleTimes.length) {
+            const existing = getInspectionPointNavigatorRecords(state.baseRecord, detail)
+                .find(record => state.scheduleTimes.indexOf(String(record.ScheduledTime || "")) >= 0);
+            if (existing) {
+                state.scheduleTime = String(existing.ScheduledTime || "");
+                scheduleSelect.value = state.scheduleTime;
+            }
+        }
         selectInspectionPointNavigatorRecord(detail);
         if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
             scheduleSelect.value = state.scheduleTime;
