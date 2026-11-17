@@ -44,7 +44,7 @@ BEGIN
     DECLARE @V_ChiefEngEmail VARCHAR(4000), @V_ChiefEngName VARCHAR(4000);
     DECLARE @V_ChiefSecEmail VARCHAR(4000), @V_ChiefSecName VARCHAR(4000);
     DECLARE @V_ExistingStatus VARCHAR(30), @V_Action VARCHAR(20);
-    DECLARE @V_EventID BIGINT, @V_TranCount INT, @V_LastActionCode VARCHAR(20);
+    DECLARE @V_EventID BIGINT, @V_LastActionCode VARCHAR(20);
 
     SELECT @V_CompanyID=I.CompanyID,@V_LocationID=I.LocationID,@V_SectionID=I.SectionID,
            @V_OwnerEmployeeID=I.OwnerEmployeeID,@V_InspectionNo=I.InspectionNo,
@@ -171,12 +171,8 @@ BEGIN
     WHERE EntityType='LIGHTNING' AND EntityID=@p_InspectionID
     ORDER BY ApprovalEventID DESC;
     SET @V_Action=CASE WHEN @V_LastActionCode='VOIDED' THEN 'RESUBMITTED' ELSE 'SUBMITTED' END;
-    SET @V_TranCount=@@TRANCOUNT;
     BEGIN TRY
-        IF @V_TranCount=0 BEGIN TRANSACTION;
-        ELSE SAVE TRANSACTION LightningWorkflowSubmitSave;
-
-        UPDATE dbo.PIP_T_Inspection
+UPDATE dbo.PIP_T_Inspection
         SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
             IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
             IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
@@ -227,15 +223,8 @@ BEGIN
              N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'. Status: CHECKED.','PENDING',0,GETDATE());
         END;
 
-        IF @V_TranCount=0 COMMIT TRANSACTION;
-    END TRY
+        END TRY
     BEGIN CATCH
-        IF XACT_STATE()=1
-        BEGIN
-            IF @V_TranCount=0 ROLLBACK TRANSACTION;
-            ELSE ROLLBACK TRANSACTION LightningWorkflowSubmitSave;
-        END
-        ELSE IF XACT_STATE()=-1 AND @V_TranCount=0 ROLLBACK TRANSACTION;
         DECLARE @V_Error NVARCHAR(4000),@V_Severity INT,@V_State INT;
         SELECT @V_Error=ERROR_MESSAGE(),@V_Severity=ERROR_SEVERITY(),@V_State=ERROR_STATE();
         RAISERROR(@V_Error,@V_Severity,@V_State);
@@ -276,7 +265,7 @@ BEGIN
     DECLARE @V_TechnicianEmail VARCHAR(320),@V_TechnicianName VARCHAR(200),@V_ActorName VARCHAR(200),@V_ActorEmail VARCHAR(320);
     DECLARE @V_EmailEnabled BIT,@V_ConfigScope VARCHAR(30);
     DECLARE @V_NextEmployeeID VARCHAR(4000),@V_NextEmail VARCHAR(4000),@V_NextName VARCHAR(4000);
-    DECLARE @V_EventID BIGINT,@V_TranCount INT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
+    DECLARE @V_EventID BIGINT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
 
     SELECT @V_CompanyID=I.CompanyID,@V_LocationID=I.LocationID,@V_SectionID=I.SectionID,
            @V_Stage=CASE WHEN ISNULL(I.IsApproved,0)=0 THEN 'SPV' WHEN ISNULL(I.IsApproved1,0)=0 THEN 'CHIEF_ENG' ELSE 'CHIEF_SEC' END,
@@ -405,12 +394,8 @@ BEGIN
         SET @V_NewStatus='VOID'; SET @V_NextStage='TECHNICIAN';
     END;
 
-    SET @V_TranCount=@@TRANCOUNT;
     BEGIN TRY
-        IF @V_TranCount=0 BEGIN TRANSACTION;
-        ELSE SAVE TRANSACTION LightningApprovalSave;
-
-        INSERT dbo.PIP_T_InspectionApprovalHistory
+INSERT dbo.PIP_T_InspectionApprovalHistory
         (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
         VALUES ('LIGHTNING',@p_InspectionID,@V_CompanyID,@V_LocationID,@V_SectionID,
                 @V_Stage,CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
@@ -610,16 +595,9 @@ BEGIN
             END;
         END;
 
-        IF @V_TranCount=0 COMMIT TRANSACTION;
         SELECT @V_NewStatus WorkflowStatus,@V_NextStage CurrentStageCode,@V_EventID ApprovalEventID;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE()=1
-        BEGIN
-            IF @V_TranCount=0 ROLLBACK TRANSACTION;
-            ELSE ROLLBACK TRANSACTION LightningApprovalSave;
-        END
-        ELSE IF XACT_STATE()=-1 AND @V_TranCount=0 ROLLBACK TRANSACTION;
         DECLARE @V_Error NVARCHAR(4000),@V_Severity INT,@V_State INT;
         SELECT @V_Error=ERROR_MESSAGE(),@V_Severity=ERROR_SEVERITY(),@V_State=ERROR_STATE();
         RAISERROR(@V_Error,@V_Severity,@V_State);
