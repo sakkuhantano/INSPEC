@@ -2759,6 +2759,8 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
             }
         }
         selectInspectionPointNavigatorRecord(detail);
+        if (state.record && state.record.BatchMapSetup && Array.isArray(state.record.BatchMapSetup.points))
+            state.setup = state.record.BatchMapSetup;
         if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
             scheduleSelect.value = state.scheduleTime;
         renderInspectionPointNavigatorList();
@@ -2941,6 +2943,7 @@ async function openInspectionPointNavigatorTarget(pointId) {
 
         let targetRecord = state.record;
         if (targetRecord) {
+            targetRecord.BatchMapSetup = state.setup;
             if (String(targetRecord.InspectionMode || "").toUpperCase() === "LIGHTNING" &&
                 state.scheduleTimes.indexOf(state.scheduleTime) >= 0)
                 targetRecord.ActiveScheduleTime = state.scheduleTime;
