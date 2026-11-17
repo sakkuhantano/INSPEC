@@ -1,8 +1,10 @@
 <%@ Page Title="Inspection Email Setup" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="inspectionemailsetup.aspx.cs" Inherits="INSPEC.Secure.inspectionemailsetup" %><%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %> <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
-.employee-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
-.employee-badge{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .55rem;border-radius:50rem;background:var(--bs-primary-bg-subtle);color:var(--bs-primary-text-emphasis);border:1px solid var(--bs-primary-border-subtle);font-size:.85rem}
-.employee-badge button{border:0;background:transparent;color:inherit;padding:0 .1rem;line-height:1;font-size:1rem}
+.employee-badges{display:flex;flex-wrap:wrap;align-items:center;gap:.25rem;margin-top:.35rem;min-height:0}
+.employee-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.12rem .4rem;border-radius:50rem;background:var(--bs-primary-bg-subtle);color:var(--bs-primary-text-emphasis);border:1px solid var(--bs-primary-border-subtle);font-size:.72rem;line-height:1.35;white-space:nowrap}
+.employee-badge button{border:0;background:transparent;color:inherit;padding:0 .05rem;line-height:1;font-size:.82rem}
+.employee-search-row{display:flex;gap:.5rem;align-items:center}
+.employee-search-row .form-control{flex:1;min-width:0}
 </style>
 <script type="text/javascript">
 (function(){
@@ -54,7 +56,7 @@
   window.setInterval(function(){fields.forEach(function(f){
    var input=document.getElementById(f[0]);
    if(input&&input.value&&input.value.trim())add(f[0],f[1],f[2],f[3],f[4]);
-  });},200);
+  });},100);
   function collectAfterPopup(){[100,300,700,1200].forEach(function(delay){window.setTimeout(function(){if(!document.hidden){fields.forEach(function(f){add(f[0],f[1],f[2],f[3],f[4]);});}},delay);});}
   window.addEventListener("focus",collectAfterPopup);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)collectAfterPopup();});
@@ -90,22 +92,22 @@
       <div class="row g-3">
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Engineering <span class="badge text-bg-light">PENG</span></label>
-          <div class="d-flex gap-2 align-items-center">
+          <div class="employee-search-row">
             <asp:TextBox ID="txtChiefEng" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="false" placeholder="Pilih employee via Search" />
-            <asp:HiddenField ID="hidChiefEngEmployees" runat="server" />
-            <div id="divChiefEngEmployees" runat="server" class="employee-badges"></div>
             <asp:LinkButton ID="lBtnChiefEng" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
+          <asp:HiddenField ID="hidChiefEngEmployees" runat="server" />
+          <div id="divChiefEngEmployees" runat="server" class="employee-badges"></div>
           <asp:Label ID="lblChiefEngName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
         </div>
         <div class="col-lg-6">
           <label class="form-label fw-semibold">Chief Security <span class="badge text-bg-light">PSEC</span></label>
-          <div class="d-flex gap-2 align-items-center">
+          <div class="employee-search-row">
             <asp:TextBox ID="txtChiefSec" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="false" placeholder="Pilih employee via Search" />
-            <asp:HiddenField ID="hidChiefSecEmployees" runat="server" />
-            <div id="divChiefSecEmployees" runat="server" class="employee-badges"></div>
             <asp:LinkButton ID="lBtnChiefSec" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
           </div>
+          <asp:HiddenField ID="hidChiefSecEmployees" runat="server" />
+          <div id="divChiefSecEmployees" runat="server" class="employee-badges"></div>
           <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
         </div>
       </div>
@@ -126,12 +128,12 @@
           </div>
           <div class="col-md-5">
             <label class="form-label">SPV NIK</label>
-            <div class="d-flex gap-2 align-items-center">
+            <div class="employee-search-row">
               <asp:TextBox ID="txtSPV" runat="server" CssClass="form-control form-control-sm" ReadOnly="false" AutoPostBack="false" placeholder="Pilih employee via Search" />
-            <asp:HiddenField ID="hidSPVEmployees" runat="server" />
-            <div id="divSPVEmployees" runat="server" class="employee-badges"></div>
               <asp:LinkButton ID="lBtnSPV" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
             </div>
+            <asp:HiddenField ID="hidSPVEmployees" runat="server" />
+            <div id="divSPVEmployees" runat="server" class="employee-badges"></div>
             <asp:Label ID="lblSPVName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
           </div>
           <div class="col-md-3 d-flex align-items-end">
