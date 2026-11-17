@@ -1950,8 +1950,14 @@ BEGIN
 END
 ELSE
 BEGIN
-    /* Re-adding to an empty list is already satisfied (empty means all). */
-    IF @CurrentEmployeeList<>''
+    /* ';' is the explicit no-assignment state; adding the first employee starts a normal list. */
+    IF @CurrentEmployeeList=';'
+    BEGIN
+        UPDATE dbo.PIP_M_CheckListWOPM
+        SET EmployeeList=@EmployeeID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+        WHERE IDTemplate=@IDTemplate;
+    END
+    ELSE IF @CurrentEmployeeList<>''
     BEGIN
         UPDATE dbo.PIP_M_CheckListWOPM
         SET EmployeeList=CASE
