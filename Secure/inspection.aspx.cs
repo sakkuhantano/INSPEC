@@ -3957,7 +3957,7 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
                (O.EntityType='LIGHTNING'
                 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
                OR
-               (PIP_T_InspectionEmailOutbox.EntityType='INSPECTION'
+               (O.EntityType='INSPECTION'
                 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
            )
           WHERE I.InspectionID=O.EntityID
