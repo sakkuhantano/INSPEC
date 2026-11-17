@@ -21,10 +21,8 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval]
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;
+    SET XACT_ABORT OFF;
 
-    DECLARE @V_TranCount INT;
-    SET @V_TranCount=@@TRANCOUNT;
 
     SET @p_Action = UPPER(LTRIM(RTRIM(ISNULL(@p_Action, ''))));
     IF @p_Action NOT IN ('APPROVE', 'VOID')
@@ -44,11 +42,6 @@ BEGIN
     END;
 
     BEGIN TRY
-        IF @V_TranCount=0
-            BEGIN TRANSACTION;
-        ELSE
-            SAVE TRANSACTION InspectionLegacyApprovalSave;
-
         DECLARE @V_SectionID VARCHAR(10);
         DECLARE @V_Status VARCHAR(10);
         DECLARE @V_IsApprove BIT;
@@ -238,19 +231,11 @@ BEGIN
                 RAISERROR('Inspection approval state changed before this action completed. Refresh the queue.', 16, 1);
         END;
 
-        IF @V_TranCount=0
-            COMMIT TRANSACTION;
         SELECT @p_InspectionID AS InspectionID, @p_Action AS Action,
                (SELECT FollowUpWONo FROM dbo.PIP_T_Inspection WHERE InspectionID=@p_InspectionID) AS FollowUpWONo;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE()=-1 AND @V_TranCount=0
-            ROLLBACK TRANSACTION;
-        ELSE IF XACT_STATE()=1
-        BEGIN
-            IF @V_TranCount=0 ROLLBACK TRANSACTION;
-            ELSE ROLLBACK TRANSACTION InspectionLegacyApprovalSave;
-        END;
+        /* Transaction ownership belongs to the calling BRC/EQueryP layer. */
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
         DECLARE @V_ErrorState INT;
@@ -279,18 +264,14 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval_Execute]
 AS
 BEGIN
     SET NOCOUNT ON;
-    /* Do not let this wrapper force a rollback of a transaction owned by CF. */
     SET XACT_ABORT OFF;
 
-    DECLARE @V_TranCount INT;
-    SET @V_TranCount = @@TRANCOUNT;
-
+    /*
+      The transaction is opened by CF.EQueryP(..., true, true).
+      This procedure and its child procedures must not BEGIN, COMMIT,
+      or ROLLBACK that caller-owned transaction.
+    */
     BEGIN TRY
-        IF @V_TranCount = 0
-            BEGIN TRANSACTION;
-        ELSE
-            SAVE TRANSACTION InspectionApprovalExecuteSave;
-
         EXEC dbo.spUTL_PIP_T_Inspection_Approval
             @p_InspectionID = @p_InspectionID,
             @p_Action = @p_Action,
@@ -305,27 +286,8 @@ BEGIN
             @p_Action = @p_Action,
             @p_Remark = @p_Remark,
             @p_CorrectionUrl = @p_CorrectionUrl;
-
-        IF @V_TranCount = 0
-            COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
-        /*
-          If we own the transaction, we must clean it up. If the caller owns
-          it, roll back only to our savepoint while the transaction is
-          committable. If it is uncommittable, leave it for the caller
-          (CF.cs) to roll back, rather than invalidating its SqlTransaction.
-        */
-        IF @V_TranCount = 0
-        BEGIN
-            IF XACT_STATE() <> 0
-                ROLLBACK TRANSACTION;
-        END
-        ELSE IF XACT_STATE() = 1
-        BEGIN
-            ROLLBACK TRANSACTION InspectionApprovalExecuteSave;
-        END;
-
         DECLARE @V_ExecuteError NVARCHAR(4000);
         DECLARE @V_ExecuteSeverity INT;
         DECLARE @V_ExecuteState INT;
