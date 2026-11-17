@@ -234,6 +234,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             var backupFilesByOriginalPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var filesWrittenByThisSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             bool commitAttempted = false;
+            DataTable emailRows = null;
 
             try
             {
@@ -328,6 +329,7 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                             new SqlParameter("@p_dt4", V_tblTmp_4), 
                             new SqlParameter("@p_UpdateUser", UpdateUser)
                         }, true, ref _mainConnection, ref _transaction);
+                    emailRows = v_ds != null && v_ds.Tables.Count > 1 ? v_ds.Tables[1] : null;
                     DataTable v_dt = v_ds.Tables[0];
                     var distinctQuery = (from row in v_dt.AsEnumerable()
                                          select new
@@ -442,30 +444,41 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                             }
                         }
 
-                        v_dt = v_ds.Tables[1];
-                        for (int i = 0; i <= v_dt.Rows.Count - 1; i++)
-                        {
-                            if (!GF.SendEmail(Convert.ToString(v_dt.Rows[i]["EmailAddressFrom"]),
-                                              Convert.ToString(v_dt.Rows[i]["From"]),
-                                              Convert.ToString(v_dt.Rows[i]["EmailAddressTo"]),
-                                              Convert.ToString(v_dt.Rows[i]["Subject"]),
-                                              Convert.ToString(v_dt.Rows[i]["FormEmail"]),
-                                              "",
-                                              Convert.ToString(v_dt.Rows[i]["BCC_EmailAddress"])))
-                            {
-                                if (i == 0)
-                                {
-                                    throw new Exception("Sent email Failed.");
-                                }
-                            }
-                            
-                        }
-
                     }
 
                 }
                 commitAttempted = true;
                 CommitTrans();
+
+                // Email is returned by spUTL_WO_CheckList only for eligible anomalous WOs
+                // with the required WORK ORDER email switch, SPV mapping and recipient addresses.
+                // Dispatch once per sync batch, after commit, so SMTP failures never roll back WO data.
+                if (emailRows != null)
+                {
+                    foreach (DataRow emailRow in emailRows.Rows)
+                    {
+                        try
+                        {
+                            bool sent = GF.SendEmail(
+                                Convert.ToString(emailRow["EmailAddressFrom"]),
+                                Convert.ToString(emailRow["From"]),
+                                Convert.ToString(emailRow["EmailAddressTo"]),
+                                Convert.ToString(emailRow["Subject"]),
+                                Convert.ToString(emailRow["FormEmail"]),
+                                "",
+                                Convert.ToString(emailRow["BCC_EmailAddress"]));
+
+                            if (!sent)
+                                Trace.TraceWarning("WO sync committed, but an anomaly notification email could not be sent. Subject: {0}",
+                                    Convert.ToString(emailRow["Subject"]));
+                        }
+                        catch (Exception emailError)
+                        {
+                            Trace.TraceError("WO sync committed, but an anomaly notification email failed. Subject: {0}. Error: {1}",
+                                Convert.ToString(emailRow["Subject"]), emailError.Message);
+                        }
+                    }
+                }
 
                 // Once SQL and photo writes are committed, backup cleanup is best-effort only.
                 try
