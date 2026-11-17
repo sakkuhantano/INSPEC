@@ -80,17 +80,28 @@ BEGIN
             FROM dbo.SysWebUser SU
             WHERE SU.EmployeeID=@p_EmployeeID
               AND SU.IsActive=1
-              AND EXISTS
+              AND
               (
-                  SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
-                  WHERE AM.MenuID='20022'
-              )
-              AND EXISTS
-              (
-                  SELECT 1 FROM dbo.SysWebCommonValue C
-                  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                    AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';SPV;'+@V_SectionID
-                    AND C.Description=@p_EmployeeID
+                  EXISTS
+                  (
+                      SELECT 1
+                      FROM dbo.SysWebUserUserGroup UG
+                      WHERE UG.UserID=SU.UserID
+                        AND UG.UserGroupID='administrator'
+                  )
+                  OR
+                  (
+                      EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+                              WHERE AM.MenuID='20022')
+                      AND EXISTS
+                      (
+                          SELECT 1 FROM dbo.SysWebCommonValue C
+                          WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                            AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';SPV;'+@V_SectionID
+                            AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                                        WHERE LTRIM(RTRIM(X.val))=@p_EmployeeID)
+                      )
+                  )
               )
               AND
               (
