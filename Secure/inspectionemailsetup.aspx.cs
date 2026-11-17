@@ -199,6 +199,50 @@ namespace INSPEC.Secure
             return String.Join("; ", names.ToArray());
         }
 
+        [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string GetEmployeeNamesForBadges(string ids, string role, string sectionId)
+        {
+            using (WAL.PB pb = new WAL.PB())
+            {
+                string filter;
+                if (role == "PENG") filter = "ProfitCenterNo='PENG'";
+                else if (role == "PSEC") filter = "ProfitCenterNo='PSEC'";
+                else if (role == "SPV") filter = "SectionID=@S";
+                else throw new HttpException(400, "Invalid employee role.");
+
+                using (var br = new WAL.BR.CF())
+                {
+                    DataTable admin = br.EQueryP(
+                        @"SELECT CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebUserUserGroup WHERE UserID=@U AND UserGroupID='administrator') THEN 1 ELSE 0 END AS IsAdmin",
+                        new SqlParameter[] { new SqlParameter("@U", pb.EmployeeID) }
+                    );
+                    if (admin.Rows.Count == 0 || Convert.ToInt32(admin.Rows[0]["IsAdmin"]) != 1)
+                        throw new HttpException(403, "Access denied.");
+
+                    string normalized = (ids ?? "").Replace(",", ";");
+                    var names = new System.Collections.Generic.List<string>();
+                    foreach (string raw in normalized.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        string id = raw.Trim();
+                        if (id == "") continue;
+                        DataTable d = br.EQueryP(
+                            @"SELECT TOP 1 Name FROM dbo.M_HRD_Employee WHERE EmployeeID=@ID AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND " + filter,
+                            new SqlParameter[] {
+                                new SqlParameter("@ID", id),
+                                new SqlParameter("@C", pb.CompanyID),
+                                new SqlParameter("@S", sectionId ?? "")
+                            }
+                        );
+                        if (d.Rows.Count == 0)
+                            names.Add(id + " - (employee tidak valid)");
+                        else
+                            names.Add(id + " - " + Convert.ToString(d.Rows[0]["Name"]));
+                    }
+                    return String.Join("; ", names.ToArray());
+                }
+            }
+        }
+
         private void ValidateEmployeeList(TextBox input, Label nameLabel, string employeeFilter, string sectionId, bool required)
         {
             string normalized = NormalizeEmployeeList(input.Text);
