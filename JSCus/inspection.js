@@ -2540,8 +2540,8 @@ function getInspectionPointNavigatorDetails(record) {
     const allowed = getInspectionTemplateDetailCodes(record.TemplateSnapshot);
     return inspectionDetails.filter(detail =>
         String(detail.InspectionTypeCode || "") === String(record.InspectionTypeCode || "") &&
-        String(detail.CompanyID || "") === String(record.CompanyID || "") &&
-        String(detail.LocationID || "") === String(record.LocationID || "") &&
+        (!detail.CompanyID || String(detail.CompanyID) === String(record.CompanyID || "")) &&
+        (!detail.LocationID || String(detail.LocationID) === String(record.LocationID || "")) &&
         (!allowed.length || allowed.indexOf(String(detail.InspectionTypeDetailCode || "").trim().toUpperCase()) >= 0)
     ).sort((a, b) => String(a.InspectionTypeDetailName || a.InspectionTypeDetailCode || "")
         .localeCompare(String(b.InspectionTypeDetailName || b.InspectionTypeDetailCode || "")));
@@ -2882,6 +2882,16 @@ window.openInspectionPointNavigator = async function () {
     document.getElementById("inspectionPointNavigatorSearch").value = "";
     document.getElementById("inspectionPointNavigatorSort").value = "display";
     const details = getInspectionPointNavigatorDetails(record);
+    if (!details.some(detail => String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(record.InspectionTypeDetailCode || "").toUpperCase())) {
+        details.unshift({
+            InspectionTypeCode: record.InspectionTypeCode,
+            InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+            InspectionTypeDetailName: record.InspectionTypeDetailName || record.InspectionTypeDetailCode,
+            CompanyID: record.CompanyID,
+            LocationID: record.LocationID
+        });
+    }
     const detailSelect = document.getElementById("inspectionPointNavigatorDetail");
     detailSelect.innerHTML = details.map(detail =>
         '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
