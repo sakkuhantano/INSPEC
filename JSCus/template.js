@@ -515,14 +515,15 @@ async function onTemplateClick(event,idTemplate, sectionId)
             return;
         console.error(ex);
 
+        const errorMessage = ex && ex.message ? ex.message : String(ex || 'Unknown error');
         container.innerHTML =
         `
         <div class="
             text-danger
             text-xs
             p-2
-        ">
-            Failed load versions
+        " title="${escapeHtml(errorMessage)}">
+            Failed load versions: ${escapeHtml(errorMessage)}
         </div>
         `;
     }
