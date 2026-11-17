@@ -284,12 +284,7 @@ BEGIN
         RETURN;
     END;
 
-    DECLARE @V_EntryTranCount INT;
-    SET @V_EntryTranCount=@@TRANCOUNT;
-
     BEGIN TRY
-        IF @V_EntryTranCount=0 BEGIN TRANSACTION;
-        ELSE SAVE TRANSACTION InspectionBatchSyncSave;
 
         DECLARE @V_InspectionNo VARCHAR(10);
         SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))), '');
@@ -501,22 +496,12 @@ BEGIN
             @p_ActorEmployeeID=@p_UpdateUser,
             @p_ApprovalUrl=@p_ApprovalUrl;
 
-        IF @V_EntryTranCount=0 COMMIT TRANSACTION;
-
         SELECT @V_InspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
                InspectionNo
         FROM dbo.PIP_T_Inspection
         WHERE InspectionID=@V_InspectionID;
     END TRY
     BEGIN CATCH
-        IF XACT_STATE()=1
-        BEGIN
-            IF @V_EntryTranCount=0 ROLLBACK TRANSACTION;
-            ELSE ROLLBACK TRANSACTION InspectionBatchSyncSave;
-        END
-        ELSE IF XACT_STATE()=-1 AND @V_EntryTranCount=0
-            ROLLBACK TRANSACTION;
-
         DECLARE @V_ErrorMessage NVARCHAR(4000);
         DECLARE @V_ErrorSeverity INT;
         DECLARE @V_ErrorState INT;
