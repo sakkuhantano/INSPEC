@@ -38,6 +38,11 @@
         transform: translateY(-15px);
     }
 
+    .custom-toast {
+        background-color: #ffffff;
+        color: #212529;
+    }
+
     .custom-toast .toast-body {
         display: flex;
         align-items: flex-start;
@@ -48,10 +53,37 @@
         overflow-y: auto;
         padding: 1rem 0.75rem 1rem 1.25rem;
         font-weight: 500;
-        color: #333;
+        color: #212529;
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: normal;
+    }
+
+    .custom-toast .toast-message {
+        color: inherit;
+    }
+
+    /* Keep custom notifications readable when the application uses Bootstrap dark theme. */
+    [data-bs-theme="dark"] .custom-toast {
+        background-color: #1f242b;
+        color: #f1f3f5;
+        border: 1px solid #3b424c;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+    }
+
+    [data-bs-theme="dark"] .custom-toast .toast-body,
+    [data-bs-theme="dark"] .custom-toast .toast-message {
+        color: #f1f3f5;
+    }
+
+    [data-bs-theme="dark"] .custom-toast .toast-close {
+        color: #c7cdd4;
+    }
+
+    [data-bs-theme="dark"] .custom-toast .toast-close:hover,
+    [data-bs-theme="dark"] .custom-toast .toast-close:focus {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.12);
     }
 
     .custom-toast .toast-message {
