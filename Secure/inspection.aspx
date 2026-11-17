@@ -282,8 +282,8 @@
     .inspection-form-header { padding-left: .55rem; }
 
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
-    /* Keep the complete inspection heading, tabs, and section navigation pinned below the master header. */
-    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 112px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
+    /* Keep the complete inspection heading, tabs, and section navigation pinned directly below the master header. */
+    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 64px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
     .inspection-section-nav-host { width: 100%; }
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
@@ -309,7 +309,7 @@
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
         #inspectionEditorStickyHeader { top: 58px !important; }
-        #inspectionApprovalStickyHeader { top: 104px !important; }
+        #inspectionApprovalStickyHeader { top: 58px !important; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
