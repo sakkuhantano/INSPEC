@@ -1472,7 +1472,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
 
             string sectionList = GFC.GetEmployeeSection(employeeId);
-            string typeCode = Limit(inspectionTypeCode, 2).ToUpperInvariant();
+            string typeCode = Limit(inspectionTypeCode, 50).ToUpperInvariant();
             string detailCode = Limit(inspectionTypeDetailCode, 20).ToUpperInvariant();
             if (typeCode == "" || detailCode == "")
                 throw new HttpException(400, "Inspection Type and Detail are required.");
