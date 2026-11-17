@@ -2930,7 +2930,10 @@ async function openInspectionPointNavigatorTarget(pointId) {
 
     const sameDetail = String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
         String(state.detail.InspectionTypeDetailCode || "").toUpperCase();
-    if (!sameDetail) {
+    const sameBatchSchedule = String(baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" &&
+        String(baseRecord.ScheduledTime || "") !== String(state.scheduleTime || "");
+    const sameTransaction = sameDetail && !sameBatchSchedule;
+    if (!sameTransaction) {
         if (currentInspectionReadOnly && !state.record) {
             showToast("Detail ini belum memiliki transaksi inspeksi yang dapat dibuka dari record read-only.", "warning");
             return;
