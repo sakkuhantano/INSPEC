@@ -1702,9 +1702,9 @@ FROM dbo.SplitStringConvertToTable((SELECT ISNULL(CompanyLocationList,'') FROM d
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;
 UPDATE T
-SET EmployeeList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+SET EmployeeList=CASE WHEN ISNULL(T.EmployeeList,'')=';' THEN ';' ELSE ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
  WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=X.val AND E.CompanyID=@CompanyID AND E.LocationID=@LocationID)
- FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),''),
+ FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'') END,
  CompanyLocationList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.CompanyLocationList,''),';') X
  WHERE X.val<>@CompanyID+@LocationID FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
