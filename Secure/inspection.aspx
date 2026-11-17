@@ -282,8 +282,9 @@
     .inspection-form-header { padding-left: .55rem; }
 
     .inspection-approval-sticky { position: -webkit-sticky; position: sticky; top: 64px; z-index: 1025; background: var(--bs-body-bg); padding: .35rem 0 .4rem; border-bottom: 1px solid var(--bs-border-color); }
-    /* Keep the complete inspection heading, tabs, and section navigation pinned directly below the master header. */
-    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 64px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
+    /* Keep the approval detail header aligned with the list header and directly below the compact master header. */
+    #inspectionApprovalStickyHeader { position: -webkit-sticky !important; position: sticky !important; top: 48px !important; z-index: 1080 !important; background: var(--bs-body-bg); }
+    #inspectionApprovalDetailPanel { border-top: 0 !important; padding-top: 0 !important; }
     .inspection-section-nav-host { width: 100%; }
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
@@ -309,7 +310,7 @@
         .inspection-editor-sticky { top: 58px; }
         .inspection-approval-sticky { top: 58px; }
         #inspectionEditorStickyHeader { top: 58px !important; }
-        #inspectionApprovalStickyHeader { top: 58px !important; }
+        #inspectionApprovalStickyHeader { top: 44px !important; }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
@@ -1256,7 +1257,7 @@
         </div>
     </div>
 
-    <div id="inspectionApprovalDetailPanel" class="border-top pt-3 d-none">
+    <div id="inspectionApprovalDetailPanel" class="d-none">
         <div id="inspectionApprovalStickyHeader" class="inspection-approval-sticky mb-3">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                 <div class="min-w-0">
