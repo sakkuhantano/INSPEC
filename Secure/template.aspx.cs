@@ -1883,35 +1883,7 @@ BEGIN
     RETURN;
 END;
 
-/* The empty string means ALL eligible employees, so the UI cannot deselect the last assigned employee. */
-IF @Action='REMOVE' AND
-(
-    (@CurrentEmployeeList='' AND NOT EXISTS
-        (SELECT 1
-         FROM dbo.M_HRD_Employee E
-         WHERE E.SectionID=(SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate)
-           AND ISNULL(E.TerminationDate,'')=''
-           AND (
-               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
-                         AND CurrentPermission.CompanyID=@CurrentCompanyID
-                         AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
-                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                            AND LoginCompany.LocationID=@CurrentLocationID)
-           )
-           AND E.EmployeeID<>@EmployeeID
-           AND (ISNULL((SELECT CompanyScope FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'S')='A'
-                OR (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))))
-    OR
-    (@CurrentEmployeeList<>'' AND NOT EXISTS
-        (SELECT 1 FROM dbo.SplitStringConvertToTable(@CurrentEmployeeList,';') X WHERE X.val<>@EmployeeID))
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('At least one eligible employee must remain assigned. An empty EmployeeList means all eligible employees.',16,1);
-    RETURN;
-END;
+/* An explicit ';' value represents no assigned employees. Empty string remains ALL eligible employees. */
 
 IF @Action='REMOVE'
 BEGIN
@@ -1919,7 +1891,7 @@ BEGIN
     IF @CurrentEmployeeList=''
     BEGIN
         UPDATE T
-        SET EmployeeList=ISNULL(STUFF((
+        SET EmployeeList=CASE WHEN ISNULL(STUFF((
             SELECT ';'+E.EmployeeID
             FROM dbo.M_HRD_Employee E
             WHERE E.SectionID=T.SectionID
@@ -1937,18 +1909,42 @@ BEGIN
                    OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
               AND E.EmployeeID<>@EmployeeID
             ORDER BY E.EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')='' THEN ';' ELSE STUFF((
+            SELECT ';'+E.EmployeeID
+            FROM dbo.M_HRD_Employee E
+            WHERE E.SectionID=T.SectionID
+              AND ISNULL(E.TerminationDate,'')=''
+                          AND (
+               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
+                         AND CurrentPermission.CompanyID=@CurrentCompanyID
+                         AND CurrentPermission.LocationID=@CurrentLocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
+                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
+                            AND LoginCompany.LocationID=@CurrentLocationID)
+           )
+              AND (ISNULL(T.CompanyScope,'S')='A'
+                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
+              AND E.EmployeeID<>@EmployeeID
+            ORDER BY E.EmployeeID
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,'')
+        END
         FROM dbo.PIP_M_CheckListWOPM T
         WHERE T.IDTemplate=@IDTemplate;
     END
     ELSE
     BEGIN
         UPDATE T
-        SET EmployeeList=ISNULL(STUFF((
+        SET EmployeeList=CASE WHEN ISNULL(STUFF((
             SELECT ';'+X.val
             FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
             WHERE X.val<>@EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')='' THEN ';' ELSE STUFF((
+            SELECT ';'+X.val
+            FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
+            WHERE X.val<>@EmployeeID
+            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,'')
+        END
         FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
     END
 END
