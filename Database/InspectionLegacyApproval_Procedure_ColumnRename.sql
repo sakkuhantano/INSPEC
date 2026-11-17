@@ -259,3 +259,84 @@ BEGIN
     END CATCH;
 END;
 GO
+
+/*
+  Keep the approval executor transaction-safe when called through CF.EQueryP,
+  which may already own a SqlTransaction. Never roll back a caller-owned
+  transaction from this procedure.
+*/
+GO
+ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval_Execute]
+(
+    @p_InspectionID BIGINT,
+    @p_Action VARCHAR(10),
+    @p_EmployeeID VARCHAR(50),
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
+    @p_Remark NVARCHAR(1000),
+    @p_CorrectionUrl NVARCHAR(1000)
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    /* Do not let this wrapper force a rollback of a transaction owned by CF. */
+    SET XACT_ABORT OFF;
+
+    DECLARE @V_TranCount INT;
+    SET @V_TranCount = @@TRANCOUNT;
+
+    BEGIN TRY
+        IF @V_TranCount = 0
+            BEGIN TRANSACTION;
+        ELSE
+            SAVE TRANSACTION InspectionApprovalExecuteSave;
+
+        EXEC dbo.spUTL_PIP_T_Inspection_Approval
+            @p_InspectionID = @p_InspectionID,
+            @p_Action = @p_Action,
+            @p_EmployeeID = @p_EmployeeID,
+            @p_CompanyID = @p_CompanyID,
+            @p_LocationID = @p_LocationID,
+            @p_Remark = @p_Remark;
+
+        EXEC dbo.spUTL_PIP_T_Inspection_ApprovalWorkflow
+            @p_InspectionID = @p_InspectionID,
+            @p_ActorEmployeeID = @p_EmployeeID,
+            @p_Action = @p_Action,
+            @p_Remark = @p_Remark,
+            @p_CorrectionUrl = @p_CorrectionUrl;
+
+        IF @V_TranCount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        /*
+          If we own the transaction, we must clean it up. If the caller owns
+          it, roll back only to our savepoint while the transaction is
+          committable. If it is uncommittable, leave it for the caller
+          (CF.cs) to roll back, rather than invalidating its SqlTransaction.
+        */
+        IF @V_TranCount = 0
+        BEGIN
+            IF XACT_STATE() <> 0
+                ROLLBACK TRANSACTION;
+        END
+        ELSE IF XACT_STATE() = 1
+        BEGIN
+            ROLLBACK TRANSACTION InspectionApprovalExecuteSave;
+        END;
+
+        DECLARE @V_ExecuteError NVARCHAR(4000);
+        DECLARE @V_ExecuteSeverity INT;
+        DECLARE @V_ExecuteState INT;
+
+        SELECT
+            @V_ExecuteError = ERROR_MESSAGE(),
+            @V_ExecuteSeverity = ERROR_SEVERITY(),
+            @V_ExecuteState = ERROR_STATE();
+
+        RAISERROR(@V_ExecuteError, @V_ExecuteSeverity, @V_ExecuteState);
+        RETURN;
+    END CATCH;
+END;
+GO
