@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             <asp:ListItem Text="" Value="" Selected="True"></asp:ListItem>
                             <asp:ListItem Text="Inspection Type Code" Value="InspectionTypeCode"></asp:ListItem>
                             <asp:ListItem Text="Inspection Detail Code" Value="InspectionTypeDetailCode"></asp:ListItem>
-                            <asp:ListItem Text="Schedule Time" Value="ScheduleTime"></asp:ListItem>
+                            <asp:ListItem Text="Schedule Time" Value="ScheduledTime"></asp:ListItem>
                         </asp:DropDownList>
                         <button type="button" id="btnAddGroupingBy" class="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" title="Tambah grouping"><i class="fas fa-plus"></i></button>
                     </div>
