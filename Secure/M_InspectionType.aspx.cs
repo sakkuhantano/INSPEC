@@ -301,7 +301,7 @@ WHERE InspectionTypeCode=@InspectionTypeCode
         }
         private string NormalizeGroupingBy(string value)
         {
-            string[] allowed = new[] { "InspectionTypeCode", "InspectionTypeDetailCode", "ScheduleTime" };
+            string[] allowed = new[] { "InspectionTypeCode", "InspectionTypeDetailCode", "ScheduledTime" };
             return String.Join(";", (value ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(x => x.Trim())
                 .Where(x => allowed.Contains(x))
