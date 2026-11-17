@@ -83,7 +83,7 @@ BEGIN
     FROM dbo.SysWebCommonValue C
     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
       AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
-    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,0);
 
     IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') S JOIN dbo.SplitStringConvertToTable(@V_ChiefEngID,';') E ON LTRIM(RTRIM(S.val))=LTRIM(RTRIM(E.val)))
        OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') S JOIN dbo.SplitStringConvertToTable(@V_ChiefSecID,';') C ON LTRIM(RTRIM(S.val))=LTRIM(RTRIM(C.val)))
@@ -296,7 +296,7 @@ BEGIN
     FROM dbo.SysWebCommonValue C
     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
       AND C.ID=@V_ConfigScope+';EMAIL;LIGHTNING';
-    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,1);
+    SET @V_EmailEnabled=ISNULL(@V_EmailEnabled,0);
 
     SELECT @V_SPVID=NULLIF(LTRIM(RTRIM(C.Description)),'')
     FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
