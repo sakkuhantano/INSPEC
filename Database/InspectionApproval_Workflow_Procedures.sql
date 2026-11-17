@@ -203,7 +203,18 @@ BEGIN
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
- IF NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID) BEGIN RAISERROR('You are not a configured SPV for this Section.',16,1); RETURN; END;
+ /* Administrator group may approve any Standard/Batch section; workflow state and company/location checks remain enforced by the caller and this procedure. */
+ IF NOT EXISTS
+ (
+  SELECT 1 FROM dbo.SysWebUserUserGroup
+  WHERE UserID=@p_ActorEmployeeID AND UserGroupID='administrator'
+ )
+ AND NOT EXISTS
+ (
+  SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
+  WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID
+ )
+ BEGIN RAISERROR('You are not a configured SPV for this Section.',16,1); RETURN; END;
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID),
         @ActorEmail=LTRIM(RTRIM(ISNULL(emailaddress,'')))
