@@ -552,7 +552,7 @@ SELECT a.IDTemplate,
                SELECT 1
                FROM PIP_M_CheckListWOPM_Version aa
                WHERE aa.IDTemplate = a.IDTemplate
-                 AND aa.Status IN ('Active', 'Archieved')
+                 AND aa.Status = 'Active'
            ) THEN 1 ELSE 0 END AS BIT),
        RuntimeTemplateID = a.IDTemplate
 FROM PIP_M_CheckListWOPM a
@@ -1751,6 +1751,118 @@ WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
                     "@IDTemplate=" + id + GF.Str2 +
                     "@UpdateUser=" + updateUser);
                 return new { success = true, message = "" };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object SoftDeleteTemplate(string idTemplate)
+        {
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            string employeeId = SessionValue(inspecUser, "EmployeeID");
+            string companyId = SessionValue(inspecUser, "CompanyID");
+            string locationId = SessionValue(inspecUser, "LocationID");
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                return new { success = false, message = "Invalid template ID." };
+            RequireTemplateAccess(id.ToString());
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable result = br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
+    WHERE IDTemplate=@IDTemplate
+)
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Template was not found.',16,1);
+    RETURN;
+END;
+IF EXISTS (
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version WITH (UPDLOCK,HOLDLOCK)
+    WHERE IDTemplate=@IDTemplate AND Status='Active'
+)
+BEGIN
+    ROLLBACK TRANSACTION;
+    RAISERROR('Template cannot be deactivated while it has an Active version.',16,1);
+    RETURN;
+END;
+UPDATE dbo.PIP_M_CheckListWOPM
+SET IsActive=0, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
+WHERE IDTemplate=@IDTemplate;
+COMMIT TRANSACTION;
+SELECT CAST(1 AS BIT) Success;",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", id),
+                        new SqlParameter("@UpdateUser", employeeId)
+                    });
+                return new { success = true, message = "Template berhasil dinonaktifkan." };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object RevertTemplateVersionToDraft(string idTemplate, string idVersion)
+        {
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            string employeeId = SessionValue(inspecUser, "EmployeeID");
+            int templateId, versionId;
+            if (!Int32.TryParse(idTemplate, out templateId) || templateId <= 0 ||
+                !Int32.TryParse(idVersion, out versionId) || versionId <= 0)
+                return new { success = false, message = "Invalid template/version ID." };
+            RequireTemplateAccess(templateId.ToString());
+            RequireVersionAccess(versionId.ToString());
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable owner = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateType, V.Version, V.Status
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@IDVersion", versionId)
+                    });
+                if (owner.Rows.Count == 0)
+                    return new { success = false, message = "Version tidak ditemukan pada template tersebut." };
+                if (!String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Active", StringComparison.OrdinalIgnoreCase) &&
+                    !String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Archieved", StringComparison.OrdinalIgnoreCase))
+                    return new { success = false, message = "Hanya version Active/Archived yang dapat dikembalikan ke Draft." };
+                DataRow row = owner.Rows[0];
+                DataTable used = br.EQueryP(@"
+IF EXISTS (
+    SELECT 1
+    FROM dbo.PIP_T_Inspection I
+    JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate AND T.TemplateType='I'
+    WHERE I.IDTemplate=@IDTemplate AND I.IDVersion=@IDVersion
+)
+    SELECT 'INSPECTION' UsedIn
+ELSE IF EXISTS (
+    SELECT 1
+    FROM dbo.PIP_T_WO W
+    WHERE W.TemplateWOPM=@TemplateNo
+      AND W.TemplateVersion=@TemplateVersion
+      AND ISNULL(W.IsDelete,0)=0
+)
+    SELECT 'WORK ORDER' UsedIn;",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@IDVersion", versionId),
+                        new SqlParameter("@TemplateNo", GF.GetString(row["TemplateNo"])),
+                        new SqlParameter("@TemplateVersion", GF.GetString(row["Version"]))
+                    });
+                if (used.Rows.Count > 0)
+                    return new { success = false, message = "Version tidak dapat dikembalikan ke Draft karena sudah digunakan pada " + GF.GetString(used.Rows[0]["UsedIn"]) + "." };
+                br.EQueryP(@"
+UPDATE dbo.PIP_M_CheckListWOPM_Version
+SET Status='Draft', EffectiveDate=NULL
+WHERE IDTemplate=@IDTemplate AND IDVersion=@IDVersion
+  AND Status IN ('Active','Archieved');",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@IDVersion", versionId)
+                    }, false, false);
+                return new { success = true, message = "Version berhasil dikembalikan ke Draft." };
             }
         }
 
