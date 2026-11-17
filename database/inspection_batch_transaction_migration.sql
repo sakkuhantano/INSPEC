@@ -253,6 +253,7 @@ BEGIN
     END;
 
     BEGIN TRY
+        -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
 
         DECLARE @V_InspectionNo VARCHAR(10);
         SET @V_InspectionNo=NULLIF(LTRIM(RTRIM(ISNULL(@p_InspectionNo,''))), '');
