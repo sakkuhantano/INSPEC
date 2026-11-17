@@ -296,7 +296,7 @@
         margin-bottom: 0 !important;
     }
     #inspectionApprovalDetailPanel { border-top: 0 !important; padding-top: 0 !important; }
-    #inspectionApprovalDetailPanel > .tab-content { padding-top: 128px; }
+    #inspectionApprovalDetailPanel > .tab-content { padding-top: var(--inspection-approval-header-space, 128px); }
     .inspection-section-nav-host { width: 100%; }
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
@@ -327,7 +327,7 @@
             left: .5rem !important;
             right: .5rem !important;
         }
-        #inspectionApprovalDetailPanel > .tab-content { padding-top: 126px; }
+        #inspectionApprovalDetailPanel > .tab-content { padding-top: var(--inspection-approval-header-space, 126px); }
         .inspection-form-heading { width: 100%; }
         .inspection-section-nav-host { width: 100%; max-width: 100%; }
         .inspection-section-nav-host .inspection-section-nav { width: 100%; }
