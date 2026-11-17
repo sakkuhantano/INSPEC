@@ -1165,6 +1165,91 @@
         }
     };
 
+    async function waitForInspectionMapStage() {
+        return new Promise(function (resolve) {
+            var attempts = 0;
+            function check() {
+                var stage = document.getElementById("inspectionMapPdfStage");
+                var canvas = document.getElementById("inspectionMapPdfCanvas");
+                var image = stage && stage.querySelector("img.inspection-map-image");
+                var message = document.getElementById("inspectionMapPdfMessage");
+                var imageReady = !!(image && image.complete && image.naturalWidth > 0);
+                var pdfReady = !!(canvas && canvas.width > 0 && canvas.height > 0);
+                var ready = !!(stage && stage.clientWidth > 1 && (imageReady || pdfReady) &&
+                    (!message || message.classList.contains("d-none")));
+                if (ready || attempts++ >= 240) {
+                    resolve(ready);
+                    return;
+                }
+                window.requestAnimationFrame(check);
+            }
+            window.requestAnimationFrame(check);
+        });
+    }
+
+    window.focusInspectionMapPoint = async function (pointId) {
+        var point = currentPoints.find(function (item) {
+            return Number(item.InspectionPointID) === Number(pointId);
+        });
+        if (!point) return false;
+        var map = currentMaps.find(function (item) {
+            return Number(item.MapID) === Number(point.MapID);
+        });
+        if (!map) return false;
+
+        showSelectedInspectionMap(map.MapID);
+        var ready = await waitForInspectionMapStage();
+        renderPoints();
+        if (!ready) {
+            var listHost = document.getElementById("inspectionPointList");
+            if (listHost) {
+                var fallbackRow = Array.from(listHost.querySelectorAll("[data-point-id]")).find(function (item) {
+                    return Number(item.getAttribute("data-point-id")) === Number(pointId);
+                });
+                if (fallbackRow) fallbackRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+            return false;
+        }
+
+        var viewport = document.getElementById("inspectionMapCanvas");
+        var stage = document.getElementById("inspectionMapPdfStage");
+        if (!viewport || !stage || point.MapX === null || point.MapX === undefined ||
+            point.MapY === null || point.MapY === undefined) return false;
+
+        resetMapView();
+        var viewportRect = viewport.getBoundingClientRect();
+        var stageRect = stage.getBoundingClientRect();
+        var x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
+        var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+        var pointX = stageRect.left + stageRect.width * x / 100;
+        var pointY = stageRect.top + stageRect.height * y / 100;
+        var stageCenterX = stageRect.left + stageRect.width / 2;
+        var zoom = Math.min(mapMaxZoom, Math.max(2.2, mapMinZoom));
+        mapZoom = zoom;
+        mapPanX = viewportRect.left + viewportRect.width / 2 -
+            (stageCenterX + (pointX - stageCenterX) * zoom);
+        mapPanY = viewportRect.top + viewportRect.height / 2 -
+            (stageRect.top + (pointY - stageRect.top) * zoom);
+        applyMapTransform();
+        schedulePdfCanvasRender();
+
+        var pointHost = document.getElementById("inspectionMapPoints");
+        if (pointHost) {
+            pointHost.querySelectorAll("[data-point-id]").forEach(function (element) {
+                element.classList.toggle("selected",
+                    Number(element.getAttribute("data-point-id")) === Number(pointId));
+            });
+        }
+        var list = document.getElementById("inspectionPointList");
+        if (list) {
+            list.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (element) {
+                element.classList.toggle("selected",
+                    Number(element.getAttribute("data-point-id")) === Number(pointId));
+            });
+        }
+        return true;
+    };
+
     window.refreshInspectionMapPointStatuses = function () {
         renderPoints();
         renderList();
@@ -1180,6 +1265,13 @@
         wired = true;
 
         wireMapGestures();
+        var pointNavigatorButton = document.getElementById("btnInspectionPointNavigator");
+        if (pointNavigatorButton) pointNavigatorButton.addEventListener("click", function () {
+            if (typeof window.openInspectionPointNavigator === "function")
+                window.openInspectionPointNavigator();
+            else if (typeof showToast === "function")
+                showToast("Point Navigator belum siap. Refresh aplikasi setelah update.", "warning");
+        });
         var zoomIn = document.getElementById("btnInspectionMapZoomIn");
         var zoomOut = document.getElementById("btnInspectionMapZoomOut");
         var zoomReset = document.getElementById("btnInspectionMapZoomReset");
