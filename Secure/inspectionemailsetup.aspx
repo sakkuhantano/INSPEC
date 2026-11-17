@@ -6,37 +6,50 @@
 </style>
 <script type="text/javascript">
 (function(){
+ var requestNo={};
  function vals(h){return (h.value||"").split(";").map(function(x){return x.trim();}).filter(Boolean);}
- function render(iid,hid,lid){
+ function refreshNames(hid,nameId,role){
+  var h=document.getElementById(hid),out=document.getElementById(nameId);if(!h||!out)return;
+  var ids=vals(h),token=(requestNo[hid]||0)+1;requestNo[hid]=token;
+  if(!ids.length){out.textContent="";return;}
+  if(typeof(PageMethods)==="undefined"||!PageMethods.GetEmployeeNamesForBadges)return;
+  var section=role==="SPV"?(document.getElementById("<%= ddlSection.ClientID %>")||{}).value||"":"";
+  PageMethods.GetEmployeeNamesForBadges(ids.join(";"),role,section,function(result){
+   if(requestNo[hid]!==token)return;
+   out.textContent=result?"Approver: "+result:"";
+  },function(){if(requestNo[hid]===token)out.textContent="Nama employee gagal dimuat.";});
+ }
+ function render(iid,hid,lid,nameId,role){
   var input=document.getElementById(iid),h=document.getElementById(hid),list=document.getElementById(lid);if(!input||!h||!list)return;
   var ids=vals(h),seen={};list.innerHTML="";
   ids.forEach(function(id){var k=id.toLowerCase();if(seen[k])return;seen[k]=1;
    var badge=document.createElement("span");badge.className="employee-badge";
    var label=document.createElement("span");label.textContent=id;
    var x=document.createElement("button");x.type="button";x.setAttribute("aria-label","Remove "+id);x.innerHTML="&times;";
-   x.addEventListener("click",function(){h.value=vals(h).filter(function(v){return v.toLowerCase()!==k;}).join(";");render(iid,hid,lid);});
+   x.addEventListener("click",function(){h.value=vals(h).filter(function(v){return v.toLowerCase()!==k;}).join(";");render(iid,hid,lid,nameId,role);});
    badge.appendChild(label);badge.appendChild(x);list.appendChild(badge);
   });
   h.value=ids.filter(function(id,n){return ids.findIndex(function(v){return v.toLowerCase()===id.toLowerCase();})===n;}).join(";");
+  refreshNames(hid,nameId,role);
  }
- function add(iid,hid,lid){
+ function add(iid,hid,lid,nameId,role){
   var input=document.getElementById(iid),h=document.getElementById(hid);if(!input||!h||!input.value.trim())return;
   var list=vals(h),seen={};list.forEach(function(v){seen[v.toLowerCase()]=1;});
   input.value.split(";").forEach(function(v){var id=v.trim(),k=id.toLowerCase();if(id&&!seen[k]){list.push(id);seen[k]=1;}});
-  h.value=list.join(";");input.value="";render(iid,hid,lid);
+  h.value=list.join(";");input.value="";render(iid,hid,lid,nameId,role);
  }
  window.addEventListener("load",function(){
   var fields=[
-   ["<%= txtChiefEng.ClientID %>","<%= hidChiefEngEmployees.ClientID %>","<%= divChiefEngEmployees.ClientID %>"],
-   ["<%= txtChiefSec.ClientID %>","<%= hidChiefSecEmployees.ClientID %>","<%= divChiefSecEmployees.ClientID %>"],
-   ["<%= txtSPV.ClientID %>","<%= hidSPVEmployees.ClientID %>","<%= divSPVEmployees.ClientID %>"]
+   ["<%= txtChiefEng.ClientID %>","<%= hidChiefEngEmployees.ClientID %>","<%= divChiefEngEmployees.ClientID %>","<%= lblChiefEngName.ClientID %>","PENG"],
+   ["<%= txtChiefSec.ClientID %>","<%= hidChiefSecEmployees.ClientID %>","<%= divChiefSecEmployees.ClientID %>","<%= lblChiefSecName.ClientID %>","PSEC"],
+   ["<%= txtSPV.ClientID %>","<%= hidSPVEmployees.ClientID %>","<%= divSPVEmployees.ClientID %>","<%= lblSPVName.ClientID %>","SPV"]
   ];
   fields.forEach(function(f){var input=document.getElementById(f[0]);if(input){
-   input.addEventListener("change",function(){add(f[0],f[1],f[2]);});
-   input.addEventListener("blur",function(){add(f[0],f[1],f[2]);});
-   input.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();add(f[0],f[1],f[2]);}});
-  }render(f[0],f[1],f[2]);});
-  function collectAfterPopup(){[100,300,700,1200].forEach(function(delay){window.setTimeout(function(){if(!document.hidden){fields.forEach(function(f){add(f[0],f[1],f[2]);});}},delay);});}
+   input.addEventListener("change",function(){add(f[0],f[1],f[2],f[3],f[4]);});
+   input.addEventListener("blur",function(){add(f[0],f[1],f[2],f[3],f[4]);});
+   input.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();add(f[0],f[1],f[2],f[3],f[4]);}});
+  }render(f[0],f[1],f[2],f[3],f[4]);});
+  function collectAfterPopup(){[100,300,700,1200].forEach(function(delay){window.setTimeout(function(){if(!document.hidden){fields.forEach(function(f){add(f[0],f[1],f[2],f[3],f[4]);});}},delay);});}
   window.addEventListener("focus",collectAfterPopup);
   document.addEventListener("visibilitychange",function(){if(!document.hidden)collectAfterPopup();});
  });
@@ -44,6 +57,7 @@
 </script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+<asp:ScriptManager runat="server" EnablePageMethods="true" />
 <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-body-tertiary fw-semibold py-2">Email Notification per Inspection Mode</div>
