@@ -182,6 +182,17 @@
     .inspection-map-pdf-message{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:1rem;color:#6c757d;font-size:.85rem;text-align:center;line-height:1.4}
     .inspection-map-pdf-message.d-none{display:none}
     .inspection-point-list{min-height:320px;max-height:65vh;overflow:auto}
+    .inspection-point-navigator-list{max-height:min(62vh,560px);overflow-y:auto;overscroll-behavior:contain}
+    .inspection-point-navigator-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.65rem .7rem;border:1px solid var(--bs-border-color);border-radius:.65rem;background:var(--bs-body-bg)}
+    .inspection-point-navigator-row+.inspection-point-navigator-row{margin-top:.4rem}
+    .inspection-point-navigator-main{min-width:0;flex:1 1 auto}
+    .inspection-point-navigator-code{font-size:.7rem;font-weight:800;color:var(--bs-primary);letter-spacing:.03em}
+    .inspection-point-navigator-name{font-size:.84rem;font-weight:700;overflow-wrap:anywhere}
+    .inspection-point-navigator-map{font-size:.68rem;color:var(--bs-secondary-color)}
+    .inspection-point-navigator-actions{display:flex;flex:0 0 auto;flex-direction:column;align-items:flex-end;gap:.35rem}
+    .inspection-point-navigator-actions .badge{font-size:.64rem;white-space:nowrap}
+    @media(max-width:575.98px){.inspection-point-navigator-row{align-items:flex-start;padding:.55rem;gap:.45rem}.inspection-point-navigator-name{font-size:.76rem}.inspection-point-navigator-actions .btn{font-size:.68rem;padding:.25rem .45rem}.inspection-point-navigator-list{max-height:55vh}}
+
     .inspection-point-list-tools{position:sticky;top:0;z-index:5;background:var(--bs-tertiary-bg);padding-bottom:.5rem}
     .inspection-point-list-row{padding:.55rem .65rem;margin-bottom:.35rem}
     .inspection-point-list-row .point-name{font-size:.8rem}
@@ -1484,6 +1495,7 @@
             </div>
             <div class="inspection-map-actions">
 
+                <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i>Navigator</button>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
@@ -1620,6 +1632,50 @@
             <button type="button" id="inspectionPhotoViewerNext" class="btn btn-outline-light inspection-photo-viewer-nav" aria-label="Foto berikutnya">&#8250;</button>
         </div>
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
+    </div>
+    <div class="modal fade" id="inspectionPointNavigatorModal" tabindex="-1" aria-labelledby="inspectionPointNavigatorTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1" id="inspectionPointNavigatorTitle"><i class="bi bi-signpost-split me-2 text-primary"></i>Point Navigator</h5>
+                        <div class="small text-muted">Semua titik tetap ditampilkan, termasuk yang sudah diinspeksi.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-md-5">
+                            <label for="inspectionPointNavigatorDetail" class="form-label small fw-semibold mb-1">Inspection Type Detail</label>
+                            <select id="inspectionPointNavigatorDetail" class="form-select form-select-sm"></select>
+                        </div>
+                        <div id="inspectionPointNavigatorScheduleWrap" class="col-12 col-md-3 d-none">
+                            <label for="inspectionPointNavigatorSchedule" class="form-label small fw-semibold mb-1">Schedule Time</label>
+                            <select id="inspectionPointNavigatorSchedule" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label for="inspectionPointNavigatorSort" class="form-label small fw-semibold mb-1">Order By</label>
+                            <select id="inspectionPointNavigatorSort" class="form-select form-select-sm">
+                                <option value="display">Urutan Master</option>
+                                <option value="code">Point Code A-Z</option>
+                                <option value="name">Point Name A-Z</option>
+                                <option value="status">Status Inspeksi</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <input type="search" id="inspectionPointNavigatorSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Point Name..." autocomplete="off" />
+                        </div>
+                    </div>
+                    <div id="inspectionPointNavigatorSummary" class="d-flex flex-wrap gap-2 align-items-center small text-muted mb-2"></div>
+                    <div id="inspectionPointNavigatorList" class="inspection-point-navigator-list" aria-live="polite">
+                        <div class="text-muted small text-center py-4">Pilih Inspection Detail.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
     </div>
 <script type="text/javascript" src="../JSCus/inspection.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
