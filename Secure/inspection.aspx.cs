@@ -3937,10 +3937,10 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
 ;WITH EmailQueue AS
 (
     SELECT TOP (@BatchSize) *
-    FROM dbo.PIP_T_InspectionEmailOutbox WITH (UPDLOCK,READPAST,ROWLOCK)
-    WHERE DeliveryStatus IN ('PENDING','FAILED')
-      AND NextAttemptDate<=GETDATE()
-      AND AttemptCount<5
+    FROM dbo.PIP_T_InspectionEmailOutbox O WITH (UPDLOCK,READPAST,ROWLOCK)
+    WHERE O.DeliveryStatus IN ('PENDING','FAILED')
+      AND O.NextAttemptDate<=GETDATE()
+      AND O.AttemptCount<5
       /* Fail closed: never dispatch queued mail unless the matching
          inspection email switch is explicitly enabled for its scope. */
       AND EXISTS
@@ -3954,13 +3954,13 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
            AND C.Description='1'
            AND
            (
-               (PIP_T_InspectionEmailOutbox.EntityType='LIGHTNING'
+               (O.EntityType='LIGHTNING'
                 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
                OR
                (PIP_T_InspectionEmailOutbox.EntityType='INSPECTION'
                 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
            )
-          WHERE I.InspectionID=PIP_T_InspectionEmailOutbox.EntityID
+          WHERE I.InspectionID=O.EntityID
       )
     ORDER BY EmailOutboxID
 )
