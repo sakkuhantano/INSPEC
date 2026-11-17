@@ -2431,7 +2431,9 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", parameters);
         [WebMethod]
         public static object GetInspectionApprovalDetail(long inspectionId, string employeeId)
         {
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            if (!IsInspectionAdministrator(employeeId))
+                employeeId = GFC.RequireMenuEmployee("20022");
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
             return GetInspectionDetail(inspectionId, employeeId, false);
@@ -2511,8 +2513,8 @@ WHERE I.InspectionID=@InspectionID
        AND EXISTS (
            SELECT 1 FROM dbo.SysWebUser SU
            WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-             AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022')
-             AND (
+             AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022'))
+             AND (@IsAdministrator=1 OR (
                (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
                    SELECT 1 FROM dbo.SysWebCommonValue C
                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -2539,7 +2541,7 @@ WHERE I.InspectionID=@InspectionID
                          AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
                    )
                ))
-             )
+             ))
              AND (
                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
                          WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
@@ -2554,7 +2556,8 @@ WHERE I.InspectionID=@InspectionID
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@TechnicianView", technicianView ? 1 : 0)
+                        new SqlParameter("@TechnicianView", technicianView ? 1 : 0),
+                        new SqlParameter("@IsAdministrator", !technicianView && IsInspectionAdministrator(employeeId) ? 1 : 0)
                     });
                 if (header.Rows.Count == 0)
                     throw new HttpException(404, "Inspection not found or not authorized for approval.");
