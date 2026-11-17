@@ -508,17 +508,31 @@ namespace WAL.BR
                     CommitTrans();
                     return toReturn;
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    // // Rollback all changes    
-                    RollBackTrans();
-                    // // some error occured. Bubble it to caller and encapsulate Exception object    
-                    throw new Exception(ex.Message);
+                    // A stored procedure may already have rolled back the SQL transaction.
+                    // SqlTransaction.Connection becomes null once the transaction has completed;
+                    // calling RollBackTrans() again would mask the original SQL error with
+                    // "This SqlTransaction has completed; it is no longer usable."
+                    if (_transaction != null && _transaction.Connection != null)
+                    {
+                        try
+                        {
+                            RollBackTrans();
+                        }
+                        catch
+                        {
+                            // Preserve the original command/SQL exception.
+                        }
+                    }
+
+                    throw;
                 }
                 finally
                 {
                     Dispose();
                     cmdToExecute.Dispose();
+                    adapter.Dispose();
                 }
 
             }
