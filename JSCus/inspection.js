@@ -418,7 +418,7 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionFollowUpRemark").addEventListener("input", scheduleInspectionAutosave);
 }
 
-async function loadInspectionCache(includeAllTemplates) {
+async function loadInspectionCache(includeAllTemplates, skipMapSetupRefresh) {
     inspectionTypes = await readInspectionStore(
         db.objectStoreNames.contains("inspection_types_scoped") ? "inspection_types_scoped" : "inspection_types"
     );
@@ -492,7 +492,7 @@ async function loadInspectionCache(includeAllTemplates) {
         )
     );
 
-    if (navigator.onLine) {
+    if (navigator.onLine && !skipMapSetupRefresh) {
         await cacheInspectionMapSetupsForOfflineUse();
     }
 
@@ -3783,6 +3783,11 @@ function restoreInspectionMasterDropdowns() {
 }
 
 async function resetInspectionSelection() {
+    // Sync All updates IndexedDB, but the in-memory master arrays are not refreshed
+    // while this page remains open. Reload the local master cache before building
+    // the New Inspection dropdowns; skip the unrelated online map-setup refresh here.
+    await loadInspectionCache(false, true);
+
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
     if (mapWorkspace) mapWorkspace.classList.add("d-none");
     if (typeof window.resetInspectionMapWorkspace === "function")
