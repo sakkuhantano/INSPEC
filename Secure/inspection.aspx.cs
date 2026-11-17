@@ -2052,9 +2052,9 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.*,
                         CASE
                             WHEN @IsAdministrator=1
+                                 AND I.InspectionMode<>'LIGHTNING'
                                  AND ISNULL(I.IsSubmitted,0)=1
-                                 AND ((I.InspectionMode<>'LIGHTNING' AND ISNULL(I.IsApproved,0)=0)
-                                      OR (I.InspectionMode='LIGHTNING' AND ISNULL(I.IsApproved2,0)=0))
+                                 AND ISNULL(I.IsApproved,0)=0
                             THEN 1
 
                             WHEN I.InspectionMode = 'LIGHTNING'
