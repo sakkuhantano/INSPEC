@@ -6759,7 +6759,8 @@ async function loadInspectionApprovalDetail(inspectionId) {
             formatInspectionDateDMY(h.InspectionDate) + " • " + scheduledLabel + " • " + start + " – " + end;
         const gpsLatitude = Number(h.GPSLatitude);
         const gpsLongitude = Number(h.GPSLongitude);
-        const hasGps = h.GPSLatitude !== null && h.GPSLatitude !== undefined && h.GPSLongitude !== null && h.GPSLongitude !== undefined &&
+        const hasGps = String(h.GPSLatitude == null ? "" : h.GPSLatitude).trim() !== "" &&
+            String(h.GPSLongitude == null ? "" : h.GPSLongitude).trim() !== "" &&
             Number.isFinite(gpsLatitude) && Number.isFinite(gpsLongitude) && Math.abs(gpsLatitude) <= 90 && Math.abs(gpsLongitude) <= 180;
         const gpsQuery = hasGps ? gpsLatitude.toFixed(7) + "," + gpsLongitude.toFixed(7) : "";
         const gpsMapHtml = hasGps && navigator.onLine
@@ -6769,7 +6770,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Latitude / Longitude:</strong> ' + (hasGps ? escInspection(gpsQuery) : "-") + '</div>' +
             '<div><strong>Accuracy:</strong> ' + (h.GPSAccuracy != null ? escInspection(h.GPSAccuracy + " m") : "-") + '</div>' +
             '<div><strong>Captured:</strong> ' + (h.GPSCapturedAt ? escInspection(formatInspectionDateDMY(h.GPSCapturedAt) + " " + formatInspectionClock(h.GPSCapturedAt)) : "-") + '</div>' +
-            (hasGps ? '<a class="btn btn-sm btn-outline-primary mt-2" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsQuery) + '" target="_blank" rel="noopener">Buka di Google Maps</a>' : '') +
+            (hasGps && navigator.onLine ? '<a class="btn btn-sm btn-outline-primary mt-2" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsQuery) + '" target="_blank" rel="noopener">Buka di Google Maps</a>' : '') +
             gpsMapHtml + '</div>';
         document.getElementById("inspectionApprovalParameters").innerHTML =
             '<div class="row g-3">' +
