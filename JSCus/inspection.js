@@ -4249,7 +4249,7 @@ function renderInspectionRecordTable(records, host, submitted) {
         const start = formatInspectionClockTime(record.StartDateTime);
         const end = formatInspectionClockTime(record.EndDateTime);
         const date = parseInspectionDate(record.InspectionDate);
-        const inspectionDateTime = date ? date + (record.ScheduledTime ? " " + record.ScheduledTime : "") : (record.ScheduledTime || "—");
+        const inspectionDateTime = date ? formatInspectionDateDMY(date) + (record.ScheduledTime ? " " + record.ScheduledTime : "") : (record.ScheduledTime || "—");
         const startEnd = (start || "—") + " - " + end;
         const localExists = !!inspectionRecords.find(item => item.LocalInspectionID === localId);
         const serverId = record.InspectionID || record.ServerInspectionID || "";
