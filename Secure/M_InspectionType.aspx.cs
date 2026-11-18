@@ -212,7 +212,7 @@ WHERE InspectionTypeCode=@InspectionTypeCode
                         new SqlParameter("@InspectionTypeCode", txtInspectionTypeCode.Text.Trim().ToUpperInvariant()),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID)
-                    }, true);
+                    });
             _Open();
             return true;
         }
