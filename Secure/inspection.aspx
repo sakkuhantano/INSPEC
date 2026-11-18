@@ -564,7 +564,7 @@
         }
     }
 
-    /* Draft and Submitted lists: turn the six-column grid into readable cards on phones. */
+    /* Draft and Submitted lists: turn the seven-column grid into readable cards on phones. */
     @media (max-width: 575.98px) {
         #inspectionDraftList,
         #inspectionSubmittedList,
@@ -635,7 +635,7 @@
             white-space: normal !important;
             overflow-wrap: anywhere;
         }
-        .inspection-record-table tbody tr.inspection-record-main-row td:last-child button {
+        .inspection-record-table tbody tr.inspection-record-main-row td[data-label="Technician"] button {
             max-width: 100%;
             white-space: normal;
         }
