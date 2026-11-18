@@ -826,7 +826,8 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
-                if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0) {
+                if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
+                    !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
                     rectangleDrawing = true;
