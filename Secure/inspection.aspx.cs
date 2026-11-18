@@ -1675,7 +1675,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
        I.IsSubmitted, I.IsApproved, I.IsApproved1, I.IsApproved2,
-       I.ApprovedDate, I.SyncDate, I.ReasonVoid,
+       I.ApprovedDate, I.SyncDate, I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
