@@ -1290,8 +1290,8 @@
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="text" id="txtApprovalDateFrom" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date from" /></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="text" id="txtApprovalDateThru" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="text" id="txtApprovalDateFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date from" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="text" id="txtApprovalDateThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -1422,11 +1422,11 @@
             <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
                 <div class="inspection-date-control">
                     <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                    <input type="text" id="txtSubmittedFrom" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
+                    <input type="text" id="txtSubmittedFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
                 </div>
                 <div class="inspection-date-control">
                     <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                    <input type="text" id="txtSubmittedThru" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
+                    <input type="text" id="txtSubmittedThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
                 </div>
                 <div class="inspection-filter-control"><label for="selSubmittedType" class="form-label small mb-1">Inspection Type</label><select id="selSubmittedType" class="form-select form-select-sm"><option value="">All types</option></select></div>
                 <div class="inspection-filter-control"><label for="selSubmittedDetail" class="form-label small mb-1">Detail Code</label><select id="selSubmittedDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
@@ -1513,7 +1513,7 @@
 
         <div class="mb-3">
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
-            <input id="txtInspectionDate" type="text" inputmode="numeric" placeholder="dd-MMM-yyyy" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
+            <input id="txtInspectionDate" type="text" inputmode="text" placeholder="dd-MMM-yyyy" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
     </div>
