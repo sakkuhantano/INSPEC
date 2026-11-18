@@ -285,6 +285,27 @@
             var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
             var shape = {};
             try { shape = typeof point.ShapeAttributes === "string" ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {}); } catch (_) { shape = {}; }
+            var shapeType = String(point.ShapeType || "CIRCLE").toUpperCase();
+            if (shapeType === "RECTANGLE" || shapeType === "RECT") {
+                var rectWidth = Number(shape.width || shape.w || shape.widthPercent || 0);
+                var rectHeight = Number(shape.height || shape.h || shape.heightPercent || 0);
+                rectWidth = Math.max(0.2, Math.min(100, isFinite(rectWidth) && rectWidth > 0 ? rectWidth : 3));
+                rectHeight = Math.max(0.2, Math.min(100, isFinite(rectHeight) && rectHeight > 0 ? rectHeight : 3));
+                var rectLeft = isFinite(Number(shape.x)) ? Number(shape.x) :
+                    (isFinite(Number(shape.left)) ? Number(shape.left) :
+                    (isFinite(Number(shape.x1)) ? Number(shape.x1) : x - rectWidth / 2));
+                var rectTop = isFinite(Number(shape.y)) ? Number(shape.y) :
+                    (isFinite(Number(shape.top)) ? Number(shape.top) :
+                    (isFinite(Number(shape.y1)) ? Number(shape.y1) : y - rectHeight / 2));
+                rectLeft = Math.max(0, Math.min(100 - rectWidth, rectLeft));
+                rectTop = Math.max(0, Math.min(100 - rectHeight, rectTop));
+                svg.push('<rect class="inspection-map-svg-rect ' + pointClass(status) +
+                    '" x="' + rectLeft + '" y="' + rectTop + '" width="' + rectWidth +
+                    '" height="' + rectHeight + '" data-point-id="' + esc(point.InspectionPointID) +
+                    '" role="button" tabindex="0" aria-label="' + esc(title) + '" title="' + esc(title) +
+                    '"><title>' + esc(title) + '</title></rect>');
+                return;
+            }
             var cx = isFinite(Number(shape.cx)) ? Math.max(0, Math.min(100, Number(shape.cx))) : x;
             var cy = isFinite(Number(shape.cy)) ? Math.max(0, Math.min(100, Number(shape.cy))) : y;
             // CIRCLE is a point dot; use PATH for larger vector areas.
@@ -582,7 +603,7 @@
         }) || null;
         if (!selectedPoint) return;
 
-        document.querySelectorAll(".inspection-map-point, .inspection-map-svg-path").forEach(function (element) {
+        document.querySelectorAll(".inspection-map-point, .inspection-map-svg-path, .inspection-map-svg-rect, .inspection-map-svg-circle").forEach(function (element) {
             element.classList.toggle("selected", element.getAttribute("data-point-id") === String(id));
         });
 
@@ -647,7 +668,7 @@
         selectedPoint = null;
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
-        document.querySelectorAll(".inspection-map-point.selected").forEach(function (element) {
+        document.querySelectorAll(".inspection-map-point.selected, .inspection-map-svg-path.selected, .inspection-map-svg-rect.selected, .inspection-map-svg-circle.selected").forEach(function (element) {
             element.classList.remove("selected");
         });
     }
