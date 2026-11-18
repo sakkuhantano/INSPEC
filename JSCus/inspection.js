@@ -10,6 +10,8 @@ let serverSubmittedInspectionRecords = [];
 let serverSlotRecords = [];
 let currentInspectionRecord = null;
 let currentInspectionReadOnly = false;
+let inspectionGpsWatchId = null;
+let inspectionLatestGps = null;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
 let inspectionPhotoBaseline = null;
@@ -32,6 +34,55 @@ window.setInspectionActiveScheduleTime = function (value) {
     if (currentInspectionRecord && String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "LIGHTNING")
         currentInspectionRecord.ActiveScheduleTime = activeInspectionScheduleTime;
 };
+
+function stopInspectionGpsWatch() {
+    if (inspectionGpsWatchId !== null && navigator.geolocation) {
+        try { navigator.geolocation.clearWatch(inspectionGpsWatchId); } catch (_) {}
+    }
+    inspectionGpsWatchId = null;
+}
+
+function startInspectionGpsWatch() {
+    stopInspectionGpsWatch();
+    inspectionLatestGps = null;
+    if (!navigator.geolocation) return;
+    try {
+        inspectionGpsWatchId = navigator.geolocation.watchPosition(function (position) {
+            if (!position || !position.coords) return;
+            inspectionLatestGps = {
+                GPSLatitude: Number(position.coords.latitude),
+                GPSLongitude: Number(position.coords.longitude),
+                GPSAccuracy: Number(position.coords.accuracy),
+                GPSCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
+            };
+            if (currentInspectionRecord && !currentInspectionReadOnly) {
+                currentInspectionRecord.GPSLatitude = inspectionLatestGps.GPSLatitude;
+                currentInspectionRecord.GPSLongitude = inspectionLatestGps.GPSLongitude;
+                currentInspectionRecord.GPSAccuracy = inspectionLatestGps.GPSAccuracy;
+                currentInspectionRecord.GPSCapturedAt = inspectionLatestGps.GPSCapturedAt;
+            }
+        }, function (error) {
+            // GPS is audit metadata only. Permission denial/unavailability must never block inspection.
+            console.warn("Inspection GPS unavailable:", error && error.message ? error.message : error);
+        }, {
+            enableHighAccuracy: true,
+            maximumAge: 30000,
+            timeout: 5000
+        });
+    } catch (error) {
+        console.warn("Inspection GPS watch could not be started:", error);
+    }
+}
+
+function applyLatestInspectionGps(record) {
+    if (!record || currentInspectionReadOnly) return;
+    if (inspectionLatestGps) {
+        record.GPSLatitude = inspectionLatestGps.GPSLatitude;
+        record.GPSLongitude = inspectionLatestGps.GPSLongitude;
+        record.GPSAccuracy = inspectionLatestGps.GPSAccuracy;
+        record.GPSCapturedAt = inspectionLatestGps.GPSCapturedAt;
+    }
+}
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";")
@@ -1450,6 +1501,10 @@ window.mountInspectionBatchSummary = function (record) {
 
 async function renderInspectionForm(record, readOnly, initialTab) {
     currentInspectionRecord = record;
+    if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record)))
+        startInspectionGpsWatch();
+    else
+        stopInspectionGpsWatch();
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record))) {
         await cleanupInspectionPhotosByRequirement(record.LocalInspectionID,
             getInspectionPhotoRequirement(record));
@@ -3643,6 +3698,7 @@ window.submitInspectionBatch = async function () {
     });
     if (!confirmed) return;
 
+    applyLatestInspectionGps(record);
     record.Items = [];
     record.Summary = summary;
     Object.assign(record, followUp);
@@ -3750,6 +3806,7 @@ async function saveInspection(status) {
         if (!confirmed) return;
     }
 
+    applyLatestInspectionGps(currentInspectionRecord);
     currentInspectionRecord.Items = items;
     currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
     Object.assign(currentInspectionRecord, collectInspectionFollowUp());
@@ -4499,6 +4556,8 @@ async function closeInspectionForm() {
         });
     }
     inspectionPhotoBaseline = null;
+    stopInspectionGpsWatch();
+    inspectionLatestGps = null;
     currentInspectionRecord=null; currentInspectionReadOnly=false;
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
     if (mapWorkspace) mapWorkspace.classList.add("d-none");
@@ -4958,6 +5017,8 @@ async function deleteLocalInspectionDraft(localId) {
         tx.onabort = () => reject(tx.error || new Error("Hapus draft gagal."));
     });
     if (currentInspectionRecord && currentInspectionRecord.LocalInspectionID === localId) {
+        stopInspectionGpsWatch();
+        inspectionLatestGps = null;
         currentInspectionRecord = null;
         currentInspectionReadOnly = false;
         inspectionPhotoBaseline = null;
