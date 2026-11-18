@@ -794,7 +794,7 @@ function refreshInspectionScheduleOptions() {
     const type = inspectionTypes.find(x => String(x.InspectionTypeCode || "") === String(typeCode || ""));
     const detailCode = document.getElementById("selInspectionDetail").value;
     const templateId = Number(document.getElementById("selInspectionTemplate").value);
-    const selectedDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const selectedDate = parseInspectionDateFilter(document.getElementById("txtInspectionDate").value) || localDateString(new Date());
     const today = localDateString(new Date());
     let emptyCount = 0;
     let slotCount = 0;
@@ -3884,8 +3884,10 @@ function persistInspectionRecord(record) {
 async function refreshSavedInspectionList() {
     const fromInput = document.getElementById("txtSubmittedFrom");
     const thruInput = document.getElementById("txtSubmittedThru");
-    const fromDate = parseInspectionDateFilter(fromInput ? fromInput.value : "") || localDateString(new Date());
-    const thruDate = parseInspectionDateFilter(thruInput ? thruInput.value : "") || localDateString(new Date());
+    const rawFromDate = fromInput ? fromInput.value : "";
+    const rawThruDate = thruInput ? thruInput.value : "";
+    const fromDate = parseInspectionDateFilter(rawFromDate);
+    const thruDate = parseInspectionDateFilter(rawThruDate);
     if (!fromDate || !thruDate || fromDate > thruDate) {
         showToast("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
         return;
@@ -5769,7 +5771,7 @@ function wireInspectionApprovalEvents() {
     const today = localDateString(new Date());
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
         const input = document.getElementById(id);
-        if (input && !input.value) input.value = today;
+        if (input && !input.value) input.value = formatInspectionDateDMY(today);
     });
     setInspectionApprovalTab(currentInspectionApprovalTab, false);
 }
@@ -5863,6 +5865,11 @@ async function loadInspectionApprovalQueue() {
     try {
         const dateFrom = document.getElementById("txtApprovalDateFrom");
         const dateThru = document.getElementById("txtApprovalDateThru");
+        if ((dateFrom && dateFrom.value && !parseInspectionDateFilter(dateFrom.value)) ||
+            (dateThru && dateThru.value && !parseInspectionDateFilter(dateThru.value))) {
+            showToast("Format tanggal harus dd-MMM-yyyy, contoh 18-Nov-2026.", "warning");
+            return;
+        }
         const queueParameters = {
             employeeId: inspectionLogin.employeeid,
             companyId: inspectionCompanyID,
