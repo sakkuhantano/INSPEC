@@ -583,6 +583,14 @@ function persistTemplateSessionDraftBeforePageLeave() {
 
 window.addEventListener("pagehide", persistTemplateSessionDraftBeforePageLeave);
 window.addEventListener("beforeunload", persistTemplateSessionDraftBeforePageLeave);
+window.addEventListener("pageshow", function (event) {
+    // A bfcache restore can resurrect the old dirty DOM after the user has
+    // navigated away. Treat that as an abandoned editor, never as a continuation.
+    if (event && event.persisted) {
+        clearTemplateSessionDraft(true);
+        window.location.reload();
+    }
+});
 document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden")
         persistTemplateSessionDraftBeforePageLeave();
