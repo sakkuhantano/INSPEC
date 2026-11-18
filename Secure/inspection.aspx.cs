@@ -2239,7 +2239,7 @@ ORDER BY P.SeqNo",
         [WebMethod]
         public static object GetLightningInspectionApprovalQueue(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
