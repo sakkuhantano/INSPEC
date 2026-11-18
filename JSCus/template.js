@@ -508,8 +508,20 @@ document.addEventListener("change", function (event) {
     if (target && target.closest && target.closest("#sectionsContainer, #panel-properties"))
         scheduleTemplateSessionDraftSave();
 }, true);
-window.addEventListener("beforeunload", function () {
-    if (templateCache && templateCache.Dirty) persistTemplateSessionDraft();
+function persistTemplateSessionDraftBeforePageLeave() {
+    if (templateCache && templateCache.Dirty) {
+        // sessionStorage is synchronous, so this snapshot is safe to take during
+        // pagehide/beforeunload. Keep it as a last-resort guard for full postback,
+        // browser navigation, and accidental reload while the editor is dirty.
+        persistTemplateSessionDraft();
+    }
+}
+
+window.addEventListener("pagehide", persistTemplateSessionDraftBeforePageLeave);
+window.addEventListener("beforeunload", persistTemplateSessionDraftBeforePageLeave);
+document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden")
+        persistTemplateSessionDraftBeforePageLeave();
 });
 
 async function onTemplateClick(event,idTemplate, sectionId)
