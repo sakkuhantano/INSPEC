@@ -1809,7 +1809,7 @@ VALUES
 
         private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson)
         {
-            if (shapeType == "PATH") return "{\\"coordinateSpace\\":\\"PERCENT_100\\",\\"closed\\":true}";
+            if (shapeType == "PATH") return "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}";
             if (shapeType == "RECTANGLE")
             {
                 var rectangle = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
