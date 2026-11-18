@@ -551,18 +551,79 @@
         });
     }
 
+    function renderTemplateOptionSummary(points) {
+        var host = document.getElementById("inspectionMapOptionSummaryHost");
+        if (!host) return;
+
+        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        var optionItems = [];
+        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
+            (section.items || []).forEach(function (item) {
+                if (String(item.type || item.ItemType || "").toUpperCase() === "OPTION")
+                    optionItems.push(item);
+            });
+        });
+
+        if (!optionItems.length) {
+            host.innerHTML = "";
+            host.classList.add("d-none");
+            return;
+        }
+
+        var cards = optionItems.map(function (item) {
+            var itemId = Number(item.idItem != null ? item.idItem : item.IDItem);
+            var label = String(item.itemLabel || item.ItemLabel || item.label || "Option");
+            var rawOptions = item.optionList != null ? item.optionList : item.OptionList;
+            var options = Array.isArray(rawOptions)
+                ? rawOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
+                : String(rawOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
+            var counts = {};
+            options.forEach(function (option) { counts[option] = 0; });
+            var unanswered = 0;
+
+            points.forEach(function (point) {
+                var transaction = getPointTransaction(point);
+                var answer = transaction && Array.isArray(transaction.Items)
+                    ? transaction.Items.find(function (result) { return Number(result.IDItem) === itemId; })
+                    : null;
+                var value = String(answer && answer.Value || "").trim();
+                if (!value) {
+                    unanswered++;
+                    return;
+                }
+                var matched = options.find(function (option) {
+                    return String(option).trim().toUpperCase() === value.toUpperCase();
+                });
+                if (matched) counts[matched]++;
+                else unanswered++;
+            });
+
+            var chips = options.map(function (option) {
+                return '<span class="inspection-map-option-chip">' +
+                    '<span class="inspection-map-option-chip-label">' + esc(option) + '</span>' +
+                    '<strong>' + counts[option] + '</strong>' +
+                    '</span>';
+            }).join("");
+
+            if (unanswered > 0) {
+                chips += '<span class="inspection-map-option-chip inspection-map-option-chip-muted">' +
+                    '<span class="inspection-map-option-chip-label">Belum diisi</span>' +
+                    '<strong>' + unanswered + '</strong>' +
+                    '</span>';
+            }
+
+            return '<div class="inspection-map-option-summary-card">' +
+                '<div class="inspection-map-option-summary-title" title="' + esc(label) + '">' + esc(label) + '</div>' +
+                '<div class="inspection-map-option-chip-row">' + chips + '</div>' +
+                '</div>';
+        }).join("");
+
+        host.innerHTML = cards;
+        host.classList.toggle("d-none", !cards);
+    }
+
     function updateSummary() {
         var points = getVisiblePoints();
-        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
-        var templateItems = [];
-        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
-            (section.items || []).forEach(function (item) { templateItems.push(item); });
-        });
-        var binaryItem = templateItems.length === 1 ? templateItems[0] : null;
-        var binaryOptions = binaryItem && String(binaryItem.type || "").toUpperCase() === "OPTION"
-            ? String(binaryItem.optionList || "").split(";").map(function (value) { return value.trim().toUpperCase(); }).filter(Boolean)
-            : [];
-        var isOnOffTemplate = binaryOptions.indexOf("ON") >= 0 && binaryOptions.indexOf("OFF") >= 0;
         var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
         var hasNormalAbnormal = points.some(isNormalAbnormalRequired);
         var abnormal = hasNormalAbnormal
@@ -584,46 +645,30 @@
             var label = element && element.parentElement ? element.parentElement.querySelector(".inspection-map-stat-label") : null;
             if (label) label.textContent = value;
         };
+
         set("inspectionMapTotalCount", points.length);
+
         var abnormalStat = document.getElementById("inspectionMapAbnormalCount");
         var abnormalLegend = document.getElementById("inspectionMapAbnormalLegendItem");
         if (abnormalStat && abnormalStat.parentElement)
             abnormalStat.parentElement.classList.toggle("d-none", !hasNormalAbnormal);
         if (abnormalLegend) abnormalLegend.classList.toggle("d-none", !hasNormalAbnormal);
-        if (isOnOffTemplate && hasNormalAbnormal) {
-            // ON/OFF is only presented as a two-state result when the master point
-            // explicitly allows Normal/Abnormal classification.
-            var onCount = 0, offCount = 0, pendingCount = 0;
-            points.forEach(function (masterPoint) {
-                var transaction = getPointTransaction(masterPoint);
-                var answer = transaction && (transaction.Items || []).find(function (item) {
-                    return Number(item.IDItem) === Number(binaryItem.idItem);
-                });
-                var value = String(answer && answer.Value || "").trim().toUpperCase();
-                if (value === "ON") onCount++;
-                else if (value === "OFF") offCount++;
-                else pendingCount++;
-            });
-            set("inspectionMapDoneCount", onCount);
-            set("inspectionMapAbnormalCount", offCount);
-            set("inspectionMapPendingCount", pendingCount);
-            set("inspectionMapIncompleteCount", 0);
-            labelFor(labels.done, "ON");
-            labelFor(labels.abnormal, "OFF");
-            labelFor(labels.pending, "Belum dipilih");
-            labelFor(labels.incomplete, "—");
-        } else {
-            set("inspectionMapDoneCount", done);
-            set("inspectionMapAbnormalCount", abnormal);
-            set("inspectionMapPendingCount", pending);
-            set("inspectionMapIncompleteCount", incomplete);
-            labelFor(labels.done, "Selesai");
-            labelFor(labels.abnormal, "Abnormal");
-            labelFor(labels.pending, "Belum dicek");
-            labelFor(labels.incomplete, "Belum lengkap");
-        }
+
+        set("inspectionMapDoneCount", done);
+        set("inspectionMapAbnormalCount", abnormal);
+        set("inspectionMapPendingCount", pending);
+        set("inspectionMapIncompleteCount", incomplete);
+        labelFor(labels.done, "Selesai");
+        labelFor(labels.abnormal, "Abnormal");
+        labelFor(labels.pending, "Belum dicek");
+        labelFor(labels.incomplete, "Belum lengkap");
+
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
         if (pendingLegend) pendingLegend.textContent = "Belum diperiksa";
+
+        // OPTION statistics are derived entirely from the active Template Snapshot.
+        // No option name such as ON/OFF, GOOD/BROKEN, etc. is hard-coded here.
+        renderTemplateOptionSummary(points);
     }
 
     function openPoint(id) {
