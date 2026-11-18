@@ -10865,6 +10865,7 @@ async function saveAllTemplate()
         !hasMetadataDirty
     )
     {
+        clearTemplateSessionDraft();
         showToast(
             "Nothing to save."
         );
