@@ -5269,7 +5269,12 @@ async function handleInspectionPhotoInput(event, type) {
                     });
                     if (!compressedBlob || typeof compressedBlob.size !== "number" || compressedBlob.size <= 0)
                         throw new Error("Hasil kompresi foto kosong.");
-                    const blob = await stampInspectionPhotoTimestamp(compressedBlob, captureDate);
+                    const stampedBlob = await stampInspectionPhotoTimestamp(compressedBlob, captureDate);
+                    const blob = await compressImage(stampedBlob, {
+                        maxWidth: 640, maxHeight: 640, maxSize: 100 * 1024, quality: .70, minQuality: .25
+                    });
+                    if (!blob || typeof blob.size !== "number" || blob.size <= 0)
+                        throw new Error("Foto bertimestamp gagal dikompresi.");
 
                     const baseName = (file.name || ("inspection-" + type.toLowerCase())).replace(/\\.[^.]+$/, "");
                     await new Promise((resolve, reject) => {
