@@ -1278,7 +1278,7 @@
                 <select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select>
             </div>
             <div class="inspection-filter-control">
-                <label for="selApprovalDetail" class="form-label small mb-1">Detail</label>
+                <label for="selApprovalDetail" class="form-label small mb-1">Detail Code</label>
                 <select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select>
             </div>
             <div class="inspection-filter-control">
