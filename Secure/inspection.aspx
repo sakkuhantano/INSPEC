@@ -188,6 +188,7 @@
     .inspection-point-navigator-pager{position:sticky;bottom:0;background:var(--bs-body-bg);padding-bottom:.25rem;z-index:2}
     .inspection-point-list-row.selected{border-color:var(--bs-primary);box-shadow:0 0 0 .15rem rgba(var(--bs-primary-rgb),.14)}
     .inspection-map-svg-path.selected{stroke:#0d6efd!important;stroke-width:3!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.55))}
+    .inspection-map-svg-circle.selected{fill:rgba(13,110,253,.48)!important;stroke:#0d6efd!important;stroke-width:1.8!important;filter:drop-shadow(0 0 3px rgba(13,110,253,.7))}
     .inspection-map-svg-rect{pointer-events:all;cursor:pointer;stroke-width:.65;vector-effect:non-scaling-stroke;transition:fill .15s ease,stroke .15s ease}
     .inspection-map-svg-rect.pending{fill:rgba(108,117,125,.24);stroke:#6c757d}
     .inspection-map-svg-rect.incomplete{fill:rgba(255,193,7,.28);stroke:#b58100}
