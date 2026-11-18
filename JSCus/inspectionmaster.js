@@ -637,7 +637,51 @@
             var pathStatus = document.getElementById('lblPathDrawStatus');
             var drawMode = false, drawingPath = false, suppressNextClick = false;
             var pathPoints = [], pathPreview = null;
+            var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
+            function updateRectanglePreview(point) {
+                if (!rectangleStart || !point) return;
+                var left = Math.min(rectangleStart.x, point.x);
+                var top = Math.min(rectangleStart.y, point.y);
+                var width = Math.abs(point.x - rectangleStart.x);
+                var height = Math.abs(point.y - rectangleStart.y);
+                if (!rectanglePreview) {
+                    rectanglePreview = document.createElement('div');
+                    rectanglePreview.className = 'inspection-coordinate-rectangle-preview';
+                    rectanglePreview.style.cssText = 'position:absolute;border:2px dashed #0d6efd;background:rgba(13,110,253,.16);pointer-events:none;z-index:20;box-sizing:border-box;';
+                    content.appendChild(rectanglePreview);
+                }
+                rectanglePreview.style.left = left + '%';
+                rectanglePreview.style.top = top + '%';
+                rectanglePreview.style.width = width + '%';
+                rectanglePreview.style.height = height + '%';
+            }
+            function finishRectangleDrawing(event) {
+                if (!rectangleDrawing) return;
+                var end = mapPointFromEvent(event);
+                var left = Math.min(rectangleStart.x, end.x);
+                var top = Math.min(rectangleStart.y, end.y);
+                var width = Math.abs(end.x - rectangleStart.x);
+                var height = Math.abs(end.y - rectangleStart.y);
+                rectangleDrawing = false;
+                rectangleStart = null;
+                if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
+                rectanglePreview = null;
+                suppressNextClick = true;
+                if (width < 0.35 || height < 0.35) {
+                    pathStatusText('Area terlalu kecil. Drag kembali untuk membuat rectangle.');
+                    return;
+                }
+                if (pathField) pathField.value = '';
+                if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
+                    coordinateSpace: 'PERCENT_100',
+                    x: Number(left.toFixed(3)), y: Number(top.toFixed(3)),
+                    width: Number(width.toFixed(3)), height: Number(height.toFixed(3))
+                });
+                if (markerX) markerX.value = Number((left + width / 2).toFixed(3)).toFixed(2);
+                if (markerY) markerY.value = Number((top + height / 2).toFixed(3)).toFixed(2);
+                pathStatusText('Rectangle area siap disimpan. Save Inspection Point untuk menyimpan blok ini.');
+            }
             function mapPointFromEvent(event) {
                 // Measure the actual image content, not the outer 16:10 board.
                 // This keeps coordinates aligned when the floor plan has a different aspect ratio.
@@ -729,6 +773,8 @@
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
                 if (shapeAttributesField) shapeAttributesField.value = '{}';
+                if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
+                rectanglePreview = null; rectangleDrawing = false; rectangleStart = null;
                 board.classList.remove('path-drawing');
 
                 // Remove both the persisted path overlay and the temporary drawing.
@@ -768,11 +814,27 @@
                         if (oldPath) oldPath.style.display = 'none';
                     }
                     pathStatusText('Circle: klik map untuk menentukan satu koordinat.');
+                } else if (this.value === 'RECTANGLE') {
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    if (pathField) pathField.value = '';
+                    if (pathPreview) pathPreview.setAttribute('d', '');
+                    if (shapeAttributesField) shapeAttributesField.value = '{}';
+                    pathStatusText('Rectangle: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
                 } else {
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
                 }
             });
             board.addEventListener('pointerdown', function (event) {
+                if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    recordPathEditorAction();
+                    rectangleDrawing = true;
+                    rectangleStart = mapPointFromEvent(event);
+                    suppressNextClick = true;
+                    updateRectanglePreview(rectangleStart);
+                    try { board.setPointerCapture(event.pointerId); } catch (_) { }
+                    return;
+                }
                 if (!drawMode || event.button !== 0) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 drawingPath = true; suppressNextClick = true;
@@ -781,6 +843,11 @@
                 try { board.setPointerCapture(event.pointerId); } catch (_) { }
             }, true);
             board.addEventListener('pointermove', function (event) {
+                if (rectangleDrawing) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    updateRectanglePreview(mapPointFromEvent(event));
+                    return;
+                }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 var next = mapPointFromEvent(event), last = pathPoints[pathPoints.length - 1];
@@ -790,11 +857,23 @@
                 }
             }, true);
             board.addEventListener('pointerup', function (event) {
+                if (rectangleDrawing) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    finishRectangleDrawing(event);
+                    return;
+                }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 finishPathDrawing();
             }, true);
             board.addEventListener('pointercancel', function (event) {
+                if (rectangleDrawing) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    rectangleDrawing = false; rectangleStart = null; suppressNextClick = false;
+                    if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
+                    rectanglePreview = null;
+                    return;
+                }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 drawingPath = false; pathPoints = []; suppressNextClick = false; renderPathPreview(false);
