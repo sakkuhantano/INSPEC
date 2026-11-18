@@ -3967,6 +3967,37 @@ async function openServerReturnedInspection(inspectionId) {
     }
 }
 
+function getInspectionRecordGridStatus(record, submitted) {
+    const status = String(record && record.Status || "").trim().toUpperCase();
+    const syncStatus = String(record && record.SyncStatus || "").trim().toUpperCase();
+    const reasonVoid = String(record && record.ReasonVoid || "").trim();
+
+    if (syncStatus === "CONFLICT")
+        return { label: "Conflict", badge: "text-bg-danger" };
+    if (syncStatus === "DELETE_PENDING")
+        return { label: "Pending Delete", badge: "text-bg-warning" };
+    if (status === "DRAFT" && reasonVoid)
+        return { label: "Returned", badge: "text-bg-warning" };
+    if (!submitted || status === "DRAFT")
+        return { label: "Draft", badge: "text-bg-secondary" };
+
+    const pendingLocalSync = !!(record && record.LocalInspectionID) &&
+        !record.ServerOnly && syncStatus !== "SYNCED";
+    if (pendingLocalSync)
+        return { label: "Pending Sync", badge: "text-bg-warning" };
+
+    if (isInspectionFlagEnabled(record && record.IsApproved2, false))
+        return { label: "Approved 2", badge: "text-bg-success" };
+    if (isInspectionFlagEnabled(record && record.IsApproved1, false))
+        return { label: "Approved 1", badge: "text-bg-success" };
+    if (isInspectionFlagEnabled(record && record.IsApproved, false))
+        return { label: "SPV Approved", badge: "text-bg-success" };
+    if (isInspectionFlagEnabled(record && record.IsSubmitted, status === "DONE"))
+        return { label: "Submitted", badge: "text-bg-primary" };
+
+    return { label: status === "DONE" ? "Submitted" : "Draft", badge: "text-bg-primary" };
+}
+
 function renderInspectionRecordTable(records, host, submitted) {
     if (!records.length) {
         host.innerHTML = '<div class="text-muted py-2">' +
@@ -3980,7 +4011,8 @@ function renderInspectionRecordTable(records, host, submitted) {
         { key: "startEnd", label: "Start/End" },
         { key: "inspectionType", label: "Inspection Type" },
         { key: "locationArea", label: "Location/Area" },
-        { key: "technician", label: "Technician" }
+        { key: "technician", label: "Technician" },
+        { key: "status", label: "Status" }
     ];
     const header = '<thead><tr>' + columns.map(column => {
         const active = inspectionGridSort.key === column.key;
@@ -3997,6 +4029,7 @@ function renderInspectionRecordTable(records, host, submitted) {
                 case "inspectionType": return String(record.InspectionTypeName || "");
                 case "locationArea": return String(record.InspectionTypeDetailName || "");
                 case "technician": return String(record.TechnicianName || (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "") || "");
+                case "status": return getInspectionRecordGridStatus(record, submitted).label;
                 case "inspectionDate": default: return String(parseInspectionDate(record.InspectionDate) || "") + "|" + String(record.ScheduledTime || "");
             }
         };
@@ -4043,6 +4076,9 @@ function renderInspectionRecordTable(records, host, submitted) {
         const technicianName = record.TechnicianName && record.TechnicianName !== record.OwnerEmployeeID
             ? record.TechnicianName
             : (record.OwnerEmployeeID === inspectionLogin.employeeid ? inspectionTechnicianName : "");
+        const gridStatus = getInspectionRecordGridStatus(record, submitted);
+        const statusHtml = '<span class="badge rounded-pill ' + gridStatus.badge + '">' +
+            escInspection(gridStatus.label) + '</span>';
         const mainRow = '<tr class="inspection-record-main-row">' +
             '<td data-label="Inspection No.">' + numberHtml + '</td>' +
             '<td data-label="Inspection Date/Time">' + escInspection(inspectionDateTime) + '</td>' +
@@ -4050,9 +4086,10 @@ function renderInspectionRecordTable(records, host, submitted) {
             '<td data-label="Inspection Type">' + escInspection(record.InspectionTypeName || "—") + '</td>' +
             '<td data-label="Location/Area">' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
             '<td data-label="Technician">' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
+            '<td data-label="Status">' + statusHtml + '</td>' +
             '</tr>';
         const messageRow = conflictHtml || returnedHtml
-            ? '<tr class="inspection-grid-message-row"><td colspan="6" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + returnedHtml + '</td></tr>'
+            ? '<tr class="inspection-grid-message-row"><td colspan="7" class="small" style="white-space:normal;overflow-wrap:anywhere;word-break:break-word;padding-top:0.25rem;padding-bottom:0.5rem;">' + conflictHtml + returnedHtml + '</td></tr>'
             : "";
         return mainRow + messageRow;
     }).join("");
