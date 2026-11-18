@@ -638,6 +638,7 @@
             var drawMode = false, drawingPath = false, suppressNextClick = false;
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
+            if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
             function updateRectanglePreview(point) {
                 if (!rectangleStart || !point) return;
@@ -804,6 +805,7 @@
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
+                board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
                 if (this.value === 'CIRCLE') {
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
