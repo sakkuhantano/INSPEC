@@ -153,9 +153,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         const submittedToday = localDateString(new Date());
-        document.getElementById("txtSubmittedFrom").value = submittedToday;
-        document.getElementById("txtSubmittedThru").value = submittedToday;
-        document.getElementById("txtInspectionDate").value = localDateString(new Date());
+        document.getElementById("txtSubmittedFrom").value = formatInspectionDateDMY(submittedToday);
+        document.getElementById("txtSubmittedThru").value = formatInspectionDateDMY(submittedToday);
+        document.getElementById("txtInspectionDate").value = formatInspectionDateDMY(submittedToday);
         document.getElementById("txtInspectionDate").disabled = true;
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
         wireInspectionEvents();
@@ -629,7 +629,7 @@ function refreshInspectionDetailAvailability() {
     const type = inspectionTypes.find(x =>
         String(x.InspectionTypeCode || "") === String(typeCode || "")
     );
-    const selectedDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const selectedDate = parseInspectionDateFilter(document.getElementById("txtInspectionDate").value) || localDateString(new Date());
     const today = localDateString(new Date());
 
     Array.from(detailSelect.options).forEach(option => {
@@ -1003,7 +1003,7 @@ async function startNewInspection() {
         }
     }
 
-    const inspectionDate = document.getElementById("txtInspectionDate").value || localDateString(new Date());
+    const inspectionDate = parseInspectionDateFilter(document.getElementById("txtInspectionDate").value) || localDateString(new Date());
     if (navigator.onLine && typeof downloadTodayInspectionSlots === "function") {
         try {
             await downloadTodayInspectionSlots();
@@ -1230,29 +1230,33 @@ function parseInspectionDateValue(value) {
 }
 
 function inspectionDateInputValue(value) {
-    if (value == null || value === "") return "";
-    const raw = String(value).trim();
-    // Preserve date-only / ISO dates without timezone conversion.
-    const isoDate = raw.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);
-    if (isoDate) return isoDate[1] + "-" + isoDate[2] + "-" + isoDate[3];
-    // Handle ASP.NET JSON DateTime values such as /Date(1793232000000)/.
-    const date = parseInspectionDateValue(value);
-    if (!date) return "";
-    return String(date.getFullYear()).padStart(4, "0") + "-" +
-        String(date.getMonth() + 1).padStart(2, "0") + "-" +
-        String(date.getDate()).padStart(2, "0");
+    const iso = parseInspectionDate(value);
+    return iso ? formatInspectionDateDMY(iso) : "";
 }
 
 function formatInspectionDateDMY(value) {
     if (!value) return "-";
     const raw = String(value).trim();
     const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) return match[3] + "-" + match[2] + "-" + match[1];
-    const date = parseInspectionDateValue(value);
+    const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : parseInspectionDateValue(value);
     if (!date) return "-";
-    return String(date.getDate()).padStart(2, "0") + "-" +
-        String(date.getMonth() + 1).padStart(2, "0") + "-" +
-        date.getFullYear();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return String(date.getDate()).padStart(2, "0") + "-" + months[date.getMonth()] + "-" + date.getFullYear();
+}
+
+function parseInspectionDateFilter(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const match = raw.match(/^(\d{1,2})[-\s]([A-Za-z]{3})[-\s](\d{4})$/);
+    if (!match) return "";
+    const months = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, oct:10, nov:11, dec:12 };
+    const month = months[match[2].toLowerCase()];
+    const day = Number(match[1]), year = Number(match[3]);
+    if (!month || day < 1 || day > 31) return "";
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return "";
+    return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
 }
 
 function formatInspectionClock(value) {
@@ -3877,8 +3881,8 @@ function persistInspectionRecord(record) {
 async function refreshSavedInspectionList() {
     const fromInput = document.getElementById("txtSubmittedFrom");
     const thruInput = document.getElementById("txtSubmittedThru");
-    const fromDate = fromInput ? fromInput.value : localDateString(new Date());
-    const thruDate = thruInput ? thruInput.value : localDateString(new Date());
+    const fromDate = parseInspectionDateFilter(fromInput ? fromInput.value : "") || localDateString(new Date());
+    const thruDate = parseInspectionDateFilter(thruInput ? thruInput.value : "") || localDateString(new Date());
     if (!fromDate || !thruDate || fromDate > thruDate) {
         showToast("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
         return;
@@ -4498,7 +4502,7 @@ async function resetInspectionSelection() {
     document.getElementById("selInspectionTemplate").disabled = true;
     document.getElementById("selInspectionType").value = "";
     resetDetailAndTemplateOptions();
-    document.getElementById("txtInspectionDate").value = localDateString(new Date());
+    document.getElementById("txtInspectionDate").value = formatInspectionDateDMY(localDateString(new Date()));
     document.getElementById("txtInspectionDate").disabled = true;
     showInspectionEditorTab("param");
     updateStartButton();
@@ -4731,7 +4735,7 @@ function populateInspectionParameters(record) {
     scheduleTimeSelect.value = record.ScheduledTime || "";
     refreshInspectionScheduleOptions();
 
-    document.getElementById("txtInspectionDate").value = record.InspectionDate || localDateString(new Date());
+    document.getElementById("txtInspectionDate").value = inspectionDateInputValue(record.InspectionDate || localDateString(new Date()));
     document.getElementById("txtInspectionDate").disabled = true;
     typeSelect.disabled = currentInspectionReadOnly;
     const selectedTemplate = inspectionTemplates.find(x => Number(x.IDTemplate) === Number(templateSelect.value));
@@ -5703,7 +5707,7 @@ function wireInspectionApprovalEvents() {
         document.getElementById("selApprovalTemplate").value = "";
         loadInspectionApprovalQueue();
     });
-    ["selApprovalTemplate", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
+    ["selApprovalTemplate", "selApprovalScheduleTime", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
     addInspectionApprovalListener("btnApprovalSelectAll", "click", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = true; });
@@ -5744,9 +5748,13 @@ function setInspectionApprovalTab(tab, reload) {
         }
     });
     const batchActions = document.getElementById("inspectionApprovalBatchActions");
-    if (batchActions) batchActions.classList.toggle("d-none", !outstanding);
+    if (batchActions) batchActions.classList.toggle("d-none", voided);
+    ["btnBatchApproveInspection", "btnBatchVoidInspection"].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.classList.toggle("d-none", !outstanding);
+    });
     const selectAllHeader = document.getElementById("thInspectionApprovalSelectAll");
-    if (selectAllHeader) selectAllHeader.classList.toggle("d-none", !outstanding);
+    if (selectAllHeader) selectAllHeader.classList.toggle("d-none", voided);
     const dateFilters = document.getElementById("inspectionApprovalDateFilters");
     if (dateFilters) dateFilters.classList.toggle("d-none", !approved);
     if (reload === false) renderInspectionApprovalQueue();
@@ -5817,11 +5825,12 @@ async function loadInspectionApprovalQueue() {
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID,
             approvalTab: currentInspectionApprovalTab,
-            dateFrom: dateFrom ? dateFrom.value : "",
-            dateThru: dateThru ? dateThru.value : "",
+            dateFrom: dateFrom ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
+            dateThru: dateThru ? (parseInspectionDateFilter(dateThru.value) || "") : "",
             inspectionTypeCode: document.getElementById("selApprovalType").value,
             inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
-            templateId: document.getElementById("selApprovalTemplate").value
+            templateId: document.getElementById("selApprovalTemplate").value,
+            scheduleTime: document.getElementById("selApprovalScheduleTime").value
         };
         const queueResults = await Promise.all([
             inspectionApprovalPost("GetInspectionApprovalQueue", queueParameters),
@@ -5833,7 +5842,7 @@ async function loadInspectionApprovalQueue() {
         inspectionApprovalRows = (standardResult.data || []).concat(lightningResult.data || []);
         const filterMap = new Map();
         (standardResult.filters || []).concat(lightningResult.filters || []).forEach(row => {
-            const key = [row.InspectionTypeCode,row.InspectionTypeDetailCode,row.IDTemplate].join("|");
+            const key = [row.InspectionTypeCode,row.InspectionTypeDetailCode,row.IDTemplate,row.ScheduledTime].join("|");
             if (!filterMap.has(key)) filterMap.set(key, row);
         });
         populateInspectionApprovalFilters(Array.from(filterMap.values()));
@@ -5857,18 +5866,21 @@ function populateInspectionApprovalFilters(filterRows) {
     const specs = [
         { id: "selApprovalType", key: "InspectionTypeCode", label: "InspectionTypeName", all: "All types" },
         { id: "selApprovalDetail", key: "InspectionTypeDetailCode", label: "InspectionTypeDetailName", all: "All details" },
-        { id: "selApprovalTemplate", key: "IDTemplate", label: "TemplateNo", all: "All templates" }
+        { id: "selApprovalTemplate", key: "IDTemplate", label: "TemplateNo", all: "All templates" },
+        { id: "selApprovalScheduleTime", key: "ScheduledTime", label: "ScheduledTime", all: "All schedules" }
     ];
     const rows = Array.isArray(filterRows) ? filterRows : [];
     const selectedType = document.getElementById("selApprovalType").value;
     const selectedDetail = document.getElementById("selApprovalDetail").value;
+    const selectedTemplate = document.getElementById("selApprovalTemplate").value;
     specs.forEach(spec => {
         const select = document.getElementById(spec.id);
         if (!select) return;
         const previous = select.value;
         const applicableRows = rows.filter(row => {
             if (spec.id !== "selApprovalType" && selectedType && String(row.InspectionTypeCode || "") !== selectedType) return false;
-            if (spec.id === "selApprovalTemplate" && selectedDetail && String(row.InspectionTypeDetailCode || "") !== selectedDetail) return false;
+            if (["selApprovalTemplate", "selApprovalScheduleTime"].includes(spec.id) && selectedDetail && String(row.InspectionTypeDetailCode || "") !== selectedDetail) return false;
+            if (spec.id === "selApprovalScheduleTime" && selectedTemplate && String(row.IDTemplate || "") !== selectedTemplate) return false;
             return true;
         });
         const values = new Map();
@@ -5895,7 +5907,7 @@ function renderInspectionApprovalQueue() {
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
     });
-    const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING";
+    const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING" || currentInspectionApprovalTab === "APPROVED";
     if (!rows.length) {
         host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
         const selectAll = document.getElementById("chkAllInspectionApproval");
@@ -5939,6 +5951,8 @@ function renderInspectionApprovalQueue() {
         const selectCell = hasSelectionColumn
             ? '<td class="approval-select-cell"><input type="checkbox" class="form-check-input" data-approval-select value="' + id + '" aria-label="Select inspection ' + escInspection(row.InspectionNo || id) + '"></td>'
             : '';
+        const statusLabel = row.WorkflowStatus || (isInspectionApprovalVoided(row) ? "VOID" : (isInspectionApprovalApproved(row) ? "APPROVED" : "PENDING"));
+        const statusHtml = '<span class="badge rounded-pill ' + (statusLabel === "VOID" ? "text-bg-warning" : (statusLabel === "APPROVED" || statusLabel === "ACKNOWLEDGE 2" ? "text-bg-success" : "text-bg-primary")) + '">' + escInspection(statusLabel) + '</span>';
         return '<tr>' +
             selectCell +
             '<td data-label="Transaction No."><button type="button" class="btn btn-link p-0 text-wrap fw-semibold" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
@@ -5948,6 +5962,7 @@ function renderInspectionApprovalQueue() {
             '<td data-label="Scheduled">' + escInspection(row.ScheduledTime || "-") + '</td>' +
             '<td data-label="Start – End">' + escInspection(range) + '</td>' +
             '<td data-label="Technician">' + escInspection(formatInspectionEmployeeLabel(row.TechnicianName || row.OwnerEmployeeName, row.OwnerEmployeeID)) + '</td>' +
+            '<td data-label="Status">' + statusHtml + '</td>' +
             '</tr>';
     }).join("");
     updateInspectionApprovalSelectAll();
@@ -5979,7 +5994,7 @@ function updateInspectionApprovalSelectAll() {
     const all = document.getElementById("chkAllInspectionApproval");
     if (all) all.checked = boxes.length > 0 && selectedBoxes.length === boxes.length;
     const preview = document.getElementById("btnInspectionApprovalPreview");
-    if (preview) preview.disabled = currentInspectionApprovalTab !== "OUTSTANDING" || selectedBoxes.length === 0;
+    if (preview) preview.disabled = !["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) || selectedBoxes.length === 0;
 }
 
 async function previewSelectedInspections() {
