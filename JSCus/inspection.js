@@ -5094,6 +5094,127 @@ function handleInspectionPhotoViewerKeydown(event) {
     }
 }
 
+async function getInspectionPhotoCaptureDate(file) {
+    const fallback = file && Number(file.lastModified) > 0
+        ? new Date(file.lastModified) : new Date();
+    if (!file || !/jpe?g/i.test(String(file.type || "")) || typeof file.arrayBuffer !== "function")
+        return fallback;
+    try {
+        const buffer = await file.arrayBuffer();
+        const view = new DataView(buffer);
+        if (view.byteLength < 12 || view.getUint16(0, false) !== 0xFFD8) return fallback;
+        let offset = 2;
+        while (offset + 4 < view.byteLength) {
+            if (view.getUint8(offset) !== 0xFF) break;
+            const marker = view.getUint8(offset + 1);
+            const segmentLength = view.getUint16(offset + 2, false);
+            if (segmentLength < 2 || offset + 2 + segmentLength > view.byteLength) break;
+            if (marker === 0xE1 && segmentLength >= 10) {
+                const exifHeader = String.fromCharCode(
+                    view.getUint8(offset + 4), view.getUint8(offset + 5),
+                    view.getUint8(offset + 6), view.getUint8(offset + 7),
+                    view.getUint8(offset + 8), view.getUint8(offset + 9)
+                );
+                if (exifHeader === "Exif\0\0") {
+                    const tiff = offset + 10;
+                    const byteOrder = view.getUint16(tiff, false);
+                    const little = byteOrder === 0x4949;
+                    if (!little && byteOrder !== 0x4D4D) return fallback;
+                    const read16 = position => view.getUint16(position, little);
+                    const read32 = position => view.getUint32(position, little);
+                    const ifd0 = tiff + read32(tiff + 4);
+                    const count0 = read16(ifd0);
+                    let exifIfd = 0;
+                    for (let i = 0; i < count0; i++) {
+                        const entry = ifd0 + 2 + i * 12;
+                        if (read16(entry) === 0x8769) { exifIfd = tiff + read32(entry + 8); break; }
+                    }
+                    if (exifIfd) {
+                        const countExif = read16(exifIfd);
+                        for (let i = 0; i < countExif; i++) {
+                            const entry = exifIfd + 2 + i * 12;
+                            if (read16(entry) !== 0x9003) continue;
+                            const count = read32(entry + 4);
+                            const textOffset = count <= 4 ? entry + 8 : tiff + read32(entry + 8);
+                            let value = "";
+                            for (let j = 0; j < Math.min(count, 32); j++) {
+                                const ch = view.getUint8(textOffset + j);
+                                if (!ch) break;
+                                value += String.fromCharCode(ch);
+                            }
+                            const match = value.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
+                            if (match) {
+                                const captured = new Date(
+                                    Number(match[1]), Number(match[2]) - 1, Number(match[3]),
+                                    Number(match[4]), Number(match[5]), Number(match[6])
+                                );
+                                if (!isNaN(captured.getTime())) return captured;
+                            }
+                        }
+                    }
+                }
+            }
+            offset += 2 + segmentLength;
+        }
+    } catch (error) {
+        console.warn("Unable to read camera EXIF capture time; using file timestamp:", error);
+    }
+    return fallback;
+}
+
+async function stampInspectionPhotoTimestamp(sourceBlob, capturedAt) {
+    let bitmap = null, image = null, objectUrl = null;
+    try {
+        if (typeof createImageBitmap === "function") {
+            bitmap = await createImageBitmap(sourceBlob);
+        } else {
+            objectUrl = URL.createObjectURL(sourceBlob);
+            image = await new Promise((resolve, reject) => {
+                const element = new Image();
+                element.onload = () => resolve(element);
+                element.onerror = () => reject(new Error("Foto tidak dapat dibaca untuk menempelkan timestamp."));
+                element.src = objectUrl;
+            });
+        }
+        const width = bitmap ? bitmap.width : image.naturalWidth;
+        const height = bitmap ? bitmap.height : image.naturalHeight;
+        if (!width || !height) throw new Error("Dimensi foto tidak valid.");
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas foto tidak tersedia.");
+        context.drawImage(bitmap || image, 0, 0, width, height);
+
+        const date = capturedAt instanceof Date && !isNaN(capturedAt.getTime()) ? capturedAt : new Date();
+        const pad = value => String(value).padStart(2, "0");
+        const stamp = "CAPTURED " + pad(date.getDate()) + "/" + pad(date.getMonth() + 1) + "/" +
+            date.getFullYear() + " " + pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
+        const fontSize = Math.max(12, Math.round(width * 0.022));
+        const margin = Math.max(8, Math.round(width * 0.018));
+        context.font = "bold " + fontSize + "px Arial, sans-serif";
+        const textWidth = context.measureText(stamp).width;
+        const boxHeight = fontSize + margin * 1.35;
+        const boxWidth = textWidth + margin * 2;
+        const x = margin;
+        const y = height - margin - boxHeight;
+        context.fillStyle = "rgba(0,0,0,.68)";
+        context.fillRect(x, y, boxWidth, boxHeight);
+        context.fillStyle = "#ffffff";
+        context.textBaseline = "middle";
+        context.fillText(stamp, x + margin, y + boxHeight / 2);
+
+        const stamped = await new Promise((resolve, reject) => {
+            canvas.toBlob(blob => blob && blob.size
+                ? resolve(blob) : reject(new Error("Gagal membuat foto dengan timestamp.")), "image/jpeg", 0.9);
+        });
+        return stamped;
+    } finally {
+        if (bitmap && typeof bitmap.close === "function") bitmap.close();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+    }
+}
+
 async function handleInspectionPhotoInput(event, type) {
     const input = event.target;
     const files = Array.from(input.files || []);
@@ -5140,11 +5261,13 @@ async function handleInspectionPhotoInput(event, type) {
                     if (typeof compressImage !== "function")
                         throw new Error("Fungsi kompresi foto belum tersedia. Refresh aplikasi sebelum mencoba lagi.");
 
-                    const blob = await compressImage(file, {
+                    const captureDate = await getInspectionPhotoCaptureDate(file);
+                    const compressedBlob = await compressImage(file, {
                         maxWidth: 640, maxHeight: 640, maxSize: 100 * 1024, quality: .70, minQuality: .25
                     });
-                    if (!blob || typeof blob.size !== "number" || blob.size <= 0)
+                    if (!compressedBlob || typeof compressedBlob.size !== "number" || compressedBlob.size <= 0)
                         throw new Error("Hasil kompresi foto kosong.");
+                    const blob = await stampInspectionPhotoTimestamp(compressedBlob, captureDate);
 
                     const baseName = (file.name || ("inspection-" + type.toLowerCase())).replace(/\\.[^.]+$/, "");
                     await new Promise((resolve, reject) => {
@@ -5156,6 +5279,7 @@ async function handleInspectionPhotoInput(event, type) {
                             FileName: baseName + ".jpg",
                             Blob: blob,
                             SeqNo: nextSeq,
+                            CapturedAt: captureDate.toISOString(),
                             CreatedAt: new Date().toISOString()
                         });
                         tx.oncomplete = () => resolve();
