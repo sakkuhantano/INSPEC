@@ -1242,9 +1242,23 @@
         var pointHost = document.getElementById("inspectionMapPoints");
         if (pointHost) {
             pointHost.querySelectorAll("[data-point-id]").forEach(function (element) {
-                element.classList.toggle("selected",
-                    Number(element.getAttribute("data-point-id")) === Number(pointId));
+                var isTarget = Number(element.getAttribute("data-point-id")) === Number(pointId);
+                element.classList.toggle("selected", isTarget);
+                element.classList.toggle("navigator-target", isTarget);
             });
+
+            // Keep a dedicated animated ring above the map so the target remains
+            // obvious even when its normal marker is small or is a vector PATH.
+            var oldRing = pointHost.querySelector(".inspection-map-navigator-focus-ring");
+            if (oldRing) oldRing.remove();
+            var targetX = Math.max(0, Math.min(100, Number(point.MapX) || 0));
+            var targetY = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+            var ring = document.createElement("div");
+            ring.className = "inspection-map-navigator-focus-ring";
+            ring.style.left = targetX + "%";
+            ring.style.top = targetY + "%";
+            ring.setAttribute("aria-hidden", "true");
+            pointHost.appendChild(ring);
         }
         var list = document.getElementById("inspectionPointList");
         if (list) {
