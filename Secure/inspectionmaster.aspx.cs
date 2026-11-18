@@ -1927,7 +1927,10 @@ ORDER BY P.DisplayOrder,P.PointCode",
                     decimal rw = ShapeAttributeDecimal(attributes, "width", 0m);
                     decimal rh = ShapeAttributeDecimal(attributes, "height", 0m);
                     if (rx < 0m || ry < 0m || rw <= 0m || rh <= 0m || rx + rw > 100m || ry + rh > 100m) continue;
-                    pathSvg.Append("<rect class='inspection-coordinate-rectangle' x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
+                    bool rectangleIsCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
+                    pathSvg.Append("<rect class='inspection-coordinate-rectangle");
+                    if (rectangleIsCurrent) pathSvg.Append(" inspection-coordinate-rectangle-current");
+                    pathSvg.Append("' x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
                         .Append("' y='").Append(ry.ToString("0.####", CultureInfo.InvariantCulture))
                         .Append("' width='").Append(rw.ToString("0.####", CultureInfo.InvariantCulture))
                         .Append("' height='").Append(rh.ToString("0.####", CultureInfo.InvariantCulture))
