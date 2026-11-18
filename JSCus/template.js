@@ -547,6 +547,43 @@ document.body.addEventListener('click', function (e) {
 // ========================================================
 // UTILITIES
 // ========================================================
+function getPageMethodErrorMessage(ex) {
+    if (!ex) return "Unknown error.";
+
+    // ASP.NET PageMethods may expose the server exception through different
+    // properties depending on the browser/framework wrapper.
+    const candidates = [
+        ex.message,
+        ex.get_message && ex.get_message(),
+        ex.responseJSON && ex.responseJSON.Message,
+        ex.responseJSON && ex.responseJSON.message,
+        ex.responseText
+    ];
+
+    for (let i = 0; i < candidates.length; i++) {
+        const value = candidates[i];
+        if (value == null) continue;
+
+        const text = String(value).trim();
+        if (!text) continue;
+
+        // responseText can be a full JSON response.
+        if (text.charAt(0) === "{" || text.charAt(0) === "[") {
+            try {
+                const parsed = JSON.parse(text);
+                const parsedMessage = parsed && (parsed.Message || parsed.message);
+                if (parsedMessage) return String(parsedMessage).trim();
+            } catch (_) {
+                // Keep the original text when it is not JSON.
+            }
+        }
+
+        return text;
+    }
+
+    return String(ex).trim() || "Unknown error.";
+}
+
 function createValidationResult() {
     return {
         success: true,
@@ -3764,7 +3801,7 @@ async function loadVersionStructure(templateId, versionId, el)
     {
         if (loadRequestId !== versionStructureLoadRequestId) return;
         console.error("loadVersionStructure error:", ex);
-        alert('Failed load version structure');
+        alert('Failed load version. ' + getPageMethodErrorMessage(ex));
     }
     finally
     {
@@ -7054,8 +7091,8 @@ async function loadGroupEquipment(forceReload)
     catch(ex)
     {
         groupEquipmentCache=[];
-        console.error(ex);
-        alert("Failed load Group Equipment");
+        console.error("loadGroupEquipment error:", ex);
+        alert("Failed load Group Equipment. " + getPageMethodErrorMessage(ex));
     }
 
     // return new Promise(function(resolve,reject){
