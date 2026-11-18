@@ -721,6 +721,26 @@ ORDER BY P.DisplayOrder, P.PointCode",
             foreach (DataRow point in points.Rows)
             {
                 string pointLabel = Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"]);
+                if (String.Equals(Convert.ToString(point["ShapeType"]), "RECTANGLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
+                        decimal rx = ShapeAttributeDecimal(attributes, "x", -1m);
+                        decimal ry = ShapeAttributeDecimal(attributes, "y", -1m);
+                        decimal rw = ShapeAttributeDecimal(attributes, "width", 0m);
+                        decimal rh = ShapeAttributeDecimal(attributes, "height", 0m);
+                        if (rx >= 0m && ry >= 0m && rw > 0m && rh > 0m && rx + rw <= 100m && ry + rh <= 100m)
+                            paths.Append("<rect x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
+                                .Append("' y='").Append(ry.ToString("0.####", CultureInfo.InvariantCulture))
+                                .Append("' width='").Append(rw.ToString("0.####", CultureInfo.InvariantCulture))
+                                .Append("' height='").Append(rh.ToString("0.####", CultureInfo.InvariantCulture))
+                                .Append("' fill='rgba(108,117,125,.20)' stroke='#6c757d' stroke-width='0.65' vector-effect='non-scaling-stroke'><title>")
+                                .Append(HttpUtility.HtmlEncode(pointLabel)).Append("</title></rect>");
+                    }
+                    catch { }
+                    continue;
+                }
                 if (String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase))
                 {
                     string d = Convert.ToString(point["SvgPathData"]);
@@ -1448,7 +1468,8 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 SetTab("#tab-point");
                 return;
             }
-            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) ? "PATH" : "CIRCLE";
+            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) ? "PATH" :
+                (String.Equals(ddlPointShapeType.SelectedValue, "RECTANGLE", StringComparison.OrdinalIgnoreCase) ? "RECTANGLE" : "CIRCLE");
             string svgPathData = (hidSvgPathData.Value ?? "").Trim();
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
                 !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$")))
@@ -1457,7 +1478,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 SetTab("#tab-point");
                 return;
             }
-            if (shapeType == "CIRCLE") svgPathData = "";
+            if (shapeType != "PATH") svgPathData = "";
             decimal? coordinateX = null;
             decimal? coordinateY = null;
             if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
@@ -1475,11 +1496,30 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 coordinateX = parsedX;
                 coordinateY = parsedY;
             }
-            if (shapeType == "PATH" && (!coordinateX.HasValue || !coordinateY.HasValue))
+            if ((shapeType == "PATH" || shapeType == "RECTANGLE") && (!coordinateX.HasValue || !coordinateY.HasValue))
             {
-                GF.MsgBox(this, "Path harus memiliki anchor point. Gambar path melalui tombol Draw SVG Path.", "BS-5.3.0");
+                GF.MsgBox(this, "Area harus memiliki anchor point. Gambar rectangle atau SVG area pada denah.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
+            }
+            if (shapeType == "RECTANGLE")
+            {
+                try
+                {
+                    var rectangle = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(hidShapeAttributes.Value ?? "{}");
+                    decimal rx = ShapeAttributeDecimal(rectangle, "x", -1m);
+                    decimal ry = ShapeAttributeDecimal(rectangle, "y", -1m);
+                    decimal rw = ShapeAttributeDecimal(rectangle, "width", 0m);
+                    decimal rh = ShapeAttributeDecimal(rectangle, "height", 0m);
+                    if (rx < 0m || ry < 0m || rw <= 0m || rh <= 0m || rx + rw > 100m || ry + rh > 100m)
+                        throw new InvalidOperationException();
+                }
+                catch
+                {
+                    GF.MsgBox(this, "Rectangle belum valid. Pilih Rectangle Area lalu drag pada denah untuk membuat blok.", "BS-5.3.0");
+                    SetTab("#tab-point");
+                    return;
+                }
             }
 
             long mapID;
@@ -1758,12 +1798,33 @@ VALUES
             return newMapID;
         }
 
+        private decimal ShapeAttributeDecimal(Dictionary<string, object> attributes, string key, decimal fallback)
+        {
+            object value;
+            decimal parsed;
+            return attributes != null && attributes.TryGetValue(key, out value) &&
+                Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number,
+                    CultureInfo.InvariantCulture, out parsed) ? parsed : fallback;
+        }
+
         private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson)
         {
-            if (shapeType == "PATH") return "{\"coordinateSpace\":\"PERCENT_100\",\"closed\":true}";
+            if (shapeType == "PATH") return "{\\"coordinateSpace\\":\\"PERCENT_100\\",\\"closed\\":true}";
+            if (shapeType == "RECTANGLE")
+            {
+                var rectangle = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
+                decimal x = ShapeAttributeDecimal(rectangle, "x", -1m);
+                decimal y = ShapeAttributeDecimal(rectangle, "y", -1m);
+                decimal width = ShapeAttributeDecimal(rectangle, "width", 0m);
+                decimal height = ShapeAttributeDecimal(rectangle, "height", 0m);
+                if (x < 0m || y < 0m || width <= 0m || height <= 0m || x + width > 100m || y + height > 100m)
+                    throw new InvalidOperationException("Rectangle geometry is invalid.");
+                return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
+                    { "coordinateSpace", "PERCENT_100" }, { "x", x }, { "y", y },
+                    { "width", width }, { "height", height }
+                });
+            }
             if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
-            // Circle means a compact point dot, not a large map area.
-            // Keep the vector radius consistent regardless of legacy JSON values.
             const decimal radius = 0.45m;
             return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
                 { "cx", coordinateX.Value }, { "cy", coordinateY.Value }, { "r", radius }
@@ -1855,6 +1916,25 @@ ORDER BY P.DisplayOrder,P.PointCode",
                     pathSvg.Append("' data-can-swap='"); pathSvg.Append(Convert.ToString(point["CanSwap"]));
                     pathSvg.Append("' title='"); pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
                     pathSvg.Append("'></circle>");
+                    continue;
+                }
+                if (String.Equals(shapeType, "RECTANGLE", StringComparison.OrdinalIgnoreCase))
+                {
+                    Dictionary<string, object> attributes = null;
+                    try { attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"])); } catch { }
+                    decimal rx = ShapeAttributeDecimal(attributes, "x", -1m);
+                    decimal ry = ShapeAttributeDecimal(attributes, "y", -1m);
+                    decimal rw = ShapeAttributeDecimal(attributes, "width", 0m);
+                    decimal rh = ShapeAttributeDecimal(attributes, "height", 0m);
+                    if (rx < 0m || ry < 0m || rw <= 0m || rh <= 0m || rx + rw > 100m || ry + rh > 100m) continue;
+                    pathSvg.Append("<rect class='inspection-coordinate-rectangle' x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
+                        .Append("' y='").Append(ry.ToString("0.####", CultureInfo.InvariantCulture))
+                        .Append("' width='").Append(rw.ToString("0.####", CultureInfo.InvariantCulture))
+                        .Append("' height='").Append(rh.ToString("0.####", CultureInfo.InvariantCulture))
+                        .Append("' data-point-id='").Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
+                        .Append("' data-can-swap='").Append(Convert.ToString(point["CanSwap"]))
+                        .Append("' title='").Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])))
+                        .Append("' fill='rgba(108,117,125,.20)' stroke='#6c757d' stroke-width='0.65' vector-effect='non-scaling-stroke'></rect>");
                     continue;
                 }
                 if (!String.Equals(shapeType, "PATH", StringComparison.OrdinalIgnoreCase)) continue;
