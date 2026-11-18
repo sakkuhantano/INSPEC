@@ -1282,12 +1282,16 @@
                 <select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select>
             </div>
             <div class="inspection-filter-control">
+                <label for="selApprovalScheduleTime" class="form-label small mb-1">Schedule Time</label>
+                <select id="selApprovalScheduleTime" class="form-select form-select-sm"><option value="">All schedules</option></select>
+            </div>
+            <div class="inspection-filter-control">
                 <label for="selApprovalTemplate" class="form-label small mb-1">Template</label>
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" lang="id-ID" class="form-control form-control-sm" aria-label="Approved date from" /></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" lang="id-ID" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="text" id="txtApprovalDateFrom" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date from" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="text" id="txtApprovalDateThru" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -1321,7 +1325,7 @@
                 <thead><tr>
                     <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
                     <th role="button" tabindex="0" data-approval-sort="InspectionNo" class="text-nowrap">Transaction No. <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeName">Inspection Type <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeDetailName">Inspection Type Detail <span class="approval-sort-indicator"></span></th>
-                    <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th>
+                    <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th><th>Status</th>
                 </tr></thead>
                 <tbody id="inspectionApprovalQueue"><tr><td colspan="8" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
             </table>
@@ -1418,12 +1422,15 @@
             <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
                 <div class="inspection-date-control">
                     <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                    <input type="date" id="txtSubmittedFrom" lang="id-ID" class="form-control form-control-sm" />
+                    <input type="text" id="txtSubmittedFrom" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
                 </div>
                 <div class="inspection-date-control">
                     <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                    <input type="date" id="txtSubmittedThru" lang="id-ID" class="form-control form-control-sm" />
+                    <input type="text" id="txtSubmittedThru" inputmode="numeric" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
                 </div>
+                <div class="inspection-filter-control"><label for="selSubmittedType" class="form-label small mb-1">Inspection Type</label><select id="selSubmittedType" class="form-select form-select-sm"><option value="">All types</option></select></div>
+                <div class="inspection-filter-control"><label for="selSubmittedDetail" class="form-label small mb-1">Detail Code</label><select id="selSubmittedDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
+                <div class="inspection-filter-control"><label for="selSubmittedScheduleTime" class="form-label small mb-1">Schedule Time</label><select id="selSubmittedScheduleTime" class="form-select form-select-sm"><option value="">All schedules</option></select></div>
                 <button type="button" id="btnFilterSubmitted" class="btn btn-sm btn-primary">
                     <i class="bi bi-search"></i> Filter
                 </button>
@@ -1506,7 +1513,7 @@
 
         <div class="mb-3">
             <label for="txtInspectionDate" class="form-label small fw-semibold">Tanggal inspeksi</label>
-            <input id="txtInspectionDate" lang="id-ID" type="date" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
+            <input id="txtInspectionDate" type="text" inputmode="numeric" placeholder="dd-MMM-yyyy" class="form-control form-control-sm" disabled readonly aria-readonly="true" />
         </div>
         <div id="inspectionStartButtonRow"><button type="button" id="btnStartInspection" class="btn btn-primary w-100" disabled><i class="bi bi-clipboard-check"></i> Start Checklist</button></div>
     </div>
