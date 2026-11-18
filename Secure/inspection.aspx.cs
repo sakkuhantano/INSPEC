@@ -871,7 +871,12 @@ WHERE InspectionID=@InspectionID",
                             new SqlParameter("@p_FollowUp", Limit(String.IsNullOrWhiteSpace(TokenString(record, "FollowUp")) ? "No Follow Up" : TokenString(record, "FollowUp"), 30)),
                             new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
                             new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
-                            new SqlParameter("@p_UpdateUser", Limit(userId, 50))
+                            new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
+                            new SqlParameter("@p_GPSLatitude", ParseNullableDecimal(TokenString(record, "GPSLatitude"))),
+                            new SqlParameter("@p_GPSLongitude", ParseNullableDecimal(TokenString(record, "GPSLongitude"))),
+                            new SqlParameter("@p_GPSAccuracy", ParseNullableDecimal(TokenString(record, "GPSAccuracy"))),
+                            new SqlParameter("@p_GPSCapturedAt", String.IsNullOrWhiteSpace(TokenString(record, "GPSCapturedAt"))
+                                ? (object)DBNull.Value : ParseNullableDate(TokenString(record, "GPSCapturedAt")))
                         };
                         string procedureName;
                         var syncParameters = new List<SqlParameter>(commonParameters);
@@ -4167,6 +4172,15 @@ WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
             if (!DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out parsed))
                 return new DateTime(1900, 1, 1);
             return parsed;
+        }
+
+        private static object ParseNullableDecimal(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return DBNull.Value;
+            decimal parsed;
+            return Decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)
+                ? (object)parsed
+                : DBNull.Value;
         }
     }
 }
