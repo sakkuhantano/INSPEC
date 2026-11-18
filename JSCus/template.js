@@ -4222,7 +4222,6 @@ function evaluateDirtyState()
 
     refreshDirtyUI();
     if (dirty) scheduleTemplateSessionDraftSave();
-    else clearTemplateSessionDraft();
 }
 function getCurrentVersionState() {
 
