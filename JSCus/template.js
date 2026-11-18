@@ -9,6 +9,7 @@ let currentSelectedSection = null;
 let currentSelectedItem = null;
 let currentSelectedSubSection = null;
 let groupEquipmentCache = [];
+let groupEquipmentCacheSectionId = null;
 let modelCache = [];
 let explorerKeyword = "";
 let explorerSearchTimer = null;
@@ -583,6 +584,60 @@ function getPageMethodErrorMessage(ex) {
 
     return String(ex).trim() || "Unknown error.";
 }
+
+function isInspecSessionExpiredError(ex) {
+    if (!ex) return false;
+    const status = Number(
+        ex.status ||
+        ex.statusCode ||
+        (typeof ex.get_statusCode === "function" ? ex.get_statusCode() : 0) ||
+        (ex.response && ex.response.status) ||
+        0
+    );
+    if (status === 401) return true;
+
+    const message = getPageMethodErrorMessage(ex);
+    return /INSPEC session is not available|Please sign in to INSPEC again|session (has )?expired|session is invalid/i.test(message);
+}
+
+function redirectToInspecLogin() {
+    if (window.__inspecLoginRedirecting) return;
+    window.__inspecLoginRedirecting = true;
+    // template.aspx is under /Secure; default.aspx is at the application root.
+    window.location.replace("../default.aspx");
+}
+
+// promisifyPageMethod is shared by the application. Guard it once so every
+// PageMethod call in Template Builder handles an expired/missing session alike.
+(function installInspecSessionGuard() {
+    const original = window.promisifyPageMethod;
+    if (typeof original !== "function" || original.__inspecSessionGuard) return;
+
+    const guarded = function() {
+        let request;
+        try {
+            request = original.apply(this, arguments);
+        } catch (ex) {
+            if (isInspecSessionExpiredError(ex)) {
+                redirectToInspecLogin();
+                return new Promise(function() {});
+            }
+            throw ex;
+        }
+
+        return Promise.resolve(request).catch(function(ex) {
+            if (isInspecSessionExpiredError(ex)) {
+                redirectToInspecLogin();
+                // Keep downstream page-level catch blocks from showing misleading
+                // "Failed load..." alerts while the browser navigates to login.
+                return new Promise(function() {});
+            }
+            throw ex;
+        });
+    };
+    guarded.__inspecSessionGuard = true;
+    window.promisifyPageMethod = guarded;
+})();
 
 function createValidationResult() {
     return {
@@ -7065,60 +7120,36 @@ function refreshGroupEquipmentCaption(template)
 async function loadGroupEquipment(forceReload)
 {
     // Inspection templates do not use the legacy PM/WO Group Equipment master.
-    // Keep this guard here as well as in the dropdown binder so no caller can
-    // accidentally trigger the unrelated WebMethod while cloning/editing Type I.
     const templateType = String(currentTemplate && currentTemplate.TemplateType || "W").trim().toUpperCase();
     if (templateType === "I")
         return [];
 
-    if (!forceReload &&
-        groupEquipmentCache.length > 0)
-    {
+    const sectionId = String(currentTemplate && currentTemplate.SectionID || "");
+    if (!sectionId)
+        return [];
+
+    // Cache even an empty result. A Section with no Group Equipment is valid.
+    if (!forceReload && groupEquipmentCacheSectionId === sectionId)
         return groupEquipmentCache;
-    }
 
-    try 
-    {
-        const result =
-            await promisifyPageMethod(
-                PageMethods
-                .GetGroupEquipment,
-                companyId, locationId, currentTemplate.SectionID
-            );
-        groupEquipmentCache =
-            JSON.parse(result || "[]");
-    }
-    catch(ex)
-    {
-        groupEquipmentCache=[];
-        console.error("loadGroupEquipment error:", ex);
-        alert("Failed load Group Equipment. " + getPageMethodErrorMessage(ex));
-    }
+    const result = await promisifyPageMethod(
+        PageMethods.GetGroupEquipment,
+        companyId, locationId, sectionId
+    );
+    const rows = typeof result === "string"
+        ? JSON.parse(result || "[]")
+        : (result || []);
 
-    // return new Promise(function(resolve,reject){
-    //     PageMethods.GetGroupEquipment(companyId, locationId, currentSection, 
-    //         function(result){
-    //             groupEquipmentCache =
-    //                 result || [];
-    //             resolve(groupEquipmentCache);
-    //         },
-    //         function(err){
-    //             console.error(err);
-    //             groupEquipmentCache=[];
-    //             reject(err);
-    //         }
-    //     );
-    // });
+    groupEquipmentCache = Array.isArray(rows) ? rows : [];
+    groupEquipmentCacheSectionId = sectionId;
+    return groupEquipmentCache;
 }
+
 async function bindGroupEquipmentDropdown(selectedValue)
 {
-    const ddl =
-        document.getElementById(
-            "propTemplateGroupEquipment"
-        );
+    const ddl = document.getElementById("propTemplateGroupEquipment");
 
-    // Type I uses Inspection Type / Detail metadata, not Master Equipment.
-    // Do not call GetGroupEquipment during inspection-template clone or render.
+    // Inspection templates use Inspection Type / Detail metadata, not Master Equipment.
     const templateType = String(currentTemplate && currentTemplate.TemplateType || "W").trim().toUpperCase();
     if (templateType === "I") {
         if (ddl) {
@@ -7130,40 +7161,63 @@ async function bindGroupEquipmentDropdown(selectedValue)
         return;
     }
 
-    if(!ddl)
-        return;
+    if (!ddl) return;
 
     ddl.disabled = isReadonlyMode;
-    await loadGroupEquipment();
+    ddl.innerHTML = "";
+    ddl.appendChild(new Option("-- Select Group Equipment --", ""));
 
-    ddl.innerHTML="";
+    // Keep a saved value visible without requiring the lookup to succeed.
+    const selected = String(selectedValue || "");
+    if (selected) {
+        ddl.appendChild(new Option(selected, selected));
+        ddl.value = selected;
+    }
 
-    ddl.appendChild(
-        new Option(
-            "-- Select Group Equipment --",
-            ""
-        )
-    );
+    const sectionId = String(currentTemplate && currentTemplate.SectionID || "");
+    ddl.dataset.groupEquipmentLoaded =
+        groupEquipmentCacheSectionId === sectionId ? "1" : "0";
 
-    groupEquipmentCache.forEach(function(item){
+    // Load lookup choices only when the user opens the field. A Version with no
+    // Group Equipment must not make opening/rendering its checklist depend on
+    // the unrelated Group Equipment master query.
+    ddl.onfocus = async function() {
+        if (this.disabled ||
+            this.dataset.groupEquipmentLoaded === "1" ||
+            this.dataset.groupEquipmentLoading === "1")
+            return;
 
-        ddl.appendChild(
+        this.dataset.groupEquipmentLoading = "1";
+        try {
+            const rows = await loadGroupEquipment();
+            const keepValue = String(
+                (currentVersion && currentVersion.GroupEquipment) || selected || this.value || ""
+            );
 
-            new Option(
+            this.innerHTML = "";
+            this.appendChild(new Option("-- Select Group Equipment --", ""));
+            rows.forEach(function(item) {
+                this.appendChild(new Option(
+                    item.GroupEquipment + " - " + (item.Description || ""),
+                    item.GroupEquipment
+                ));
+            }, this);
 
-                item.GroupEquipment +
-                " - " +
-                item.Description,
-
-                item.GroupEquipment
-
-            )
-
-        );
-
-    });
-
-    ddl.value = selectedValue || "";
+            // Preserve a legacy value even if it is no longer in the master list.
+            if (keepValue && !Array.from(this.options).some(function(option) {
+                return option.value === keepValue;
+            })) {
+                this.appendChild(new Option(keepValue, keepValue));
+            }
+            this.value = keepValue;
+            this.dataset.groupEquipmentLoaded = "1";
+        } catch (ex) {
+            console.error("loadGroupEquipment error:", ex);
+            alert("Failed load Group Equipment. " + getPageMethodErrorMessage(ex));
+        } finally {
+            this.dataset.groupEquipmentLoading = "0";
+        }
+    };
 }
 function selectSubSection(subSectionBox)
 {
