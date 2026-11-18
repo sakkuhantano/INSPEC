@@ -233,8 +233,12 @@ function persistTemplateSessionDraft() {
                 templateRuntimeId: currentTemplate && currentTemplate.RuntimeTemplateID != null ? String(currentTemplate.RuntimeTemplateID) : "",
                 versionRuntimeId: currentVersion && currentVersion.RuntimeVersionID != null ? String(currentVersion.RuntimeVersionID) : ""
             },
-            expandedSections: Array.from(document.querySelectorAll(".section-root.show"))
-                .map(function (element) { return String(element.dataset.sectionid || ""); })
+            loadedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
+                .map(function (element) { return String(element.dataset.sectionId || ""); })
+                .filter(Boolean),
+            expandedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
+                .filter(function (element) { return !!element.closest(".accordion-collapse.show"); })
+                .map(function (element) { return String(element.dataset.sectionId || ""); })
                 .filter(Boolean)
         };
         sessionStorage.setItem(getTemplateSessionDraftKey(), JSON.stringify(snapshot));
@@ -281,7 +285,14 @@ async function restoreTemplateSessionDraft() {
 
     try {
         const savedSections = snapshot.cache.sections || {};
-        for (const sectionId of Object.keys(savedSections)) {
+        const sectionsToRestore = Array.from(new Set(
+            (snapshot.loadedSections || Object.keys(savedSections).filter(function (id) {
+                const section = savedSections[id] || {};
+                return Object.keys(section.Templates || {}).length > 0;
+            })).concat(snapshot.selection && snapshot.selection.sectionId ? [String(snapshot.selection.sectionId)] : [])
+        ));
+        for (const sectionId of sectionsToRestore) {
+            if (!savedSections[sectionId]) continue;
             const header = document.getElementById("rootHeader_" + sectionId);
             if (header) await loadTemplatesBySection(sectionId, header);
 
