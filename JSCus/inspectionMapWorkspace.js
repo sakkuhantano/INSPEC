@@ -257,6 +257,35 @@
         return pending[0];
     }
 
+    function getPointMapFocusPosition(point) {
+        var x = Math.max(0, Math.min(100, Number(point && point.MapX) || 0));
+        var y = Math.max(0, Math.min(100, Number(point && point.MapY) || 0));
+        var shapeType = String(point && point.ShapeType || "CIRCLE").toUpperCase();
+        if (shapeType === "RECTANGLE" || shapeType === "RECT") {
+            var shape = {};
+            try {
+                shape = typeof point.ShapeAttributes === "string"
+                    ? JSON.parse(point.ShapeAttributes || "{}")
+                    : (point.ShapeAttributes || {});
+            } catch (_) {
+                shape = {};
+            }
+            var width = Number(shape.width || shape.w || shape.widthPercent || 0);
+            var height = Number(shape.height || shape.h || shape.heightPercent || 0);
+            if (isFinite(width) && width > 0 && isFinite(height) && height > 0) {
+                var left = isFinite(Number(shape.x)) ? Number(shape.x) :
+                    (isFinite(Number(shape.left)) ? Number(shape.left) :
+                    (isFinite(Number(shape.x1)) ? Number(shape.x1) : x - width / 2));
+                var top = isFinite(Number(shape.y)) ? Number(shape.y) :
+                    (isFinite(Number(shape.top)) ? Number(shape.top) :
+                    (isFinite(Number(shape.y1)) ? Number(shape.y1) : y - height / 2));
+                x = left + width / 2;
+                y = top + height / 2;
+            }
+        }
+        return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+    }
+
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
@@ -1246,8 +1275,9 @@
         resetMapView();
         var viewportRect = viewport.getBoundingClientRect();
         var stageRect = stage.getBoundingClientRect();
-        var x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
-        var y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+        var focusPosition = getPointMapFocusPosition(point);
+        var x = focusPosition.x;
+        var y = focusPosition.y;
         var pointX = stageRect.left + stageRect.width * x / 100;
         var pointY = stageRect.top + stageRect.height * y / 100;
         var stageCenterX = stageRect.left + stageRect.width / 2;
@@ -1272,8 +1302,9 @@
             // obvious even when its normal marker is small or is a vector PATH.
             var oldRing = pointHost.querySelector(".inspection-map-navigator-focus-ring");
             if (oldRing) oldRing.remove();
-            var targetX = Math.max(0, Math.min(100, Number(point.MapX) || 0));
-            var targetY = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+            var targetPosition = getPointMapFocusPosition(point);
+            var targetX = targetPosition.x;
+            var targetY = targetPosition.y;
             var ring = document.createElement("div");
             ring.className = "inspection-map-navigator-focus-ring";
             ring.style.left = targetX + "%";
