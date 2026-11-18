@@ -6115,7 +6115,7 @@ async function previewSelectedInspections() {
         if (previewButton) {
             delete previewButton.dataset.processing;
             previewButton.innerHTML = originalButtonHtml || '<i class="bi bi-file-earmark-excel me-1"></i>Preview';
-            previewButton.disabled = currentInspectionApprovalTab !== "OUTSTANDING" ||
+            previewButton.disabled = !["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) ||
                 getSelectedInspectionApprovalRows().length === 0;
         }
     }
