@@ -1498,7 +1498,8 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || "-"),
-        startTime + " - " + endTime
+        startTime + " - " + endTime,
+        "Status: " + getInspectionRecordGridStatus(record, record.Status === "DONE").label
     ]);
     const summaryInput = document.getElementById("txtInspectionSummary");
     if (summaryInput) {
@@ -4207,7 +4208,8 @@ async function openServerSubmittedInspection(inspectionId) {
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
-            formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime)
+            formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime),
+            "Status: " + getInspectionRecordGridStatus(h, true).label
         ]);
         document.getElementById("txtInspectionSummary").value = h.Summary || "";
         document.getElementById("txtInspectionSummary").readOnly = true;
