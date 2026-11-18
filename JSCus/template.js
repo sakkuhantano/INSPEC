@@ -256,7 +256,9 @@ function persistTemplateSessionDraft() {
             savedAt: new Date().toISOString(),
             cache: JSON.parse(JSON.stringify(cacheSnapshot)),
             selection: selection,
-            loadedSections: Object.keys(cacheSnapshot.sections),
+            loadedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
+                .map(function (element) { return String(element.dataset.sectionId || ""); })
+                .filter(Boolean),
             expandedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
                 .filter(function (element) { return !!element.closest(".accordion-collapse.show"); })
                 .map(function (element) { return String(element.dataset.sectionId || ""); })
@@ -313,12 +315,11 @@ async function restoreTemplateSessionDraft() {
             })).concat(snapshot.selection && snapshot.selection.sectionId ? [String(snapshot.selection.sectionId)] : [])
         ));
         for (const sectionId of sectionsToRestore) {
-            if (!savedSections[sectionId]) continue;
             const header = document.getElementById("rootHeader_" + sectionId);
             if (header) await loadTemplatesBySection(sectionId, header);
 
             const liveSection = getSectionCache(sectionId);
-            const savedSection = savedSections[sectionId];
+            const savedSection = savedSections[sectionId] || { Templates: {}, Dirty: false };
             Object.entries(savedSection.Templates || {}).forEach(function (entry) {
                 const key = entry[0], savedNode = entry[1];
                 const savedId = Number(savedNode && savedNode.Template && savedNode.Template.IDTemplate || 0);
