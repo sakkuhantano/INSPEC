@@ -278,6 +278,57 @@ function scheduleTemplateSessionDraftSave() {
     }, 180);
 }
 
+function getTemplateSessionContinuationKey() {
+    return getTemplateSessionDraftKey() + ".continuation";
+}
+
+function markTemplatePostbackContinuation() {
+    try {
+        sessionStorage.setItem(getTemplateSessionContinuationKey(), String(Date.now()));
+    } catch (error) {
+        console.warn("Template Builder postback continuation marker could not be saved:", error);
+    }
+}
+
+function clearTemplateSessionContinuation() {
+    try {
+        sessionStorage.removeItem(getTemplateSessionContinuationKey());
+    } catch (error) {
+        console.warn("Template Builder postback continuation marker could not be cleared:", error);
+    }
+}
+
+function bindTemplatePostbackContinuation() {
+    if (window.__inspecTemplatePostbackContinuationBound) return;
+    window.__inspecTemplatePostbackContinuationBound = true;
+
+    // ASP.NET AutoPostBack / __doPostBack.
+    if (typeof window.__doPostBack === "function") {
+        const originalDoPostBack = window.__doPostBack;
+        window.__doPostBack = function () {
+            markTemplatePostbackContinuation();
+            return originalDoPostBack.apply(this, arguments);
+        };
+    }
+
+    // Covers explicit form submissions used by page controls.
+    document.addEventListener("submit", function (event) {
+        if (event && event.target && event.target.tagName === "FORM")
+            markTemplatePostbackContinuation();
+    }, true);
+
+    // Covers scripts that invoke HTMLFormElement.submit() directly.
+    const nativeSubmit = HTMLFormElement.prototype.submit;
+    if (typeof nativeSubmit === "function" && !nativeSubmit.__inspecTemplateWrapped) {
+        const wrappedSubmit = function () {
+            markTemplatePostbackContinuation();
+            return nativeSubmit.apply(this, arguments);
+        };
+        wrappedSubmit.__inspecTemplateWrapped = true;
+        HTMLFormElement.prototype.submit = wrappedSubmit;
+    }
+}
+
 function clearTemplateSessionDraft(removeAllTemplateDrafts) {
     try {
         if (removeAllTemplateDrafts) {
@@ -289,6 +340,7 @@ function clearTemplateSessionDraft(removeAllTemplateDrafts) {
         } else {
             sessionStorage.removeItem(getTemplateSessionDraftKey());
         }
+        clearTemplateSessionContinuation();
     } catch (error) {
         console.warn("Template Builder local session draft could not be cleared:", error);
     }
@@ -297,11 +349,22 @@ function clearTemplateSessionDraft(removeAllTemplateDrafts) {
 async function restoreTemplateSessionDraft() {
     let snapshot = null;
     try {
+        // A dirty draft may cross an ASP.NET AutoPostBack, but it must never
+        // become a reusable server overwrite after the user leaves Template Builder.
+        // The continuation marker is created only immediately before a postback.
+        const continuation = sessionStorage.getItem(getTemplateSessionContinuationKey());
+        if (!continuation) {
+            sessionStorage.removeItem(getTemplateSessionDraftKey());
+            return false;
+        }
+        sessionStorage.removeItem(getTemplateSessionContinuationKey());
+
         const raw = sessionStorage.getItem(getTemplateSessionDraftKey());
         if (!raw) return false;
         snapshot = JSON.parse(raw);
     } catch (error) {
         console.warn("Template Builder local session draft could not be read:", error);
+        clearTemplateSessionContinuation();
         return false;
     }
     if (!snapshot || snapshot.version !== 1 || !snapshot.cache || !snapshot.cache.sections) return false;
@@ -490,6 +553,7 @@ document.addEventListener(
         clearCenterPanel();
         clearBuilderPanel()
         clearRightPanel();
+        bindTemplatePostbackContinuation();
         await loadTemplateExplorer();
         await restoreTemplateSessionDraft();
     }
