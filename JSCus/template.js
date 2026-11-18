@@ -7175,8 +7175,20 @@ async function bindGroupEquipmentDropdown(selectedValue)
     }
 
     const sectionId = String(currentTemplate && currentTemplate.SectionID || "");
-    ddl.dataset.groupEquipmentLoaded =
-        groupEquipmentCacheSectionId === sectionId ? "1" : "0";
+    const hasSectionCache = groupEquipmentCacheSectionId === sectionId;
+    if (hasSectionCache) {
+        groupEquipmentCache.forEach(function(item) {
+            if (!Array.from(ddl.options).some(function(option) {
+                return option.value === String(item.GroupEquipment);
+            })) {
+                ddl.appendChild(new Option(
+                    item.GroupEquipment + " - " + (item.Description || ""),
+                    item.GroupEquipment
+                ));
+            }
+        });
+    }
+    ddl.dataset.groupEquipmentLoaded = hasSectionCache ? "1" : "0";
 
     // Load lookup choices only when the user opens the field. A Version with no
     // Group Equipment must not make opening/rendering its checklist depend on
