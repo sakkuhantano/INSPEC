@@ -319,8 +319,6 @@ async function restoreTemplateSessionDraft() {
                 container.dataset.loaded = "1";
                 renderTemplates(Object.values(liveSection.Templates || {}), container, sectionId);
             }
-            if (root && window.bootstrap && bootstrap.Collapse)
-                bootstrap.Collapse.getOrCreateInstance(root, { toggle: false }).show();
         }
 
         templateCache.deleted = snapshot.cache.deleted || { templates: [], versions: [] };
@@ -339,7 +337,10 @@ async function restoreTemplateSessionDraft() {
                     await loadVersionStructure(selection.templateRuntimeId, selection.versionRuntimeId, versionElement);
             }
         }
-        (snapshot.expandedSections || []).forEach(function (sectionId) {
+        const sectionsToExpand = Array.from(new Set((snapshot.expandedSections || []).concat(
+            snapshot.selection && snapshot.selection.sectionId ? [String(snapshot.selection.sectionId)] : []
+        )));
+        sectionsToExpand.forEach(function (sectionId) {
             const header = document.getElementById("rootHeader_" + sectionId);
             const root = header && header.getAttribute("data-bs-target")
                 ? document.querySelector(header.getAttribute("data-bs-target")) : null;
