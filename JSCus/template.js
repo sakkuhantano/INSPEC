@@ -251,9 +251,20 @@ function scheduleTemplateSessionDraftSave() {
     }, 180);
 }
 
-function clearTemplateSessionDraft() {
-    try { sessionStorage.removeItem(getTemplateSessionDraftKey()); }
-    catch (error) { console.warn("Template Builder local session draft could not be cleared:", error); }
+function clearTemplateSessionDraft(removeAllTemplateDrafts) {
+    try {
+        if (removeAllTemplateDrafts) {
+            const prefix = "INSPEC.TemplateBuilder.Draft.v1.";
+            for (let i = sessionStorage.length - 1; i >= 0; i--) {
+                const key = sessionStorage.key(i);
+                if (key && key.indexOf(prefix) === 0) sessionStorage.removeItem(key);
+            }
+        } else {
+            sessionStorage.removeItem(getTemplateSessionDraftKey());
+        }
+    } catch (error) {
+        console.warn("Template Builder local session draft could not be cleared:", error);
+    }
 }
 
 async function restoreTemplateSessionDraft() {
@@ -10958,7 +10969,7 @@ async function saveAllTemplate()
         // evaluateDirtyState();
         // evaluateDirtyIcon();
 
-        clearTemplateSessionDraft();
+        clearTemplateSessionDraft(true);
         showToast(
             "Save completed."
         );
