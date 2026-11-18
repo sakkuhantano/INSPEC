@@ -310,6 +310,9 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
+    ["selSubmittedType", "selSubmittedDetail", "selSubmittedScheduleTime"].forEach(id => {
+        document.getElementById(id).addEventListener("change", () => refreshSavedInspectionList().catch(err => showToast(err.message || "Gagal memfilter inspeksi.", "warning")));
+    });
     document.getElementById("btnFilterSubmitted").addEventListener("click", function () {
         refreshSavedInspectionList().catch(err => {
             console.error("Unable to filter submitted inspections:", err);
@@ -4022,7 +4025,17 @@ async function refreshSavedInspectionList() {
     });
 
     renderInspectionRecordTable(drafts, document.getElementById("inspectionDraftList"), false);
-    renderInspectionRecordTable(Array.from(submittedById.values()), document.getElementById("inspectionSubmittedList"), true);
+    const submittedRows = Array.from(submittedById.values());
+    populateTechnicianSubmittedFilters(submittedRows);
+    const filteredSubmittedRows = submittedRows.filter(record => {
+        const type = document.getElementById("selSubmittedType").value;
+        const detail = document.getElementById("selSubmittedDetail").value;
+        const schedule = document.getElementById("selSubmittedScheduleTime").value;
+        return (!type || String(record.InspectionTypeCode || "") === type) &&
+            (!detail || String(record.InspectionTypeDetailCode || "") === detail) &&
+            (!schedule || String(record.ScheduledTime || "") === schedule);
+    });
+    renderInspectionRecordTable(filteredSubmittedRows, document.getElementById("inspectionSubmittedList"), true);
 
     if (!returnedInspectionDeepLinkHandled && window.location && window.location.search) {
         const query = new URLSearchParams(window.location.search);
@@ -4037,7 +4050,37 @@ async function refreshSavedInspectionList() {
     }
 }
 
-async function openServerReturnedInspection(inspectionId) {
+async function populateTechnicianSubmittedFilters(records) {
+    const specs = [
+        { id: "selSubmittedType", key: "InspectionTypeCode", label: "InspectionTypeName", all: "All types" },
+        { id: "selSubmittedDetail", key: "InspectionTypeDetailCode", label: "InspectionTypeDetailName", all: "All details" },
+        { id: "selSubmittedScheduleTime", key: "ScheduledTime", label: "ScheduledTime", all: "All schedules" }
+    ];
+    const currentType = document.getElementById("selSubmittedType").value;
+    const currentDetail = document.getElementById("selSubmittedDetail").value;
+    specs.forEach(spec => {
+        const select = document.getElementById(spec.id);
+        const previous = select.value;
+        const applicable = records.filter(row => {
+            if (spec.id !== "selSubmittedType" && currentType && String(row.InspectionTypeCode || "") !== currentType) return false;
+            if (spec.id === "selSubmittedScheduleTime" && currentDetail && String(row.InspectionTypeDetailCode || "") !== currentDetail) return false;
+            return true;
+        });
+        const values = new Map();
+        applicable.forEach(row => {
+            const value = String(row[spec.key] == null ? "" : row[spec.key]);
+            if (value && !values.has(value)) values.set(value, String(row[spec.label] || value));
+        });
+        select.innerHTML = '<option value="">' + spec.all + '</option>' +
+            Array.from(values.entries()).sort((a,b) => a[1].localeCompare(b[1])).map(pair =>
+                '<option value="' + escInspection(pair[0]) + '">' + escInspection(pair[1]) + '</option>'
+            ).join("");
+        select.value = values.has(previous) ? previous : "";
+    });
+    document.getElementById("selSubmittedDetail").disabled = !currentType;
+}
+
+function openServerReturnedInspection(inspectionId) {
     if (!inspectionId || !navigator.onLine) {
         showToast("Koneksi diperlukan untuk membuka inspeksi yang dikembalikan.", "warning");
         return;
@@ -5808,11 +5851,11 @@ async function loadInspectionApprovalQueue() {
     const requestSequence = ++inspectionApprovalLoadSequence;
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Memuat dari server...</td></tr>';
+    host.innerHTML = '<tr><td colspan="9" class="text-muted py-2">Memuat dari server...</td></tr>';
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
         showToast("Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.", "warning");
-        host.innerHTML = '<tr><td colspan="8" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
+        host.innerHTML = '<tr><td colspan="9" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
         document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail approval hanya dapat dibuka saat online.</div>';
         return;
     }
@@ -5858,7 +5901,7 @@ async function loadInspectionApprovalQueue() {
         }
     } catch (err) {
         if (requestSequence !== inspectionApprovalLoadSequence) return;
-        host.innerHTML = '<tr><td colspan="8" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
+        host.innerHTML = '<tr><td colspan="9" class="text-danger py-2">' + escInspection(err.message || "Gagal memuat antrean approval.") + '</td></tr>';
     }
 }
 
@@ -5909,7 +5952,7 @@ function renderInspectionApprovalQueue() {
     });
     const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING" || currentInspectionApprovalTab === "APPROVED";
     if (!rows.length) {
-        host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "8" : "7") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
+        host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "9" : "8") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
         const selectAll = document.getElementById("chkAllInspectionApproval");
         if (selectAll) selectAll.checked = false;
         updateInspectionApprovalSelectAll();
