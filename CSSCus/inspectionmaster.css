@@ -161,6 +161,7 @@
 .inspection-map-svg-circle{pointer-events:visiblePainted;cursor:pointer;fill:rgba(13,110,253,.12);stroke:currentColor;stroke-width:.45;vector-effect:non-scaling-stroke}
 .inspection-coordinate-path:hover{stroke-width:1.3;filter:drop-shadow(0 0 2px rgba(13,110,253,.6))}
 .inspection-coordinate-board.path-drawing{cursor:crosshair;touch-action:none}
+.inspection-coordinate-board.rectangle-drawing{cursor:crosshair;touch-action:none}
 .inspection-map-preview-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 
 /* Mobile Inspection Points toolbar: let the toolbar grow instead of colliding with the grid. */
