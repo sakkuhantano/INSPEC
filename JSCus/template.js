@@ -224,22 +224,43 @@ function persistTemplateSessionDraft() {
                 if (currentVersionData.VersionInfo) versionNode.VersionInfo = currentVersionData.VersionInfo;
             }
         }
+        const selection = {
+            sectionId: currentTemplate && currentTemplate.SectionID != null ? String(currentTemplate.SectionID) : "",
+            templateRuntimeId: currentTemplate && currentTemplate.RuntimeTemplateID != null ? String(currentTemplate.RuntimeTemplateID) : "",
+            versionRuntimeId: currentVersion && currentVersion.RuntimeVersionID != null ? String(currentVersion.RuntimeVersionID) : ""
+        };
+        const cacheSnapshot = {
+            sections: {},
+            deleted: JSON.parse(JSON.stringify(templateCache.deleted || { templates: [], versions: [] })),
+            Dirty: true
+        };
+        Object.entries(templateCache.sections || {}).forEach(function (entry) {
+            const sectionId = entry[0], section = entry[1], templates = {};
+            Object.entries(section.Templates || {}).forEach(function (templateEntry) {
+                const key = templateEntry[0], node = templateEntry[1];
+                const selected = selection.sectionId === String(sectionId) &&
+                    selection.templateRuntimeId === String(node && node.Template && node.Template.RuntimeTemplateID || key);
+                const templateDirty = !!(node && node.Template && (node.Template.Dirty || node.Template.MetadataDirty));
+                const versionDirty = Object.values(node && node.Versions || {}).some(function (version) {
+                    return !!(version && version.VersionInfo && version.VersionInfo.Dirty) ||
+                        !!(version && version.Structure && version.Structure.VersionInfo && version.Structure.VersionInfo.Dirty);
+                });
+                if (selected || templateDirty || versionDirty)
+                    templates[key] = node;
+            });
+            if (Object.keys(templates).length)
+                cacheSnapshot.sections[sectionId] = { Dirty: !!section.Dirty, Templates: templates };
+        });
         const snapshot = {
             version: 1,
             savedAt: new Date().toISOString(),
-            cache: JSON.parse(JSON.stringify(templateCache)),
-            selection: {
-                sectionId: currentTemplate && currentTemplate.SectionID != null ? String(currentTemplate.SectionID) : "",
-                templateRuntimeId: currentTemplate && currentTemplate.RuntimeTemplateID != null ? String(currentTemplate.RuntimeTemplateID) : "",
-                versionRuntimeId: currentVersion && currentVersion.RuntimeVersionID != null ? String(currentVersion.RuntimeVersionID) : ""
-            },
-            loadedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
-                .map(function (element) { return String(element.dataset.sectionId || ""); })
-                .filter(Boolean),
+            cache: JSON.parse(JSON.stringify(cacheSnapshot)),
+            selection: selection,
+            loadedSections: Object.keys(cacheSnapshot.sections),
             expandedSections: Array.from(document.querySelectorAll(".template-list-container[data-loaded='1']"))
                 .filter(function (element) { return !!element.closest(".accordion-collapse.show"); })
                 .map(function (element) { return String(element.dataset.sectionId || ""); })
-                .filter(Boolean)
+                .filter(function (sectionId) { return !!cacheSnapshot.sections[sectionId]; })
         };
         sessionStorage.setItem(getTemplateSessionDraftKey(), JSON.stringify(snapshot));
     } catch (error) {
