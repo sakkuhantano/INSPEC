@@ -6757,6 +6757,20 @@ async function loadInspectionApprovalDetail(inspectionId) {
         document.getElementById("inspectionApprovalDetailSubtitle").textContent =
             (h.InspectionNo || ("Inspection #" + h.InspectionID)) + " • " +
             formatInspectionDateDMY(h.InspectionDate) + " • " + scheduledLabel + " • " + start + " – " + end;
+        const gpsLatitude = Number(h.GPSLatitude);
+        const gpsLongitude = Number(h.GPSLongitude);
+        const hasGps = h.GPSLatitude !== null && h.GPSLatitude !== undefined && h.GPSLongitude !== null && h.GPSLongitude !== undefined &&
+            Number.isFinite(gpsLatitude) && Number.isFinite(gpsLongitude) && Math.abs(gpsLatitude) <= 90 && Math.abs(gpsLongitude) <= 180;
+        const gpsQuery = hasGps ? gpsLatitude.toFixed(7) + "," + gpsLongitude.toFixed(7) : "";
+        const gpsMapHtml = hasGps && navigator.onLine
+            ? '<div class="mt-2"><iframe title="Inspection GPS location" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:190px;border:0;border-radius:.5rem" src="https://maps.google.com/maps?q=' + encodeURIComponent(gpsQuery) + '&z=16&output=embed"></iframe></div>'
+            : (hasGps ? '<div class="small text-muted mt-2">Peta disembunyikan karena perangkat sedang offline.</div>' : '<div class="small text-muted mt-2">Koordinat GPS tidak tersedia.</div>');
+        const gpsCardHtml = '<div class="border rounded p-3 mt-3"><div class="fw-semibold mb-2"><i class="bi bi-geo-alt me-1"></i>GPS Capture</div>' +
+            '<div><strong>Latitude / Longitude:</strong> ' + (hasGps ? escInspection(gpsQuery) : "-") + '</div>' +
+            '<div><strong>Accuracy:</strong> ' + (h.GPSAccuracy != null ? escInspection(h.GPSAccuracy + " m") : "-") + '</div>' +
+            '<div><strong>Captured:</strong> ' + (h.GPSCapturedAt ? escInspection(formatInspectionDateDMY(h.GPSCapturedAt) + " " + formatInspectionClock(h.GPSCapturedAt)) : "-") + '</div>' +
+            (hasGps ? '<a class="btn btn-sm btn-outline-primary mt-2" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsQuery) + '" target="_blank" rel="noopener">Buka di Google Maps</a>' : '') +
+            gpsMapHtml + '</div>';
         document.getElementById("inspectionApprovalParameters").innerHTML =
             '<div class="row g-3">' +
             '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Parameters</div>' +
@@ -6770,7 +6784,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Section:</strong> ' + escInspection(h.SectionID || "-") + '</div></div></div>' +
             '<div class="col-12 col-md-6"><div class="border rounded p-3 h-100"><div class="fw-semibold mb-2">Inspection Template</div>' +
             '<div><strong>Template:</strong> ' + escInspection(h.TemplateNo || "-") + ' / v' + escInspection(h.TemplateVersion || "-") + '</div>' +
-            '</div></div></div>';
+            '</div></div></div>' + gpsCardHtml;
         const renderApprovalPhotoStage = (type, pointId) => {
             const stagePhotos = photos.filter(photo =>
                 String(photo.Type || "").toUpperCase() === type &&
