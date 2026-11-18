@@ -776,7 +776,7 @@
                 if (shapeAttributesField) shapeAttributesField.value = '{}';
                 if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
                 rectanglePreview = null; rectangleDrawing = false; rectangleStart = null;
-                board.classList.remove('path-drawing');
+                board.classList.remove('path-drawing', 'rectangle-drawing');
 
                 // Remove both the persisted path overlay and the temporary drawing.
                 var activeId = document.getElementById('hidPointID');
