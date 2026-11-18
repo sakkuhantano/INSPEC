@@ -1735,7 +1735,7 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
         [WebMethod]
         public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
@@ -1849,8 +1849,8 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
                 DataTable filterRows = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
        I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.IDTemplate, I.TemplateNo" + fromWhere + @"
-ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo",
+       I.IDTemplate, I.TemplateNo, I.ScheduledTime" + fromWhere + @"
+ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.ScheduledTime",
                     filterOptionParameters);
 
                 var filters = new List<Dictionary<string, object>>();
@@ -1877,6 +1877,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
 ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
@@ -1888,7 +1889,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         new SqlParameter("@DateThru", thruDate),
                         new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
                         new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
-                        new SqlParameter("@TemplateId", templateId ?? "")
+                        new SqlParameter("@TemplateId", templateId ?? ""),
+                        new SqlParameter("@ScheduleTime", scheduleTime ?? "")
                     });
 
                 var result = new List<Dictionary<string, object>>();
@@ -2259,7 +2261,7 @@ ORDER BY P.SeqNo",
 
             using (var br = new WAL.BR.CF())
             {
-                Func<SqlParameter[]> createParameters = () => new SqlParameter[] {
+                Func<bool, SqlParameter[]> createParameters = includeScheduleTime => new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
                     new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@CompanyID", companyId),
@@ -2269,7 +2271,8 @@ ORDER BY P.SeqNo",
                     new SqlParameter("@DateThru", thruDate),
                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
                     new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
-                    new SqlParameter("@TemplateId", templateId ?? "")
+                    new SqlParameter("@TemplateId", templateId ?? ""),
+                    new SqlParameter("@ScheduleTime", includeScheduleTime ? (scheduleTime ?? "") : "")
                 };
                 const string scope = @"
 FROM dbo.PIP_T_Inspection I
@@ -2306,6 +2309,7 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
   AND EXISTS (
       SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
       WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
@@ -2316,8 +2320,8 @@ WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
   )";
                 DataTable filtersTable = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
-       I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo " + scope + @"
-ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo", createParameters());
+       I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo,I.ScheduledTime " + scope + @"
+ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.ScheduledTime", createParameters(false));
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filtersTable.Rows)
                 {
@@ -2342,7 +2346,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
-ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters());
+ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -3694,7 +3698,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                     html.Append("<p><strong>").Append(HttpUtility.HtmlEncode(inspectionNo))
                         .Append("</strong> · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeName"])))
                         .Append(" · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeDetailName"])))
-                        .Append(" · ").Append(inspectionDate.ToString("dd MMM yyyy", CultureInfo.InvariantCulture)).Append("</p>");
+                        .Append(" · ").Append(inspectionDate.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture)).Append("</p>");
 
                     string inspectionSummary = GF.GetString(header.Rows[0]["Summary"]);
                     if (inspectionSummary != "")
