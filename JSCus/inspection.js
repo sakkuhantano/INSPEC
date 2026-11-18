@@ -310,9 +310,17 @@ function wireInspectionEvents() {
     document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
-    ["selSubmittedType", "selSubmittedDetail", "selSubmittedScheduleTime"].forEach(id => {
-        document.getElementById(id).addEventListener("change", () => refreshSavedInspectionList().catch(err => showToast(err.message || "Gagal memfilter inspeksi.", "warning")));
+    document.getElementById("selSubmittedType").addEventListener("change", function () {
+        document.getElementById("selSubmittedDetail").value = "";
+        document.getElementById("selSubmittedScheduleTime").value = "";
+        refreshSavedInspectionList().catch(err => showToast(err.message || "Gagal memfilter inspeksi.", "warning"));
     });
+    document.getElementById("selSubmittedDetail").addEventListener("change", function () {
+        document.getElementById("selSubmittedScheduleTime").value = "";
+        refreshSavedInspectionList().catch(err => showToast(err.message || "Gagal memfilter inspeksi.", "warning"));
+    });
+    document.getElementById("selSubmittedScheduleTime").addEventListener("change", () =>
+        refreshSavedInspectionList().catch(err => showToast(err.message || "Gagal memfilter inspeksi.", "warning")));
     document.getElementById("btnFilterSubmitted").addEventListener("click", function () {
         refreshSavedInspectionList().catch(err => {
             console.error("Unable to filter submitted inspections:", err);
@@ -5746,10 +5754,12 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("selApprovalType", "change", function () {
         document.getElementById("selApprovalDetail").value = "";
         document.getElementById("selApprovalTemplate").value = "";
+        document.getElementById("selApprovalScheduleTime").value = "";
         loadInspectionApprovalQueue();
     });
     addInspectionApprovalListener("selApprovalDetail", "change", function () {
         document.getElementById("selApprovalTemplate").value = "";
+        document.getElementById("selApprovalScheduleTime").value = "";
         loadInspectionApprovalQueue();
     });
     ["selApprovalTemplate", "selApprovalScheduleTime", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
