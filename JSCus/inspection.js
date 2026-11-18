@@ -3890,16 +3890,23 @@ function persistInspectionRecord(record) {
 }
 
 async function refreshSavedInspectionList() {
+    const submittedTab = document.getElementById("inspectionSubmittedTab");
+    const submittedActive = !!(submittedTab && submittedTab.classList.contains("active"));
     const fromInput = document.getElementById("txtSubmittedFrom");
     const thruInput = document.getElementById("txtSubmittedThru");
     const rawFromDate = fromInput ? fromInput.value : "";
     const rawThruDate = thruInput ? thruInput.value : "";
-    const fromDate = parseInspectionDateFilter(rawFromDate);
-    const thruDate = parseInspectionDateFilter(rawThruDate);
-    if (!fromDate || !thruDate || fromDate > thruDate) {
+    const parsedFromDate = parseInspectionDateFilter(rawFromDate);
+    const parsedThruDate = parseInspectionDateFilter(rawThruDate);
+    if (submittedActive && (!parsedFromDate || !parsedThruDate || parsedFromDate > parsedThruDate)) {
         showToast("Tanggal From/Thru tidak valid. Pastikan From tidak melewati Thru.", "warning");
         return;
     }
+    // Draft is a work queue, not a date-based report. Keep a harmless date
+    // range for the Submitted server request, but never use it to filter Draft.
+    const today = localDateString(new Date());
+    const fromDate = parsedFromDate || today;
+    const thruDate = parsedThruDate || fromDate;
     const all = await readInspectionStore("inspection_records");
     serverSlotRecords = all.filter(record => record.ServerOnly && record.CompanyID === inspectionCompanyID &&
         record.LocationID === inspectionLocationID);
@@ -5885,8 +5892,12 @@ async function loadInspectionApprovalQueue() {
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID,
             approvalTab: currentInspectionApprovalTab,
-            dateFrom: dateFrom ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
-            dateThru: dateThru ? (parseInspectionDateFilter(dateThru.value) || "") : "",
+            // Date range is relevant only to Approved history. Outstanding is
+            // an action queue and must always return every pending transaction.
+            dateFrom: currentInspectionApprovalTab === "APPROVED" && dateFrom
+                ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
+            dateThru: currentInspectionApprovalTab === "APPROVED" && dateThru
+                ? (parseInspectionDateFilter(dateThru.value) || "") : "",
             inspectionTypeCode: document.getElementById("selApprovalType").value,
             inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
             templateId: document.getElementById("selApprovalTemplate").value,
