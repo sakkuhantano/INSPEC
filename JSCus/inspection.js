@@ -2774,6 +2774,7 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
     state.detail = detail;
     state.setup = null;
     state.record = null;
+    state.page = 1;
     state.scheduleTimes = getInspectionScheduleTimes(detail);
     state.keyword = document.getElementById("inspectionPointNavigatorSearch").value || "";
     host.innerHTML = '<div class="text-muted small text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Memuat Inspection Point...</div>';
@@ -2888,6 +2889,7 @@ function wireInspectionPointNavigator() {
     });
     document.getElementById("inspectionPointNavigatorSchedule").addEventListener("change", function () {
         inspectionPointNavigatorState.scheduleTime = this.value || "";
+        inspectionPointNavigatorState.page = 1;
         if (inspectionPointNavigatorState.detail) {
             if (String(inspectionPointNavigatorState.baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING")
                 selectInspectionPointNavigatorRecord(inspectionPointNavigatorState.detail);
