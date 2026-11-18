@@ -1050,6 +1050,10 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Batch_Sync]
     @p_FollowUpSection VARCHAR(10),
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
+    @p_GPSLatitude DECIMAL(10,7) = NULL,
+    @p_GPSLongitude DECIMAL(10,7) = NULL,
+    @p_GPSAccuracy DECIMAL(10,2) = NULL,
+    @p_GPSCapturedAt DATETIME = NULL,
     @p_InspectionNo VARCHAR(10),
     @p_Points dbo.Type_N_Tbl_C13 READONLY,
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
@@ -1358,6 +1362,10 @@ BEGIN
             @p_FollowUpSection=@p_FollowUpSection,
             @p_FollowUpRemark=@p_FollowUpRemark,
             @p_UpdateUser=@p_UpdateUser,
+            @p_GPSLatitude=@p_GPSLatitude,
+            @p_GPSLongitude=@p_GPSLongitude,
+            @p_GPSAccuracy=@p_GPSAccuracy,
+            @p_GPSCapturedAt=@p_GPSCapturedAt,
             @p_InspectionNo=@V_InspectionNo,
             @p_Photos=@V_EmptyPhotos,
             @p_Items=@V_EmptyItems,
@@ -1549,6 +1557,10 @@ CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Sync]
     @p_FollowUpSection VARCHAR(10),
     @p_FollowUpRemark VARCHAR(300),
     @p_UpdateUser VARCHAR(50),
+    @p_GPSLatitude DECIMAL(10,7) = NULL,
+    @p_GPSLongitude DECIMAL(10,7) = NULL,
+    @p_GPSAccuracy DECIMAL(10,2) = NULL,
+    @p_GPSCapturedAt DATETIME = NULL,
     @p_InspectionNo VARCHAR(10),
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
@@ -2015,6 +2027,7 @@ BEGIN
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
                 IsApproved=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
                 ReasonVoid='',
+                GPSLatitude=@p_GPSLatitude, GPSLongitude=@p_GPSLongitude, GPSAccuracy=@p_GPSAccuracy, GPSCapturedAt=@p_GPSCapturedAt,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
         END
@@ -2048,6 +2061,7 @@ BEGIN
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
+                GPSLatitude, GPSLongitude, GPSAccuracy, GPSCapturedAt,
                 EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate, IsActive
             )
             VALUES
@@ -2058,6 +2072,7 @@ BEGIN
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
                 ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
+                @p_GPSLatitude, @p_GPSLongitude, @p_GPSAccuracy, @p_GPSCapturedAt,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE(), 1
             );
         END;
