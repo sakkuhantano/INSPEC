@@ -195,8 +195,30 @@ FROM
             updateUser = employeeId;
         }
 
+        private static bool HasInspecSession()
+        {
+            HttpContext context = HttpContext.Current;
+            if (context == null || context.Session == null)
+                return false;
+
+            DataSet login = context.Session[GF.Key_CacheLoggedOnUser] as DataSet;
+            return login != null &&
+                login.Tables.Contains("User") &&
+                login.Tables["User"].Rows.Count == 1 &&
+                login.Tables.Contains("UserGroupMenu");
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
+            // A timed refresh or a direct page request must return the user to
+            // the application login page when the INSPEC session no longer exists.
+            if (!HasInspecSession())
+            {
+                Response.Redirect(ResolveUrl("~/default.aspx"), false);
+                HttpContext.Current.ApplicationInstance.CompleteRequest();
+                return;
+            }
+
             if (base.AllowRead(INSPEC_MENU_ID) != 1)
                 throw new Exception(WAL.GF.MSG_ACCESS_DENIED);
 
