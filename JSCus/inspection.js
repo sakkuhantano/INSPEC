@@ -4319,6 +4319,8 @@ async function openServerSubmittedInspection(inspectionId) {
             showToast("Struktur template checklist tidak tersedia dari server.", "warning");
             return;
         }
+        stopInspectionGpsWatch();
+        inspectionLatestGps = null;
         currentInspectionRecord = null;
         currentInspectionReadOnly = true;
         inspectionPhotoBaseline = null;
@@ -4482,6 +4484,8 @@ async function resetInspectionSelection() {
         await window.resetInspectionMapWorkspace();
     restoreInspectionMasterDropdowns();
     showInspectionInputScreen();
+    stopInspectionGpsWatch();
+    inspectionLatestGps = null;
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
@@ -4989,6 +4993,8 @@ async function deleteLocalInspectionDraft(localId) {
         // Return from the checklist to the records grid immediately while retaining the
         // DELETE_PENDING row and its local photos until Sync confirms the server operation.
         if (currentInspectionRecord && currentInspectionRecord.LocalInspectionID === localId) {
+            stopInspectionGpsWatch();
+            inspectionLatestGps = null;
             currentInspectionRecord = null;
             currentInspectionReadOnly = false;
             inspectionPhotoBaseline = null;
