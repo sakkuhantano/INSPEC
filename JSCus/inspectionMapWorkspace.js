@@ -1251,7 +1251,7 @@
         var pointX = stageRect.left + stageRect.width * x / 100;
         var pointY = stageRect.top + stageRect.height * y / 100;
         var stageCenterX = stageRect.left + stageRect.width / 2;
-        var zoom = Math.min(mapMaxZoom, Math.max(2.2, mapMinZoom));
+        var zoom = Math.min(mapMaxZoom, Math.max(3.0, mapMinZoom));
         mapZoom = zoom;
         mapPanX = viewportRect.left + viewportRect.width / 2 -
             (stageCenterX + (pointX - stageCenterX) * zoom);
