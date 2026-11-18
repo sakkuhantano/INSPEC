@@ -5882,8 +5882,9 @@ async function loadInspectionApprovalQueue() {
     try {
         const dateFrom = document.getElementById("txtApprovalDateFrom");
         const dateThru = document.getElementById("txtApprovalDateThru");
-        if ((dateFrom && dateFrom.value && !parseInspectionDateFilter(dateFrom.value)) ||
-            (dateThru && dateThru.value && !parseInspectionDateFilter(dateThru.value))) {
+        if (currentInspectionApprovalTab === "APPROVED" &&
+            ((dateFrom && dateFrom.value && !parseInspectionDateFilter(dateFrom.value)) ||
+             (dateThru && dateThru.value && !parseInspectionDateFilter(dateThru.value)))) {
             showToast("Format tanggal harus dd-MMM-yyyy, contoh 18-Nov-2026.", "warning");
             return;
         }
