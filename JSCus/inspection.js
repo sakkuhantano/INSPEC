@@ -3970,19 +3970,22 @@ async function openServerReturnedInspection(inspectionId) {
 function getInspectionRecordGridStatus(record, submitted) {
     const status = String(record && record.Status || "").trim().toUpperCase();
     const syncStatus = String(record && record.SyncStatus || "").trim().toUpperCase();
-    const reasonVoid = String(record && record.ReasonVoid || "").trim();
+    const hasVoidReason = [
+        record && record.ReasonVoid,
+        record && record.ReasonVoid1,
+        record && record.ReasonVoid2
+    ].some(value => String(value || "").trim() !== "");
 
     if (syncStatus === "CONFLICT")
         return { label: "Conflict", badge: "text-bg-danger" };
     if (syncStatus === "DELETE_PENDING")
         return { label: "Pending Delete", badge: "text-bg-warning" };
-    if (status === "DRAFT" && reasonVoid)
+    if (status === "DRAFT" && hasVoidReason)
         return { label: "Returned", badge: "text-bg-warning" };
     if (!submitted || status === "DRAFT")
         return { label: "Draft", badge: "text-bg-secondary" };
 
-    const pendingLocalSync = !!(record && record.LocalInspectionID) &&
-        !record.ServerOnly && syncStatus !== "SYNCED";
+    const pendingLocalSync = !record.ServerOnly && !!syncStatus && syncStatus !== "SYNCED";
     if (pendingLocalSync)
         return { label: "Pending Sync", badge: "text-bg-warning" };
 
