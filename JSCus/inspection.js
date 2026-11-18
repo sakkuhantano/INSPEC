@@ -4130,6 +4130,14 @@ async function openServerSubmittedInspection(inspectionId) {
         inspectionPhotoBaseline = null;
         showInspectionInputScreen();
         document.getElementById("inspectionEditorTabs").classList.remove("d-none");
+        // Server-submitted detail must follow the same MAP visibility rule as local records.
+        const mapTabButton = document.getElementById("btnInspectionMapTab");
+        if (mapTabButton && mapTabButton.closest("li")) {
+            mapTabButton.closest("li").classList.toggle(
+                "d-none",
+                !isInspectionMapMode(h.InspectionMode)
+            );
+        }
         document.getElementById("inspectionStartButtonRow").classList.add("d-none");
         document.getElementById("inspectionStartPanel").classList.remove("d-none");
         // Server-only records may no longer have their masters in IndexedDB. Show the
