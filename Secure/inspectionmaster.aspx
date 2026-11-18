@@ -168,7 +168,8 @@
                                                 <label class="small fw-semibold">Marker Shape</label>
                                                 <asp:DropDownList ID="ddlPointShapeType" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm">
                                                     <asp:ListItem Value="CIRCLE">Circle</asp:ListItem>
-                                                    <asp:ListItem Value="PATH">SVG Path / Area</asp:ListItem>
+                                                    <asp:ListItem Value="PATH">Freeform SVG Area</asp:ListItem>
+                                                    <asp:ListItem Value="RECTANGLE">Rectangle Area</asp:ListItem>
                                                 </asp:DropDownList>
                                             </div>
                                             <div class="col-12 col-md d-flex flex-wrap gap-1 align-items-end">
@@ -176,7 +177,7 @@
                                                 <button type="button" id="btnUndoPath" class="btn btn-sm btn-outline-secondary" disabled>Undo</button>
                                                 <button type="button" id="btnRedoPath" class="btn btn-sm btn-outline-secondary" disabled>Redo</button>
                                                 <button type="button" id="btnClearPath" class="btn btn-sm btn-outline-danger">Clear Path</button>
-                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: click map to set one coordinate. Path: draw an outline on the map.</span>
+                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: click map. Rectangle: drag to draw a block. Freeform: draw an outline.</span>
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
