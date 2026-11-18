@@ -564,7 +564,7 @@
             min-width: 0;
             flex: initial;
         }
-        #inspectionSubmittedFilters input[type="date"] {
+        #inspectionSubmittedFilters input[type="text"] {
             width: 100%;
             min-width: 0;
         }
