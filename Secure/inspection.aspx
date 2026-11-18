@@ -812,6 +812,18 @@
     .inspection-map-svg-path.incomplete{fill:rgba(255,193,7,.22);stroke:#b8860b}
     .inspection-map-svg-path.selected{stroke-width:1.8!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.75))}
 
+.inspection-map-option-summary-host{width:100%;overflow-x:auto;overflow-y:hidden;padding:.15rem 0 .25rem;scrollbar-width:thin}
+.inspection-map-option-summary{display:flex;gap:.5rem;align-items:stretch;min-width:max-content}
+.inspection-map-option-summary-card{min-width:170px;max-width:280px;padding:.45rem .55rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
+.inspection-map-option-summary-title{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.25rem}
+.inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.25rem}
+.inspection-map-option-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .38rem;border-radius:999px;background:var(--bs-secondary-bg);font-size:.68rem;line-height:1.1;white-space:nowrap}
+.inspection-map-option-chip strong{font-size:.72rem}
+.inspection-map-option-chip-muted{opacity:.7}
+@media(max-width:767.98px){
+    #inspectionMapWorkspace>#inspectionMapSummaryHost{max-height:15vh!important}
+    .inspection-map-option-summary-card{min-width:145px;max-width:230px}
+}
 .inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
 .inspection-map-picker-heading h5{font-size:1.05rem}
 .inspection-map-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
@@ -1551,7 +1563,7 @@
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-3 d-none"><div id="inspectionLightningWorkflowCards"></div></div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"><div id="inspectionLightningWorkflowCards"></div><div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none"><div class="inspection-map-option-summary"></div></div></div>
         <div id="inspectionMapSubmitBar" class="d-flex justify-content-end gap-2 p-2 border-top d-none">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
