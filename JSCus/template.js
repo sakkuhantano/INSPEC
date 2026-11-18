@@ -329,6 +329,12 @@ async function restoreTemplateSessionDraft() {
                 });
                 liveSection.Templates[key] = savedNode;
             });
+            const deletedTemplateIds = new Set((snapshot.cache.deleted && snapshot.cache.deleted.templates || [])
+                .map(function (item) { return Number(item && item.IDTemplate || 0); }).filter(function (id) { return id > 0; }));
+            Object.entries(liveSection.Templates || {}).forEach(function (entry) {
+                const id = Number(entry[1] && entry[1].Template && entry[1].Template.IDTemplate || 0);
+                if (id > 0 && deletedTemplateIds.has(id)) delete liveSection.Templates[entry[0]];
+            });
             liveSection.Dirty = !!savedSection.Dirty;
             liveSection.isLoaded = true;
 
