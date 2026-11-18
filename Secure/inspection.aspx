@@ -185,6 +185,7 @@
     .inspection-map-pdf-message.d-none{display:none}
     .inspection-point-list{min-height:320px;max-height:65vh;overflow:auto}
     .inspection-point-navigator-list{max-height:min(62vh,560px);overflow-y:auto;overscroll-behavior:contain}
+    .inspection-point-navigator-pager{position:sticky;bottom:0;background:var(--bs-body-bg);padding-bottom:.25rem;z-index:2}
     .inspection-point-list-row.selected{border-color:var(--bs-primary);box-shadow:0 0 0 .15rem rgba(var(--bs-primary-rgb),.14)}
     .inspection-map-svg-path.selected{stroke:#0d6efd!important;stroke-width:3!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.55))}
     @media(max-width:575.98px){#btnInspectionPointNavigator .inspection-point-navigator-button-label{display:none}}
@@ -1651,7 +1652,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="row g-2 mb-3">
-                        <div class="col-12 col-md-5">
+                        <div class="col-12 col-md-4">
                             <label for="inspectionPointNavigatorDetail" class="form-label small fw-semibold mb-1">Inspection Type Detail</label>
                             <select id="inspectionPointNavigatorDetail" class="form-select form-select-sm"></select>
                         </div>
@@ -1659,17 +1660,35 @@
                             <label for="inspectionPointNavigatorSchedule" class="form-label small fw-semibold mb-1">Schedule Time</label>
                             <select id="inspectionPointNavigatorSchedule" class="form-select form-select-sm"></select>
                         </div>
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-2">
+                            <label for="inspectionPointNavigatorStatusFilter" class="form-label small fw-semibold mb-1">Status</label>
+                            <select id="inspectionPointNavigatorStatusFilter" class="form-select form-select-sm">
+                                <option value="all">Semua</option>
+                                <option value="pending">Belum diinspeksi</option>
+                                <option value="incomplete">Belum lengkap</option>
+                                <option value="done">Selesai</option>
+                                <option value="abnormal">Abnormal</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-3">
                             <label for="inspectionPointNavigatorSort" class="form-label small fw-semibold mb-1">Order By</label>
                             <select id="inspectionPointNavigatorSort" class="form-select form-select-sm">
                                 <option value="display">Urutan Master</option>
                                 <option value="code">Point Code A-Z</option>
+                                <option value="code-desc">Point Code Z-A</option>
                                 <option value="name">Point Name A-Z</option>
+                                <option value="name-desc">Point Name Z-A</option>
                                 <option value="status">Status Inspeksi</option>
+                                <option value="schedule">Schedule Time</option>
                             </select>
                         </div>
-                        <div class="col-12">
-                            <input type="search" id="inspectionPointNavigatorSearch" class="form-control form-control-sm" placeholder="Cari Point Code / Point Name..." autocomplete="off" />
+                        <div class="col-12 col-md-9">
+                            <label for="inspectionPointNavigatorSearch" class="form-label small fw-semibold mb-1">Search Point</label>
+                            <input type="search" id="inspectionPointNavigatorSearch" class="form-control form-control-sm" placeholder="Ketik Point Code / Point Name..." autocomplete="off" />
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <label for="inspectionPointNavigatorPageSize" class="form-label small fw-semibold mb-1">Rows per Page</label>
+                            <input type="number" id="inspectionPointNavigatorPageSize" class="form-control form-control-sm" min="1" max="500" step="1" value="20" />
                         </div>
                     </div>
                     <div id="inspectionPointNavigatorSummary" class="d-flex flex-wrap gap-2 align-items-center small text-muted mb-2"></div>
