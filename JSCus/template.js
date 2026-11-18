@@ -197,6 +197,142 @@ const dbLength =
 let companyId = null;
 let locationId = null;
 
+let templateSessionDraftTimer = null;
+
+function getTemplateSessionDraftKey() {
+    const login = typeof getLoginData === "function" ? (getLoginData() || {}) : {};
+    return "INSPEC.TemplateBuilder.Draft.v1." + [
+        login.userid || login.employeeid || "unknown",
+        login.employeeid || "",
+        companyId || "",
+        locationId || ""
+    ].map(function (value) { return encodeURIComponent(String(value)); }).join(".");
+}
+
+function persistTemplateSessionDraft() {
+    if (!templateCache || !templateCache.Dirty) return;
+    try {
+        // Keep the active editor's canonical cache node pointed at the latest structure.
+        if (currentTemplate && currentVersionData) {
+            const node = getTemplateCache(currentTemplate.SectionID, currentTemplate.RuntimeTemplateID);
+            const versionNode = node && Object.values(node.Versions || {}).find(function (item) {
+                return String(item && item.VersionInfo && item.VersionInfo.RuntimeVersionID || "") ===
+                    String(currentVersion && currentVersion.RuntimeVersionID || "");
+            });
+            if (versionNode) {
+                versionNode.Structure = currentVersionData;
+                if (currentVersionData.VersionInfo) versionNode.VersionInfo = currentVersionData.VersionInfo;
+            }
+        }
+        const snapshot = {
+            version: 1,
+            savedAt: new Date().toISOString(),
+            cache: JSON.parse(JSON.stringify(templateCache)),
+            selection: {
+                sectionId: currentTemplate && currentTemplate.SectionID != null ? String(currentTemplate.SectionID) : "",
+                templateRuntimeId: currentTemplate && currentTemplate.RuntimeTemplateID != null ? String(currentTemplate.RuntimeTemplateID) : "",
+                versionRuntimeId: currentVersion && currentVersion.RuntimeVersionID != null ? String(currentVersion.RuntimeVersionID) : ""
+            },
+            expandedSections: Array.from(document.querySelectorAll(".section-root.show"))
+                .map(function (element) { return String(element.dataset.sectionid || ""); })
+                .filter(Boolean)
+        };
+        sessionStorage.setItem(getTemplateSessionDraftKey(), JSON.stringify(snapshot));
+    } catch (error) {
+        console.warn("Template Builder local session draft could not be saved:", error);
+    }
+}
+
+function scheduleTemplateSessionDraftSave() {
+    if (templateSessionDraftTimer) clearTimeout(templateSessionDraftTimer);
+    templateSessionDraftTimer = setTimeout(function () {
+        templateSessionDraftTimer = null;
+        persistTemplateSessionDraft();
+    }, 180);
+}
+
+function clearTemplateSessionDraft() {
+    try { sessionStorage.removeItem(getTemplateSessionDraftKey()); }
+    catch (error) { console.warn("Template Builder local session draft could not be cleared:", error); }
+}
+
+async function restoreTemplateSessionDraft() {
+    let snapshot = null;
+    try {
+        const raw = sessionStorage.getItem(getTemplateSessionDraftKey());
+        if (!raw) return false;
+        snapshot = JSON.parse(raw);
+    } catch (error) {
+        console.warn("Template Builder local session draft could not be read:", error);
+        return false;
+    }
+    if (!snapshot || snapshot.version !== 1 || !snapshot.cache || !snapshot.cache.sections) return false;
+
+    try {
+        const savedSections = snapshot.cache.sections || {};
+        for (const sectionId of Object.keys(savedSections)) {
+            const header = document.getElementById("rootHeader_" + sectionId);
+            if (header) await loadTemplatesBySection(sectionId, header);
+
+            const liveSection = getSectionCache(sectionId);
+            const savedSection = savedSections[sectionId];
+            Object.entries(savedSection.Templates || {}).forEach(function (entry) {
+                const key = entry[0], savedNode = entry[1];
+                const savedId = Number(savedNode && savedNode.Template && savedNode.Template.IDTemplate || 0);
+                Object.entries(liveSection.Templates || {}).forEach(function (liveEntry) {
+                    const liveId = Number(liveEntry[1] && liveEntry[1].Template && liveEntry[1].Template.IDTemplate || 0);
+                    if (savedId > 0 && liveId === savedId && liveEntry[0] !== key)
+                        delete liveSection.Templates[liveEntry[0]];
+                });
+                liveSection.Templates[key] = savedNode;
+            });
+            liveSection.Dirty = !!savedSection.Dirty;
+            liveSection.isLoaded = true;
+
+            const root = header && header.getAttribute("data-bs-target")
+                ? document.querySelector(header.getAttribute("data-bs-target")) : null;
+            const container = root && root.querySelector(".template-list-container");
+            if (container) {
+                container.dataset.sectionId = sectionId;
+                container.dataset.loaded = "1";
+                renderTemplates(Object.values(liveSection.Templates || {}), container, sectionId);
+            }
+            if (root && window.bootstrap && bootstrap.Collapse)
+                bootstrap.Collapse.getOrCreateInstance(root, { toggle: false }).show();
+        }
+
+        templateCache.deleted = snapshot.cache.deleted || { templates: [], versions: [] };
+        templateCache.Dirty = true;
+        evaluateDirtyState();
+
+        const selection = snapshot.selection || {};
+        if (selection.sectionId && selection.templateRuntimeId) {
+            await onTemplateClick(null, selection.templateRuntimeId, selection.sectionId);
+            if (selection.versionRuntimeId) {
+                const versionElement = document.querySelector(
+                    '.template-version-container[data-template-id="' + selection.templateRuntimeId + '"] ' +
+                    '.template-version-item[data-version-id="' + selection.versionRuntimeId + '"]'
+                );
+                if (versionElement)
+                    await loadVersionStructure(selection.templateRuntimeId, selection.versionRuntimeId, versionElement);
+            }
+        }
+        (snapshot.expandedSections || []).forEach(function (sectionId) {
+            const header = document.getElementById("rootHeader_" + sectionId);
+            const root = header && header.getAttribute("data-bs-target")
+                ? document.querySelector(header.getAttribute("data-bs-target")) : null;
+            if (root && window.bootstrap && bootstrap.Collapse)
+                bootstrap.Collapse.getOrCreateInstance(root, { toggle: false }).show();
+        });
+        showToast("Draft Template lokal dipulihkan. Periksa perubahan lalu tekan Save All Template.", "info");
+        return true;
+    } catch (error) {
+        console.error("Template Builder local draft restore failed:", error);
+        showToast("Draft lokal tersedia, tetapi gagal dipulihkan sepenuhnya. Jangan hapus data browser sebelum diperiksa.", "warning");
+        return false;
+    }
+}
+
 function validatePageAccess() {
     // Access is enforced server-side by WAL.PB.AllowRead and each Session-enabled WebMethod.
     return true;
@@ -304,11 +440,27 @@ document.addEventListener(
         clearBuilderPanel()
         clearRightPanel();
         await loadTemplateExplorer();
+        await restoreTemplateSessionDraft();
     }
 );
 document.addEventListener('click', function () {
     hideContextMenu();
 });
+
+document.addEventListener("input", function (event) {
+    const target = event.target;
+    if (target && target.closest && target.closest("#sectionsContainer, #panel-properties"))
+        scheduleTemplateSessionDraftSave();
+}, true);
+document.addEventListener("change", function (event) {
+    const target = event.target;
+    if (target && target.closest && target.closest("#sectionsContainer, #panel-properties"))
+        scheduleTemplateSessionDraftSave();
+}, true);
+window.addEventListener("beforeunload", function () {
+    if (templateCache && templateCache.Dirty) persistTemplateSessionDraft();
+});
+
 async function onTemplateClick(event,idTemplate, sectionId)
 {
     event?.stopPropagation();
@@ -2348,6 +2500,7 @@ function markCurrentVersionDirty()
     templateCache.Dirty = true;
     recordTemplateHistoryChange();
     refreshDirtyUI();
+    scheduleTemplateSessionDraftSave();
 }
 
 // Clone a version structure with fresh database/runtime IDs, including subsections.
@@ -4017,6 +4170,8 @@ function evaluateDirtyState()
     updatePageTitle();
 
     refreshDirtyUI();
+    if (dirty) scheduleTemplateSessionDraftSave();
+    else clearTemplateSessionDraft();
 }
 function getCurrentVersionState() {
 
@@ -6365,6 +6520,7 @@ function markTemplateMetadataDirty(template) {
         currentTemplate.InspectionTypeDetailCode = template.InspectionTypeDetailCode;
         if (node && node.Template) currentTemplate = node.Template;
     }
+    scheduleTemplateSessionDraftSave();
 }
 
 function getTemplateInspectionDetailCodes(template) {
@@ -10527,6 +10683,7 @@ async function saveAllTemplate()
         !hasMetadataDirty
     )
     {
+        clearTemplateSessionDraft();
         showToast(
             "Nothing to save."
         );
@@ -10801,6 +10958,7 @@ async function saveAllTemplate()
         // evaluateDirtyState();
         // evaluateDirtyIcon();
 
+        clearTemplateSessionDraft();
         showToast(
             "Save completed."
         );
