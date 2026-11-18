@@ -787,7 +787,8 @@
                     if (activeId && activeId.value) {
                         svg.querySelectorAll(
                             '.inspection-coordinate-path[data-point-id="' + activeId.value + '"],' +
-                            '.inspection-coordinate-circle[data-point-id="' + activeId.value + '"]'
+                            '.inspection-coordinate-circle[data-point-id="' + activeId.value + '"],' +
+                            '.inspection-coordinate-rectangle[data-point-id="' + activeId.value + '"]'
                         ).forEach(function (oldShape) {
                             if (oldShape.parentNode) oldShape.parentNode.removeChild(oldShape);
                         });
@@ -889,7 +890,7 @@
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
-                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path')) || zoom <= 1 || event.button !== 0) return;
+                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
@@ -902,7 +903,7 @@
             board.addEventListener('pointerup', function () { dragging = false; });
             board.addEventListener('pointercancel', function () { dragging = false; });
             content.addEventListener('click', function (event) {
-                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path') : null;
+                var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle') : null;
                 if (marker) {
                     event.preventDefault(); event.stopPropagation();
                     var activeId = document.getElementById('hidPointID');
