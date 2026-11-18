@@ -2533,7 +2533,8 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null,
-    scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display"
+    scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display",
+    statusFilter: "all", page: 1, pageSize: 20
 };
 let inspectionPointNavigatorLoadSequence = 0;
 
@@ -2663,17 +2664,31 @@ function renderInspectionPointNavigatorList() {
 
     const maps = Array.isArray(state.setup.maps) ? state.setup.maps : [];
     const keyword = String(state.keyword || "").trim().toLowerCase();
-    let points = (state.setup.points || []).filter(point =>
-        !keyword ||
-        String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
-        String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0
-    );
     const statusFor = point => getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime);
-    if (state.sort === "code") points.sort((a, b) => String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
-    else if (state.sort === "name") points.sort((a, b) => String(a.PointName || "").localeCompare(String(b.PointName || "")));
+    let points = (state.setup.points || []).filter(point => {
+        const matchesKeyword = !keyword ||
+            String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
+            String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0;
+        const status = statusFor(point).key;
+        const matchesStatus = state.statusFilter === "all" ||
+            (state.statusFilter === "pending" && status === "PENDING") ||
+            (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
+            (state.statusFilter === "done" && status === "DONE") ||
+            (state.statusFilter === "abnormal" && status === "ABNORMAL");
+        return matchesKeyword && matchesStatus;
+    });
+
+    const compareText = (a, b, key) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { numeric: true, sensitivity: "base" });
+    if (state.sort === "code") points.sort((a, b) => compareText(a, b, "PointCode"));
+    else if (state.sort === "code-desc") points.sort((a, b) => compareText(b, a, "PointCode"));
+    else if (state.sort === "name") points.sort((a, b) => compareText(a, b, "PointName"));
+    else if (state.sort === "name-desc") points.sort((a, b) => compareText(b, a, "PointName"));
     else if (state.sort === "status") {
         const rank = { PENDING: 0, INCOMPLETE: 1, ABNORMAL: 2, DONE: 3 };
         points.sort((a, b) => rank[statusFor(a).key] - rank[statusFor(b).key] ||
+            Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
+    } else if (state.sort === "schedule") {
+        points.sort((a, b) => String(a.ScheduleTime || "").localeCompare(String(b.ScheduleTime || "")) ||
             Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
     } else {
         points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
@@ -2687,22 +2702,32 @@ function renderInspectionPointNavigatorList() {
         '<span class="badge text-bg-light border text-dark">Total ' + all.length + '</span>' +
         '<span class="badge text-bg-success">Selesai ' + (counts.DONE + counts.ABNORMAL) + '</span>' +
         '<span class="badge text-bg-warning">Belum lengkap ' + counts.INCOMPLETE + '</span>' +
-        '<span class="badge text-bg-secondary">Belum diperiksa ' + counts.PENDING + '</span>';
+        '<span class="badge text-bg-secondary">Belum diperiksa ' + counts.PENDING + '</span>' +
+        '<span class="small text-muted ms-auto">' + points.length + ' hasil filter</span>';
+
+    const pageSize = Math.max(1, Math.min(500, Number(state.pageSize) || 20));
+    const pageCount = Math.max(1, Math.ceil(points.length / pageSize));
+    state.pageSize = pageSize;
+    state.page = Math.min(Math.max(1, Number(state.page) || 1), pageCount);
+    const startIndex = (state.page - 1) * pageSize;
+    const pageRows = points.slice(startIndex, startIndex + pageSize);
 
     if (!points.length) {
         host.innerHTML = '<div class="text-muted small text-center py-4">' +
-            (all.length ? "Tidak ada Inspection Point yang cocok dengan pencarian." : "Belum ada Inspection Point pada detail ini.") +
+            (all.length ? "Tidak ada Inspection Point yang cocok dengan filter." : "Belum ada Inspection Point pada detail ini.") +
             '</div>';
         return;
     }
-    host.innerHTML = points.map(point => {
+
+    const rowsHtml = pageRows.map(point => {
         const status = statusFor(point);
         const map = maps.find(item => Number(item.MapID) === Number(point.MapID));
         return '<div class="inspection-point-navigator-row">' +
             '<div class="inspection-point-navigator-main">' +
                 '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
                 '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
-                '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") + '</div>' +
+                '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") +
+                    (point.ScheduleTime ? ' · ' + escInspection(point.ScheduleTime) : '') + '</div>' +
             '</div>' +
             '<div class="inspection-point-navigator-actions">' +
                 '<span class="badge ' + status.badge + '">' + escInspection(status.label) + '</span>' +
@@ -2711,8 +2736,33 @@ function renderInspectionPointNavigatorList() {
             '</div>' +
         '</div>';
     }).join("");
-}
 
+    let pagerHtml = "";
+    if (points.length > pageSize) {
+        const firstRow = startIndex + 1;
+        const lastRow = Math.min(startIndex + pageSize, points.length);
+        pagerHtml =
+            '<div class="inspection-point-navigator-pager border-top pt-2 mt-2">' +
+                '<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 small text-muted mb-2">' +
+                    '<span>Menampilkan ' + firstRow + '–' + lastRow + ' dari ' + points.length + ' point</span>' +
+                    '<span>Halaman ' + state.page + ' / ' + pageCount + '</span>' +
+                '</div>' +
+                '<div class="d-flex flex-wrap align-items-center gap-1">' +
+                    '<div class="btn-group btn-group-sm" role="group" aria-label="Navigasi halaman">' +
+                        '<button type="button" class="btn btn-outline-secondary" data-point-navigator-page="first" ' + (state.page <= 1 ? 'disabled' : '') + '>&laquo;</button>' +
+                        '<button type="button" class="btn btn-outline-secondary" data-point-navigator-page="prev" ' + (state.page <= 1 ? 'disabled' : '') + '>&lsaquo;</button>' +
+                        '<button type="button" class="btn btn-outline-secondary" data-point-navigator-page="next" ' + (state.page >= pageCount ? 'disabled' : '') + '>&rsaquo;</button>' +
+                        '<button type="button" class="btn btn-outline-secondary" data-point-navigator-page="last" ' + (state.page >= pageCount ? 'disabled' : '') + '>&raquo;</button>' +
+                    '</div>' +
+                    '<label class="small ms-sm-2" for="inspectionPointNavigatorGoto">Go to</label>' +
+                    '<input type="number" id="inspectionPointNavigatorGoto" class="form-control form-control-sm" min="1" max="' + pageCount + '" value="' + state.page + '" style="width:72px" />' +
+                    '<button type="button" class="btn btn-sm btn-primary" data-point-navigator-page="goto">Go</button>' +
+                '</div>' +
+            '</div>';
+    }
+
+    host.innerHTML = rowsHtml + pagerHtml;
+}
 async function loadInspectionPointNavigatorDetail(detailCode) {
     const state = inspectionPointNavigatorState;
     const sequence = ++inspectionPointNavigatorLoadSequence;
@@ -2846,13 +2896,52 @@ function wireInspectionPointNavigator() {
     });
     document.getElementById("inspectionPointNavigatorSearch").addEventListener("input", function () {
         inspectionPointNavigatorState.keyword = this.value || "";
+        inspectionPointNavigatorState.page = 1;
+        renderInspectionPointNavigatorList();
+    });
+    document.getElementById("inspectionPointNavigatorStatusFilter").addEventListener("change", function () {
+        inspectionPointNavigatorState.statusFilter = this.value || "all";
+        inspectionPointNavigatorState.page = 1;
+        renderInspectionPointNavigatorList();
+    });
+    document.getElementById("inspectionPointNavigatorPageSize").addEventListener("change", function () {
+        inspectionPointNavigatorState.pageSize = Math.max(1, Math.min(500, Number(this.value) || 20));
+        inspectionPointNavigatorState.page = 1;
         renderInspectionPointNavigatorList();
     });
     document.getElementById("inspectionPointNavigatorSort").addEventListener("change", function () {
         inspectionPointNavigatorState.sort = this.value || "display";
+        inspectionPointNavigatorState.page = 1;
         renderInspectionPointNavigatorList();
     });
     document.getElementById("inspectionPointNavigatorList").addEventListener("click", function (event) {
+        const pageButton = event.target.closest("[data-point-navigator-page]");
+        if (pageButton) {
+            const state = inspectionPointNavigatorState;
+            const action = pageButton.getAttribute("data-point-navigator-page");
+            const pageCount = Math.max(1, Math.ceil((state.setup && state.setup.points || []).filter(point => {
+                const keyword = String(state.keyword || "").trim().toLowerCase();
+                const matchKeyword = !keyword || String(point.PointCode || "").toLowerCase().includes(keyword) ||
+                    String(point.PointName || "").toLowerCase().includes(keyword);
+                const status = getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime).key;
+                const matchStatus = state.statusFilter === "all" ||
+                    (state.statusFilter === "pending" && status === "PENDING") ||
+                    (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
+                    (state.statusFilter === "done" && status === "DONE") ||
+                    (state.statusFilter === "abnormal" && status === "ABNORMAL");
+                return matchKeyword && matchStatus;
+            }).length / Math.max(1, state.pageSize)));
+            if (action === "first") state.page = 1;
+            else if (action === "prev") state.page--;
+            else if (action === "next") state.page++;
+            else if (action === "last") state.page = pageCount;
+            else if (action === "goto") {
+                const input = document.getElementById("inspectionPointNavigatorGoto");
+                state.page = Math.max(1, Math.min(pageCount, Number(input && input.value) || 1));
+            }
+            renderInspectionPointNavigatorList();
+            return;
+        }
         const button = event.target.closest("[data-point-navigator-open]");
         if (!button) return;
         openInspectionPointNavigatorTarget(Number(button.getAttribute("data-point-navigator-open")));
@@ -2886,8 +2975,13 @@ window.openInspectionPointNavigator = async function () {
     state.record = null;
     state.keyword = "";
     state.sort = "display";
+    state.statusFilter = "all";
+    state.page = 1;
+    state.pageSize = 20;
     document.getElementById("inspectionPointNavigatorSearch").value = "";
     document.getElementById("inspectionPointNavigatorSort").value = "display";
+    document.getElementById("inspectionPointNavigatorStatusFilter").value = "all";
+    document.getElementById("inspectionPointNavigatorPageSize").value = "20";
     const details = getInspectionPointNavigatorDetails(record);
     if (!details.some(detail => String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
         String(record.InspectionTypeDetailCode || "").toUpperCase())) {
