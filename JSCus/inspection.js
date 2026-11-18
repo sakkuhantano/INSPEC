@@ -4071,7 +4071,7 @@ async function populateTechnicianSubmittedFilters(records) {
         const values = new Map();
         applicable.forEach(row => {
             const value = String(row[spec.key] == null ? "" : row[spec.key]);
-            if (value && !values.has(value)) values.set(value, String(row[spec.label] || value));
+            if (value && !values.has(value)) values.set(value, spec.id === "selSubmittedDetail" ? (value + " - " + String(row[spec.label] || value)) : String(row[spec.label] || value));
         });
         select.innerHTML = '<option value="">' + spec.all + '</option>' +
             Array.from(values.entries()).sort((a,b) => a[1].localeCompare(b[1])).map(pair =>
@@ -5936,7 +5936,7 @@ function populateInspectionApprovalFilters(filterRows) {
         const values = new Map();
         applicableRows.forEach(row => {
             const key = String(row[spec.key] == null ? "" : row[spec.key]);
-            if (key && !values.has(key)) values.set(key, String(row[spec.label] || key));
+            if (key && !values.has(key)) values.set(key, spec.id === "selApprovalDetail" ? (key + " - " + String(row[spec.label] || key)) : String(row[spec.label] || key));
         });
         select.innerHTML = '<option value="">' + spec.all + '</option>' +
             Array.from(values.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(pair =>
