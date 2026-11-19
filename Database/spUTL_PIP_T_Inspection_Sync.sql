@@ -295,40 +295,122 @@ BEGIN
         SET @p_FollowUpRemark = '';
     END;
 
+    /* Match the current INSPEC authorization model used by inspection.aspx:
+       SysWebUser + menu 20021 + Company/Location + the same section resolution
+       priority as GFC.GetEmployeeSection(). Do not use the legacy UTL_User table. */
+    DECLARE @V_SectionList VARCHAR(8000);
+    SET @V_SectionList='';
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM dbo.SysWebUserUserGroup
+        WHERE UserID=@p_UpdateUser
+          AND UserGroupID='administrator'
+    )
+    BEGIN
+        SELECT @V_SectionList=ISNULL(STUFF((
+            SELECT ';'+S.SectionID
+            FROM dbo.PIP_M_Section S
+            WHERE S.ProfitCenterNo IN ('peng','phkp','psec')
+            FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+    END;
+
+    IF ISNULL(@V_SectionList,'')=''
+    BEGIN
+        SELECT TOP 1 @V_SectionList=ISNULL(I.SectionList,'')
+        FROM dbo.INSPEC_User I
+        WHERE I.UserID=@p_UpdateUser
+          AND ISNULL(I.IsActive,0)=1;
+    END;
+
+    IF ISNULL(@V_SectionList,'')=''
+    BEGIN
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.SysWebUserProfit P
+            WHERE P.AppID='inspec'
+              AND P.UserID=@p_UpdateUser
+              AND P.ProfitCenterNo='*ALL'
+        )
+        BEGIN
+            SELECT @V_SectionList=ISNULL(STUFF((
+                SELECT ';'+S.SectionID
+                FROM dbo.PIP_M_Section S
+                WHERE S.ProfitCenterNo IN ('peng','phkp','psec')
+                FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+        END
+        ELSE
+        BEGIN
+            SELECT @V_SectionList=ISNULL(STUFF((
+                SELECT DISTINCT ';'+S.SectionID
+                FROM dbo.SysWebUserProfit P
+                INNER JOIN dbo.PIP_M_Section S ON S.ProfitCenterNo=P.ProfitCenterNo
+                WHERE P.AppID='inspec'
+                  AND P.UserID=@p_UpdateUser
+                  AND ISNULL(P.ProfitCenterNo,'')<>''
+                FOR XML PATH(''), TYPE).value('.','varchar(8000)'),1,1,''),'');
+        END;
+    END;
+
+    IF ISNULL(@V_SectionList,'')=''
+    BEGIN
+        SELECT TOP 1 @V_SectionList=ISNULL(E.SectionID,'')
+        FROM dbo.M_HRD_Employee E
+        WHERE E.EmployeeID=@p_UpdateUser;
+    END;
+
     IF NOT EXISTS
     (
         SELECT 1
-        FROM dbo.UTL_User U
-        WHERE U.EmployeeID=@p_UpdateUser
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@p_UpdateUser
+          AND SU.IsActive=1
+          AND EXISTS
+          (
+              SELECT 1
+              FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+              WHERE AM.MenuID='20021'
+          )
           AND
           (
               EXISTS
               (
                   SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                  WHERE C.UserID=U.UserID AND C.AppID='pip'
+                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
                     AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID
               )
               OR EXISTS
               (
-                  SELECT 1 FROM dbo.F_SelectOneLogin('pip', U.EmployeeID, '') L
+                  SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
                   WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID
               )
           )
     )
     BEGIN
-        RAISERROR('Employee is not authorized for this company/location.', 16, 1);
+        RAISERROR('Employee is not authorized for INSPEC access or this company/location.', 16, 1);
         RETURN;
     END;
 
     IF NOT EXISTS
     (
         SELECT 1
-        FROM dbo.UTL_User U
-        WHERE U.EmployeeID=@p_UpdateUser
-          AND ISNULL(U.IsWO,0)=1
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@p_UpdateUser
+          AND SU.IsActive=1
           AND EXISTS
-              (SELECT 1 FROM dbo.SplitStringConvertToTable(U.Section, ';') S
-               WHERE S.val=@p_SectionID)
+          (
+              SELECT 1
+              FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+              WHERE AM.MenuID='20021'
+          )
+          AND EXISTS
+          (
+              SELECT 1
+              FROM dbo.SplitStringConvertToTable(@V_SectionList,';') S
+              WHERE S.val=@p_SectionID
+          )
     )
     BEGIN
         RAISERROR('Employee is not authorized for this inspection section.', 16, 1);
