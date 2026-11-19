@@ -297,7 +297,7 @@ BEGIN
 
     /* Match the current INSPEC authorization model used by inspection.aspx:
        SysWebUser + menu 20021 + Company/Location + the same section resolution
-       priority as GFC.GetEmployeeSection(). Do not use the legacy UTL_User table. */
+       priority as GFC.GetEmployeeSection(). */
     DECLARE @V_SectionList VARCHAR(8000);
     SET @V_SectionList='';
 
