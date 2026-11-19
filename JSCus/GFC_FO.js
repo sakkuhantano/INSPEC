@@ -1513,6 +1513,12 @@ async function uploadPendingInspections() {
             InspectionDate: record.InspectionDate || "",
             StartDateTime: inspectionWallClockDateTime(record.StartDateTime),
             EndDateTime: inspectionWallClockDateTime(record.EndDateTime),
+            // GPS audit metadata must travel with the header for both STANDARD and BATCH/LIGHTNING.
+            // Keep missing values null; never coerce an absent coordinate to zero.
+            GPSLatitude: record.GPSLatitude == null || record.GPSLatitude === "" ? null : record.GPSLatitude,
+            GPSLongitude: record.GPSLongitude == null || record.GPSLongitude === "" ? null : record.GPSLongitude,
+            GPSAccuracy: record.GPSAccuracy == null || record.GPSAccuracy === "" ? null : record.GPSAccuracy,
+            GPSCapturedAt: record.GPSCapturedAt || null,
             Status: record.Status,
             Summary: record.Summary || "",
             FollowUp: record.FollowUp === "Recommend Follow Up" ? "Recommend Follow Up" : "No Follow Up",
