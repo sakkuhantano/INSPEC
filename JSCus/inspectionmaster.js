@@ -583,107 +583,12 @@
             var shapeSelect = document.getElementById('ddlPointShapeType');
             var pathField = document.getElementById('hidSvgPathData');
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
-            var halfCircleDirection = document.getElementById('ddlHalfCircleDirection');
-            var halfCircleDirectionWrap = document.getElementById('halfCircleDirectionWrap');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
                 // CIRCLE is a small point dot; area geometry belongs to PATH.
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
-            function makeHalfCirclePath(start, end, direction) {
-                var rect = content.getBoundingClientRect();
-                if (!rect.width || !rect.height || !start || !end) return null;
-                var sx = start.x * rect.width / 100, sy = start.y * rect.height / 100;
-                var ex = end.x * rect.width / 100, ey = end.y * rect.height / 100;
-                var vx = (ex - sx) / 2, vy = (ey - sy) / 2;
-                var radius = Math.sqrt(vx * vx + vy * vy);
-                if (radius < 2) return null;
-                var cx = (sx + ex) / 2, cy = (sy + ey) / 2;
-                var nx = -vy, ny = vx;
-                var side = String(direction || 'UP').toUpperCase();
-                var score = side === 'DOWN' ? ny : side === 'LEFT' ? -nx : side === 'RIGHT' ? nx : -ny;
-                var sign = score >= 0 ? 1 : -1;
-                var points = [];
-                for (var i = 0; i <= 32; i++) {
-                    var angle = Math.PI * i / 32;
-                    var px = cx + vx * Math.cos(angle) + sign * nx * Math.sin(angle);
-                    var py = cy + vy * Math.cos(angle) + sign * ny * Math.sin(angle);
-                    points.push({ x: px * 100 / rect.width, y: py * 100 / rect.height });
-                }
-                var d = 'M ' + points[0].x.toFixed(3) + ' ' + points[0].y.toFixed(3);
-                for (var j = 1; j < points.length; j++)
-                    d += ' L ' + points[j].x.toFixed(3) + ' ' + points[j].y.toFixed(3);
-                return {
-                    d: d,
-                    x: ((start.x + end.x) / 2),
-                    y: ((start.y + end.y) / 2),
-                    radiusX: Math.abs(vx) * 100 / rect.width,
-                    radiusY: Math.abs(vy) * 100 / rect.height,
-                    start: start,
-                    end: end
-                };
-            }
-            function placeHalfCircle(start, end, previewOnly) {
-                if (!pathField || !shapeAttributesField) return false;
-                var direction = halfCircleDirection ? halfCircleDirection.value : 'UP';
-                var geometry = makeHalfCirclePath(start, end, direction);
-                if (!geometry) return false;
-                var preview = ensurePathPreview();
-                preview.setAttribute('fill', 'none');
-                preview.setAttribute('stroke-width', '1.5');
-                preview.setAttribute('stroke-linecap', 'round');
-                preview.setAttribute('d', geometry.d);
-                if (previewOnly) return true;
-                recordPathEditorAction();
-                pathField.value = geometry.d;
-                markerX.value = geometry.x.toFixed(2);
-                markerY.value = geometry.y.toFixed(2);
-                var coordinatePreview = document.getElementById('inspectionCoordinatePreview');
-                if (!coordinatePreview) {
-                    coordinatePreview = document.createElement('span');
-                    coordinatePreview.id = 'inspectionCoordinatePreview';
-                    coordinatePreview.className = 'inspection-coordinate-preview';
-                    coordinatePreview.textContent = '+';
-                    content.appendChild(coordinatePreview);
-                }
-                coordinatePreview.style.left = geometry.x + '%';
-                coordinatePreview.style.top = geometry.y + '%';
-                updateMarkerScale();
-                shapeAttributesField.value = JSON.stringify({
-                    coordinateSpace: 'PERCENT_100', closed: false,
-                    renderMode: 'HALF_CIRCLE', direction: direction,
-                    startX: Number(start.x.toFixed(3)), startY: Number(start.y.toFixed(3)),
-                    endX: Number(end.x.toFixed(3)), endY: Number(end.y.toFixed(3)),
-                    radiusX: geometry.radiusX, radiusY: geometry.radiusY
-                });
-                var activeHalfCircleId = document.getElementById('hidPointID');
-                var existingHalfCircleSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                if (existingHalfCircleSvg && activeHalfCircleId && activeHalfCircleId.value) {
-                    var previousHalfCircle = existingHalfCircleSvg.querySelector('.inspection-coordinate-path[data-point-id="' + activeHalfCircleId.value + '"]');
-                    if (previousHalfCircle) previousHalfCircle.style.display = 'none';
-                }
-                pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '. Klik denah dua titik lagi untuk mengubah ukurannya.');
-                return true;
-            }
-            function refreshHalfCircleDirection() {
-                if (!shapeSelect || !halfCircleDirection) return;
-                // Changing the direction is an option of HALF_CIRCLE, never a
-                // request to switch the master shape to PATH/Freeform.
-                shapeSelect.value = 'HALF_CIRCLE';
-                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
-                if (!shapeAttributesField || !shapeAttributesField.value) return;
-                var attrs;
-                try { attrs = JSON.parse(shapeAttributesField.value); } catch (_) { return; }
-                if (attrs.renderMode !== 'HALF_CIRCLE' || attrs.startX == null || attrs.endX == null) return;
-                recordPathEditorAction();
-                placeHalfCircle({ x: Number(attrs.startX), y: Number(attrs.startY) },
-                    { x: Number(attrs.endX), y: Number(attrs.endY) }, false);
-            }
-            if (halfCircleDirection) halfCircleDirection.addEventListener('change', function (event) {
-                event.stopPropagation();
-                refreshHalfCircleDirection();
-            });
             // Action-based Undo/Redo for unsaved map geometry edits.
             var redoButton = document.getElementById('btnRedoPath');
             var pathUndoStack = [], pathRedoStack = [];
@@ -694,7 +599,6 @@
                     points: pathPoints.map(function (p) { return { x: p.x, y: p.y }; }),
                     path: pathField ? pathField.value : '',
                     shape: shapeSelect ? shapeSelect.value : 'CIRCLE',
-                    direction: halfCircleDirection ? halfCircleDirection.value : 'UP',
                     attributes: shapeAttributesField ? shapeAttributesField.value : '{}',
                     x: markerX ? markerX.value : '', y: markerY ? markerY.value : '',
                     drawMode: drawMode, svgHtml: svg ? svg.innerHTML : null,
@@ -716,9 +620,6 @@
                 pathPoints = state.points || []; drawMode = !!state.drawMode; drawingPath = false;
                 if (pathField) pathField.value = state.path || '';
                 if (shapeSelect) shapeSelect.value = state.shape || 'CIRCLE';
-                if (halfCircleDirection) halfCircleDirection.value = state.direction || 'UP';
-                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
-                    shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (shapeAttributesField) shapeAttributesField.value = state.attributes || '{}';
                 if (markerX) markerX.value = state.x || '';
                 if (markerY) markerY.value = state.y || '';
@@ -745,8 +646,7 @@
                 pathPreview = document.getElementById('inspectionCoordinatePathPreview');
                 if (pathPreview) renderPathPreview(!!(pathField && pathField.value));
                 pathStatusText(pathField && pathField.value
-                    ? (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '½ Lingkaran siap disimpan.' :
-                        'SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.')
+                    ? 'SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.'
                     : (drawMode ? 'Draw mode aktif: drag mengikuti batas area.' : 'Perubahan geometri dipulihkan.'));
                 updatePathHistoryButtons();
             }
@@ -779,10 +679,7 @@
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
-            var halfCircleStart = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
-            if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
-                shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '' : 'none';
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
             function updateRectanglePreview(point) {
                 if (!rectangleStart || !point) return;
@@ -897,12 +794,6 @@
                 path.setAttribute('d', d);
             }
             function startPathDrawing() {
-                // A half-circle is placed with a single map click; it is not a
-                // freeform path. Do not silently change its master shape.
-                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') {
-                    pathStatusText('½ Lingkaran tidak memakai Draw SVG Path. Klik denah untuk menempatkan busur, lalu pilih arah.');
-                    return;
-                }
                 recordPathEditorAction();
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = [];
@@ -924,7 +815,7 @@
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL')
                     pathStatusText('Siku aktif: klik titik demi titik untuk membuat segmen 90°. Double-click untuk selesai.');
                 else
-                    pathStatusText('Draw mode aktif: drag mengikuti batas area, lalu lepaskan untuk menutup path.');
+                    pathStatusText('PATH aktif: klik titik-titik sudut poligon, lalu double-click untuk menutup dan selesai.');
             }
             function finishPathDrawing() {
                 drawingPath = false; dragging = false; orthogonalDrawing = false; orthogonalPreviewPoint = null;
@@ -1003,7 +894,6 @@
                 pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
-                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = 'none';
                 if (shapeAttributesField) shapeAttributesField.value = '{}';
                 if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
                 rectanglePreview = null; rectangleDrawing = false; rectangleStart = null;
@@ -1037,20 +927,13 @@
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
-                if (this.value !== 'HALF_CIRCLE') {
-                    halfCircleStart = null;
-                    board.style.removeProperty('cursor');
-                    content.style.removeProperty('cursor');
-                }
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
                 if (this.value !== 'ORTHOGONAL') {
                     orthogonalDrawing = false;
                     orthogonalPreviewPoint = null;
                 }
-                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
-                    this.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; halfCircleStart = null; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     var activeId = document.getElementById('hidPointID');
@@ -1072,53 +955,18 @@
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
-                } else if (this.value === 'HALF_CIRCLE') {
-                    drawMode = false; drawingPath = false; halfCircleStart = null; board.classList.remove('path-drawing');
-                    if (pathField) pathField.value = '';
-                    if (pathPreview) pathPreview.setAttribute('d', '');
-                    if (shapeAttributesField) shapeAttributesField.value = '{}';
-                    var activeHalfCircleId = document.getElementById('hidPointID');
-                    var existingHalfCircleSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                    if (existingHalfCircleSvg && activeHalfCircleId && activeHalfCircleId.value) {
-                        var previousHalfCircle = existingHalfCircleSvg.querySelector('.inspection-coordinate-path[data-point-id="' + activeHalfCircleId.value + '"]');
-                        if (previousHalfCircle) previousHalfCircle.style.display = 'none';
-                    }
-                    if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
-                    board.style.setProperty('cursor', 'crosshair', 'important');
-                    content.style.setProperty('cursor', 'crosshair', 'important');
-                    pathStatusText('½ Lingkaran: klik titik awal diameter, gerakkan mouse untuk preview, lalu klik titik akhir.');
                 } else {
-                    // PATH is always a closed Freeform area. Clear the previous
-                    // geometry and metadata when switching modes; the user must draw
-                    // a fresh outline before it can be saved.
+                    // PATH is a click-by-click polygon. Clear previous geometry
+                    // when switching modes so a fresh set of vertices is required.
                     if (this.value === 'PATH') {
                         if (pathField) pathField.value = '';
                         if (pathPreview) pathPreview.setAttribute('d', '');
                         if (shapeAttributesField) shapeAttributesField.value = '{}';
                     }
-                    pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
+                    pathStatusText('PATH: klik Draw SVG Path, klik titik-titik sudut poligon, lalu double-click untuk selesai.');
                 }
             });
             board.addEventListener('pointerdown', function (event) {
-                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' && event.button === 0 &&
-                    !(event.target.closest && event.target.closest('.inspection-map-toolbar-floating, .inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
-                    event.preventDefault(); event.stopImmediatePropagation();
-                    suppressNextClick = true;
-                    var halfCirclePoint = mapPointFromEvent(event);
-                    if (!halfCircleStart) {
-                        recordPathEditorAction();
-                        halfCircleStart = halfCirclePoint;
-                        if (pathPreview) pathPreview.setAttribute('d', '');
-                        pathStatusText('Titik awal dipilih. Gerakkan mouse, lalu klik titik akhir untuk menentukan diameter.');
-                    } else {
-                        if (placeHalfCircle(halfCircleStart, halfCirclePoint, false)) {
-                            halfCircleStart = null;
-                        } else {
-                            pathStatusText('Diameter terlalu kecil. Klik titik akhir yang lebih jauh.');
-                        }
-                    }
-                    return;
-                }
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1143,18 +991,19 @@
                     suppressNextClick = true;
                     return;
                 }
-                drawingPath = true; suppressNextClick = true;
-                pathPoints = [mapPointFromEvent(event)];
-                renderPathPreview(false);
-                try { board.setPointerCapture(event.pointerId); } catch (_) { }
-            }, true);
-            board.addEventListener('pointermove', function (event) {
-                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' && halfCircleStart) {
-                    event.preventDefault();
-                    event.stopImmediatePropagation();
-                    placeHalfCircle(halfCircleStart, mapPointFromEvent(event), true);
+                if (shapeSelect && shapeSelect.value === 'PATH') {
+                    var vertex = mapPointFromEvent(event);
+                    var previousVertex = pathPoints[pathPoints.length - 1];
+                    if (!previousVertex || Math.hypot(vertex.x - previousVertex.x, vertex.y - previousVertex.y) >= 0.5)
+                        pathPoints.push(vertex);
+                    drawingPath = true;
+                    suppressNextClick = true;
+                    renderPathPreview(pathPoints.length >= 3);
+                    pathStatusText('PATH: ' + pathPoints.length + ' titik · klik titik sudut berikutnya, double-click untuk menutup poligon.');
                     return;
                 }
+            }, true);
+            board.addEventListener('pointermove', function (event) {
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     updateRectanglePreview(mapPointFromEvent(event));
@@ -1162,6 +1011,10 @@
                 }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'PATH') {
+                    renderPathPreview(pathPoints.length >= 3, mapPointFromEvent(event));
+                    return;
+                }
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
                     orthogonalPreviewPoint = mapPointFromEvent(event);
                     renderPathPreview(false, orthogonalPreviewPoint);
@@ -1181,6 +1034,7 @@
                 }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'PATH') return;
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
                     var point = mapPointFromEvent(event);
                     var last = pathPoints[pathPoints.length - 1];
@@ -1197,9 +1051,10 @@
                 finishPathDrawing();
             }, true);
             board.addEventListener('dblclick', function (event) {
-                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && drawingPath) {
+                if (drawMode && drawingPath && shapeSelect &&
+                    (shapeSelect.value === 'PATH' || shapeSelect.value === 'ORTHOGONAL')) {
                     event.preventDefault(); event.stopImmediatePropagation();
-                    if (pathPoints.length >= 2) finishPathDrawing();
+                    if (pathPoints.length >= (shapeSelect.value === 'PATH' ? 3 : 2)) finishPathDrawing();
                 }
             }, true);
             board.addEventListener('pointercancel', function (event) {
@@ -1275,10 +1130,7 @@
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
-                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') {
-                    event.preventDefault();
-                    return;
-                } else if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
+                if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
                 var preview = document.getElementById('inspectionCoordinatePreview');
