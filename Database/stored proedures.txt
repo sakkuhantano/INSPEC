@@ -2008,7 +2008,7 @@ BEGIN
             IF EXISTS
             (
                 SELECT 1 FROM dbo.PIP_T_Inspection
-                WHERE InspectionID=@V_InspectionID AND (ISNULL(IsSubmitted,0)=1 OR ISNULL(IsApprovedFinal,0)=1)
+                WHERE InspectionID=@V_InspectionID AND (ISNULL(IsSubmitted,0)=1 OR ISNULL(IsApproved,0)=1)
             )
             BEGIN
                 RAISERROR('Submitted inspections are locked until an approver returns them to the technician.', 16, 1);
