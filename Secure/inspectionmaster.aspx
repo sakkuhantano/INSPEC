@@ -164,7 +164,7 @@
                                                 <label class="small fw-semibold">Marker Shape</label>
                                                 <asp:DropDownList ID="ddlPointShapeType" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm">
                                                     <asp:ListItem Value="CIRCLE">Circle</asp:ListItem>
-                                                    <asp:ListItem Value="PATH">PATH / Polygonal Area</asp:ListItem>
+                                                    <asp:ListItem Value="PATH">PATH / Polyline</asp:ListItem>
                                                     <asp:ListItem Value="RECTANGLE">Rectangle Area</asp:ListItem>
                                                     <asp:ListItem Value="ORTHOGONAL">Siku / Orthogonal Line</asp:ListItem>
                                                 </asp:DropDownList>
