@@ -29,7 +29,7 @@ window.syncInspectionApprovalOffline=async function(){
  if(!db||![C,A,P].every(n=>db.objectStoreNames.contains(n)))throw new Error("IndexedDB approval belum siap.");
  const parts=String(l.curcompany||"").split(";"),s={e:String(l.employeeid),c:String(parts[0]||""),l:String(parts[1]||"")};let synced=0,conflicts=0;
   const now=new Date(),date=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
- const q=await post("GetInspectionApprovalQueue",{employeeId:s.e,companyId:s.c,locationId:s.l,approvalTab:"OUTSTANDING",dateFrom:date,dateThru:date,inspectionTypeCode:"",inspectionTypeDetailCode:"",templateId:""});
+ const q=await post("GetInspectionApprovalQueue",{employeeId:s.e,companyId:s.c,locationId:s.l,approvalTab:"OUTSTANDING",dateFrom:date,dateThru:date,inspectionTypeCode:"",inspectionTypeDetailCode:"",templateId:"",scheduleTime:""});
  await putCache({CacheKey:key(s,"QUEUE","","OUTSTANDING"),CacheType:"QUEUE",EmployeeID:s.e,CompanyID:s.c,LocationID:s.l,ApprovalTab:"OUTSTANDING",Data:q.data||[],Filters:q.filters||[],CachedAt:new Date().toISOString()});
  let cached=0;const currentIds=new Set((q.data||[]).map(row=>Number(row.InspectionID)));for(const row of(q.data||[])){if(!navigator.onLine)throw new Error("Koneksi terputus saat cache detail approval.");const d=await post("GetInspectionApprovalDetail",{inspectionId:row.InspectionID,employeeId:s.e});await cacheDetail(s,row.InspectionID,d);cached++;}
  await cleanupStaleCache(s,currentIds);
