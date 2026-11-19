@@ -630,6 +630,12 @@
                     renderMode: 'HALF_CIRCLE', direction: direction,
                     radiusX: geometry.radiusX, radiusY: geometry.radiusY
                 });
+                var activeHalfCircleId = document.getElementById('hidPointID');
+                var existingHalfCircleSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (existingHalfCircleSvg && activeHalfCircleId && activeHalfCircleId.value) {
+                    var previousHalfCircle = existingHalfCircleSvg.querySelector('.inspection-coordinate-path[data-point-id="' + activeHalfCircleId.value + '"]');
+                    if (previousHalfCircle) previousHalfCircle.style.display = 'none';
+                }
                 var preview = ensurePathPreview();
                 preview.setAttribute('fill', 'rgba(13,110,253,.16)');
                 preview.setAttribute('stroke-width', '0.8');
