@@ -24,6 +24,8 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Sync]
     @p_GPSLongitude DECIMAL(10,7) = NULL,
     @p_GPSAccuracy DECIMAL(10,2) = NULL,
     @p_GPSCapturedAt DATETIME = NULL,
+    @p_InspectionMode VARCHAR(10) = 'STANDARD',
+    @p_ApprovalUrl NVARCHAR(1000) = NULL,
     @p_InspectionNo VARCHAR(10),
     @p_Photos dbo.Type_N_Tbl_C5 READONLY,
     @p_Items dbo.Type_N_Tbl_C13 READONLY,
