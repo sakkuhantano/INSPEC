@@ -94,6 +94,7 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
   
 /* Item labels must support Unicode comparison symbols such as ≤ and ≥.
    SQL Server 2008 stores these characters in NVARCHAR, not legacy VARCHAR code pages. */
+DECLARE @ItemLabelNullability NVARCHAR(10);
 IF EXISTS
 (
     SELECT 1
@@ -104,8 +105,12 @@ IF EXISTS
       AND T.name='varchar'
 )
 BEGIN
-    ALTER TABLE dbo.PIP_M_CheckListWOPM_Item
-    ALTER COLUMN ItemLabel NVARCHAR(500) NULL;
+    SELECT @ItemLabelNullability=CASE WHEN C.is_nullable=1 THEN N' NULL' ELSE N' NOT NULL' END
+    FROM sys.columns C
+    WHERE C.object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_Item')
+      AND C.name='ItemLabel';
+
+    EXEC(N'ALTER TABLE dbo.PIP_M_CheckListWOPM_Item ALTER COLUMN ItemLabel NVARCHAR(500)' + @ItemLabelNullability);
 END;
 
 /* Version-level Remark defaults and per-item default/override switches. */
