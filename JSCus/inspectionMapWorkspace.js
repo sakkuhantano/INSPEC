@@ -397,8 +397,7 @@
         });
         var pageCount = Math.max(1, Math.ceil(filtered.length / listPageSize));
         listPage = Math.min(Math.max(1, listPage), pageCount);
-        var start = (listPage - 1) * listPageSize;
-        var rows = filtered.slice(start, start + listPageSize);
+        var start = (listPage - 1) * listPageSize;        var rows = filtered.slice(start, start + listPageSize);
 
         if (window.bootstrap && bootstrap.Tooltip) {
             host.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
@@ -797,8 +796,7 @@
     }
 
     function resetMapView() {
-        mapZoom = 1;
-        mapPanX = 0;
+        mapZoom = 1;        mapPanX = 0;
         mapPanY = 0;
         mapPointers = {};
         mapGesture = null;
@@ -1197,8 +1195,7 @@
         resetMapView();
         closePoint();
         var list = document.getElementById("inspectionPointList");
-        if (list) { list.scrollTop = 0; list.innerHTML = ""; }
-        var points = document.getElementById("inspectionMapPoints");
+        if (list) { list.scrollTop = 0; list.innerHTML = ""; }        var points = document.getElementById("inspectionMapPoints");
         if (points) points.innerHTML = "";
         var summary = document.getElementById("inspectionMapSummaryHost");
         var checklistPane = document.getElementById("inspectionChecklistPane");
@@ -1387,6 +1384,9 @@
             var targetY = targetPosition.y;
             var ring = document.createElement("div");
             ring.className = "inspection-map-navigator-focus-ring";
+            ring.style.width = "34px";
+            ring.style.height = "34px";
+            ring.style.borderWidth = "2px";
             ring.style.left = targetX + "%";
             ring.style.top = targetY + "%";
             ring.setAttribute("aria-hidden", "true");
@@ -1498,22 +1498,3 @@
                 window.openBatchInspectionPointChecklist(point);
             } else {
                 if (typeof showToast === "function")
-                    showToast("Modul checklist per titik belum siap dibuka.", "warning");
-            }
-        });
-
-        var submit = document.getElementById("btnSubmitInspectionBatch");
-        if (submit) submit.addEventListener("click", function () {
-            if (typeof window.submitInspectionBatch === "function") window.submitInspectionBatch();
-            else if (typeof showToast === "function")
-                showToast("Submit batch belum tersedia.", "warning");
-        });
-    };
-
-    document.addEventListener("DOMContentLoaded", function () {
-        window.setTimeout(function () {
-            if (typeof window.wireInspectionMapWorkspace === "function")
-                window.wireInspectionMapWorkspace();
-        }, 0);
-    });
-})();
