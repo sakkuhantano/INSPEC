@@ -949,10 +949,14 @@
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
                 } else {
-                    // PATH is always a closed Freeform area. Clear any metadata left
-                    // by a previous Siku selection so Save cannot misclassify it.
-                    if (this.value === 'PATH' && shapeAttributesField)
-                        shapeAttributesField.value = '{}';
+                    // PATH is always a closed Freeform area. Clear the previous
+                    // geometry and metadata when switching modes; the user must draw
+                    // a fresh outline before it can be saved.
+                    if (this.value === 'PATH') {
+                        if (pathField) pathField.value = '';
+                        if (pathPreview) pathPreview.setAttribute('d', '');
+                        if (shapeAttributesField) shapeAttributesField.value = '{}';
+                    }
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
                 }
             });
