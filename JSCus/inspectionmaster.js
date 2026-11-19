@@ -616,7 +616,7 @@
                 var d = 'M ' + points[0].x.toFixed(3) + ' ' + points[0].y.toFixed(3);
                 for (var j = 1; j < points.length; j++)
                     d += ' L ' + points[j].x.toFixed(3) + ' ' + points[j].y.toFixed(3);
-                return { d: d + ' Z', x: cx, y: cy, radiusX: rx, radiusY: ry };
+                return { d: d, x: cx, y: cy, radiusX: rx, radiusY: ry };
             }
             function placeHalfCircle(x, y) {
                 if (!pathField || !shapeAttributesField) return;
@@ -626,7 +626,7 @@
                 markerX.value = geometry.x.toFixed(2);
                 markerY.value = geometry.y.toFixed(2);
                 shapeAttributesField.value = JSON.stringify({
-                    coordinateSpace: 'PERCENT_100', closed: true,
+                    coordinateSpace: 'PERCENT_100', closed: false,
                     renderMode: 'HALF_CIRCLE', direction: direction,
                     radiusX: geometry.radiusX, radiusY: geometry.radiusY
                 });
@@ -637,8 +637,8 @@
                     if (previousHalfCircle) previousHalfCircle.style.display = 'none';
                 }
                 var preview = ensurePathPreview();
-                preview.setAttribute('fill', 'rgba(13,110,253,.16)');
-                preview.setAttribute('stroke-width', '0.8');
+                preview.setAttribute('fill', 'none');
+                preview.setAttribute('stroke-width', '1.5');
                 preview.setAttribute('d', geometry.d);
                 pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '.');
             }
