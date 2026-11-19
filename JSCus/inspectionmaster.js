@@ -747,7 +747,7 @@
                 if (!pathPreview) {
                     pathPreview = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                     pathPreview.id = 'inspectionCoordinatePathPreview';
-                    pathPreview.setAttribute('fill', 'rgba(13,110,253,.16)');
+                    pathPreview.setAttribute('fill', 'none');
                     pathPreview.setAttribute('stroke', '#0d6efd');
                     pathPreview.setAttribute('stroke-width', '0.8');
                     pathPreview.setAttribute('stroke-linejoin', 'round');
