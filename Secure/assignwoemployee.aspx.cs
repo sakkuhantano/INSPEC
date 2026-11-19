@@ -18,6 +18,18 @@ namespace INSPEC.Secure
     {
         private const string INSPEC_MENU_ID = "11012";
 
+        private static SqlParameter CreateEmptyAssignmentTableParameter()
+        {
+            var empty = new DataTable();
+            empty.Columns.Add("C1", typeof(string));
+            empty.Columns.Add("C2", typeof(string));
+            return new SqlParameter("@p_Dt", SqlDbType.Structured)
+            {
+                TypeName = "dbo.Type_Tbl_C2",
+                Value = empty
+            };
+        }
+
         public string ClientContextJson { get; private set; }
 
         private static List<string> GetAllowedSections(string employeeId)
@@ -147,7 +159,8 @@ namespace INSPEC.Secure
                 new SqlParameter[] 
                 {
                     new SqlParameter("@p_Tipe", tipe),
-                    new SqlParameter("@p_SearchParam", v_SearchParam)
+                    new SqlParameter("@p_SearchParam", v_SearchParam),
+                    CreateEmptyAssignmentTableParameter()
                 }, true);
                 //                DataTable dt = cf.EQuery(
                 //@"
@@ -283,7 +296,8 @@ JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=b.val
                 new SqlParameter[] 
                 {
                     new SqlParameter("@p_Tipe", "2"),
-                    new SqlParameter("@p_SearchParam", v_SearchParam)
+                    new SqlParameter("@p_SearchParam", v_SearchParam),
+                    CreateEmptyAssignmentTableParameter()
                 }, true);
 
                 //                DataTable dt = cf.EQuery(
