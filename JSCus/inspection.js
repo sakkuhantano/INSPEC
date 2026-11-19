@@ -4097,7 +4097,7 @@ async function populateTechnicianSubmittedFilters(records) {
     document.getElementById("selSubmittedDetail").disabled = !currentType;
 }
 
-function openServerReturnedInspection(inspectionId) {
+async function openServerReturnedInspection(inspectionId) {
     if (!inspectionId || !navigator.onLine) {
         showToast("Koneksi diperlukan untuk membuka inspeksi yang dikembalikan.", "warning");
         return;
