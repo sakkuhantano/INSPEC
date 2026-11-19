@@ -21,6 +21,49 @@ let inspectionBatchValidationState = { errors: [], index: -1 };
 let activeInspectionScheduleTime = "";
 let returnedInspectionDeepLinkHandled = false;
 let approvalInspectionDeepLinkHandled = false;
+let inspectionDetailSearchOptions = [];
+let inspectionDetailSelectDisabled = true;
+let inspectionDetailLastSelectedValue = "";
+
+function syncInspectionDetailSearchOptions() {
+    const select = document.getElementById("selInspectionDetail");
+    const search = document.getElementById("txtInspectionDetailSearch");
+    if (!select || !search) return;
+    inspectionDetailSelectDisabled = select.disabled;
+    inspectionDetailLastSelectedValue = select.value || "";
+    inspectionDetailSearchOptions = Array.from(select.options).map(option => ({
+        value: option.value,
+        text: option.textContent,
+        disabled: option.disabled
+    }));
+    applyInspectionDetailSearch();
+}
+
+function applyInspectionDetailSearch() {
+    const select = document.getElementById("selInspectionDetail");
+    const search = document.getElementById("txtInspectionDetailSearch");
+    if (!select || !search) return;
+    const keyword = String(search.value || "").trim().toLowerCase();
+    const matches = inspectionDetailSearchOptions.filter(option =>
+        !option.value || !keyword ||
+        (String(option.value) + " " + String(option.text)).toLowerCase().includes(keyword)
+    );
+    select.innerHTML = "";
+    matches.forEach(option => {
+        const item = new Option(option.text, option.value);
+        item.disabled = option.disabled;
+        select.add(item);
+    });
+    if (!matches.some(option => option.value === inspectionDetailLastSelectedValue)) {
+        select.value = "";
+    } else {
+        select.value = inspectionDetailLastSelectedValue;
+    }
+    if (keyword && matches.filter(option => option.value).length === 0)
+        select.add(new Option("Tidak ada lokasi yang cocok", ""));
+    select.disabled = inspectionDetailSelectDisabled;
+    search.disabled = inspectionDetailSelectDisabled;
+}
 
 function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
@@ -253,9 +296,17 @@ function wireInspectionEvents() {
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionDetail").addEventListener("change", function () {
+        inspectionDetailLastSelectedValue = this.value || "";
+        const detailSearch = document.getElementById("txtInspectionDetailSearch");
+        if (detailSearch && detailSearch.value) {
+            detailSearch.value = "";
+            applyInspectionDetailSearch();
+            this.value = inspectionDetailLastSelectedValue;
+        }
         onInspectionDetailChanged();
         updateInspectionParameterTabGate();
     });
+    document.getElementById("txtInspectionDetailSearch").addEventListener("input", applyInspectionDetailSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
         updateStartButton();
         refreshInspectionScheduleOptions();
@@ -303,6 +354,7 @@ function wireInspectionEvents() {
         const selectedDetail = details.find(detail => normalizeDetailCode(detail.InspectionTypeDetailCode) === normalizeDetailCode(detailSelect.value));
         populateInspectionScheduleTimeOptions(selectedDetail);
         refreshInspectionDetailAvailability();
+        syncInspectionDetailSearchOptions();
         updateStartButton();
         refreshInspectionScheduleOptions();
         updateInspectionParameterTabGate();
@@ -722,6 +774,14 @@ function onInspectionTypeChanged() {
     const detailSelect = document.getElementById("selInspectionDetail");
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>';
     detailSelect.disabled = true;
+    inspectionDetailSearchOptions = [];
+    inspectionDetailLastSelectedValue = "";
+    const detailSearch = document.getElementById("txtInspectionDetailSearch");
+    if (detailSearch) {
+        detailSearch.value = "";
+        detailSearch.disabled = true;
+    }
+    inspectionDetailSelectDisabled = true;
     resetInspectionScheduleTimeOptions();
     const scheduleControl = document.getElementById("selInspectionScheduleTime");
     if (scheduleControl && scheduleControl.closest(".mb-3"))
