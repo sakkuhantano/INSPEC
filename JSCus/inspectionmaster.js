@@ -279,7 +279,10 @@
             if (image.complete) sizeImage();
         }
         function apply() {
-            media.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+            media.style.left = '50%';
+            media.style.top = '50%';
+            media.style.transformOrigin = 'center center';
+            media.style.transform = 'translate(-50%,-50%) translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
             updateMapPreviewCircleAspect(media);
             if (label) label.textContent = Math.round(zoom * 100) + '%';
             stage.classList.toggle('inspection-map-preview-zoomed', zoom > 1);
@@ -291,8 +294,10 @@
             var x = cx == null ? rect.width / 2 : cx;
             var y = cy == null ? rect.height / 2 : cy;
             var ratio = next / zoom;
-            panX = x - (x - panX) * ratio;
-            panY = y - (y - panY) * ratio;
+            var centerX = rect.width / 2, centerY = rect.height / 2;
+            var offsetX = x - centerX, offsetY = y - centerY;
+            panX = offsetX - (offsetX - panX) * ratio;
+            panY = offsetY - (offsetY - panY) * ratio;
             zoom = next;
             inspectionMapPreviewZoom = zoom;
             if (zoom === 1) { panX = 0; panY = 0; }
