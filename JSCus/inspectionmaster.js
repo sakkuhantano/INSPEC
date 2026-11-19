@@ -639,6 +639,17 @@
                 pathField.value = geometry.d;
                 markerX.value = geometry.x.toFixed(2);
                 markerY.value = geometry.y.toFixed(2);
+                var coordinatePreview = document.getElementById('inspectionCoordinatePreview');
+                if (!coordinatePreview) {
+                    coordinatePreview = document.createElement('span');
+                    coordinatePreview.id = 'inspectionCoordinatePreview';
+                    coordinatePreview.className = 'inspection-coordinate-preview';
+                    coordinatePreview.textContent = '+';
+                    content.appendChild(coordinatePreview);
+                }
+                coordinatePreview.style.left = geometry.x + '%';
+                coordinatePreview.style.top = geometry.y + '%';
+                updateMarkerScale();
                 shapeAttributesField.value = JSON.stringify({
                     coordinateSpace: 'PERCENT_100', closed: false,
                     renderMode: 'HALF_CIRCLE', direction: direction,
@@ -1026,6 +1037,11 @@
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
+                if (this.value !== 'HALF_CIRCLE') {
+                    halfCircleStart = null;
+                    board.style.removeProperty('cursor');
+                    content.style.removeProperty('cursor');
+                }
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
                 if (this.value !== 'ORTHOGONAL') {
                     orthogonalDrawing = false;
