@@ -1481,13 +1481,15 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 return;
             }
             bool isOrthogonal = String.Equals(ddlPointShapeType.SelectedValue, "ORTHOGONAL", StringComparison.OrdinalIgnoreCase);
+            bool isLegacyHalfCircle = !isOrthogonal && !String.IsNullOrWhiteSpace(hidShapeAttributes.Value) &&
+                hidShapeAttributes.Value.IndexOf("\"renderMode\":\"HALF_CIRCLE\"", StringComparison.OrdinalIgnoreCase) >= 0;
             string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) || isOrthogonal ? "PATH" :
                 (String.Equals(ddlPointShapeType.SelectedValue, "RECTANGLE", StringComparison.OrdinalIgnoreCase) ? "RECTANGLE" : "CIRCLE");
             string svgPathData = (hidSvgPathData.Value ?? "").Trim();
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
                 !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$") ||
                 (isOrthogonal && System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 1) ||
-                (!isOrthogonal && (!svgPathData.EndsWith("Z", StringComparison.OrdinalIgnoreCase) ||
+                (!isOrthogonal && !isLegacyHalfCircle && (!svgPathData.EndsWith("Z", StringComparison.OrdinalIgnoreCase) ||
                     System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 2))))
             {
                 GF.MsgBox(this, isOrthogonal
