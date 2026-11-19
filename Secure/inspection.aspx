@@ -788,7 +788,9 @@
         max-width:none!important;max-height:none!important;object-fit:contain;
     }
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
-        height:100%;min-height:0;max-height:none;padding:.45rem;overflow:auto
+        height:100%;min-height:0;max-height:none;padding:.45rem;
+        overflow-x:hidden;overflow-y:auto!important;overscroll-behavior:contain;
+        scroll-behavior:smooth
     }
     #inspectionMapWorkspace>#inspectionMapSummaryHost{flex:0 0 auto;max-height:12vh;overflow:auto;padding-top:.25rem!important;padding-bottom:.25rem!important}
     #inspectionMapWorkspace>.d-flex.justify-content-end{flex:0 0 auto;padding:.35rem .55rem!important}
@@ -1495,6 +1497,8 @@
         </div>
         <div class="mb-3">
             <label for="selInspectionDetail" class="form-label small fw-semibold">Inspection Detail</label>
+            <input type="search" id="txtInspectionDetailSearch" class="form-control form-control-sm mb-2"
+                   placeholder="Ketik kode / nama lokasi, mis. L2..." autocomplete="off" disabled />
             <select id="selInspectionDetail" class="form-select form-select-sm" disabled>
                 <option value="">Pilih detail...</option>
             </select>
