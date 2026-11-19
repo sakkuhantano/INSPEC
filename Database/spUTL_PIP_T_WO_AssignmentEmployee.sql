@@ -25,6 +25,8 @@ DECLARE @V_TblWOSearch TABLE
 [Status] VARCHAR(50), EmployeeAssigned VARCHAR(8000), isCompleteDC BIT, RowNo INT, JumlahWO INT, 
 JumlahComplete INT, JumlahAssigned INT)
 
+DECLARE @V_EmptyAssignment dbo.Type_Tbl_C2;
+
 IF @p_Tipe IN ('1','3')
 BEGIN
 SET @V_Year = (SELECT a.val FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=4)
@@ -103,7 +105,7 @@ END
 IF @p_Tipe='4'
 BEGIN
 	INSERT @V_TblWOSearch
-	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam, @p_Dt=@V_EmptyAssignment
 	SELECT DISTINCT B.val EmployeeID, mhe.Name 
 	FROM @V_TblWOSearch A CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') B
 	JOIN M_HRD_Employee AS mhe ON mhe.EmployeeID=B.val
@@ -133,7 +135,7 @@ BEGIN
 	--DECLARE @V_IsExcluded BIT = (SELECT CAST(a.val AS BIT) FROM dbo.SplitStringConvertToTable(@p_SearchParam,';') a WHERE a.id=12)
 	
 	INSERT @V_TblWOSearch
-	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam
+	EXEC spUTL_PIP_T_WO_AssignmentEmployee @p_Tipe='1', @p_SearchParam=@p_SearchParam, @p_Dt=@V_EmptyAssignment
 	
 	SELECT TOP 1 @V_ErrMsg='Some of Work Order has been completed.' 
 	FROM @V_TblWOSearch a JOIN @p_Dt AA ON AA.C1=A.KeyHD
