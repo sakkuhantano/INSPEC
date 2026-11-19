@@ -1447,7 +1447,23 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                     savedShapeAttributes.IndexOf("\"renderMode\"", StringComparison.OrdinalIgnoreCase) >= 0 &&
                     savedShapeAttributes.IndexOf("ORTHOGONAL", StringComparison.OrdinalIgnoreCase) >= 0)
                     savedShapeType = "ORTHOGONAL";
+                else if (String.Equals(savedShapeType, "PATH", StringComparison.OrdinalIgnoreCase) &&
+                    savedShapeAttributes.IndexOf("HALF_CIRCLE", StringComparison.OrdinalIgnoreCase) >= 0)
+                    savedShapeType = "HALF_CIRCLE";
                 if (ddlPointShapeType.Items.FindByValue(savedShapeType) != null) ddlPointShapeType.SelectedValue = savedShapeType;
+                ddlHalfCircleDirection.SelectedValue = "UP";
+                if (savedShapeType == "HALF_CIRCLE")
+                {
+                    try
+                    {
+                        var savedAttributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(savedShapeAttributes);
+                        object savedDirection;
+                        if (savedAttributes != null && savedAttributes.TryGetValue("direction", out savedDirection) &&
+                            ddlHalfCircleDirection.Items.FindByValue(Convert.ToString(savedDirection).ToUpperInvariant()) != null)
+                            ddlHalfCircleDirection.SelectedValue = Convert.ToString(savedDirection).ToUpperInvariant();
+                    }
+                    catch { }
+                }
                 hidSvgPathData.Value = row.Table.Columns.Contains("SvgPathData") ? Convert.ToString(row["SvgPathData"]) : "";
                 hidShapeAttributes.Value = savedShapeAttributes;
                 BindEditorMaps();
@@ -1478,7 +1494,11 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 return;
             }
             bool isOrthogonal = String.Equals(ddlPointShapeType.SelectedValue, "ORTHOGONAL", StringComparison.OrdinalIgnoreCase);
-            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) || isOrthogonal ? "PATH" :
+            bool isHalfCircle = String.Equals(ddlPointShapeType.SelectedValue, "HALF_CIRCLE", StringComparison.OrdinalIgnoreCase);
+            string halfCircleDirection = (ddlHalfCircleDirection.SelectedValue ?? "UP").ToUpperInvariant();
+            if (isHalfCircle && !new[] { "UP", "DOWN", "LEFT", "RIGHT" }.Contains(halfCircleDirection))
+                halfCircleDirection = "UP";
+            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) || isOrthogonal || isHalfCircle ? "PATH" :
                 (String.Equals(ddlPointShapeType.SelectedValue, "RECTANGLE", StringComparison.OrdinalIgnoreCase) ? "RECTANGLE" : "CIRCLE");
             string svgPathData = (hidSvgPathData.Value ?? "").Trim();
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
@@ -1487,7 +1507,9 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
             {
                 GF.MsgBox(this, isOrthogonal
                     ? "Garis siku belum valid. Pilih Siku / Orthogonal Line, klik minimal 2 titik, lalu double-click untuk selesai."
-                    : "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup.", "BS-5.3.0");
+                    : (isHalfCircle
+                        ? "½ Lingkaran belum ditempatkan. Pilih arah, lalu klik satu kali pada denah."
+                        : "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup."), "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
@@ -1575,7 +1597,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 return;
             }
 
-            string shapeAttributes = BuildPointShapeAttributes(shapeType, coordinateX, coordinateY, hidShapeAttributes.Value, isOrthogonal);
+            string shapeAttributes = BuildPointShapeAttributes(shapeType, coordinateX, coordinateY, hidShapeAttributes.Value, isOrthogonal, isHalfCircle, halfCircleDirection);
             hidShapeAttributes.Value = shapeAttributes;
 
             object mapValue = mapID;
@@ -1822,17 +1844,22 @@ VALUES
                     CultureInfo.InvariantCulture, out parsed) ? parsed : fallback;
         }
 
-        private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson, bool isOrthogonal)
+        private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson, bool isOrthogonal, bool isHalfCircle, string halfCircleDirection)
         {
             if (shapeType == "PATH")
             {
                 // The selected server-side shape is authoritative. Do not infer the
-                // mode from hidden JSON, which can be stale after changing Freeform/Siku.
+                // mode from hidden JSON, which can be stale after changing shape modes.
                 var result = new Dictionary<string, object> {
                     { "coordinateSpace", "PERCENT_100" },
                     { "closed", !isOrthogonal }
                 };
                 if (isOrthogonal) result["renderMode"] = "ORTHOGONAL";
+                if (isHalfCircle)
+                {
+                    result["renderMode"] = "HALF_CIRCLE";
+                    result["direction"] = halfCircleDirection;
+                }
                 return new JavaScriptSerializer().Serialize(result);
             }
             if (shapeType == "RECTANGLE")
