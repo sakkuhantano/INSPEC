@@ -14,6 +14,7 @@ let inspectionGpsWatchId = null;
 let inspectionLatestGps = null;
 let inspectionAutoSaveTimer = null;
 let inspectionPhotoViewerState = { type: "", photos: [], index: 0, objectUrl: null, touchStartX: null };
+let serverInspectionPhotoPreview = [];
 let inspectionPhotoBaseline = null;
 let inspectionPhotoWritePromise = null;
 let inspectionGridSort = { key: "inspectionDate", direction: "asc" };
@@ -1575,6 +1576,7 @@ window.mountInspectionBatchSummary = function (record) {
 };
 
 async function renderInspectionForm(record, readOnly, initialTab) {
+    serverInspectionPhotoPreview = [];
     currentInspectionRecord = record;
     if (!readOnly && (record.Status !== "DONE" || isVoidedServerInspectionRecord(record)))
         startInspectionGpsWatch();
@@ -4438,6 +4440,7 @@ async function openServerSubmittedInspection(inspectionId) {
             inspectionId: Number(inspectionId), employeeId: inspectionLogin.employeeid
         });
         const h = result.header || {};
+        serverInspectionPhotoPreview = Array.isArray(result.photos) ? result.photos.slice() : [];
         const template = result.template || result.TemplateSnapshot;
         if (!template || !Array.isArray(template.sections) || !template.sections.length) {
             showToast("Struktur template checklist tidak tersedia dari server.", "warning");
@@ -4513,6 +4516,13 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("inspectionPhotoAfterList").innerHTML = renderPhotos("AFTER");
         document.getElementById("inspectionPhotoBeforeInput").classList.add("d-none");
         document.getElementById("inspectionPhotoAfterInput").classList.add("d-none");
+        // Server-submitted detail is read-only: hide capture controls, keep preview thumbnails.
+        ["btnAddInspectionBeforePhoto", "btnAddInspectionAfterPhoto"].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.classList.add("d-none");
+            const label = button && button.parentElement && button.parentElement.querySelector("label");
+            if (label) label.classList.add("d-none");
+        });
         showInspectionEditorTab("checklist");
         showToast("Detail checklist berhasil dimuat dari server (read-only).", "success");
     } catch (err) {
@@ -5201,7 +5211,12 @@ async function renderInspectionPhotos() {
         const input = document.getElementById(type === "BEFORE" ? "inspectionPhotoBeforeInput" : "inspectionPhotoAfterInput");
         const enabled = type === "BEFORE" ? beforeRequired : (afterRequired && (!beforeRequired || hasBeforePhoto));
         input.disabled = currentInspectionReadOnly || !enabled;
-        document.getElementById(type === "BEFORE" ? "btnAddInspectionBeforePhoto" : "btnAddInspectionAfterPhoto").disabled = input.disabled;
+        const addButton = document.getElementById(type === "BEFORE" ? "btnAddInspectionBeforePhoto" : "btnAddInspectionAfterPhoto");
+        addButton.disabled = input.disabled;
+        // Submitted/read-only inspections retain their gallery, but never offer camera capture.
+        addButton.classList.toggle("d-none", currentInspectionReadOnly);
+        const captureLabel = addButton.parentElement && addButton.parentElement.querySelector("label");
+        if (captureLabel) captureLabel.classList.toggle("d-none", currentInspectionReadOnly);
         document.getElementById(type === "BEFORE" ? "inspectionBeforePhotoCount" : "inspectionAfterPhotoCount").textContent = count + " foto";
     }
 }
@@ -5212,15 +5227,32 @@ async function handleInspectionPhotoListClick(event) {
         await handleInspectionPhotoDelete(event);
         return;
     }
+    const serverPhotoItem = event.target.closest("[data-approval-photo-type][data-server-photo-index]");
+    if (serverPhotoItem) {
+        const type = String(serverPhotoItem.dataset.approvalPhotoType || "").toUpperCase();
+        const photos = serverInspectionPhotoPreview.filter(photo =>
+            String(photo.Type || "").toUpperCase() === type);
+        const index = Number(serverPhotoItem.dataset.serverPhotoIndex);
+        if (["BEFORE", "AFTER"].includes(type) && Number.isInteger(index) && index >= 0 && index < photos.length)
+            openInspectionPhotoViewerFromData(type, photos, index);
+        return;
+    }
     const photoItem = event.target.closest(".inspection-photo-item");
     if (!photoItem) return;
     await openInspectionPhotoViewer(photoItem.dataset.photoType, photoItem.dataset.photoId);
 }
 
 async function openInspectionPhotoViewer(type, photoId) {
-    if (type !== "BEFORE" && type !== "AFTER" || !currentInspectionRecord) return;
+    if (type !== "BEFORE" && type !== "AFTER") return;
+    if (!currentInspectionRecord) {
+        const photos = serverInspectionPhotoPreview.filter(photo =>
+            String(photo.Type || "").toUpperCase() === type);
+        const index = photos.findIndex(photo => String(photo.ID) === String(photoId));
+        if (index >= 0) openInspectionPhotoViewerFromData(type, photos, index);
+        return;
+    }
     const allPhotos = await getCurrentInspectionPhotos();
-    const photos = allPhotos.filter(photo => photo.Type === type);
+    const photos = allPhotos.filter(photo => String(photo.Type || "").toUpperCase() === type);
     const index = photos.findIndex(photo => String(photo.ID) === String(photoId));
     if (index < 0) return;
     openInspectionPhotoViewerFromData(type, photos, index);
