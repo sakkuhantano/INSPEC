@@ -870,7 +870,8 @@
                 if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
                 drawMode = false;
                 board.classList.remove('path-drawing');
-                board.style.cursor = ''; content.style.cursor = '';
+                board.style.removeProperty('cursor'); content.style.removeProperty('cursor');
+                board.style.removeProperty('touch-action'); content.style.removeProperty('touch-action');
                 if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
                     coordinateSpace: 'PERCENT_100',
                     closed: true
