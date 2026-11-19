@@ -6678,10 +6678,12 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                         ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {});
                 } catch (_) { shape = {}; }
                 if (shapeType === "PATH" && String(point.SvgPathData || "").trim()) {
-                    const isOrthogonal = String(shape.renderMode || "").toUpperCase() === "ORTHOGONAL";
+                    const renderMode = String(shape.renderMode || "").toUpperCase();
+                    const isOrthogonal = renderMode === "ORTHOGONAL";
+                    const isHalfCircle = renderMode === "HALF_CIRCLE";
                     const strokeWidth = isOrthogonal ? 3.5 : Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
                     approvalShapeSvg.push('<path d="' + escInspection(point.SvgPathData) +
-                        '" fill="' + (isOrthogonal ? "none" : "rgba(13,110,253,.14)") +
+                        '" fill="' + ((isOrthogonal || isHalfCircle) ? "none" : "rgba(13,110,253,.14)") +
                         '" stroke="#0d6efd" stroke-width="' + strokeWidth +
                         '" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>');
                 } else if (shapeType === "RECTANGLE") {
