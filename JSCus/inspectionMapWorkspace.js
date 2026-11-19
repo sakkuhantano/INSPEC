@@ -705,6 +705,37 @@
         renderTemplateOptionSummary(points);
     }
 
+    function scrollPointListToRow(pointId) {
+        listKeyword = "";
+        var visiblePoints = getVisiblePoints();
+        var pointIndex = visiblePoints.findIndex(function (point) {
+            return String(point.InspectionPointID) === String(pointId);
+        });
+        if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
+
+        switchMapList();
+        renderList();
+
+        var listHost = document.getElementById("inspectionPointList");
+        var row = listHost && listHost.querySelector(
+            '.inspection-point-list-row[data-point-id="' + String(pointId) + '"]'
+        );
+        if (!listHost || !row) return;
+
+        row.classList.add("active", "selected");
+        function scrollSelectedRow() {
+            if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
+            var hostRect = listHost.getBoundingClientRect();
+            var rowRect = row.getBoundingClientRect();
+            var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
+                Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
+            listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+        }
+        window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(scrollSelectedRow);
+        });
+    }
+
     function openPoint(id) {
         selectedPoint = currentPoints.find(function (point) {
             return String(point.InspectionPointID) === String(id);
@@ -756,33 +787,7 @@
         // A marker click dismisses the navigator pulse even if the navigator
         // focus operation is still completing asynchronously.
         removeNavigatorFocusRing(id);
-
-        // Desktop: select and scroll the matching row inside the Point List.
-        listKeyword = "";
-        var visiblePoints = getVisiblePoints();
-        var pointIndex = visiblePoints.findIndex(function (point) {
-            return String(point.InspectionPointID) === String(id);
-        });
-        if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
-        switchMapList();
-        renderList();
-        var listHost = document.getElementById("inspectionPointList");
-        var row = listHost && listHost.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
-        if (listHost && row) {
-            // Scroll the actual overflow container, not the document. Explicit
-            // geometry avoids browser differences with nested scrollIntoView.
-            function scrollSelectedRow() {
-                if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
-                var hostRect = listHost.getBoundingClientRect();
-                var rowRect = row.getBoundingClientRect();
-                var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
-                    Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
-                listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-            }
-            window.requestAnimationFrame(function () {
-                window.requestAnimationFrame(scrollSelectedRow);
-            });
-        }
+        scrollPointListToRow(id);
     }
 
     function closePoint() {
@@ -1432,15 +1437,10 @@
                 pointHost.appendChild(ring);
             }
         }
-        var list = document.getElementById("inspectionPointList");
-        if (list) {
-            list.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (element) {
-                var isTarget = Number(element.getAttribute("data-point-id")) === Number(pointId);
-                element.classList.toggle("selected", isTarget);
-                element.classList.toggle("active", isTarget);
-                if (isTarget) element.style.outline = "none";
-            });
-        }
+        // Navigator selection must also move to the target's actual page in
+        // the paged Point List, then scroll its own overflow container.
+        selectedPoint = point;
+        scrollPointListToRow(pointId);
         return true;
     };
 
