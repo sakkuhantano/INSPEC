@@ -1031,8 +1031,10 @@
                     return;
                 }
                 if (!drawMode || !drawingPath) return;
-                event.preventDefault(); event.stopImmediatePropagation();
+                // Do not cancel pointerup for PATH: the following native click
+                // is what commits each polygon vertex.
                 if (shapeSelect && shapeSelect.value === 'PATH') return;
+                event.preventDefault(); event.stopImmediatePropagation();
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
                     var point = mapPointFromEvent(event);
                     var last = pathPoints[pathPoints.length - 1];
