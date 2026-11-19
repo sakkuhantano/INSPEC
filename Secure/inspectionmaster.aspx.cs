@@ -824,8 +824,8 @@ ORDER BY P.DisplayOrder, P.PointCode",
             }
 
             string extension = Path.GetExtension(url).ToLowerInvariant();
-            bool isJpeg = extension == ".jpg" || extension == ".jpeg";
-            string media = isJpeg
+            bool isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png";
+            string media = isImage
                 ? "<img id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' alt='Inspection floor plan' />"
                 : "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas>";
             litEditorPdfBackground.Text = media + "<div id='inspectionPdfStatus' class='inspection-pdf-status'>Memuat denah...</div>";
