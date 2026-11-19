@@ -748,10 +748,8 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     {
                         paths.Append("<path d='");
                         paths.Append(HttpUtility.HtmlAttributeEncode(d));
-                        string shapeRenderAttributes = Convert.ToString(point["ShapeAttributes"]);
-                        bool isNoFillPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase);
-                        bool isOrthogonalPath = shapeRenderAttributes.IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
-                        paths.Append(isNoFillPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                        bool isOrthogonalPath = Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
+                        paths.Append("' fill='none' stroke='#0d6efd' stroke-width='");
                         paths.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
@@ -1981,10 +1979,8 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 if (String.IsNullOrWhiteSpace(d) || !System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$")) continue;
                 pathSvg.Append("<path class='inspection-coordinate-path' d='");
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(d));
-                string shapeRenderAttributes = Convert.ToString(point["ShapeAttributes"]);
-                bool isNoFillPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase);
-                bool isOrthogonalPath = shapeRenderAttributes.IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
-                pathSvg.Append(isNoFillPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                bool isOrthogonalPath = Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
+                pathSvg.Append("' fill='none' stroke='#0d6efd' stroke-width='");
                 pathSvg.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
                 pathSvg.Append("' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
                 pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
