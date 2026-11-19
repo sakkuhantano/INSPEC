@@ -749,9 +749,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         paths.Append("<path d='");
                         paths.Append(HttpUtility.HtmlAttributeEncode(d));
                         string shapeRenderAttributes = Convert.ToString(point["ShapeAttributes"]);
-                        bool isNoFillPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
-                            (shapeRenderAttributes.IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                             shapeRenderAttributes.IndexOf("\"renderMode\":\"HALF_CIRCLE\"", StringComparison.OrdinalIgnoreCase) >= 0);
+                        bool isNoFillPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase);
                         bool isOrthogonalPath = shapeRenderAttributes.IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
                         paths.Append(isNoFillPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
                         paths.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
