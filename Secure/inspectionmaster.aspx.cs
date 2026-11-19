@@ -683,7 +683,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             string markers = BuildMapPreviewMarkers(Convert.ToInt64(row["MapID"]));
             string media = !hasFloorPlan
                 ? "<div class='alert alert-light border small mb-0'>Floor Plan belum diupload. Inspection Point tetap dapat digunakan tanpa denah.</div>"
-                : (isJpeg
+                : (isImage
                     ? "<img class='inspection-image-preview' alt='Inspection floor plan' src='" + HttpUtility.HtmlAttributeEncode(url) + "' />"
                     : "<canvas id='inspectionMapPreviewCanvas' class='inspection-map-preview-canvas' data-map-url='" + HttpUtility.HtmlAttributeEncode(url) + "' aria-label='Inspection floor plan'></canvas><div id='inspectionMapPreviewStatus' class='inspection-pdf-status'>Memuat denah...</div>");
             litMapPreview.Text = "<div class='inspection-map-preview-toolbar d-flex align-items-center gap-1 mb-2'>" +
