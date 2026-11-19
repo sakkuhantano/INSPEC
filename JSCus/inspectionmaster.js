@@ -775,12 +775,16 @@
                         }
                     }
                     path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke-width', '3.5');
+                    path.setAttribute('stroke-linecap', 'round');
                 } else {
                     d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
                     for (var q = 1; q < points.length; q++)
                         d += ' L ' + points[q].x.toFixed(2) + ' ' + points[q].y.toFixed(2);
                     if (closePath && points.length >= 3) d += ' Z';
                     path.setAttribute('fill', 'rgba(13,110,253,.16)');
+                    path.setAttribute('stroke-width', '0.8');
+                    path.setAttribute('stroke-linecap', 'round');
                 }
                 path.setAttribute('d', d);
             }
