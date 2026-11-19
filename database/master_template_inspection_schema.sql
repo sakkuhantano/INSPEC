@@ -92,6 +92,22 @@ IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'CompanyLocationList') IS NULL
 IF COL_LENGTH('dbo.PIP_M_CheckListWOPM', 'EmployeeList') IS NULL
     ALTER TABLE dbo.PIP_M_CheckListWOPM ADD EmployeeList VARCHAR(8000) NOT NULL CONSTRAINT DF_PIP_M_CheckListWOPM_EmployeeList DEFAULT ('');
   
+/* Item labels must support Unicode comparison symbols such as ≤ and ≥.
+   SQL Server 2008 stores these characters in NVARCHAR, not legacy VARCHAR code pages. */
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.columns C
+    JOIN sys.types T ON T.user_type_id=C.user_type_id
+    WHERE C.object_id=OBJECT_ID('dbo.PIP_M_CheckListWOPM_Item')
+      AND C.name='ItemLabel'
+      AND T.name='varchar'
+)
+BEGIN
+    ALTER TABLE dbo.PIP_M_CheckListWOPM_Item
+    ALTER COLUMN ItemLabel NVARCHAR(500) NULL;
+END;
+
 /* Version-level Remark defaults and per-item default/override switches. */
 DECLARE @RemarkDefaultsAdded BIT = 0;
 DECLARE @Remark1MandatoryAdded BIT = 0;
