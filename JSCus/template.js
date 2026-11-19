@@ -265,9 +265,26 @@ function persistTemplateSessionDraft() {
                 .map(function (element) { return String(element.dataset.sectionId || ""); })
                 .filter(function (sectionId) { return !!cacheSnapshot.sections[sectionId]; })
         };
-        sessionStorage.setItem(getTemplateSessionDraftKey(), JSON.stringify(snapshot));
+        const serialized = JSON.stringify(snapshot);
+        const key = getTemplateSessionDraftKey();
+        let saved = false;
+        try {
+            sessionStorage.setItem(key, serialized);
+            saved = true;
+        } catch (sessionError) {
+            console.warn("Template Builder sessionStorage checkpoint failed:", sessionError);
+        }
+        try {
+            localStorage.setItem(key, serialized);
+            saved = true;
+        } catch (localError) {
+            console.warn("Template Builder localStorage checkpoint failed:", localError);
+        }
+        if (!saved)
+            showToast("Draft belum berhasil disimpan ke browser. Jangan tutup halaman ini; periksa kapasitas/izin penyimpanan browser.", "warning");
     } catch (error) {
-        console.warn("Template Builder local session draft could not be saved:", error);
+        console.warn("Template Builder local session draft could not be serialized:", error);
+        showToast("Draft lokal gagal dibuat. Perubahan masih ada di layar, tetapi belum aman dari kehilangan sesi.", "warning");
     }
 }
 
@@ -307,11 +324,21 @@ function getTemplateSessionContinuationKey() {
 }
 
 function markTemplatePostbackContinuation() {
-    try {
-        sessionStorage.setItem(getTemplateSessionContinuationKey(), String(Date.now()));
-    } catch (error) {
-        console.warn("Template Builder postback continuation marker could not be saved:", error);
-    }
+    const key = getTemplateSessionContinuationKey();
+    const stamp = String(Date.now());
+    try { sessionStorage.setItem(key, stamp); }
+    catch (error) { console.warn("Template Builder session continuation marker failed:", error); }
+    try { localStorage.setItem(key, stamp); }
+    catch (error) { console.warn("Template Builder local continuation marker failed:", error); }
+}
+
+function preserveTemplateDraftForSessionRecovery() {
+    if (!templateCache || !templateCache.Dirty) return;
+    // Save the latest in-memory model before leaving the page, regardless of
+    // whether expiry happened during Save All or an ordinary editor request.
+    persistTemplateSessionDraft();
+    markTemplatePostbackContinuation();
+    templateSessionSaveRecoveryArmed = false;
 }
 
 function armTemplateSaveSessionRecovery() {
@@ -332,11 +359,11 @@ function markTemplateSaveSessionContinuation() {
 }
 
 function clearTemplateSessionContinuation() {
-    try {
-        sessionStorage.removeItem(getTemplateSessionContinuationKey());
-    } catch (error) {
-        console.warn("Template Builder postback continuation marker could not be cleared:", error);
-    }
+    const key = getTemplateSessionContinuationKey();
+    try { sessionStorage.removeItem(key); }
+    catch (error) { console.warn("Template Builder session continuation marker could not be cleared:", error); }
+    try { localStorage.removeItem(key); }
+    catch (error) { console.warn("Template Builder local continuation marker could not be cleared:", error); }
 }
 
 function bindTemplatePostbackContinuation() {
@@ -372,14 +399,18 @@ function bindTemplatePostbackContinuation() {
 
 function clearTemplateSessionDraft(removeAllTemplateDrafts) {
     try {
+        const key = getTemplateSessionDraftKey();
         if (removeAllTemplateDrafts) {
             const prefix = "INSPEC.TemplateBuilder.Draft.v1.";
-            for (let i = sessionStorage.length - 1; i >= 0; i--) {
-                const key = sessionStorage.key(i);
-                if (key && key.indexOf(prefix) === 0) sessionStorage.removeItem(key);
-            }
+            [sessionStorage, localStorage].forEach(function (storage) {
+                for (let i = storage.length - 1; i >= 0; i--) {
+                    const storedKey = storage.key(i);
+                    if (storedKey && storedKey.indexOf(prefix) === 0) storage.removeItem(storedKey);
+                }
+            });
         } else {
-            sessionStorage.removeItem(getTemplateSessionDraftKey());
+            try { sessionStorage.removeItem(key); } catch (_) {}
+            try { localStorage.removeItem(key); } catch (_) {}
         }
         clearTemplateSessionContinuation();
     } catch (error) {
@@ -389,26 +420,35 @@ function clearTemplateSessionDraft(removeAllTemplateDrafts) {
 
 async function restoreTemplateSessionDraft() {
     let snapshot = null;
+    let raw = null;
     try {
-        // A dirty draft may cross an ASP.NET AutoPostBack, but it must never
-        // become a reusable server overwrite after the user leaves Template Builder.
-        // The continuation marker is created only immediately before a postback.
-        const continuation = sessionStorage.getItem(getTemplateSessionContinuationKey());
-        if (!continuation) {
-            sessionStorage.removeItem(getTemplateSessionDraftKey());
+        const continuationKey = getTemplateSessionContinuationKey();
+        const continuation = sessionStorage.getItem(continuationKey) || localStorage.getItem(continuationKey);
+        if (!continuation) return false;
+
+        const draftKey = getTemplateSessionDraftKey();
+        raw = sessionStorage.getItem(draftKey) || localStorage.getItem(draftKey);
+        if (!raw) {
+            console.warn("Template Builder recovery marker exists but no local draft was found.");
             return false;
         }
-        sessionStorage.removeItem(getTemplateSessionContinuationKey());
-
-        const raw = sessionStorage.getItem(getTemplateSessionDraftKey());
-        if (!raw) return false;
         snapshot = JSON.parse(raw);
     } catch (error) {
         console.warn("Template Builder local session draft could not be read:", error);
-        clearTemplateSessionContinuation();
+        showToast("Draft recovery ditemukan tetapi tidak dapat dibaca. Jangan hapus data browser.", "warning");
         return false;
     }
     if (!snapshot || snapshot.version !== 1 || !snapshot.cache || !snapshot.cache.sections) return false;
+
+    const restoreDraft = window.confirm(
+        "Draft Template Builder dari sesi sebelumnya ditemukan (" +
+        new Date(snapshot.savedAt || Date.now()).toLocaleString() +
+        ").\n\nPulihkan semua perubahan yang belum tersimpan?\n\nPilih Cancel untuk menggunakan data terbaru dari server."
+    );
+    if (!restoreDraft) {
+        clearTemplateSessionDraft(false);
+        return false;
+    }
 
     try {
         const savedSections = snapshot.cache.sections || {};
@@ -479,11 +519,13 @@ async function restoreTemplateSessionDraft() {
             if (root && window.bootstrap && bootstrap.Collapse)
                 bootstrap.Collapse.getOrCreateInstance(root, { toggle: false }).show();
         });
+        clearTemplateSessionContinuation();
         showToast("Draft Template lokal dipulihkan. Periksa perubahan lalu tekan Save All Template.", "info");
         return true;
     } catch (error) {
         console.error("Template Builder local draft restore failed:", error);
-        showToast("Draft lokal tersedia, tetapi gagal dipulihkan sepenuhnya. Jangan hapus data browser sebelum diperiksa.", "warning");
+        // Keep both the draft and its continuation marker so recovery can be retried.
+        showToast("Draft lokal tersedia, tetapi gagal dipulihkan sepenuhnya. Draft tetap disimpan untuk dicoba kembali.", "warning");
         return false;
     }
 }
@@ -932,11 +974,9 @@ function redirectToInspecLogin() {
     if (window.__inspecLoginRedirecting) return;
     window.__inspecLoginRedirecting = true;
 
-    // If Save All lost the ASP.NET session, preserve the dirty Template Builder
-    // snapshot across the login page. sessionStorage survives the navigation,
-    // while the continuation marker tells template.aspx that this draft is an
-    // intentional recovery rather than an old draft left behind by normal navigation.
-    markTemplateSaveSessionContinuation();
+    // Any guarded PageMethod can discover an expired session while the user is
+    // editing. Preserve the draft in both browser stores before redirecting.
+    preserveTemplateDraftForSessionRecovery();
 
     // template.aspx is under /Secure; default.aspx is at the application root.
     window.location.replace("../default.aspx");
