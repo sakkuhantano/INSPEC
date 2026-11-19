@@ -429,7 +429,8 @@ async function restoreTemplateSessionDraft() {
         const draftKey = getTemplateSessionDraftKey();
         raw = sessionStorage.getItem(draftKey) || localStorage.getItem(draftKey);
         if (!raw) {
-            console.warn("Template Builder recovery marker exists but no local draft was found.");
+            console.warn("Template Builder recovery marker exists but no local draft was found. Clearing the stale marker.");
+            clearTemplateSessionContinuation();
             return false;
         }
         snapshot = JSON.parse(raw);
@@ -5582,7 +5583,7 @@ function renderVersionStructure(data, isNewTemplate=false)
         data.VersionInfo;
     // render center builder
     isReadonlyMode =
-        data.VersionInfo.Status !== 'Draft';
+        String(data.VersionInfo.Status || '').toLowerCase() !== 'draft';
     renderSections(
         data.Sections || []
     );
@@ -5610,9 +5611,8 @@ function renderVersionStructure(data, isNewTemplate=false)
 }
 function applyVersionReadonlyState(status)
 {
-    const isReadonly =
-        status === 'Active'
-        || status === 'Archived';
+    // Keep button visibility consistent with the same guard used by editor actions.
+    const isReadonly = !!isReadonlyMode;
 
     document
         .querySelectorAll(
