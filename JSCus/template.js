@@ -6500,9 +6500,9 @@ function buildItemHtml(item, section)
                 <div class="item-label-text"
                      data-bs-toggle="tooltip"
                      data-bs-placement="top"
-                    title="${item.ItemName}\nType : ${item.ItemType}${item.ModelCode && item.ModelCode.trim() != "" ? "\nModel : " + item.ModelCode : ""}"
+                    title="${escapeHtml(item.ItemName + "\nType : " + (item.ItemType || "") + (item.ModelCode && item.ModelCode.trim() != "" ? "\nModel : " + item.ModelCode : ""))}"
                      >
-                    ${item.ItemName}
+                    ${escapeHtml(item.ItemName || "")}
                 </div>
 
                 ${modelCaption}
