@@ -1485,12 +1485,12 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
                 !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$") ||
                 (isOrthogonal && System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 1) ||
-                (!isOrthogonal && !isLegacyHalfCircle && (!svgPathData.EndsWith("Z", StringComparison.OrdinalIgnoreCase) ||
-                    System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 2))))
+                (!isOrthogonal && !isLegacyHalfCircle &&
+                    System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 1)))
             {
                 GF.MsgBox(this, isOrthogonal
                     ? "Garis siku belum valid. Pilih Siku / Orthogonal Line, klik minimal 2 titik, lalu double-click untuk selesai."
-                    : "PATH belum valid. Klik minimal 3 titik sudut, lalu double-click untuk menutup poligon.", "BS-5.3.0");
+                    : "PATH belum valid. Klik minimal 2 titik, lalu double-click untuk selesai tanpa garis penutup.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
@@ -1839,7 +1839,7 @@ VALUES
                 // mode from hidden JSON, which can be stale after changing shape modes.
                 var result = new Dictionary<string, object> {
                     { "coordinateSpace", "PERCENT_100" },
-                    { "closed", !isOrthogonal }
+                    { "closed", false }
                 };
                 if (isOrthogonal) result["renderMode"] = "ORTHOGONAL";
                 return new JavaScriptSerializer().Serialize(result);
