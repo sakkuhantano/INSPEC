@@ -657,10 +657,11 @@ document.addEventListener("change", function (event) {
 }, true);
 function persistTemplateSessionDraftBeforePageLeave() {
     if (templateCache && templateCache.Dirty) {
-        // sessionStorage is synchronous, so this snapshot is safe to take during
-        // pagehide/beforeunload. Keep it as a last-resort guard for full postback,
-        // browser navigation, and accidental reload while the editor is dirty.
+        // Persist synchronously and leave a recovery marker. Recovery is always
+        // user-confirmed, so an intentional navigation cannot silently overwrite
+        // newer server data when the editor is opened again.
         persistTemplateSessionDraft();
+        markTemplatePostbackContinuation();
     }
 }
 
