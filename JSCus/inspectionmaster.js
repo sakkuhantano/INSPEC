@@ -868,6 +868,12 @@
                 path.setAttribute('d', d);
             }
             function startPathDrawing() {
+                // A half-circle is placed with a single map click; it is not a
+                // freeform path. Do not silently change its master shape.
+                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') {
+                    pathStatusText('½ Lingkaran tidak memakai Draw SVG Path. Klik denah untuk menempatkan busur, lalu pilih arah.');
+                    return;
+                }
                 recordPathEditorAction();
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = [];
