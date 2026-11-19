@@ -591,43 +591,59 @@
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
-            function makeHalfCirclePath(cx, cy, direction) {
+            function makeHalfCirclePath(start, end, direction) {
                 var rect = content.getBoundingClientRect();
-                var rx = 3.0;
-                var ry = rect.width > 0 && rect.height > 0 ? rx * rect.width / rect.height : rx;
-                var horizontal = /^(LEFT|RIGHT)$/.test(String(direction || 'UP').toUpperCase());
-                var marginX = (horizontal ? ry : rx) + 0.2;
-                var marginY = (horizontal ? rx : ry) + 0.2;
-                cx = Math.max(marginX, Math.min(100 - marginX, Number(cx)));
-                cy = Math.max(marginY, Math.min(100 - marginY, Number(cy)));
+                if (!rect.width || !rect.height || !start || !end) return null;
+                var sx = start.x * rect.width / 100, sy = start.y * rect.height / 100;
+                var ex = end.x * rect.width / 100, ey = end.y * rect.height / 100;
+                var vx = (ex - sx) / 2, vy = (ey - sy) / 2;
+                var radius = Math.sqrt(vx * vx + vy * vy);
+                if (radius < 2) return null;
+                var cx = (sx + ex) / 2, cy = (sy + ey) / 2;
+                var nx = -vy, ny = vx;
+                var side = String(direction || 'UP').toUpperCase();
+                var score = side === 'DOWN' ? ny : side === 'LEFT' ? -nx : side === 'RIGHT' ? nx : -ny;
+                var sign = score >= 0 ? 1 : -1;
                 var points = [];
-                for (var i = 0; i <= 20; i++) {
-                    var angle = Math.PI + (Math.PI * i / 20);
-                    var u = rx * Math.cos(angle), v = ry * Math.sin(angle);
-                    var x, y;
-                    switch (String(direction || 'UP').toUpperCase()) {
-                        case 'DOWN': x = u; y = -v; break;
-                        case 'LEFT': x = v; y = u; break;
-                        case 'RIGHT': x = -v; y = u; break;
-                        default: x = u; y = v; break;
-                    }
-                    points.push({ x: cx + x, y: cy + y });
+                for (var i = 0; i <= 32; i++) {
+                    var angle = Math.PI * i / 32;
+                    var px = cx + vx * Math.cos(angle) + sign * nx * Math.sin(angle);
+                    var py = cy + vy * Math.cos(angle) + sign * ny * Math.sin(angle);
+                    points.push({ x: px * 100 / rect.width, y: py * 100 / rect.height });
                 }
                 var d = 'M ' + points[0].x.toFixed(3) + ' ' + points[0].y.toFixed(3);
                 for (var j = 1; j < points.length; j++)
                     d += ' L ' + points[j].x.toFixed(3) + ' ' + points[j].y.toFixed(3);
-                return { d: d, x: cx, y: cy, radiusX: rx, radiusY: ry };
+                return {
+                    d: d,
+                    x: ((start.x + end.x) / 2),
+                    y: ((start.y + end.y) / 2),
+                    radiusX: Math.abs(vx) * 100 / rect.width,
+                    radiusY: Math.abs(vy) * 100 / rect.height,
+                    start: start,
+                    end: end
+                };
             }
-            function placeHalfCircle(x, y) {
-                if (!pathField || !shapeAttributesField) return;
+            function placeHalfCircle(start, end, previewOnly) {
+                if (!pathField || !shapeAttributesField) return false;
                 var direction = halfCircleDirection ? halfCircleDirection.value : 'UP';
-                var geometry = makeHalfCirclePath(x, y, direction);
+                var geometry = makeHalfCirclePath(start, end, direction);
+                if (!geometry) return false;
+                var preview = ensurePathPreview();
+                preview.setAttribute('fill', 'none');
+                preview.setAttribute('stroke-width', '1.5');
+                preview.setAttribute('stroke-linecap', 'round');
+                preview.setAttribute('d', geometry.d);
+                if (previewOnly) return true;
+                recordPathEditorAction();
                 pathField.value = geometry.d;
                 markerX.value = geometry.x.toFixed(2);
                 markerY.value = geometry.y.toFixed(2);
                 shapeAttributesField.value = JSON.stringify({
                     coordinateSpace: 'PERCENT_100', closed: false,
                     renderMode: 'HALF_CIRCLE', direction: direction,
+                    startX: Number(start.x.toFixed(3)), startY: Number(start.y.toFixed(3)),
+                    endX: Number(end.x.toFixed(3)), endY: Number(end.y.toFixed(3)),
                     radiusX: geometry.radiusX, radiusY: geometry.radiusY
                 });
                 var activeHalfCircleId = document.getElementById('hidPointID');
@@ -636,11 +652,8 @@
                     var previousHalfCircle = existingHalfCircleSvg.querySelector('.inspection-coordinate-path[data-point-id="' + activeHalfCircleId.value + '"]');
                     if (previousHalfCircle) previousHalfCircle.style.display = 'none';
                 }
-                var preview = ensurePathPreview();
-                preview.setAttribute('fill', 'none');
-                preview.setAttribute('stroke-width', '1.5');
-                preview.setAttribute('d', geometry.d);
-                pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '.');
+                pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '. Klik denah dua titik lagi untuk mengubah ukurannya.');
+                return true;
             }
             function refreshHalfCircleDirection() {
                 if (!shapeSelect || !halfCircleDirection) return;
@@ -648,9 +661,13 @@
                 // request to switch the master shape to PATH/Freeform.
                 shapeSelect.value = 'HALF_CIRCLE';
                 if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
-                if (!markerX || !markerY || markerX.value === '' || markerY.value === '') return;
+                if (!shapeAttributesField || !shapeAttributesField.value) return;
+                var attrs;
+                try { attrs = JSON.parse(shapeAttributesField.value); } catch (_) { return; }
+                if (attrs.renderMode !== 'HALF_CIRCLE' || attrs.startX == null || attrs.endX == null) return;
                 recordPathEditorAction();
-                placeHalfCircle(Number(markerX.value), Number(markerY.value));
+                placeHalfCircle({ x: Number(attrs.startX), y: Number(attrs.startY) },
+                    { x: Number(attrs.endX), y: Number(attrs.endY) }, false);
             }
             if (halfCircleDirection) halfCircleDirection.addEventListener('change', function (event) {
                 event.stopPropagation();
@@ -751,6 +768,7 @@
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
+            var halfCircleStart = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
             if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
                 shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '' : 'none';
@@ -1016,7 +1034,7 @@
                 if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
                     this.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
+                    drawMode = false; drawingPath = false; halfCircleStart = null; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     var activeId = document.getElementById('hidPointID');
@@ -1039,7 +1057,7 @@
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
                 } else if (this.value === 'HALF_CIRCLE') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    drawMode = false; drawingPath = false; halfCircleStart = null; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = '{}';
@@ -1050,7 +1068,9 @@
                         if (previousHalfCircle) previousHalfCircle.style.display = 'none';
                     }
                     if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
-                    pathStatusText('½ Lingkaran: pilih arah, lalu klik satu kali pada denah untuk menempatkannya.');
+                    board.style.setProperty('cursor', 'crosshair', 'important');
+                    content.style.setProperty('cursor', 'crosshair', 'important');
+                    pathStatusText('½ Lingkaran: klik titik awal diameter, gerakkan mouse untuk preview, lalu klik titik akhir.');
                 } else {
                     // PATH is always a closed Freeform area. Clear the previous
                     // geometry and metadata when switching modes; the user must draw
@@ -1064,6 +1084,25 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
+                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' && event.button === 0 &&
+                    !(event.target.closest && event.target.closest('.inspection-map-toolbar-floating, .inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    suppressNextClick = true;
+                    var halfCirclePoint = mapPointFromEvent(event);
+                    if (!halfCircleStart) {
+                        recordPathEditorAction();
+                        halfCircleStart = halfCirclePoint;
+                        if (pathPreview) pathPreview.setAttribute('d', '');
+                        pathStatusText('Titik awal dipilih. Gerakkan mouse, lalu klik titik akhir untuk menentukan diameter.');
+                    } else {
+                        if (placeHalfCircle(halfCircleStart, halfCirclePoint, false)) {
+                            halfCircleStart = null;
+                        } else {
+                            pathStatusText('Diameter terlalu kecil. Klik titik akhir yang lebih jauh.');
+                        }
+                    }
+                    return;
+                }
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1094,6 +1133,12 @@
                 try { board.setPointerCapture(event.pointerId); } catch (_) { }
             }, true);
             board.addEventListener('pointermove', function (event) {
+                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' && halfCircleStart) {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    placeHalfCircle(halfCircleStart, mapPointFromEvent(event), true);
+                    return;
+                }
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     updateRectanglePreview(mapPointFromEvent(event));
@@ -1215,8 +1260,8 @@
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
                 if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') {
-                    placeHalfCircle(x, y);
-                    x = Number(markerX.value); y = Number(markerY.value);
+                    event.preventDefault();
+                    return;
                 } else if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
