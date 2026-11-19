@@ -171,7 +171,17 @@
                                                     <asp:ListItem Value="PATH">Freeform SVG Area</asp:ListItem>
                                                     <asp:ListItem Value="RECTANGLE">Rectangle Area</asp:ListItem>
                                                     <asp:ListItem Value="ORTHOGONAL">Siku / Orthogonal Line</asp:ListItem>
+                                                    <asp:ListItem Value="HALF_CIRCLE">½ Lingkaran</asp:ListItem>
                                                 </asp:DropDownList>
+                                                <div id="halfCircleDirectionWrap" class="mt-2" style="display:none;">
+                                                    <label class="small fw-semibold">Arah ½ Lingkaran</label>
+                                                    <asp:DropDownList ID="ddlHalfCircleDirection" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm">
+                                                        <asp:ListItem Value="UP">Menghadap atas</asp:ListItem>
+                                                        <asp:ListItem Value="DOWN">Menghadap bawah</asp:ListItem>
+                                                        <asp:ListItem Value="LEFT">Menghadap kiri</asp:ListItem>
+                                                        <asp:ListItem Value="RIGHT">Menghadap kanan</asp:ListItem>
+                                                    </asp:DropDownList>
+                                                </div>
                                             </div>
                                             <div class="col-12 col-md d-flex flex-wrap gap-1 align-items-end">
                                                 <button type="button" id="btnStartPathDraw" class="btn btn-sm btn-outline-primary">Draw SVG Path</button>
