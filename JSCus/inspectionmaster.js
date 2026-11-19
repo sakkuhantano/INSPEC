@@ -64,7 +64,7 @@
         if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
         inspectionDraftObjectUrl = URL.createObjectURL(blob);
         var old = document.getElementById('inspectionPdfCanvas');
-        if (extension === 'jpg' || extension === 'jpeg' || (blob.type || '').toLowerCase() === 'image/jpeg') {
+        if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || (blob.type || '').toLowerCase().indexOf('image/') === 0) {
             var img = old && old.tagName === 'IMG' ? old : document.createElement('img');
             img.id = 'inspectionPdfCanvas';
             img.className = 'inspection-coordinate-pdf';
