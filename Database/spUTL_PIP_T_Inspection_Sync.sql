@@ -36,6 +36,10 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    SET @p_InspectionMode=UPPER(LTRIM(RTRIM(ISNULL(NULLIF(@p_InspectionMode,''),'STANDARD'))));
+    IF @p_InspectionMode NOT IN ('STANDARD','BATCH','LIGHTNING')
+    BEGIN RAISERROR('Invalid InspectionMode for canonical inspection sync.',16,1); RETURN; END;
+
     SET @p_ScheduledTime = ISNULL(@p_ScheduledTime, '');
     SET @p_StartDateTime = ISNULL(@p_StartDateTime, CONVERT(DATETIME,'19000101',112));
     SET @p_EndDateTime = ISNULL(@p_EndDateTime, CONVERT(DATETIME,'19000101',112));
@@ -482,7 +486,7 @@ BEGIN
             UPDATE dbo.PIP_T_Inspection
             SET InspectionNo=CASE WHEN ISNULL(@p_InspectionNo,'')<>'' THEN @p_InspectionNo ELSE InspectionNo END,
                 CompanyID=@p_CompanyID, LocationID=@p_LocationID, SectionID=@p_SectionID,
-                InspectionTypeCode=@p_InspectionTypeCode, InspectionTypeName=@V_InspectionTypeName,
+                InspectionTypeCode=@p_InspectionTypeCode, InspectionMode=@p_InspectionMode, InspectionTypeName=@V_InspectionTypeName,
                 InspectionTypeDetailCode=@p_InspectionTypeDetailCode,
                 InspectionTypeDetailName=@V_InspectionTypeDetailName, ScheduledTime=@p_ScheduledTime,
                 IDTemplate=@p_IDTemplate, IDVersion=@p_IDVersion, TemplateNo=@p_TemplateNo,
@@ -522,7 +526,7 @@ BEGIN
             INSERT dbo.PIP_T_Inspection
             (
                 InspectionID, ClientInspectionID, InspectionNo, CompanyID, LocationID, SectionID,
-                InspectionTypeCode, InspectionTypeName, InspectionTypeDetailCode,
+                InspectionTypeCode, InspectionMode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
                 StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
@@ -532,7 +536,7 @@ BEGIN
             VALUES
             (
                 @V_InspectionID, @p_ClientInspectionID, @V_InspectionNo, @p_CompanyID, @p_LocationID, @p_SectionID,
-                @p_InspectionTypeCode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
+                @p_InspectionTypeCode, @p_InspectionMode, @V_InspectionTypeName, @p_InspectionTypeDetailCode,
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
@@ -595,6 +599,14 @@ BEGIN
         SELECT P.NewInspectionPhotoID, @V_InspectionID, ISNULL(P.C1,''), ISNULL(P.C2,''), ISNULL(P.C3,''),
                CAST(ISNULL(NULLIF(P.C4,''),'0') AS INT), @p_UpdateUser, GETDATE()
         FROM PhotoRows P;
+
+        IF @p_Status='DONE' AND @p_InspectionMode='STANDARD'
+        BEGIN
+            EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
+                @p_InspectionID=@V_InspectionID,
+                @p_ActorEmployeeID=@p_UpdateUser,
+                @p_ApprovalUrl=@p_ApprovalUrl;
+        END;
 
         SELECT @V_InspectionID AS InspectionID,
                @p_ClientInspectionID AS ClientInspectionID,
