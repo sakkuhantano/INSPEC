@@ -1575,7 +1575,7 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 return;
             }
 
-            string shapeAttributes = BuildPointShapeAttributes(shapeType, coordinateX, coordinateY, hidShapeAttributes.Value);
+            string shapeAttributes = BuildPointShapeAttributes(shapeType, coordinateX, coordinateY, hidShapeAttributes.Value, isOrthogonal);
             hidShapeAttributes.Value = shapeAttributes;
 
             object mapValue = mapID;
@@ -1822,25 +1822,12 @@ VALUES
                     CultureInfo.InvariantCulture, out parsed) ? parsed : fallback;
         }
 
-        private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson)
+        private string BuildPointShapeAttributes(string shapeType, decimal? coordinateX, decimal? coordinateY, string existingJson, bool isOrthogonal)
         {
             if (shapeType == "PATH")
             {
-                // Preserve the drawing mode supplied by the editor. Orthogonal
-                // paths are open polylines; marking them as closed/freeform causes
-                // SVG to fill the implicit closing edge and makes them look like triangles.
-                Dictionary<string, object> pathAttributes = null;
-                try
-                {
-                    pathAttributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}");
-                }
-                catch { pathAttributes = null; }
-
-                object renderModeValue;
-                bool isOrthogonal = pathAttributes != null &&
-                    pathAttributes.TryGetValue("renderMode", out renderModeValue) &&
-                    String.Equals(Convert.ToString(renderModeValue), "ORTHOGONAL", StringComparison.OrdinalIgnoreCase);
-
+                // The selected server-side shape is authoritative. Do not infer the
+                // mode from hidden JSON, which can be stale after changing Freeform/Siku.
                 var result = new Dictionary<string, object> {
                     { "coordinateSpace", "PERCENT_100" },
                     { "closed", !isOrthogonal }
