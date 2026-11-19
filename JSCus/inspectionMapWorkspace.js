@@ -287,12 +287,15 @@
         return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
     }
 
-    function removeNavigatorFocusRing() {
+    function removeNavigatorFocusRing(pointId) {
+        if (pointId !== undefined && pointId !== null)
+            navigatorFocusDismissedPointId = String(pointId);
         var pointHost = document.getElementById("inspectionMapPoints");
         if (!pointHost) return;
         var ring = pointHost.querySelector(".inspection-map-navigator-focus-ring");
         if (ring) {
-            navigatorFocusDismissedPointId = String(ring.getAttribute("data-navigator-target") || "");
+            if (pointId === undefined || pointId === null)
+                navigatorFocusDismissedPointId = String(ring.getAttribute("data-navigator-target") || "");
             ring.remove();
         }
     }
@@ -306,7 +309,7 @@
             host.addEventListener("click", function (event) {
                 var marker = event.target && event.target.closest
                     ? event.target.closest("[data-point-id]") : null;
-                if (marker) removeNavigatorFocusRing();
+                if (marker) removeNavigatorFocusRing(marker.getAttribute("data-point-id"));
             }, true);
             host.setAttribute("data-navigator-dismiss-wired", "1");
         }
@@ -385,7 +388,7 @@
             shape.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                removeNavigatorFocusRing();
+                removeNavigatorFocusRing(shape.getAttribute("data-point-id"));
                 openPoint(shape.getAttribute("data-point-id"));
             });
             shape.addEventListener("keydown", function (event) {
@@ -752,7 +755,7 @@
 
         // A marker click dismisses the navigator pulse even if the navigator
         // focus operation is still completing asynchronously.
-        removeNavigatorFocusRing();
+        removeNavigatorFocusRing(id);
 
         // Desktop: select and scroll the matching row inside the Point List.
         listKeyword = "";
