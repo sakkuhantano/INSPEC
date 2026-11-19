@@ -675,7 +675,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
         {
             string url = ResolveMapPdfUrl(Convert.ToString(row["ImagePath"]));
             string extension = Path.GetExtension(url).ToLowerInvariant();
-            bool isJpeg = extension == ".jpg" || extension == ".jpeg";
+            bool isImage = extension == ".jpg" || extension == ".jpeg" || extension == ".png";
             bool hasFloorPlan = !String.IsNullOrWhiteSpace(url);
             lblMapPreviewTitle.Text = Convert.ToString(row["MapCode"]) + " - " + Convert.ToString(row["MapName"]) + " (v" + Convert.ToString(row["MapVersion"]) + ")";
             lnkMapPdf.NavigateUrl = url;
@@ -812,7 +812,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                 if (String.IsNullOrWhiteSpace(ddlEditorMap.SelectedValue))
                 {
                     // New Map draft: the browser restores its IndexedDB Blob here.
-                    litEditorPdfBackground.Text = "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='' aria-label='Inspection floor plan'></canvas><div id='inspectionPdfStatus' class='inspection-pdf-status'>Pilih PDF/JPG denah untuk menampilkan background.</div>";
+                    litEditorPdfBackground.Text = "<canvas id='inspectionPdfCanvas' class='inspection-coordinate-pdf' data-map-url='' aria-label='Inspection floor plan'></canvas><div id='inspectionPdfStatus' class='inspection-pdf-status'>Pilih PDF/JPG/PNG denah untuk menampilkan background.</div>";
                 }
                 else
                 {
@@ -1105,7 +1105,7 @@ SELECT @MapGroupID AS MapGroupID;",
 
         private string SaveMapFile(FileUpload upload)
         {
-            if (upload == null || !upload.HasFile) throw new Exception("Silakan pilih file PDF atau JPG/JPEG denah.");
+            if (upload == null || !upload.HasFile) throw new Exception("Silakan pilih file PDF, JPG/JPEG, atau PNG denah.");
             if (upload.PostedFile.ContentLength <= 0 || upload.PostedFile.ContentLength > _MaxPdfBytes)
                 throw new Exception("Ukuran file denah harus lebih dari 0 dan maksimal 50 MB.");
             string extension = Path.GetExtension(upload.FileName).ToLowerInvariant();
@@ -1114,7 +1114,8 @@ SELECT @MapGroupID AS MapGroupID;",
             int read = upload.PostedFile.InputStream.Read(signature, 0, signature.Length);
             bool pdf = extension == ".pdf" && read >= 5 && System.Text.Encoding.ASCII.GetString(signature, 0, 5) == "%PDF-";
             bool jpg = (extension == ".jpg" || extension == ".jpeg") && read >= 3 && signature[0] == 0xFF && signature[1] == 0xD8 && signature[2] == 0xFF;
-            if (!pdf && !jpg) throw new Exception("Format denah tidak valid. Gunakan PDF atau JPG/JPEG yang valid.");
+            bool png = extension == ".png" && read >= 8 && signature[0] == 0x89 && signature[1] == 0x50 && signature[2] == 0x4E && signature[3] == 0x47 && signature[4] == 0x0D && signature[5] == 0x0A && signature[6] == 0x1A && signature[7] == 0x0A;
+            if (!pdf && !jpg && !png) throw new Exception("Format denah tidak valid. Gunakan PDF, JPG/JPEG, atau PNG yang valid.");
             string webFolder = PB.Path_WebFolder1;
             if (String.IsNullOrWhiteSpace(webFolder)) throw new Exception("PB.Path_WebFolder1 is empty; Inspection map storage root is not configured.");
             string relativeFolder = Path.Combine(GetInspectionMapRoot(), "PIP_M_InspectionMap", SafePathPart(Master.Mn_CompanyID) + "_" + SafePathPart(Master.Mn_LocationID));
@@ -1159,7 +1160,8 @@ SELECT @MapGroupID AS MapGroupID;",
                 string extension = Path.GetExtension(fileName);
                 if (!(extension.Equals(".pdf", StringComparison.OrdinalIgnoreCase) ||
                       extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                      extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)) ||
+                      extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                      extension.Equals(".png", StringComparison.OrdinalIgnoreCase)) ||
                     !Guid.TryParseExact(Path.GetFileNameWithoutExtension(fileName), "N", out fileID))
                     return;
 
