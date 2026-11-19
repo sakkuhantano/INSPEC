@@ -127,6 +127,44 @@ function applyLatestInspectionGps(record) {
         record.GPSCapturedAt = inspectionLatestGps.GPSCapturedAt;
     }
 }
+
+async function ensureInspectionGpsBeforeSubmit(record) {
+    if (!record || currentInspectionReadOnly || !navigator.geolocation) return false;
+
+    if (inspectionLatestGps) {
+        applyLatestInspectionGps(record);
+        return true;
+    }
+
+    // The user can complete the whole checklist and press Submit before
+    // watchPosition() has delivered its first fix. Request one synchronously
+    // from the Submit flow so GPS is not lost just because the user was fast.
+    try {
+        const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                maximumAge: 0,
+                timeout: 8000
+            });
+        });
+
+        if (!position || !position.coords) return false;
+
+        inspectionLatestGps = {
+            GPSLatitude: Number(position.coords.latitude),
+            GPSLongitude: Number(position.coords.longitude),
+            GPSAccuracy: Number(position.coords.accuracy),
+            GPSCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
+        };
+        applyLatestInspectionGps(record);
+        return true;
+    } catch (error) {
+        // GPS is audit metadata only. Submit must remain possible when the
+        // browser/device cannot provide a fix.
+        console.warn("Inspection GPS unavailable at submit:", error && error.message ? error.message : error);
+        return false;
+    }
+}
 function getInspectionTemplateDetailCodes(template) {
     return String(template && template.InspectionTypeDetailCode || "")
         .split(";")
@@ -3779,6 +3817,7 @@ window.submitInspectionBatch = async function () {
     });
     if (!confirmed) return;
 
+    await ensureInspectionGpsBeforeSubmit(record);
     applyLatestInspectionGps(record);
     record.Items = [];
     record.Summary = summary;
@@ -3887,6 +3926,7 @@ async function saveInspection(status) {
         if (!confirmed) return;
     }
 
+    await ensureInspectionGpsBeforeSubmit(currentInspectionRecord);
     applyLatestInspectionGps(currentInspectionRecord);
     currentInspectionRecord.Items = items;
     currentInspectionRecord.Summary = document.getElementById("txtInspectionSummary").value.trim();
