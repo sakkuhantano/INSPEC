@@ -307,7 +307,8 @@ function wireInspectionEvents() {
         onInspectionDetailChanged();
         updateInspectionParameterTabGate();
     });
-    document.getElementById("txtInspectionDetailSearch").addEventListener("input", applyInspectionDetailSearch);
+    const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
+    if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
         updateStartButton();
         refreshInspectionScheduleOptions();
