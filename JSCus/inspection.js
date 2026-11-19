@@ -6667,9 +6667,31 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
             stage.style.aspectRatio = width + " / " + height;
             const mapPoints = visiblePoints().filter(point =>
                 Number(point.MapID) === Number(map.MapID) && point.MapX != null && point.MapY != null);
-            overlay.innerHTML = mapPoints.map(point => {
+            const approvalShapeSvg = [];
+            const pointButtons = mapPoints.map(point => {
                 const x = Math.max(0, Math.min(100, Number(point.MapX) || 0));
                 const y = Math.max(0, Math.min(100, Number(point.MapY) || 0));
+                const shapeType = String(point.ShapeType || "CIRCLE").toUpperCase();
+                let shape = {};
+                try {
+                    shape = typeof point.ShapeAttributes === "string"
+                        ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {});
+                } catch (_) { shape = {}; }
+                if (shapeType === "PATH" && String(point.SvgPathData || "").trim()) {
+                    const isOrthogonal = String(shape.renderMode || "").toUpperCase() === "ORTHOGONAL";
+                    const strokeWidth = isOrthogonal ? 3.5 : Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
+                    approvalShapeSvg.push('<path d="' + escInspection(point.SvgPathData) +
+                        '" fill="' + (isOrthogonal ? "none" : "rgba(13,110,253,.14)") +
+                        '" stroke="#0d6efd" stroke-width="' + strokeWidth +
+                        '" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>');
+                } else if (shapeType === "RECTANGLE") {
+                    const width = Math.max(0.2, Math.min(100, Number(shape.width || shape.w || 3)));
+                    const height = Math.max(0.2, Math.min(100, Number(shape.height || shape.h || 3)));
+                    const left = Math.max(0, Math.min(100 - width, Number.isFinite(Number(shape.x)) ? Number(shape.x) : x - width / 2));
+                    const top = Math.max(0, Math.min(100 - height, Number.isFinite(Number(shape.y)) ? Number(shape.y) : y - height / 2));
+                    approvalShapeSvg.push('<rect x="' + left + '" y="' + top + '" width="' + width +
+                        '" height="' + height + '" fill="rgba(13,110,253,.14)" stroke="#0d6efd" stroke-width="1.5" vector-effect="non-scaling-stroke"></rect>');
+                }
                 const conditionRequired = isInspectionFlagEnabled(point && point.IsNormalAbnormalRequired, false);
                 const pointHasAbnormalItem = conditionRequired && Array.isArray(point.Items) && point.Items.some(item =>
                     item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
@@ -6677,8 +6699,16 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
                     String(point.Status || "").toUpperCase() === "ABNORMAL" ||
                     String(point.AbnormalRemark || "").trim() || pointHasAbnormalItem)
                     ? "abnormal" : String(point.Status || "PENDING").toLowerCase();
-                return '<button type="button" class="inspection-map-point ' + visualStatus + '" style="left:' + x + '%;top:' + y + '%" data-approval-point-target="' + escInspection(point.InspectionPointTransactionID) + '" title="' + escInspection(point.PointCode + " - " + point.PointName) + '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' + escInspection(point.PointCode) + '</span></button>';
+                return '<button type="button" class="inspection-map-point ' + visualStatus +
+                    '" style="left:' + x + '%;top:' + y + '%;z-index:1" data-approval-point-target="' +
+                    escInspection(point.InspectionPointTransactionID) + '" title="' +
+                    escInspection(point.PointCode + " - " + point.PointName) +
+                    '"><span class="inspection-map-point-dot"></span><span class="inspection-map-point-label">' +
+                    escInspection(point.PointCode) + '</span></button>';
             }).join("");
+            overlay.innerHTML = '<svg class="inspection-approval-map-shapes" viewBox="0 0 100 100" preserveAspectRatio="none" ' +
+                'style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" aria-hidden="true">' +
+                approvalShapeSvg.join("") + '</svg>' + pointButtons;
             overlay.querySelectorAll("[data-approval-point-target]").forEach(button => button.addEventListener("click", function () {
                 selectedPointId = String(this.dataset.approvalPointTarget || "");
                 if (typeof window.renderInspectionApprovalSelectedPoint === "function")
