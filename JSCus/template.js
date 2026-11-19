@@ -279,6 +279,29 @@ function scheduleTemplateSessionDraftSave() {
     }, 180);
 }
 
+// Periodic safety checkpoint: only serialize when there are unsaved changes.
+// The short debounce above remains the primary save; this catches edits made
+// through controls that do not emit the usual input/change events.
+const TEMPLATE_SESSION_AUTOSAVE_INTERVAL_MS = 60 * 1000;
+let templateSessionAutosaveTimer = null;
+
+function runTemplateSessionAutosave() {
+    if (!templateCache || !templateCache.Dirty) return;
+    persistTemplateSessionDraft();
+}
+
+function startTemplateSessionAutosave() {
+    if (templateSessionAutosaveTimer) return;
+    templateSessionAutosaveTimer = setInterval(
+        runTemplateSessionAutosave,
+        TEMPLATE_SESSION_AUTOSAVE_INTERVAL_MS
+    );
+}
+
+// Start once the editor script is loaded. The timer never calls the server;
+// it only checkpoints the dirty draft into browser sessionStorage.
+startTemplateSessionAutosave();
+
 function getTemplateSessionContinuationKey() {
     return getTemplateSessionDraftKey() + ".continuation";
 }
