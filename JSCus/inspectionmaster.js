@@ -888,8 +888,10 @@
                 }
                 renderPathPreview(false);
                 board.classList.add('path-drawing');
-                board.style.cursor = 'crosshair';
-                content.style.cursor = 'crosshair';
+                board.style.setProperty('cursor', 'crosshair', 'important');
+                content.style.setProperty('cursor', 'crosshair', 'important');
+                board.style.setProperty('touch-action', 'none', 'important');
+                content.style.setProperty('touch-action', 'none', 'important');
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL')
                     pathStatusText('Siku aktif: klik titik demi titik untuk membuat segmen 90°. Double-click untuk selesai.');
                 else
@@ -923,7 +925,7 @@
                     if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
                     drawMode = false;
                     board.classList.remove('path-drawing');
-                    board.style.cursor = ''; content.style.cursor = '';
+                    board.style.removeProperty('cursor'); content.style.removeProperty('cursor'); board.style.removeProperty('touch-action'); content.style.removeProperty('touch-action');
                     pathStatusText('Garis siku siap disimpan. Save Inspection Point untuk menyimpan jalur ini.');
                     return;
                 }
@@ -1061,6 +1063,76 @@
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
                 }
             });
+            // Capture drawing gestures at document level before the map's pan handlers.
+            // This prevents any board-level drag-to-pan handler from taking ownership.
+            document.addEventListener('pointerdown', function (event) {
+                if (!drawMode || !board.contains(event.target)) return;
+                if (event.target.closest && event.target.closest('.inspection-map-toolbar-floating')) return;
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    if (!drawingPath) {
+                        drawingPath = true;
+                        pathPoints = [mapPointFromEvent(event)];
+                        orthogonalDrawing = true;
+                        orthogonalPreviewPoint = null;
+                        renderPathPreview(false);
+                    }
+                    suppressNextClick = true;
+                    return;
+                }
+                drawingPath = true;
+                suppressNextClick = true;
+                pathPoints = [mapPointFromEvent(event)];
+                renderPathPreview(false);
+            }, true);
+            document.addEventListener('pointermove', function (event) {
+                if (!drawMode || !drawingPath || !board.contains(event.target)) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    orthogonalPreviewPoint = mapPointFromEvent(event);
+                    renderPathPreview(false, orthogonalPreviewPoint);
+                    return;
+                }
+                var next = mapPointFromEvent(event), last = pathPoints[pathPoints.length - 1];
+                if (last) {
+                    var dx = next.x - last.x, dy = next.y - last.y;
+                    if (Math.sqrt(dx * dx + dy * dy) >= 0.25) {
+                        pathPoints.push(next);
+                        renderPathPreview(false);
+                    }
+                }
+            }, true);
+            document.addEventListener('pointerup', function (event) {
+                if (!drawMode || !drawingPath || !board.contains(event.target)) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    var point = mapPointFromEvent(event);
+                    var last = pathPoints[pathPoints.length - 1];
+                    var distance = last ? Math.hypot(point.x - last.x, point.y - last.y) : 0;
+                    if (distance >= 0.5) {
+                        pathPoints.push(point);
+                        orthogonalPreviewPoint = null;
+                        renderPathPreview(false);
+                    }
+                    return;
+                }
+                finishPathDrawing();
+            }, true);
+            document.addEventListener('pointercancel', function (event) {
+                if (!drawMode || !drawingPath || !board.contains(event.target)) return;
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                drawingPath = false;
+                orthogonalDrawing = false;
+                orthogonalPreviewPoint = null;
+                pathPoints = [];
+                suppressNextClick = false;
+                renderPathPreview(false);
+            }, true);
             board.addEventListener('pointerdown', function (event) {
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
