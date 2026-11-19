@@ -535,6 +535,9 @@
                 }
             }
             function applyView() {
+                // Keep the zoom pivot at the real center of the fitted floor-plan content.
+                // Pan is then measured relative to that center instead of its top-left corner.
+                content.style.transformOrigin = '50% 50%';
                 content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
                 var vectorSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (vectorSvg && content.clientWidth && content.clientHeight) {
@@ -552,12 +555,21 @@
             function setZoom(next, centerX, centerY) {
                 next = Math.max(1, Math.min(5, next));
                 if (next === zoom) return;
+
+                // The floor plan is centered inside the board and the content
+                // transform now uses its center as the transform origin. Keep the
+                // zoom anchor relative to the board center so button/wheel zoom
+                // never makes the map drift to the left/top.
                 var rect = board.getBoundingClientRect();
-                var cx = centerX == null ? rect.width / 2 : centerX;
-                var cy = centerY == null ? rect.height / 2 : centerY;
+                var boardCenterX = rect.width / 2;
+                var boardCenterY = rect.height / 2;
+                var cx = centerX == null ? boardCenterX : centerX;
+                var cy = centerY == null ? boardCenterY : centerY;
                 var ratio = next / zoom;
-                panX = cx - (cx - panX) * ratio;
-                panY = cy - (cy - panY) * ratio;
+
+                panX = cx - boardCenterX - (cx - boardCenterX - panX) * ratio;
+                panY = cy - boardCenterY - (cy - boardCenterY - panY) * ratio;
+
                 zoom = next;
                 inspectionCoordinateZoom = zoom;
                 if (zoom === 1) { panX = 0; panY = 0; }
