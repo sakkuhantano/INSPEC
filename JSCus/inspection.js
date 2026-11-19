@@ -2499,9 +2499,12 @@ function mountBatchValidationNavigator() {
             inspectionBatchValidationState.errors.length + " temuan awal";
     };
     updatePosition();
-    document.getElementById("btnNextBatchValidationIssue").addEventListener("click", async function () {
-        await goToNextBatchValidationIssue();
-    });
+    const nextIssueButton = nav.querySelector("#btnNextBatchValidationIssue");
+    if (nextIssueButton) {
+        nextIssueButton.addEventListener("click", async function () {
+            await goToNextBatchValidationIssue();
+        });
+    }
 }
 
 async function goToNextBatchValidationIssue() {
