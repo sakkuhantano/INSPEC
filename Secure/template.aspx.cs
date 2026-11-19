@@ -1121,7 +1121,11 @@ WHERE a.SectionID = @SectionID
                                             iRow["C1"] = idItem;
                                             iRow["C2"] = item["RuntimeItemID"];
                                             iRow["C3"] = section["RuntimeSectionID"];
-                                            iRow["C4"] = item["ItemName"];
+                                            // Preserve Unicode comparison symbols through the legacy VARCHAR TVP (C4).
+                                             // Control-character placeholders are restored to NVARCHAR in the stored procedure.
+                                             iRow["C4"] = Convert.ToString(item["ItemName"] ?? "")
+                                                 .Replace("\u2264", "\u001E")
+                                                 .Replace("\u2265", "\u001F");
                                             iRow["C5"] = item["ItemType"];
                                             iRow["C6"] = itemType == "TEXT" ? "" : item["Unit"];
                                             iRow["C7"] = item.ContainsKey("IsRemark1Required") ? (item["IsRemark1Required"] ?? false) : (item.ContainsKey("IsRemarkRequired") ? (item["IsRemarkRequired"] ?? false) : false);
