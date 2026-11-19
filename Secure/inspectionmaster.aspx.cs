@@ -748,7 +748,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     {
                         paths.Append("<path d='");
                         paths.Append(HttpUtility.HtmlAttributeEncode(d));
-                        paths.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                        bool isOrthogonalPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
+                            Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
+                        paths.Append(isOrthogonalPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
                         paths.Append((point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"])).ToString("0.##", CultureInfo.InvariantCulture));
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
@@ -1440,9 +1442,14 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 txtMarkerX.Text = row["MapX"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapX"]).ToString("0.####", CultureInfo.InvariantCulture);
                 txtMarkerY.Text = row["MapY"] == DBNull.Value ? "" : Convert.ToDecimal(row["MapY"]).ToString("0.####", CultureInfo.InvariantCulture);
                 string savedShapeType = row.Table.Columns.Contains("ShapeType") ? Convert.ToString(row["ShapeType"]) : "CIRCLE";
+                string savedShapeAttributes = row.Table.Columns.Contains("ShapeAttributes") ? Convert.ToString(row["ShapeAttributes"]) : "{}";
+                if (String.Equals(savedShapeType, "PATH", StringComparison.OrdinalIgnoreCase) &&
+                    savedShapeAttributes.IndexOf("\"renderMode\"", StringComparison.OrdinalIgnoreCase) >= 0 &&
+                    savedShapeAttributes.IndexOf("ORTHOGONAL", StringComparison.OrdinalIgnoreCase) >= 0)
+                    savedShapeType = "ORTHOGONAL";
                 if (ddlPointShapeType.Items.FindByValue(savedShapeType) != null) ddlPointShapeType.SelectedValue = savedShapeType;
                 hidSvgPathData.Value = row.Table.Columns.Contains("SvgPathData") ? Convert.ToString(row["SvgPathData"]) : "";
-                hidShapeAttributes.Value = row.Table.Columns.Contains("ShapeAttributes") ? Convert.ToString(row["ShapeAttributes"]) : "{}";
+                hidShapeAttributes.Value = savedShapeAttributes;
                 BindEditorMaps();
                 LoadEditorMapPdf();
                 BindMapElements();
@@ -1470,17 +1477,23 @@ WHERE P.InspectionPointID=@ID AND M.CompanyID=@CompanyID AND M.LocationID=@Locat
                 SetTab("#tab-point");
                 return;
             }
-            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) ? "PATH" :
+            bool isOrthogonal = String.Equals(ddlPointShapeType.SelectedValue, "ORTHOGONAL", StringComparison.OrdinalIgnoreCase);
+            string shapeType = String.Equals(ddlPointShapeType.SelectedValue, "PATH", StringComparison.OrdinalIgnoreCase) || isOrthogonal ? "PATH" :
                 (String.Equals(ddlPointShapeType.SelectedValue, "RECTANGLE", StringComparison.OrdinalIgnoreCase) ? "RECTANGLE" : "CIRCLE");
             string svgPathData = (hidSvgPathData.Value ?? "").Trim();
             if (shapeType == "PATH" && (svgPathData.Length == 0 || svgPathData.Length > 8000 ||
-                !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$")))
+                !System.Text.RegularExpressions.Regex.IsMatch(svgPathData, @"^[MmLlZz0-9.,\s+\-]+$") ||
+                (isOrthogonal && System.Text.RegularExpressions.Regex.Matches(svgPathData, @"[Ll]").Count < 1)))
             {
-                GF.MsgBox(this, "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup.", "BS-5.3.0");
+                GF.MsgBox(this, isOrthogonal
+                    ? "Garis siku belum valid. Pilih Siku / Orthogonal Line, klik minimal 2 titik, lalu double-click untuk selesai."
+                    : "SVG Path tidak valid. Gunakan Draw SVG Path dan buat minimal satu area tertutup.", "BS-5.3.0");
                 SetTab("#tab-point");
                 return;
             }
             if (shapeType != "PATH") svgPathData = "";
+            if (isOrthogonal)
+                hidShapeAttributes.Value = "{\"renderMode\":\"ORTHOGONAL\"}";
             decimal? coordinateX = null;
             decimal? coordinateY = null;
             if (!String.IsNullOrWhiteSpace(txtMarkerX.Text) || !String.IsNullOrWhiteSpace(txtMarkerY.Text))
@@ -1953,7 +1966,9 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 pathSvg.Append(Convert.ToString(point["CanSwap"]));
                 pathSvg.Append("' title='");
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
-                pathSvg.Append("' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
+                bool isOrthogonalPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
+                    Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
+                pathSvg.Append(isOrthogonalPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
                 pathSvg.Append((point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"])).ToString("0.##", CultureInfo.InvariantCulture));
                 pathSvg.Append("' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
                 pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
