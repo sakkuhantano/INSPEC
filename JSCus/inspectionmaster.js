@@ -796,7 +796,7 @@
             function startPathDrawing() {
                 recordPathEditorAction();
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
-                drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = [];
+                drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = []; suppressNextClick = false;
                 if (pathField) pathField.value = '';
                 if (shapeAttributesField && shapeSelect) {
                     if (shapeSelect.value === 'ORTHOGONAL')
@@ -983,6 +983,10 @@
                     try { board.setPointerCapture(event.pointerId); } catch (_) { }
                     return;
                 }
+                // PATH uses the click event for each vertex so normal browser
+                // click/double-click sequencing remains intact. Map panning already
+                // ignores all pointerdowns while drawMode is active.
+                if (drawMode && shapeSelect && shapeSelect.value === 'PATH' && event.button === 0) return;
                 if (!drawMode || event.button !== 0) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
@@ -994,17 +998,6 @@
                         renderPathPreview(false);
                     }
                     suppressNextClick = true;
-                    return;
-                }
-                if (shapeSelect && shapeSelect.value === 'PATH') {
-                    var vertex = mapPointFromEvent(event);
-                    var previousVertex = pathPoints[pathPoints.length - 1];
-                    if (!previousVertex || Math.hypot(vertex.x - previousVertex.x, vertex.y - previousVertex.y) >= 0.5)
-                        pathPoints.push(vertex);
-                    drawingPath = true;
-                    suppressNextClick = true;
-                    renderPathPreview(pathPoints.length >= 3);
-                    pathStatusText('PATH: ' + pathPoints.length + ' titik · klik titik sudut berikutnya, double-click untuk menutup poligon.');
                     return;
                 }
             }, true);
@@ -1126,6 +1119,17 @@
             });
             board.addEventListener('click', function (event) {
                 if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
+                if (drawMode && shapeSelect && shapeSelect.value === 'PATH') {
+                    event.preventDefault();
+                    var vertex = mapPointFromEvent(event);
+                    var previousVertex = pathPoints[pathPoints.length - 1];
+                    if (!previousVertex || Math.hypot(vertex.x - previousVertex.x, vertex.y - previousVertex.y) >= 0.5)
+                        pathPoints.push(vertex);
+                    drawingPath = true;
+                    renderPathPreview(pathPoints.length >= 3);
+                    pathStatusText('PATH: ' + pathPoints.length + ' titik · klik titik sudut berikutnya, double-click untuk menutup poligon.');
+                    return;
+                }
                 if (drawMode) { event.preventDefault(); return; }
                 if (moved) { moved = false; return; }
                 // Coordinate against the actual map image content so its original
