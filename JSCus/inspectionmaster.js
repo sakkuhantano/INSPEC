@@ -798,8 +798,12 @@
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = [];
                 if (pathField) pathField.value = '';
-                if (shapeAttributesField && shapeSelect && shapeSelect.value === 'ORTHOGONAL')
-                    shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
+                if (shapeAttributesField && shapeSelect) {
+                    if (shapeSelect.value === 'ORTHOGONAL')
+                        shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
+                    else if (shapeSelect.value === 'PATH')
+                        shapeAttributesField.value = '{}';
+                }
                 var activeId = document.getElementById('hidPointID');
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (svg && activeId && activeId.value) {
