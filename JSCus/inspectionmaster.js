@@ -977,6 +977,7 @@
                 if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
                 rectanglePreview = null; rectangleDrawing = false; rectangleStart = null;
                 board.classList.remove('path-drawing', 'rectangle-drawing');
+                board.style.cursor = ''; content.style.cursor = '';
 
                 // Remove both the persisted path overlay and the temporary drawing.
                 var activeId = document.getElementById('hidPointID');
@@ -1013,7 +1014,7 @@
                 if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
                     this.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     var activeId = document.getElementById('hidPointID');
