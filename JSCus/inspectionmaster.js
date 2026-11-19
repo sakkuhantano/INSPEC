@@ -819,7 +819,7 @@
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL')
                     pathStatusText('Siku aktif: klik titik demi titik untuk membuat segmen 90°. Double-click untuk selesai.');
                 else
-                    pathStatusText('PATH aktif: klik titik-titik sudut poligon, lalu double-click untuk menutup dan selesai.');
+                    pathStatusText('PATH aktif: klik titik-titik jalur, lalu double-click untuk selesai tanpa garis penutup.');
             }
             function finishPathDrawing() {
                 drawingPath = false; dragging = false; orthogonalDrawing = false; orthogonalPreviewPoint = null;
@@ -853,16 +853,15 @@
                     pathStatusText('Garis siku siap disimpan. Save Inspection Point untuk menyimpan jalur ini.');
                     return;
                 }
-                if (pathPoints.length < 3) {
+                if (pathPoints.length < 2) {
                     pathPoints = []; renderPathPreview(false);
-                    pathStatusText('Path perlu minimal 3 titik. Klik Draw SVG Path untuk mencoba lagi.');
+                    pathStatusText('PATH perlu minimal 2 titik. Klik Draw SVG Path untuk mencoba lagi.');
                     return;
                 }
-                renderPathPreview(true);
+                renderPathPreview(false);
                 var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
                 for (var p = 1; p < pathPoints.length; p++)
                     d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
-                d += ' Z';
                 if (pathField) pathField.value = d;
                 var sx = 0, sy = 0;
                 pathPoints.forEach(function (point) { sx += point.x; sy += point.y; });
@@ -874,9 +873,9 @@
                 board.style.removeProperty('touch-action'); content.style.removeProperty('touch-action');
                 if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
                     coordinateSpace: 'PERCENT_100',
-                    closed: true
+                    closed: false
                 });
-                pathStatusText('PATH polygon siap disimpan (tanpa fill). Save Inspection Point untuk menyimpan garis ini.');
+                pathStatusText('PATH / Polyline siap disimpan. Save Inspection Point untuk menyimpan garis ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && pathPoints.length >= 2) {
@@ -968,7 +967,7 @@
                         if (pathPreview) pathPreview.setAttribute('d', '');
                         if (shapeAttributesField) shapeAttributesField.value = '{}';
                     }
-                    pathStatusText('PATH: klik Draw SVG Path, klik titik-titik sudut poligon, lalu double-click untuk selesai.');
+                    pathStatusText('PATH: klik Draw SVG Path, klik titik-titik jalur, lalu double-click untuk selesai.');
                 }
             });
             board.addEventListener('pointerdown', function (event) {
@@ -1010,7 +1009,7 @@
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
                 if (shapeSelect && shapeSelect.value === 'PATH') {
-                    renderPathPreview(pathPoints.length >= 3, mapPointFromEvent(event));
+                    renderPathPreview(false, mapPointFromEvent(event));
                     return;
                 }
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
@@ -1128,8 +1127,8 @@
                     if (!previousVertex || Math.hypot(vertex.x - previousVertex.x, vertex.y - previousVertex.y) >= 0.5)
                         pathPoints.push(vertex);
                     drawingPath = true;
-                    renderPathPreview(pathPoints.length >= 3);
-                    pathStatusText('PATH: ' + pathPoints.length + ' titik · klik titik sudut berikutnya, double-click untuk menutup poligon.');
+                    renderPathPreview(false);
+                    pathStatusText('PATH: ' + pathPoints.length + ' titik · klik titik berikutnya, double-click untuk selesai.');
                     return;
                 }
                 if (drawMode) { event.preventDefault(); return; }
