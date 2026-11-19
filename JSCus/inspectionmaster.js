@@ -595,7 +595,9 @@
                 var rect = content.getBoundingClientRect();
                 var rx = 3.0;
                 var ry = rect.width > 0 && rect.height > 0 ? rx * rect.width / rect.height : rx;
-                var marginX = rx + 0.2, marginY = ry + 0.2;
+                var horizontal = /^(LEFT|RIGHT)$/.test(String(direction || 'UP').toUpperCase());
+                var marginX = (horizontal ? ry : rx) + 0.2;
+                var marginY = (horizontal ? rx : ry) + 0.2;
                 cx = Math.max(marginX, Math.min(100 - marginX, Number(cx)));
                 cy = Math.max(marginY, Math.min(100 - marginY, Number(cy)));
                 var points = [];
@@ -1175,8 +1177,10 @@
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
-                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') placeHalfCircle(x, y);
-                else if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
+                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') {
+                    placeHalfCircle(x, y);
+                    x = Number(markerX.value); y = Number(markerY.value);
+                } else if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
                 var preview = document.getElementById('inspectionCoordinatePreview');
