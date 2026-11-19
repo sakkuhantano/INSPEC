@@ -18,6 +18,7 @@
     var listPage = 1;
     var listPageSize = 20;
     var listKeyword = "";
+    var navigatorFocusDismissedPointId = "";
     var mapZoom = 1;
     var mapPanX = 0;
     var mapPanY = 0;
@@ -290,12 +291,25 @@
         var pointHost = document.getElementById("inspectionMapPoints");
         if (!pointHost) return;
         var ring = pointHost.querySelector(".inspection-map-navigator-focus-ring");
-        if (ring) ring.remove();
+        if (ring) {
+            navigatorFocusDismissedPointId = String(ring.getAttribute("data-navigator-target") || "");
+            ring.remove();
+        }
     }
 
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
+        if (!host.getAttribute("data-navigator-dismiss-wired")) {
+            // Capture the map click before any marker-specific handler. This also
+            // covers SVG PATH/RECT/CIRCLE and the HTML circle-marker buttons.
+            host.addEventListener("click", function (event) {
+                var marker = event.target && event.target.closest
+                    ? event.target.closest("[data-point-id]") : null;
+                if (marker) removeNavigatorFocusRing();
+            }, true);
+            host.setAttribute("data-navigator-dismiss-wired", "1");
+        }
         var mapId = Number(currentMapId || 0);
         var points = currentPoints.filter(function (point) {
             return mapId && Number(point.MapID || 0) === mapId &&
@@ -736,9 +750,14 @@
             return;
         }
 
-        // Desktop: select and scroll to the matching Point List row.
+        // A marker click dismisses the navigator pulse even if the navigator
+        // focus operation is still completing asynchronously.
+        removeNavigatorFocusRing();
+
+        // Desktop: select and scroll the matching row inside the Point List.
         listKeyword = "";
-        var pointIndex = currentPoints.findIndex(function (point) {
+        var visiblePoints = getVisiblePoints();
+        var pointIndex = visiblePoints.findIndex(function (point) {
             return String(point.InspectionPointID) === String(id);
         });
         if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
@@ -747,15 +766,18 @@
         var listHost = document.getElementById("inspectionPointList");
         var row = listHost && listHost.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
         if (listHost && row) {
-            // On desktop the Point List is below the map. Bring the list itself
-            // into the viewport first, then scroll its internal container to the
-            // selected row.
-            listHost.scrollIntoView({ behavior: "smooth", block: "start" });
+            // Scroll the actual overflow container, not the document. Explicit
+            // geometry avoids browser differences with nested scrollIntoView.
+            function scrollSelectedRow() {
+                if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
+                var hostRect = listHost.getBoundingClientRect();
+                var rowRect = row.getBoundingClientRect();
+                var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
+                    Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
+                listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+            }
             window.requestAnimationFrame(function () {
-                // The list itself is the scroll container on desktop. Use the
-                // row's own scrollIntoView so the browser scrolls that container,
-                // not just the document.
-                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+                window.requestAnimationFrame(scrollSelectedRow);
             });
         }
     }
@@ -1333,6 +1355,7 @@
     }
 
     window.focusInspectionMapPoint = async function (pointId) {
+        navigatorFocusDismissedPointId = "";
         var point = currentPoints.find(function (item) {
             return Number(item.InspectionPointID) === Number(pointId);
         });
@@ -1390,22 +1413,21 @@
             // Keep a dedicated animated ring above the map so the target remains
             // obvious even when its normal marker is small or is a vector PATH.
             removeNavigatorFocusRing();
-            var targetPosition = getPointMapFocusPosition(point);
-            var targetX = targetPosition.x;
-            var targetY = targetPosition.y;
-            var ring = document.createElement("div");
-            ring.className = "inspection-map-navigator-focus-ring";
-            ring.style.width = "34px";
-            ring.style.height = "34px";
-            ring.style.borderWidth = "2px";
-            ring.style.left = targetX + "%";
-            ring.style.top = targetY + "%";
-            ring.setAttribute("aria-hidden", "true");
-            ring.setAttribute("data-navigator-target", String(pointId));
-            pointHost.appendChild(ring);
-
-            // Navigator focus stays visible while the user locates the point.
-            // A click on the marker removes it immediately.
+            if (navigatorFocusDismissedPointId !== String(pointId)) {
+                var targetPosition = getPointMapFocusPosition(point);
+                var targetX = targetPosition.x;
+                var targetY = targetPosition.y;
+                var ring = document.createElement("div");
+                ring.className = "inspection-map-navigator-focus-ring";
+                ring.style.width = "34px";
+                ring.style.height = "34px";
+                ring.style.borderWidth = "2px";
+                ring.style.left = targetX + "%";
+                ring.style.top = targetY + "%";
+                ring.setAttribute("aria-hidden", "true");
+                ring.setAttribute("data-navigator-target", String(pointId));
+                pointHost.appendChild(ring);
+            }
         }
         var list = document.getElementById("inspectionPointList");
         if (list) {
