@@ -203,3 +203,8 @@
      width:75px!important;
  }
 }
+
+.inspection-coordinate-board{position:relative}
+.inspection-map-toolbar-floating{position:absolute;top:.5rem;right:.5rem;z-index:30;padding:.25rem .4rem;background:rgba(255,255,255,.94);border:1px solid rgba(0,0,0,.12);border-radius:.45rem;box-shadow:0 .15rem .5rem rgba(0,0,0,.14);backdrop-filter:blur(4px)}
+.inspection-map-toolbar-floating .btn{min-width:32px}
+.inspection-map-toolbar-floating #lblMapZoom{min-width:3.2rem;text-align:center}
