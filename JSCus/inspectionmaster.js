@@ -583,12 +583,64 @@
             var shapeSelect = document.getElementById('ddlPointShapeType');
             var pathField = document.getElementById('hidSvgPathData');
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
+            var halfCircleDirection = document.getElementById('ddlHalfCircleDirection');
+            var halfCircleDirectionWrap = document.getElementById('halfCircleDirectionWrap');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
                 // CIRCLE is a small point dot; area geometry belongs to PATH.
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
+            function makeHalfCirclePath(cx, cy, direction) {
+                var rect = content.getBoundingClientRect();
+                var rx = 3.0;
+                var ry = rect.width > 0 && rect.height > 0 ? rx * rect.width / rect.height : rx;
+                var marginX = rx + 0.2, marginY = ry + 0.2;
+                cx = Math.max(marginX, Math.min(100 - marginX, Number(cx)));
+                cy = Math.max(marginY, Math.min(100 - marginY, Number(cy)));
+                var points = [];
+                for (var i = 0; i <= 20; i++) {
+                    var angle = Math.PI + (Math.PI * i / 20);
+                    var u = rx * Math.cos(angle), v = ry * Math.sin(angle);
+                    var x, y;
+                    switch (String(direction || 'UP').toUpperCase()) {
+                        case 'DOWN': x = u; y = -v; break;
+                        case 'LEFT': x = v; y = u; break;
+                        case 'RIGHT': x = -v; y = u; break;
+                        default: x = u; y = v; break;
+                    }
+                    points.push({ x: cx + x, y: cy + y });
+                }
+                var d = 'M ' + points[0].x.toFixed(3) + ' ' + points[0].y.toFixed(3);
+                for (var j = 1; j < points.length; j++)
+                    d += ' L ' + points[j].x.toFixed(3) + ' ' + points[j].y.toFixed(3);
+                return { d: d + ' Z', x: cx, y: cy, radiusX: rx, radiusY: ry };
+            }
+            function placeHalfCircle(x, y) {
+                if (!pathField || !shapeAttributesField) return;
+                var direction = halfCircleDirection ? halfCircleDirection.value : 'UP';
+                var geometry = makeHalfCirclePath(x, y, direction);
+                pathField.value = geometry.d;
+                markerX.value = geometry.x.toFixed(2);
+                markerY.value = geometry.y.toFixed(2);
+                shapeAttributesField.value = JSON.stringify({
+                    coordinateSpace: 'PERCENT_100', closed: true,
+                    renderMode: 'HALF_CIRCLE', direction: direction,
+                    radiusX: geometry.radiusX, radiusY: geometry.radiusY
+                });
+                var preview = ensurePathPreview();
+                preview.setAttribute('fill', 'rgba(13,110,253,.16)');
+                preview.setAttribute('stroke-width', '0.8');
+                preview.setAttribute('d', geometry.d);
+                pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '.');
+            }
+            function refreshHalfCircleDirection() {
+                if (!shapeSelect || shapeSelect.value !== 'HALF_CIRCLE' || !markerX || !markerY ||
+                    markerX.value === '' || markerY.value === '') return;
+                recordPathEditorAction();
+                placeHalfCircle(Number(markerX.value), Number(markerY.value));
+            }
+            if (halfCircleDirection) halfCircleDirection.addEventListener('change', refreshHalfCircleDirection);
             // Action-based Undo/Redo for unsaved map geometry edits.
             var redoButton = document.getElementById('btnRedoPath');
             var pathUndoStack = [], pathRedoStack = [];
@@ -599,6 +651,7 @@
                     points: pathPoints.map(function (p) { return { x: p.x, y: p.y }; }),
                     path: pathField ? pathField.value : '',
                     shape: shapeSelect ? shapeSelect.value : 'CIRCLE',
+                    direction: halfCircleDirection ? halfCircleDirection.value : 'UP',
                     attributes: shapeAttributesField ? shapeAttributesField.value : '{}',
                     x: markerX ? markerX.value : '', y: markerY ? markerY.value : '',
                     drawMode: drawMode, svgHtml: svg ? svg.innerHTML : null,
@@ -620,6 +673,9 @@
                 pathPoints = state.points || []; drawMode = !!state.drawMode; drawingPath = false;
                 if (pathField) pathField.value = state.path || '';
                 if (shapeSelect) shapeSelect.value = state.shape || 'CIRCLE';
+                if (halfCircleDirection) halfCircleDirection.value = state.direction || 'UP';
+                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
+                    shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (shapeAttributesField) shapeAttributesField.value = state.attributes || '{}';
                 if (markerX) markerX.value = state.x || '';
                 if (markerY) markerY.value = state.y || '';
@@ -646,7 +702,8 @@
                 pathPreview = document.getElementById('inspectionCoordinatePathPreview');
                 if (pathPreview) renderPathPreview(!!(pathField && pathField.value));
                 pathStatusText(pathField && pathField.value
-                    ? 'SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.'
+                    ? (shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '½ Lingkaran siap disimpan.' :
+                        'SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.')
                     : (drawMode ? 'Draw mode aktif: drag mengikuti batas area.' : 'Perubahan geometri dipulihkan.'));
                 updatePathHistoryButtons();
             }
@@ -680,6 +737,8 @@
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
+            if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
+                shapeSelect && shapeSelect.value === 'HALF_CIRCLE' ? '' : 'none';
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
             function updateRectanglePreview(point) {
                 if (!rectangleStart || !point) return;
@@ -888,6 +947,7 @@
                 pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
+                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = 'none';
                 if (shapeAttributesField) shapeAttributesField.value = '{}';
                 if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
                 rectanglePreview = null; rectangleDrawing = false; rectangleStart = null;
@@ -925,6 +985,8 @@
                     orthogonalDrawing = false;
                     orthogonalPreviewPoint = null;
                 }
+                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display =
+                    this.value === 'HALF_CIRCLE' ? '' : 'none';
                 if (this.value === 'CIRCLE') {
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
@@ -948,6 +1010,19 @@
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
+                } else if (this.value === 'HALF_CIRCLE') {
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    if (pathField) pathField.value = '';
+                    if (pathPreview) pathPreview.setAttribute('d', '');
+                    if (shapeAttributesField) shapeAttributesField.value = '{}';
+                    var activeHalfCircleId = document.getElementById('hidPointID');
+                    var existingHalfCircleSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                    if (existingHalfCircleSvg && activeHalfCircleId && activeHalfCircleId.value) {
+                        var previousHalfCircle = existingHalfCircleSvg.querySelector('.inspection-coordinate-path[data-point-id="' + activeHalfCircleId.value + '"]');
+                        if (previousHalfCircle) previousHalfCircle.style.display = 'none';
+                    }
+                    if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
+                    pathStatusText('½ Lingkaran: pilih arah, lalu klik satu kali pada denah untuk menempatkannya.');
                 } else {
                     // PATH is always a closed Freeform area. Clear the previous
                     // geometry and metadata when switching modes; the user must draw
@@ -1100,7 +1175,8 @@
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
-                if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
+                if (shapeSelect && shapeSelect.value === 'HALF_CIRCLE') placeHalfCircle(x, y);
+                else if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
                 if (swapLabel) swapLabel.textContent = 'Posisi baru dipilih.';
                 var preview = document.getElementById('inspectionCoordinatePreview');
