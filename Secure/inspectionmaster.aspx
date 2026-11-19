@@ -128,6 +128,10 @@
                                             <div class="col-sm-4 d-flex align-items-center">Point Name</div>
                                             <div class="col-sm-8"><asp:TextBox ID="txtPointName" runat="server" MaxLength="200" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
                                         </div>
+                                        <div class="row mt-1">
+                                            <div class="col-sm-4 d-flex align-items-center">Display Order</div>
+                                            <div class="col-sm-8"><asp:TextBox ID="txtPointOrder" runat="server" Text="0" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                        </div>
                                     </div>
                                     <div class="col-sm-6 mb-1">
                                         <div class="row mt-1">
@@ -137,10 +141,6 @@
                                         <div class="row mt-1">
                                             <div class="col-sm-4 d-flex align-items-center">Point Description <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Keterangan spesifik untuk titik inspeksi ini, misalnya posisi detail, ciri lokasi, atau instruksi identifikasi. Contoh: Lampu di atas pintu masuk basement. Tidak perlu mengulang Point Name. Opsional." aria-label="Panduan Point Description"></i></div>
                                             <div class="col-sm-8"><asp:TextBox ID="txtPointDescription" runat="server" MaxLength="500" TextMode="MultiLine" Rows="2" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
-                                        </div>
-                                        <div class="row mt-1">
-                                            <div class="col-sm-4 d-flex align-items-center">Display Order</div>
-                                            <div class="col-sm-8"><asp:TextBox ID="txtPointOrder" runat="server" Text="0" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
                                         </div>
                                         <div class="row mt-1">
                                             <div class="col-sm-4"></div>
@@ -155,11 +155,7 @@
                                     <div class="border rounded p-2">
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                                             <div class="fw-bold small">Map Coordinate <span class="text-muted fw-normal">(optional)</span> <asp:Label ID="lblPointMapCode" runat="server" CssClass="text-muted fw-normal" /></div>
-                                            <div class="inspection-map-toolbar d-flex align-items-center gap-1">
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit">Fit</button>
-                                                <span class="small text-muted" id="lblMapZoom">100%</span>
+                                            <div class="d-flex align-items-center">
                                                 <asp:HyperLink ID="lnkEditorPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1" Visible="false">Open PDF</asp:HyperLink>
                                             </div>
                                         </div>
@@ -192,6 +188,12 @@
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
+                                            <div class="inspection-map-toolbar inspection-map-toolbar-floating d-flex align-items-center gap-1">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit">Fit</button>
+                                                <span class="small text-muted" id="lblMapZoom">100%</span>
+                                            </div>
                                             <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
                                                 <asp:Literal ID="litEditorPdfBackground" runat="server" />
                                                 <div class="inspection-coordinate-grid"></div>
