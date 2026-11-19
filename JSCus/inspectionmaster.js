@@ -535,10 +535,11 @@
                 }
             }
             function applyView() {
-                // Keep the zoom pivot at the real center of the fitted floor-plan content.
-                // Pan is then measured relative to that center instead of its top-left corner.
-                content.style.transformOrigin = '50% 50%';
-                content.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+                // Match the inspection.aspx map workspace: zoom is anchored to the
+                // viewport center/top coordinate system, while the fitted floor plan
+                // itself remains centered inside the board.
+                content.style.transformOrigin = '50% 0';
+                content.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0) scale(' + zoom + ')';
                 var vectorSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (vectorSvg && content.clientWidth && content.clientHeight) {
                     var vectorAspect = content.clientWidth / content.clientHeight;
@@ -556,19 +557,17 @@
                 next = Math.max(1, Math.min(5, next));
                 if (next === zoom) return;
 
-                // The floor plan is centered inside the board and the content
-                // transform now uses its center as the transform origin. Keep the
-                // zoom anchor relative to the board center so button/wheel zoom
-                // never makes the map drift to the left/top.
+                // Same zoom math used by inspection.aspx: the zoom anchor is measured
+                // from the board center horizontally and from its top vertically.
                 var rect = board.getBoundingClientRect();
-                var boardCenterX = rect.width / 2;
-                var boardCenterY = rect.height / 2;
-                var cx = centerX == null ? boardCenterX : centerX;
-                var cy = centerY == null ? boardCenterY : centerY;
+                var x = centerX == null ? rect.width / 2 : centerX;
+                var y = centerY == null ? 0 : centerY;
+                var localX = x - rect.width / 2;
+                var localY = y;
                 var ratio = next / zoom;
 
-                panX = cx - boardCenterX - (cx - boardCenterX - panX) * ratio;
-                panY = cy - boardCenterY - (cy - boardCenterY - panY) * ratio;
+                panX = (panX - localX) * ratio + localX;
+                panY = (panY - localY) * ratio + localY;
 
                 zoom = next;
                 inspectionCoordinateZoom = zoom;
