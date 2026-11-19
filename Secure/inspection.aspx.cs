@@ -872,11 +872,10 @@ WHERE InspectionID=@InspectionID",
                             new SqlParameter("@p_FollowUpSection", Limit(TokenString(record, "FollowUpSection"), 10)),
                             new SqlParameter("@p_FollowUpRemark", Limit(TokenString(record, "FollowUpRemark"), 300)),
                             new SqlParameter("@p_UpdateUser", Limit(userId, 50)),
-                            new SqlParameter("@p_GPSLatitude", ParseNullableDecimal(TokenString(record, "GPSLatitude"))),
-                            new SqlParameter("@p_GPSLongitude", ParseNullableDecimal(TokenString(record, "GPSLongitude"))),
-                            new SqlParameter("@p_GPSAccuracy", ParseNullableDecimal(TokenString(record, "GPSAccuracy"))),
-                            new SqlParameter("@p_GPSCapturedAt", String.IsNullOrWhiteSpace(TokenString(record, "GPSCapturedAt"))
-                                ? (object)DBNull.Value : ParseNullableDate(TokenString(record, "GPSCapturedAt")))
+                            CreateInspectionGpsDecimalParameter("@p_GPSLatitude", TokenString(record, "GPSLatitude"), 10, 7),
+                            CreateInspectionGpsDecimalParameter("@p_GPSLongitude", TokenString(record, "GPSLongitude"), 10, 7),
+                            CreateInspectionGpsDecimalParameter("@p_GPSAccuracy", TokenString(record, "GPSAccuracy"), 10, 2),
+                            CreateInspectionGpsDateParameter("@p_GPSCapturedAt", TokenString(record, "GPSCapturedAt"))
                         };
                         string procedureName;
                         var syncParameters = new List<SqlParameter>(commonParameters);
@@ -4182,13 +4181,25 @@ WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
             return parsed;
         }
 
-        private static object ParseNullableDecimal(string value)
+        private static SqlParameter CreateInspectionGpsDecimalParameter(string name, string value, byte precision, byte scale)
         {
-            if (String.IsNullOrWhiteSpace(value)) return DBNull.Value;
+            SqlParameter parameter = new SqlParameter(name, SqlDbType.Decimal);
+            parameter.Precision = precision;
+            parameter.Scale = scale;
             decimal parsed;
-            return Decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)
+            parameter.Value = Decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)
                 ? (object)parsed
                 : DBNull.Value;
+            return parameter;
+        }
+
+        private static SqlParameter CreateInspectionGpsDateParameter(string name, string value)
+        {
+            SqlParameter parameter = new SqlParameter(name, SqlDbType.DateTime);
+            parameter.Value = String.IsNullOrWhiteSpace(value)
+                ? (object)DBNull.Value
+                : ParseNullableDate(value);
+            return parameter;
         }
     }
 }
