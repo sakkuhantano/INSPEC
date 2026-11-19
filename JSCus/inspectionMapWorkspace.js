@@ -397,7 +397,8 @@
         });
         var pageCount = Math.max(1, Math.ceil(filtered.length / listPageSize));
         listPage = Math.min(Math.max(1, listPage), pageCount);
-        var start = (listPage - 1) * listPageSize;        var rows = filtered.slice(start, start + listPageSize);
+        var start = (listPage - 1) * listPageSize;
+        var rows = filtered.slice(start, start + listPageSize);
 
         if (window.bootstrap && bootstrap.Tooltip) {
             host.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
@@ -408,7 +409,8 @@
 
         host.innerHTML =
             '<div class="inspection-point-list-tools">' +
-                '<div class="d-flex gap-2 align-items-center mb-2">' +                    '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
+                '<div class="d-flex gap-2 align-items-center mb-2">' +
+                    '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
                     'placeholder="Cari Point Code / Name..." value="' + esc(listKeyword) + '">' +
                     '<select id="inspectionPointPageSize" class="form-select form-select-sm" style="width:82px">' +
                         '<option value="10"' + (listPageSize === 10 ? ' selected' : '') + '>10</option>' +
@@ -796,7 +798,8 @@
     }
 
     function resetMapView() {
-        mapZoom = 1;        mapPanX = 0;
+        mapZoom = 1;
+        mapPanX = 0;
         mapPanY = 0;
         mapPointers = {};
         mapGesture = null;
@@ -806,7 +809,8 @@
     function zoomMapTo(nextZoom, clientX, clientY) {
         var elements = getMapElements();
         if (!elements.viewport || !elements.stage) return;
-        var rect = elements.viewport.getBoundingClientRect();        var x = clientX == null ? rect.left + rect.width / 2 : clientX;
+        var rect = elements.viewport.getBoundingClientRect();
+        var x = clientX == null ? rect.left + rect.width / 2 : clientX;
         var y = clientY == null ? rect.top + rect.height / 2 : clientY;
         var localX = x - rect.left - rect.width / 2;
         var localY = y - rect.top;
@@ -1195,7 +1199,8 @@
         resetMapView();
         closePoint();
         var list = document.getElementById("inspectionPointList");
-        if (list) { list.scrollTop = 0; list.innerHTML = ""; }        var points = document.getElementById("inspectionMapPoints");
+        if (list) { list.scrollTop = 0; list.innerHTML = ""; }
+        var points = document.getElementById("inspectionMapPoints");
         if (points) points.innerHTML = "";
         var summary = document.getElementById("inspectionMapSummaryHost");
         var checklistPane = document.getElementById("inspectionChecklistPane");
@@ -1204,7 +1209,8 @@
                 var panel = document.getElementById(id);
                 if (panel) checklistPane.appendChild(panel);
             });
-        }        if (summary) summary.innerHTML = "";
+        }
+        if (summary) summary.innerHTML = "";
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = "Inspection Map";
@@ -1498,3 +1504,22 @@
                 window.openBatchInspectionPointChecklist(point);
             } else {
                 if (typeof showToast === "function")
+                    showToast("Modul checklist per titik belum siap dibuka.", "warning");
+            }
+        });
+
+        var submit = document.getElementById("btnSubmitInspectionBatch");
+        if (submit) submit.addEventListener("click", function () {
+            if (typeof window.submitInspectionBatch === "function") window.submitInspectionBatch();
+            else if (typeof showToast === "function")
+                showToast("Submit batch belum tersedia.", "warning");
+        });
+    };
+
+    document.addEventListener("DOMContentLoaded", function () {
+        window.setTimeout(function () {
+            if (typeof window.wireInspectionMapWorkspace === "function")
+                window.wireInspectionMapWorkspace();
+        }, 0);
+    });
+})();
