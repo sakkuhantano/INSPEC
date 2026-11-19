@@ -307,8 +307,9 @@
                 try { shapeAttributes = typeof point.ShapeAttributes === "string" ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {}); } catch (_) { shapeAttributes = {}; }
                 var isOrthogonal = String(shapeAttributes.renderMode || "").toUpperCase() === "ORTHOGONAL";
                 var strokeWidth = isOrthogonal ? 3.5 : Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
+                var pathFill = isOrthogonal ? 'none' : 'rgba(13,110,253,.14)';
                 svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + '" d="' +
-                    esc(point.SvgPathData) + '" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth + '" data-point-id="' +
+                    esc(point.SvgPathData) + '" fill="' + pathFill + '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth + '" data-point-id="' +
                     esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' +
                     esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></path>');
                 return;
