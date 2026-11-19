@@ -286,6 +286,13 @@
         return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
     }
 
+    function removeNavigatorFocusRing() {
+        var pointHost = document.getElementById("inspectionMapPoints");
+        if (!pointHost) return;
+        var ring = pointHost.querySelector(".inspection-map-navigator-focus-ring");
+        if (ring) ring.remove();
+    }
+
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
@@ -357,9 +364,14 @@
         host.innerHTML = svg.join("") + circleMarkers.join("");
 
         host.querySelectorAll("[data-point-id]").forEach(function (shape) {
+            // SVG point shapes are keyboard-focusable for accessibility, but the
+            // browser's native focus outline is not useful on top of the floor plan.
+            // The selected point is indicated by our own status/selection styling.
+            if (shape.style) shape.style.outline = "none";
             shape.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
+                removeNavigatorFocusRing();
                 openPoint(shape.getAttribute("data-point-id"));
             });
             shape.addEventListener("keydown", function (event) {
@@ -397,8 +409,7 @@
 
         host.innerHTML =
             '<div class="inspection-point-list-tools">' +
-                '<div class="d-flex gap-2 align-items-center mb-2">' +
-                    '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
+                '<div class="d-flex gap-2 align-items-center mb-2">' +                    '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
                     'placeholder="Cari Point Code / Name..." value="' + esc(listKeyword) + '">' +
                     '<select id="inspectionPointPageSize" class="form-select form-select-sm" style="width:82px">' +
                         '<option value="10"' + (listPageSize === 10 ? ' selected' : '') + '>10</option>' +
@@ -797,8 +808,7 @@
     function zoomMapTo(nextZoom, clientX, clientY) {
         var elements = getMapElements();
         if (!elements.viewport || !elements.stage) return;
-        var rect = elements.viewport.getBoundingClientRect();
-        var x = clientX == null ? rect.left + rect.width / 2 : clientX;
+        var rect = elements.viewport.getBoundingClientRect();        var x = clientX == null ? rect.left + rect.width / 2 : clientX;
         var y = clientY == null ? rect.top + rect.height / 2 : clientY;
         var localX = x - rect.left - rect.width / 2;
         var localY = y - rect.top;
@@ -1197,8 +1207,7 @@
                 var panel = document.getElementById(id);
                 if (panel) checklistPane.appendChild(panel);
             });
-        }
-        if (summary) summary.innerHTML = "";
+        }        if (summary) summary.innerHTML = "";
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = "Inspection Map";
@@ -1372,8 +1381,7 @@
 
             // Keep a dedicated animated ring above the map so the target remains
             // obvious even when its normal marker is small or is a vector PATH.
-            var oldRing = pointHost.querySelector(".inspection-map-navigator-focus-ring");
-            if (oldRing) oldRing.remove();
+            removeNavigatorFocusRing();
             var targetPosition = getPointMapFocusPosition(point);
             var targetX = targetPosition.x;
             var targetY = targetPosition.y;
@@ -1382,13 +1390,24 @@
             ring.style.left = targetX + "%";
             ring.style.top = targetY + "%";
             ring.setAttribute("aria-hidden", "true");
+            ring.setAttribute("data-navigator-target", String(pointId));
             pointHost.appendChild(ring);
+
+            // Navigator focus is a transient visual cue, not a permanent marker.
+            // Keep it long enough to identify the target, then remove it.
+            window.setTimeout(function () {
+                var currentRing = pointHost.querySelector(".inspection-map-navigator-focus-ring");
+                if (currentRing && currentRing.getAttribute("data-navigator-target") === String(pointId))
+                    currentRing.remove();
+            }, 1800);
         }
         var list = document.getElementById("inspectionPointList");
         if (list) {
             list.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (element) {
-                element.classList.toggle("selected",
-                    Number(element.getAttribute("data-point-id")) === Number(pointId));
+                var isTarget = Number(element.getAttribute("data-point-id")) === Number(pointId);
+                element.classList.toggle("selected", isTarget);
+                element.classList.toggle("active", isTarget);
+                if (isTarget) element.style.outline = "none";
             });
         }
         return true;
