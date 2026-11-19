@@ -1147,6 +1147,16 @@
                 drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = []; suppressNextClick = false; renderPathPreview(false);
             }, true);
 
+            var floatingZoomToolbar = board.querySelector('.inspection-map-toolbar-floating');
+            if (floatingZoomToolbar) {
+                // Toolbar interaction must not bubble to the map: otherwise a
+                // zoom-button click can also move the active inspection point.
+                ['pointerdown', 'click', 'dblclick'].forEach(function (eventName) {
+                    floatingZoomToolbar.addEventListener(eventName, function (event) {
+                        event.stopPropagation();
+                    });
+                });
+            }
             document.getElementById('btnMapZoomIn').addEventListener('click', function () { setZoom(zoom + 0.25); });
             document.getElementById('btnMapZoomOut').addEventListener('click', function () { setZoom(zoom - 0.25); });
             document.getElementById('btnMapZoomFit').addEventListener('click', function () { zoom = 1; inspectionCoordinateZoom = 1; panX = 0; panY = 0; applyView(); scheduleInspectionPdfRender(); });
