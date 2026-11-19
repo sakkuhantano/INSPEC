@@ -1855,7 +1855,7 @@ VALUES
                 // mode from hidden JSON, which can be stale after changing shape modes.
                 var result = new Dictionary<string, object> {
                     { "coordinateSpace", "PERCENT_100" },
-                    { "closed", !isOrthogonal }
+                    { "closed", !isOrthogonal && !isHalfCircle }
                 };
                 if (isOrthogonal) result["renderMode"] = "ORTHOGONAL";
                 if (isHalfCircle)
