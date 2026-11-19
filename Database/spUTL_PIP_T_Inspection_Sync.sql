@@ -40,6 +40,20 @@ BEGIN
     IF @p_InspectionMode NOT IN ('STANDARD','BATCH','LIGHTNING')
     BEGIN RAISERROR('Invalid InspectionMode for canonical inspection sync.',16,1); RETURN; END;
 
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_M_InspectionType IT
+        WHERE IT.InspectionTypeCode=@p_InspectionTypeCode
+          AND IT.SectionID=@p_SectionID
+          AND IT.IsActive=1
+          AND ISNULL(IT.InspectionMode,'STANDARD')=@p_InspectionMode
+    )
+    BEGIN
+        RAISERROR('Inspection Type is not configured for the requested InspectionMode.',16,1);
+        RETURN;
+    END;
+
     SET @p_ScheduledTime = ISNULL(@p_ScheduledTime, '');
     SET @p_StartDateTime = ISNULL(@p_StartDateTime, CONVERT(DATETIME,'19000101',112));
     SET @p_EndDateTime = ISNULL(@p_EndDateTime, CONVERT(DATETIME,'19000101',112));
