@@ -1960,7 +1960,9 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 if (String.IsNullOrWhiteSpace(d) || !System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$")) continue;
                 pathSvg.Append("<path class='inspection-coordinate-path' d='");
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(d));
-                pathSvg.Append("' data-point-id='");
+                bool isOrthogonalPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
+                    Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
+                pathSvg.Append(isOrthogonalPath ? "' fill='none' stroke='#0d6efd' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='1.5' data-point-id='");
                 pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
                 pathSvg.Append("' data-can-swap='");
                 pathSvg.Append(Convert.ToString(point["CanSwap"]));
