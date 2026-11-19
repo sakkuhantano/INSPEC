@@ -747,6 +747,10 @@
         var listHost = document.getElementById("inspectionPointList");
         var row = listHost && listHost.querySelector('.inspection-point-list-row[data-point-id="' + String(id) + '"]');
         if (listHost && row) {
+            // On desktop the Point List is below the map. Bring the list itself
+            // into the viewport first, then scroll its internal container to the
+            // selected row.
+            listHost.scrollIntoView({ behavior: "smooth", block: "start" });
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
             var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
