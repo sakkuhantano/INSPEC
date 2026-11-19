@@ -888,6 +888,8 @@
                 }
                 renderPathPreview(false);
                 board.classList.add('path-drawing');
+                board.style.cursor = 'crosshair';
+                content.style.cursor = 'crosshair';
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL')
                     pathStatusText('Siku aktif: klik titik demi titik untuk membuat segmen 90°. Double-click untuk selesai.');
                 else
@@ -921,6 +923,7 @@
                     if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
                     drawMode = false;
                     board.classList.remove('path-drawing');
+                    board.style.cursor = ''; content.style.cursor = '';
                     pathStatusText('Garis siku siap disimpan. Save Inspection Point untuk menyimpan jalur ini.');
                     return;
                 }
@@ -941,6 +944,7 @@
                 if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
                 drawMode = false;
                 board.classList.remove('path-drawing');
+                board.style.cursor = ''; content.style.cursor = '';
                 if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
                     coordinateSpace: 'PERCENT_100',
                     closed: true
@@ -1167,7 +1171,8 @@
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
-                if ((event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle')) || zoom <= 1 || event.button !== 0) return;
+                // Drawing mode owns the pointer; never start map panning while a path is being drawn.
+                if (drawMode || (event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
