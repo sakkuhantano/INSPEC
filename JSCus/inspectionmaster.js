@@ -515,16 +515,28 @@
                 event.stopPropagation();
                 var xField = document.getElementById('txtMarkerX');
                 var yField = document.getElementById('txtMarkerY');
-                if (xField) xField.value = '';
-                if (yField) yField.value = '';
                 var shapeAttributesField = document.getElementById('hidShapeAttributes');
-                if (shapeAttributesField) shapeAttributesField.value = '{}';
+                var pathFieldForClear = document.getElementById('hidSvgPathData');
+                var shapeSelectForClear = document.getElementById('ddlPointShapeType');
+                var hasSavedPolyline = shapeSelectForClear &&
+                    (shapeSelectForClear.value === 'PATH' || shapeSelectForClear.value === 'ORTHOGONAL') &&
+                    pathFieldForClear && pathFieldForClear.value;
+                // A finished open path still needs its centroid as the required
+                // anchor. Clear Coordinate may remove a loose marker preview, but
+                // must not erase that anchor or the path metadata.
+                if (!hasSavedPolyline) {
+                    if (xField) xField.value = '';
+                    if (yField) yField.value = '';
+                    if (shapeAttributesField) shapeAttributesField.value = '{}';
+                }
                 var preview = document.getElementById('inspectionCoordinatePreview');
                 if (preview && preview.parentNode) preview.parentNode.removeChild(preview);
                 var swapTargetField = document.getElementById('hidSwapPointID');
                 var swapTargetLabel = document.getElementById('lblSwapTarget');
                 if (swapTargetField) swapTargetField.value = '';
-                if (swapTargetLabel) swapTargetLabel.textContent = 'Koordinat dikosongkan.';
+                if (swapTargetLabel) swapTargetLabel.textContent = hasSavedPolyline
+                    ? 'Anchor polyline dipertahankan.'
+                    : 'Koordinat dikosongkan.';
             });
         }
         if (board && content && markerX && markerY) {
@@ -1053,7 +1065,7 @@
                 if (drawMode && drawingPath && shapeSelect &&
                     (shapeSelect.value === 'PATH' || shapeSelect.value === 'ORTHOGONAL')) {
                     event.preventDefault(); event.stopImmediatePropagation();
-                    if (pathPoints.length >= (shapeSelect.value === 'PATH' ? 3 : 2)) finishPathDrawing();
+                    if (pathPoints.length >= 2) finishPathDrawing();
                 }
             }, true);
             board.addEventListener('pointercancel', function (event) {
@@ -1132,6 +1144,13 @@
                     return;
                 }
                 if (drawMode) { event.preventDefault(); return; }
+                // Once PATH/ORTHOGONAL geometry is finished, ordinary map clicks
+                // must not replace its centroid anchor with a stray yellow marker.
+                if (shapeSelect && (shapeSelect.value === 'PATH' || shapeSelect.value === 'ORTHOGONAL') &&
+                    pathField && pathField.value) {
+                    event.preventDefault();
+                    return;
+                }
                 if (moved) { moved = false; return; }
                 // Coordinate against the actual map image content so its original
                 // aspect ratio and any letterboxing never distort saved point positions.
