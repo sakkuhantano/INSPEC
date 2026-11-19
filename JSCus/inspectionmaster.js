@@ -861,6 +861,10 @@
                 if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
                 drawMode = false;
                 board.classList.remove('path-drawing');
+                if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
+                    coordinateSpace: 'PERCENT_100',
+                    closed: true
+                });
                 pathStatusText('SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
@@ -945,6 +949,10 @@
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
                 } else {
+                    // PATH is always a closed Freeform area. Clear any metadata left
+                    // by a previous Siku selection so Save cannot misclassify it.
+                    if (this.value === 'PATH' && shapeAttributesField)
+                        shapeAttributesField.value = '{}';
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
                 }
             });
