@@ -73,6 +73,7 @@ namespace INSPEC.Secure
         /// </summary>
         protected global::System.Web.UI.WebControls.HiddenField hidShapeAttributes;
         protected global::System.Web.UI.WebControls.DropDownList ddlPointShapeType;
+        protected global::System.Web.UI.WebControls.DropDownList ddlHalfCircleDirection;
         protected global::System.Web.UI.WebControls.Label lblPointMapCode;
         protected global::System.Web.UI.WebControls.LinkButton btnClearCoordinate;
         protected global::System.Web.UI.WebControls.LinkButton btnSwapPosition;
