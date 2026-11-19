@@ -378,6 +378,25 @@
             renderInspectionPdfCanvasAtZoom();
         }, 140);
     }
+    function fitInspectionCoordinateContent(board, content, naturalWidth, naturalHeight) {
+        if (!board || !content || !naturalWidth || !naturalHeight) return null;
+        var availableWidth = board.clientWidth;
+        var availableHeight = board.clientHeight;
+        if (!availableWidth || !availableHeight) return null;
+
+        // Fit the complete floor plan inside the drawing viewport without changing
+        // its native aspect ratio. Coordinates/markers use this exact content box,
+        // not the larger modal viewport (which may contain letterbox space).
+        var scale = Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight);
+        var width = Math.max(1, Math.round(naturalWidth * scale));
+        var height = Math.max(1, Math.round(naturalHeight * scale));
+        content.style.left = Math.round((availableWidth - width) / 2) + 'px';
+        content.style.top = Math.round((availableHeight - height) / 2) + 'px';
+        content.style.width = width + 'px';
+        content.style.height = height + 'px';
+        return { width: width, height: height };
+    }
+
     function renderInspectionPdf() {
         var media = document.getElementById('inspectionPdfCanvas');
         if (!media) return;
@@ -388,24 +407,26 @@
         var status = document.getElementById('inspectionPdfStatus');
         if (media.tagName === 'IMG') {
             inspectionPdfPage = null;
-            media.onload = function () { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; };
-            media.onerror = function () { if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat gambar denah JPG/JPEG.'; } };
+            var fitImage = function () {
+                if (!media.naturalWidth || !media.naturalHeight) return;
+                fitInspectionCoordinateContent(board, content, media.naturalWidth, media.naturalHeight);
+                if (status) status.style.display = 'none';
+            };
+            media.onload = fitImage;
+            media.onerror = function () { if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat gambar denah JPG/JPEG/PNG.'; } };
             media.src = url;
-            if (media.complete && media.naturalWidth) { if (board) board.style.aspectRatio = media.naturalWidth + ' / ' + media.naturalHeight; if (status) status.style.display = 'none'; }
+            if (media.complete && media.naturalWidth) fitImage();
             return;
         }
         if (!window.pdfjsLib) { if (status) status.textContent = 'PDF.js tidak berhasil dimuat. Periksa file JSCus/pdf.min.js.'; return; }
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
         window.pdfjsLib.getDocument({ url: url }).promise.then(function (pdf) { return pdf.getPage(1); }).then(function (page) {
             var base = page.getViewport({ scale: 1 });
-            var width = board.clientWidth;
-            if (!width) throw new Error('Area denah belum terlihat.');
-            inspectionPdfFitScale = width / base.width;
+            var fitted = fitInspectionCoordinateContent(board, content, base.width, base.height);
+            if (!fitted) throw new Error('Area denah belum terlihat.');
+            inspectionPdfFitScale = fitted.width / base.width;
             inspectionPdfPage = page;
             inspectionCoordinateZoom = 1;
-            board.style.aspectRatio = base.width + ' / ' + base.height;
-            content.style.width = '100%';
-            content.style.height = '100%';
             renderInspectionPdfCanvasAtZoom();
         }).catch(function (error) {
             if (status) { status.style.display = 'flex'; status.textContent = 'Gagal memuat denah: ' + (error && error.message ? error.message : error); }
