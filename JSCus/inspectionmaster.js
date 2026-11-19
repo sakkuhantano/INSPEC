@@ -876,7 +876,7 @@
                     coordinateSpace: 'PERCENT_100',
                     closed: true
                 });
-                pathStatusText('SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.');
+                pathStatusText('PATH polygon siap disimpan (tanpa fill). Save Inspection Point untuk menyimpan garis ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && pathPoints.length >= 2) {
