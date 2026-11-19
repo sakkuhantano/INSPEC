@@ -1962,17 +1962,9 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(d));
                 bool isOrthogonalPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
                     Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
-                pathSvg.Append(isOrthogonalPath ? "' fill='none' stroke='#0d6efd' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='1.5' data-point-id='");
-                pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
-                pathSvg.Append("' data-can-swap='");
-                pathSvg.Append(Convert.ToString(point["CanSwap"]));
-                pathSvg.Append("' title='");
-                pathSvg.Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])));
-                bool isOrthogonalPath = String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase) &&
-                    Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
                 pathSvg.Append(isOrthogonalPath ? "' fill='none' stroke='#0d6efd' stroke-width='" : "' fill='rgba(13,110,253,.14)' stroke='#0d6efd' stroke-width='");
                 pathSvg.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
-                pathSvg.Append("' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
+                pathSvg.Append("' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
                 pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
                 pathSvg.Append("' data-can-swap='");
                 pathSvg.Append(Convert.ToString(point["CanSwap"]));
