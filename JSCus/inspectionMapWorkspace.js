@@ -19,6 +19,7 @@
     var listPageSize = 20;
     var listKeyword = "";
     var navigatorFocusDismissedPointId = "";
+    var navigatorFocusPendingPointId = "";
     var mapZoom = 1;
     var mapPanX = 0;
     var mapPanY = 0;
@@ -309,7 +310,9 @@
             host.addEventListener("click", function (event) {
                 var marker = event.target && event.target.closest
                     ? event.target.closest("[data-point-id]") : null;
-                if (marker) removeNavigatorFocusRing(marker.getAttribute("data-point-id"));
+                if (marker) removeNavigatorFocusRing(
+                    navigatorFocusPendingPointId || marker.getAttribute("data-point-id")
+                );
             }, true);
             host.setAttribute("data-navigator-dismiss-wired", "1");
         }
@@ -388,7 +391,7 @@
             shape.addEventListener("click", function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                removeNavigatorFocusRing(shape.getAttribute("data-point-id"));
+                removeNavigatorFocusRing();
                 openPoint(shape.getAttribute("data-point-id"));
             });
             shape.addEventListener("keydown", function (event) {
@@ -786,7 +789,7 @@
 
         // A marker click dismisses the navigator pulse even if the navigator
         // focus operation is still completing asynchronously.
-        removeNavigatorFocusRing(id);
+        removeNavigatorFocusRing();
         scrollPointListToRow(id);
     }
 
@@ -1364,6 +1367,7 @@
 
     window.focusInspectionMapPoint = async function (pointId) {
         navigatorFocusDismissedPointId = "";
+        navigatorFocusPendingPointId = String(pointId);
         var point = currentPoints.find(function (item) {
             return Number(item.InspectionPointID) === Number(pointId);
         });
