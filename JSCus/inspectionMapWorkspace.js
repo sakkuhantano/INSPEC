@@ -751,11 +751,12 @@
             // into the viewport first, then scroll its internal container to the
             // selected row.
             listHost.scrollIntoView({ behavior: "smooth", block: "start" });
-            var hostRect = listHost.getBoundingClientRect();
-            var rowRect = row.getBoundingClientRect();
-            var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
-                Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
-            listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+            window.requestAnimationFrame(function () {
+                // The list itself is the scroll container on desktop. Use the
+                // row's own scrollIntoView so the browser scrolls that container,
+                // not just the document.
+                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+            });
         }
     }
 
@@ -1403,13 +1404,8 @@
             ring.setAttribute("data-navigator-target", String(pointId));
             pointHost.appendChild(ring);
 
-            // Navigator focus is a transient visual cue, not a permanent marker.
-            // Keep it long enough to identify the target, then remove it.
-            window.setTimeout(function () {
-                var currentRing = pointHost.querySelector(".inspection-map-navigator-focus-ring");
-                if (currentRing && currentRing.getAttribute("data-navigator-target") === String(pointId))
-                    currentRing.remove();
-            }, 1800);
+            // Navigator focus stays visible while the user locates the point.
+            // A click on the marker removes it immediately.
         }
         var list = document.getElementById("inspectionPointList");
         if (list) {
