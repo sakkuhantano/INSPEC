@@ -1,0 +1,600 @@
+
+-- utk sync wo dari teknisi atau proses approve/void spv
+CREATE PROCEDURE [dbo].[spUTL_WO_CheckList] 
+(
+--DECLARE
+	@p_Dt1 [dbo].[Type_N_Tbl_C13] READONLY,	-- item checklist
+	@p_Dt2 [dbo].[Type_Tbl_C4] READONLY,	-- legacy GROUP values
+	@p_DtRepeat [dbo].[Type_N_Tbl_C5] READONLY,	-- native REPEAT values
+	@p_Dt3 [dbo].[Type_Tbl_C4] READONLY,	-- photos
+	@p_Dt4 [dbo].[Type_N_Tbl_C10] READONLY,	-- summary
+	@p_UpdateUser VARCHAR(50)=''
+)
+AS
+
+--INSERT @p_Dt1 SELECT a.KeyHD,a.IDItem,a.[value],a.remark,a.isanomali FROM PIP_T_WO_CheckList a  WHERE a.KeyHD=637993
+--INSERT @p_Dt2 SELECT aa.KeyHD,aa.IDItem,a.FieldName,a.[Value] FROM PIP_T_WO_CheckList_SubValue a JOIN PIP_T_WO_CheckList aa ON aa.IDResult = a.IDResult WHERE aa.KeyHD=637993
+--SET @p_UpdateUser='006290'
+
+--SELECT * INTO tempWOCheckList FROM @p_Dt1
+--SELECT * INTO tempWOCheckListGroup FROM @p_Dt2
+--SELECT * INTO tempWOCheckListPhotos FROM @p_Dt3
+--SELECT * INTO tempWOCheckListSummary FROM @p_Dt4
+/*
+DROP TABLE tempWOCheckList
+DROP TABLE tempWOCheckListGroup
+DROP TABLE tempWOCheckListPhotos
+DROP TABLE tempWOCheckListSummary
+*/
+
+DECLARE @V_IsApprovalSPV BIT = (CASE WHEN NOT EXISTS (SELECT * FROM @p_Dt1) THEN 1 ELSE 0 END)
+DECLARE @tmp_Photos TABLE 
+(
+	CompanyID VARCHAR(10), 
+	LocationID VARCHAR(3), 
+	DocNo VARCHAR(10), 
+	[Type] VARCHAR(3), 
+	[FileName] VARCHAR(100), 
+	Alias VARCHAR(100), 
+	FileType VARCHAR(50), 
+	SeqNo INT, 
+	KeyHD INT
+)
+
+CREATE TABLE #tblEmail  
+(
+	FormEmail NVARCHAR(MAX), 
+	EmailAddressFrom VARCHAR(200),
+	[From] VARCHAR(200),
+	EmailAddressTo VARCHAR(200),
+	WONo VARCHAR(10),
+	[Subject] VARCHAR(200),
+	BCC_EmailAddress VARCHAR(MAX)
+)
+
+DECLARE @V_CompanyID VARCHAR(10), @V_LocationID VARCHAR(3), @V_WONo VARCHAR(10), @V_KeyHD INT, @v_counter INT=0
+
+--INSERT INTO PIP_T_WO_CheckList
+--(KeyHD,IDItem,Value,Remark1,Remark2,EntryUser,EntryDate,UpdateUser,UpdateDate,IDResult,IsAnomali)
+--SELECT A.C1, A.C2, A.C3, LEFT(A.C4,500), LEFT(A.C6,500), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(),
+--ISNULL((SELECT MAX(IDResult) FROM PIP_T_WO_CheckList),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)), CAST(C5 AS BIT)
+--FROM @p_Dt1 A WHERE NOT EXISTS (SELECT * FROM PIP_T_WO_CheckList AA WHERE AA.KeyHD=A.C1 AND AA.IDItem=A.C2)
+--UPDATE AA SET AA.Value=A.C3, AA.Remark1=LEFT(A.C4,500), AA.Remark2=LEFT(A.C6,500), AA.UpdateUser=@p_UpdateUser, AA.UpdateDate=GETDATE(), AA.IsAnomali=CAST(C5 AS BIT)
+--FROM PIP_T_WO_CheckList AA JOIN @p_Dt1 A ON AA.KeyHD=A.C1 AND AA.IDItem=A.C2
+--JOIN PIP_T_WO wo ON wo.KeyHD=A.C1 AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
+
+--INSERT PIP_T_WO_CheckList_SubValue (IDResult, FieldName, [Value], IDSubValue)
+--SELECT AA.IDResult, A.C3, A.C4,
+--ISNULL((SELECT MAX(IDSubValue) FROM PIP_T_WO_CheckList_SubValue),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) 
+--FROM @p_Dt2 A JOIN PIP_T_WO_CheckList AA ON A.C1=AA.KeyHD AND A.C2=AA.IDItem
+--WHERE NOT EXISTS (SELECT * FROM PIP_T_WO_CheckList_SubValue B WHERE B.IDResult=AA.IDResult AND B.FieldName=A.C3)
+--UPDATE B SET B.Value=A.C4 
+--FROM @p_Dt2 A JOIN PIP_T_WO_CheckList AA ON A.C1=AA.KeyHD AND A.C2=AA.IDItem 
+--JOIN PIP_T_WO_CheckList_SubValue B ON B.IDResult=AA.IDResult AND B.FieldName=A.C3
+--JOIN PIP_T_WO wo ON wo.KeyHD=AA.KeyHD AND ((wo.RemarkTechnician='' AND wo.ReasonRespondDC='') OR (wo.RemarkTechnician<>'' AND wo.ReasonRespondDC<>'')) AND wo.isCompleteDC=0 
+
+IF @V_IsApprovalSPV=0
+BEGIN
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT)
+        WHERE I.ItemType='OPTION' AND ISNULL(I.IsValueRequired,0)=1
+          AND ISNULL(LTRIM(RTRIM(A.C3)),'')=''
+    )
+    BEGIN RAISERROR('A required OPTION checklist item must be selected before Work Order sync.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(A.C3)),'')<>''
+          AND ISNULL(I.OptionList,'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(I.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(A.C3)))
+          )
+    )
+    BEGIN RAISERROR('A Work Order OPTION value is not in the configured option list.',16,1); RETURN; END;
+END;
+
+IF @V_IsApprovalSPV=0
+	DELETE A 
+	FROM PIP_T_DocumentAttachment A JOIN PIP_T_WO B ON B.CompanyID = A.CompanyID AND B.LocationID = A.LocationID AND a.DocNo=b.WONo 
+	WHERE a.[Type] IN ('wo1','wo2')
+	AND EXISTS (SELECT * FROM @p_Dt4 C WHERE b.KeyHD=C.C1)
+	AND ((b.RemarkTechnician='' AND b.ReasonRespondDC='') OR (b.RemarkTechnician<>'' AND b.ReasonRespondDC<>'')) AND b.isCompleteDC=0 
+ELSE	
+	DELETE A 
+	FROM PIP_T_DocumentAttachment A JOIN PIP_T_WO B ON B.CompanyID = A.CompanyID AND B.LocationID = A.LocationID AND a.DocNo=b.WONo 
+	WHERE a.[Type] IN ('wo3')
+	AND EXISTS (SELECT * FROM @p_Dt4 C WHERE b.KeyHD=C.C1) 
+
+DECLARE tamp CURSOR FOR 
+SELECT a.CompanyID, a.LocationID, a.WONo, a.KeyHD 
+FROM PIP_T_WO a JOIN @p_Dt4 B ON a.KeyHD=b.C1
+WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+OPEN tamp
+FETCH NEXT FROM tamp INTO @V_CompanyID, @V_LocationID, @V_WONo, @V_KeyHD
+WHILE @@FETCH_STATUS=0
+BEGIN
+	SET @v_counter=@v_counter+1
+	INSERT @tmp_Photos
+	SELECT @V_CompanyID, @V_LocationID,@V_WONo,A.C2, 
+	REPLACE(REPLACE(REPLACE(REPLACE(CONVERT(VARCHAR, GETDATE(), 25), '-', ''), ' ', ''), ':', ''), '.', '')+ '_'+CAST(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS VARCHAR(5)),
+	(SELECT TOP 1 LEFT(aa.val,100) FROM dbo.SplitStringConvertToTable(A.C3,'.') aa ORDER BY aa.id), 
+	(SELECT TOP 1 aa.val FROM dbo.SplitStringConvertToTable(A.C3,'.') aa ORDER BY aa.id DESC),
+	A.C4, A.C1
+	FROM @p_Dt3 A WHERE A.C1=@V_KeyHD
+	
+	INSERT INTO PIP_T_DocumentAttachment
+	(ID,CompanyID,LocationID,DocNo,[Type],SeqNo,[FileName],Alias,FileType,UploadUser,UploadDate)
+	SELECT ISNULL((SELECT MAX(ID) FROM PIP_T_DocumentAttachment),0)+ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) ID,
+	a.CompanyID, a.LocationID,a.DocNo,a.[Type], a.seqno, a.[FileName], a.alias, a.filetype, @p_UpdateUser, GETDATE()
+	FROM @tmp_Photos a WHERE a.keyhd=@V_KeyHD
+	
+	FETCH NEXT FROM tamp INTO @V_CompanyID, @V_LocationID, @V_WONo, @V_KeyHD
+END
+CLOSE tamp
+DEALLOCATE tamp
+
+IF @V_IsApprovalSPV=0
+BEGIN
+    IF EXISTS
+    (
+        SELECT C1,C2,C3,C4
+        FROM @p_DtRepeat
+        GROUP BY C1,C2,C3,C4
+        HAVING COUNT(*)>1
+    )
+    BEGIN RAISERROR('Duplicate REPEAT field values submitted for Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat R
+        WHERE ISNULL(R.C1,'')='' OR ISNUMERIC(R.C2)=0 OR ISNUMERIC(R.C3)=0
+           OR CAST(R.C3 AS INT)<0 OR ISNULL(R.C4,'')=''
+           OR LEN(R.C4)>10 OR R.C4 LIKE '%[^0-9]%'
+           OR NOT EXISTS
+           (
+               SELECT 1
+               FROM dbo.PIP_T_WO_CheckList CL
+               JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+               JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND CONVERT(VARCHAR(11),F.IDRepeat)=R.C4
+               WHERE CL.KeyHD=CAST(R.C1 AS INT) AND CL.IDItem=CAST(R.C2 AS INT)
+           )
+    )
+    BEGIN RAISERROR('Invalid REPEAT values submitted for Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        WHERE NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R WHERE R.IDItem=I.IDItem)
+           OR NOT EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F WHERE F.IDItem=I.IDItem)
+    )
+    BEGIN RAISERROR('A REPEAT Work Order item has no master field configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeat R ON R.IDItem=I.IDItem
+        WHERE
+            (R.RepeatMode='FIELDS' AND
+                ((SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<>1
+                 OR EXISTS (SELECT 1 FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2 AND CAST(V.C3 AS INT)<>0)))
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FIXED' AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<>R.FixedCount)
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MinCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)<R.MinCount)
+            OR (R.RepeatMode='OBJECTS' AND R.CountMode='FLEX' AND R.MaxCount IS NOT NULL AND
+                (SELECT COUNT(DISTINCT CAST(V.C3 AS INT)) FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2)>R.MaxCount)
+            OR (R.RepeatMode='OBJECTS' AND EXISTS
+                (SELECT 1 FROM @p_DtRepeat V WHERE V.C1=A.C1 AND V.C2=A.C2
+                 GROUP BY V.C1,V.C2
+                 HAVING MIN(CAST(V.C3 AS INT))<>0 OR MAX(CAST(V.C3 AS INT))<>COUNT(DISTINCT CAST(V.C3 AS INT))-1))
+    )
+    BEGIN RAISERROR('REPEAT object count or ObjectIndex sequence does not match Work Order template configuration.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT)
+        WHERE I.ItemType='REPEAT' AND I.IsValueRequired=1
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM @p_DtRepeat V
+              WHERE V.C1=A.C1 AND V.C2=A.C2
+                AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          )
+    )
+    BEGIN RAISERROR('At least one REPEAT value is required for this Work Order item.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_Dt1 A
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CAST(A.C2 AS INT) AND I.ItemType='REPEAT'
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=I.IDItem AND F.IsRequired=1
+        JOIN (SELECT DISTINCT C1,C2,C3 FROM @p_DtRepeat) O ON O.C1=A.C1 AND O.C2=A.C2
+        LEFT JOIN @p_DtRepeat V ON V.C1=O.C1 AND V.C2=O.C2 AND V.C3=O.C3 AND V.C4=CONVERT(VARCHAR(11),F.IDRepeat)
+        WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')=''
+    )
+    BEGIN RAISERROR('A required REPEAT child field is missing in Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE')
+          AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND ISNUMERIC(V.C5)=0
+    )
+    BEGIN RAISERROR('A REPEAT NUMBER/RANGE value must be numeric in Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE')
+          AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND
+          (
+              (F.MinValue IS NOT NULL AND (CONVERT(FLOAT,V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MinValue)))
+              OR (F.MaxValue IS NOT NULL AND (CONVERT(FLOAT,V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MaxValue)))
+          )
+    )
+    BEGIN RAISERROR('A REPEAT NUMBER/RANGE value is outside the configured limits in Work Order.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1
+        FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4 AND F.FieldType='OPTION'
+        WHERE ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(F.OptionList,';') O
+              WHERE UPPER(LTRIM(RTRIM(O.val)))=UPPER(LTRIM(RTRIM(V.C5)))
+          )
+    )
+    BEGIN RAISERROR('A REPEAT OPTION value is not in the configured option list.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
+        WHERE F.FieldType IN ('NUMBER','RANGE') AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>'' AND ISNUMERIC(V.C5)=0
+    )
+    BEGIN RAISERROR('A REPEAT numeric value must be a valid number.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
+        WHERE F.MinValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND (CONVERT(FLOAT,V.C5)<F.MinValue OR (F.MinInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MinValue))
+    )
+    BEGIN RAISERROR('A REPEAT numeric value is below its minimum.',16,1); RETURN; END;
+
+    IF EXISTS
+    (
+        SELECT 1 FROM @p_DtRepeat V
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=CAST(V.C2 AS INT) AND CONVERT(VARCHAR(11),F.IDRepeat)=V.C4
+        WHERE F.MaxValue IS NOT NULL AND ISNULL(LTRIM(RTRIM(V.C5)),'')<>''
+          AND (CONVERT(FLOAT,V.C5)>F.MaxValue OR (F.MaxInclusive=0 AND CONVERT(FLOAT,V.C5)=F.MaxValue))
+    )
+    BEGIN RAISERROR('A REPEAT numeric value exceeds its maximum.',16,1); RETURN; END;
+
+    /* All REPEAT payload checks have passed. Replace the saved child values only now,
+       so a rejected payload cannot erase the previous successful inspection values. */
+    DELETE SV
+    FROM dbo.PIP_T_WO_CheckList_SubValue SV
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.IDResult=SV.IDResult
+    JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=CL.IDItem AND I.ItemType='REPEAT'
+    JOIN @p_Dt4 WO ON WO.C1=CL.KeyHD;
+
+    DECLARE @V_NextRepeatSubValueID INT;
+    SELECT @V_NextRepeatSubValueID=ISNULL(MAX(IDSubValue),0)
+    FROM dbo.PIP_T_WO_CheckList_SubValue WITH (UPDLOCK,HOLDLOCK);
+
+    INSERT dbo.PIP_T_WO_CheckList_SubValue
+        (IDSubValue,IDResult,ObjectIndex,FieldName,Value)
+    SELECT @V_NextRepeatSubValueID+ROW_NUMBER() OVER (ORDER BY R.C1,R.C2,CAST(R.C3 AS INT),R.C4),
+           CL.IDResult,CAST(R.C3 AS INT),R.C4,ISNULL(R.C5,'')
+    FROM @p_DtRepeat R
+    JOIN dbo.PIP_T_WO_CheckList CL ON CL.KeyHD=CAST(R.C1 AS INT) AND CL.IDItem=CAST(R.C2 AS INT);
+END;
+
+IF @V_IsApprovalSPV=1
+BEGIN
+	DECLARE @m_Constanta VARCHAR(50), @m_CompanyID VARCHAR(10), @m_LocationID VARCHAR(3), @m_WONo VARCHAR(10)
+	DECLARE @V_SectionID VARCHAR(10), @V_DescriptionWO VARCHAR(500), @V_SectionIDUser VARCHAR(10), @V_ProfitCenterUser VARCHAR(10)
+	DECLARE @V_ApprovedBy VARCHAR(50)
+	
+	DECLARE tamp1 CURSOR FOR 
+	SELECT a.KeyHD, a.CompanyID, a.LocationID,AA.C7 SectionID, AA.C8 RemarkWO, A.SectionID, A.ProfitCenterNo, a.ApprovedHelpDeskUser 
+	FROM pip_t_wo A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=0 AND a.ReasonRespondDC='' AND AA.C5='APPROVED' AND AA.C3='Recommend Follow Up'
+	OPEN tamp1
+	FETCH NEXT FROM tamp1 INTO @V_KeyHD, @m_CompanyID, @m_LocationID, @V_SectionID, @V_DescriptionWO, @V_SectionIDUser,@V_ProfitCenterUser, @V_ApprovedBy
+	WHILE @@FETCH_STATUS=0
+	BEGIN
+		DECLARE @m_KeyHDWO INT = ISNULL((SELECT MAX(a.KeyHD) FROM PIP_T_WO a),0)+1 
+		DECLARE @tbl_tmp1 TABLE (ID VARCHAR(10), SeqNo INT)
+		SET @m_Constanta='PIPWO'+@m_CompanyID+@m_LocationID
+		INSERT @tbl_tmp1
+		EXECUTE sp_GetGenerateAutoNumID 'pip',@m_Constanta,1
+		SELECT @m_WONo=ID FROM @tbl_tmp1 
+		Insert Into PIP_T_WO (KeyHD, CompanyID, LocationID, WONo, WODate, WOType, StartDate, JONo, 
+		PMType, Description, LocationNo, SectionID, RequestedBy, CompletedBy, CompletedDate, 
+		CancelReason, SIIAmount, IsDelete, IsJO, IsApproved, ApprovedUser, ApprovedDate, EntryUser, EntryDate, UpdateUser, UpdateDate, IsPrint, [RePrint],
+		Feedback1, Feedback2, Feedback3, Feedback4, Feedback5, EquipmentCode, SectionIDUser, isApprovedDH, ApprovedDHUser, ApprovedDHDate, ReasonDH, 
+		isApprovedHelpDesk, ApprovedHelpDeskUser, ApprovedHelpDeskDate, ReasonHelpDesk, isCompleteDC, ReasonDC, LastStatusTransaction,ProfitCenterNo, 
+		isRespondDC, ApprovedRespondDCUser,ApprovedRespondDCDate,ReasonRespondDC,isCompletedUser,CompletedUser,CompletedDateUser,ReasonUser) 
+		VALUES (@m_KeyHDWO, @m_CompanyID, @m_LocationID, @m_WONo, CONVERT(VARCHAR(8),GETDATE(),112), 'I', CONVERT(VARCHAR(8),GETDATE(),112), '', 
+		'', @V_DescriptionWO, '', @V_SectionID, LEFT(ISNULL((SELECT swu.UserID FROM SysWebUser AS swu WHERE swu.employeeid=@V_ApprovedBy),@V_ApprovedBy),50), '', '', 
+		'', 0, 0, 1, 0, '', '', @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), 0, 0, 0, 0, 0, 0, 0, '', @V_SectionIDUser, 1, @p_UpdateUser, GETDATE(), '',
+		1, @p_UpdateUser, GETDATE(), '', 0, '', '', @V_ProfitCenterUser,0,'','','',0,'','','')	
+		UPDATE PIP_T_WO SET FollowUpWONo = @m_WONo WHERE KeyHD=@V_KeyHD
+		
+		FETCH NEXT FROM tamp1 INTO @v_KeyHD, @m_CompanyID, @m_LocationID, @V_SectionID, @V_DescriptionWO, @V_SectionIDUser,@V_ProfitCenterUser, @V_ApprovedBy
+	END
+	CLOSE tamp1
+	DEALLOCATE tamp1
+	
+	UPDATE A 
+	SET ReasonRespondDC = AA.C6, isRespondDC = CASE WHEN AA.C5='VOID' THEN 0 ELSE 1 END, 
+	UpdateUser = @p_UpdateUser, UpdateDate = GETDATE(), isCompleteDC = CASE WHEN AA.C5='VOID' THEN 0 ELSE 1 END,
+	CompletedDate = CASE WHEN AA.C5='VOID' THEN '' ELSE GETDATE() END,
+	CompletedBy = CASE WHEN AA.C5='VOID' THEN '' ELSE ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@p_UpdateUser),@p_UpdateUser) END,
+	A.RemarkSupervisor=AA.C4,
+	ApprovedRespondDCDate = GETDATE(),
+	ApprovedRespondDCUser = ISNULL((SELECT swu.UserName FROM SysWebUser AS swu WHERE swu.employeeid=@p_UpdateUser),@p_UpdateUser)
+	FROM pip_t_wo A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE a.isCompleteDC=0 AND a.ReasonRespondDC=''
+END
+ELSE
+BEGIN
+	UPDATE A SET A.ReasonRespondDC='', A.ApprovedRespondDCUser='', A.ApprovedRespondDCDate='', A.isRespondDC = 0,
+	A.UpdateUser=@p_UpdateUser, A.UpdateDate=GETDATE(), 
+	A.ApprovedHelpDeskUser=@p_UpdateUser, 
+	A.ApprovedHelpDeskDate=GETDATE(),
+	A.RemarkTechnician=LEFT(AA.C2,255), 
+	A.IsFollowUp=CASE WHEN AA.C3='Recommend Follow Up' THEN 1 ELSE 0 END,
+	A.FollowUpSection=CASE WHEN AA.C3='Recommend Follow Up' THEN AA.C7 ELSE '' END,
+	A.FollowUpRemark=CASE WHEN AA.C3='Recommend Follow Up' THEN AA.C8 ELSE '' END
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+
+	UPDATE B
+	SET B.StartDate=CASE WHEN AA.C9='' THEN '' ELSE AA.C9 END, 
+	B.EndDate=CASE WHEN AA.C10='' THEN '' ELSE AA.C10 END, 
+	B.Remark=LEFT(AA.C2,100), B.UpdateUser=@p_UpdateUser, B.UpdateDate=GETDATE(),
+	B.WorkingHours=CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+						CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) / 60 AS VARCHAR(10))
+					ELSE 0 END,
+	B.WorkingMinutes=CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+						CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) % 60 AS VARCHAR(2))
+					ELSE 0 END
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD 
+	JOIN PIP_T_H_WO_Employee B ON B.KeyHD=A.KeyHD
+	WHERE ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0	
+
+	INSERT INTO PIP_T_H_WO_Employee
+	(KeyHD,SeqNo,ComplaintType,ProblemCode,StartDate,EndDate,WorkingHours,WorkingMinutes,Remark,
+	EntryUser,EntryDate,UpdateUser,UpdateDate)
+	SELECT a.KeyHD, 1, '', '', CASE WHEN AA.C9='' THEN '' ELSE AA.C9 END, CASE WHEN AA.C10='' THEN '' ELSE AA.C10 END, 
+	CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+		CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) / 60 AS VARCHAR(10))
+	ELSE 0 END,
+	CASE WHEN AA.C10<>'' AND AA.C9<>'' THEN 
+		 CAST(DATEDIFF(minute, CAST(AA.C9 AS DATETIME), CAST(AA.C10 AS DATETIME)) % 60 AS VARCHAR(2))
+	ELSE 0 END, LEFT(AA.C2,100), @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE()
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	WHERE NOT EXISTS (SELECT * FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD)
+	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0 
+
+	DELETE D FROM PIP_T_D_WO_Employee D JOIN PIP_T_WO H JOIN @p_Dt4 A ON A.C1=H.KeyHD ON H.KeyHD = D.KeyHD
+	WHERE NOT EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(H.EmployeeAssigned,';') b 
+					  WHERE b.val=d.EmployeeID)
+    AND ((h.RemarkTechnician='' AND h.ReasonRespondDC='') OR (h.RemarkTechnician<>'' AND h.ReasonRespondDC<>'')) AND h.isCompleteDC=0					  
+	INSERT INTO PIP_T_D_WO_Employee
+	(KeyHD,SeqNo,EmployeeID)
+	SELECT a.KeyHD, ISNULL((SELECT MAX(AB.SeqNo) FROM PIP_T_D_WO_Employee AB WHERE AB.KeyHD=A.KeyHD),0)+ROW_NUMBER() OVER (ORDER BY b.val ), b.val  
+	FROM PIP_T_WO A JOIN @p_Dt4 AA ON AA.C1=A.KeyHD
+	CROSS APPLY dbo.SplitStringConvertToTable(A.EmployeeAssigned,';') b
+	WHERE NOT EXISTS (SELECT * FROM PIP_T_D_WO_Employee BB WHERE BB.KeyHD=A.KeyHD AND BB.EmployeeID=b.val) 
+	AND ((a.RemarkTechnician='' AND a.ReasonRespondDC='') OR (a.RemarkTechnician<>'' AND a.ReasonRespondDC<>'')) AND a.isCompleteDC=0
+	
+	IF EXISTS
+       (
+           SELECT 1
+           FROM @p_Dt1 Anomaly
+           JOIN dbo.PIP_T_WO WOHeader ON WOHeader.KeyHD=Anomaly.C1
+           JOIN dbo.SysWebCommonValue WOEmail
+             ON WOEmail.AppID='INSPEC'
+            AND WOEmail.CommonGroup='EmailApproval'
+            AND WOEmail.IsDelete=0
+            AND WOEmail.ID=CONVERT(VARCHAR(30),WOHeader.CompanyID)+CONVERT(VARCHAR(30),WOHeader.LocationID)+';EMAIL;WO'
+            AND LTRIM(RTRIM(WOEmail.Description))='1'
+           WHERE CAST(Anomaly.C5 AS BIT)=1
+       ) -- send email utk anomali only when WO email is enabled
+	BEGIN
+		DECLARE @V_BCC_EmailAddress VARCHAR(MAX)
+		SELECT 
+		@V_BCC_EmailAddress = s.Description 
+		FROM syswebcommonvalue s 
+		WHERE s.CommonGroup = 'BCC' 
+		and s.APPID = 'PIP'
+		
+		INSERT INTO #tblEmail
+			(FormEmail, EmailAddressFrom, [From], EmailAddressTo, WONo, [Subject], BCC_EmailAddress)
+			SELECT DISTINCT FormEmail=
+'<html>
+<head></head>
+<body>
+	<table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.5;">
+	<tr>
+		<td colspan=3 valign=top> Dear Approver, </td>
+	</tr>
+	<tr><td colspan="3" height="15"></td></tr>
+	<tr>
+		<td colspan="3" style="color: #d9534f; font-weight: bold;">
+		  An anomaly has been detected during the Preventive Maintenance inspection.
+		</td>
+	</tr>
+	<tr><td colspan="3" height="15"></td></tr>
+	
+	  <tr>
+		<td colspan="3" style="font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">WO Details</td>
+	  </tr>
+	  <tr><td colspan="3" height="5"></td></tr>
+	  <tr>
+		<td width="150" valign="top">WO PM</td>
+		<td width="15" valign="top" align="center">:</td>
+		<td>'+b.WONo+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Equipment</td>
+		<td valign="top" align="center">:</td>
+		<td>['+b.SectionID+']'+b.EquipmentCode+' '+pme.EquipmentName+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Location</td>
+		<td valign="top" align="center">:</td>
+		<td>'+b.LocationNo  + ' ' + pml.[Description]+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Technician</td>
+		<td valign="top" align="center">:</td>
+		<td>'+mhe2.Name+'</td>
+	  </tr>
+	  <tr>
+		<td valign="top">Inspection Date</td>
+		<td valign="top" align="center">:</td>
+		<td>'+convert(varchar,pthwe.StartDate,106) + ' ' + convert(varchar(5),pthwe.StartDate,108)+'</td>
+	  </tr>
+	  <tr><td colspan="3" height="20"></td></tr>
+
+	  <tr>
+		<td colspan="3" style="font-weight: bold; color: #d9534f; border-bottom: 1px solid #d9534f; padding-bottom: 5px;">ANOMALY DETECTED</td>
+	  </tr>
+	  <tr><td colspan="3" height="5"></td></tr>'+
+		ISNULL(REPLACE(REPLACE(
+		(
+			SELECT
+			CASE 
+				WHEN ROW_NUMBER() OVER (ORDER BY a.IDItem) > 1 
+				THEN '<tr><td colspan="3" style="border-top: 1px dashed #ddd; padding-top: 15px; margin-bottom: 15px;"></td></tr>' 
+				ELSE '' 
+			  END+ 			
+		  '<tr>
+			<td colspan="3" style="padding-left: 10px;">
+			  <b style="display: block; margin-bottom: 5px;">'+CAST(ROW_NUMBER() OVER (ORDER BY a.IDItem) AS VARCHAR)+'. '+pmclwi.ItemLabel+'</b>
+			  <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+				<tr>
+				  <td width="100" valign="top">Expected</td>
+				  <td width="15" valign="top" align="center">:</td>
+				  <td>'+ CONVERT(VARCHAR,CAST((pmclwi.MinValue-pmclwi.MinTolerance) AS MONEY),1) + ' - ' + CONVERT(VARCHAR,CAST((pmclwi.MaxValue+pmclwi.MaxTolerance) AS MONEY),1) + ' ' + pmclwi.Unit + '</td>
+				</tr>
+				<tr>
+				  <td valign="top">Actual</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ CONVERT(VARCHAR,a.[Value],1) + ' ' + pmclwi.Unit + '</td>
+				</tr>
+				<tr>
+				  <td valign="top">'+ISNULL(pmclwi.Remark1Text,'Remark')+'</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ISNULL(a.Remark1,'')+'</td>
+				</tr>' +
+                '<tr><td valign="top">'+ISNULL(pmclwi.Remark2Text,'Remark')+'</td>
+				  <td valign="top" align="center">:</td>
+				  <td>'+ISNULL(a.Remark2,'')+'</td>
+				</tr>
+			  </table>
+			</td>
+		  </tr>
+		  <tr><td colspan="3" height="20"></td></tr>'
+			FROM PIP_M_CheckListWOPM_Item AS pmclwi JOIN PIP_T_WO_CheckList a ON a.IDItem = pmclwi.IDItem
+			WHERE a.KeyHD=b.KeyHD AND a.IsAnomali=1 
+			ORDER BY a.IDItem
+			FOR XML PATH('')
+		) 
+		,'&lt;','<'),'&gt;','>'),'')+
+	  '
+	<tr>
+    <td colspan="3">
+      <b>Required Action:</b><br>
+      Please review the anomaly and take the necessary corrective action.
+    </td>
+  </tr>
+  <tr><td colspan="3" height="15"></td></tr>
+  <tr>
+    <td colspan="3">
+      <b>System Status:</b> <span style="background-color: #f0f0f0; padding: 2px 6px; border-radius: 3px;">Pending Supervisor Review</span>
+    </td>
+  </tr>
+  <tr><td colspan="3" height="40"></td></tr>
+  <tr>
+    <td colspan="3" style="font-size: 12px; color: #777; font-style: italic; border-top: 1px solid #eee; padding-top: 10px;">
+      Mulia Preventive Maintenance System<br>
+      This is an automated email. Please do not reply.
+    </td>
+  </tr>
+'		
+			, EmailAddressFrom=mhe2.EmailAddress, [From]=mhe2.Name,
+			  EmailAddressTo=ISNULL(
+			    STUFF((
+			      SELECT ';'+LTRIM(RTRIM(mheEmail.EmailAddress))
+			      FROM dbo.SplitStringConvertToTable(CV.Description,';') ap
+			      JOIN dbo.M_HRD_Employee mheEmail ON mheEmail.EmployeeID=LTRIM(RTRIM(ap.val))
+			      WHERE ISNULL(LTRIM(RTRIM(mheEmail.EmailAddress)),'')<>''
+			      ORDER BY ap.id
+			      FOR XML PATH(''),TYPE
+			    ).value('.','NVARCHAR(MAX)'),1,1,''),''),
+			  b.WONo
+			, [Subject]='[ACTION REQUIRED] PM Anomaly – ['+b.SectionID+'] ['+pme.EquipmentName+'] – [WO-PM-'+b.WONo+']'
+			, BCC_EmailAddress=@V_BCC_EmailAddress
+			FROM PIP_T_WO b 
+			JOIN PIP_T_H_WO_Employee AS pthwe ON pthwe.KeyHD = b.KeyHD
+			JOIN dbo.SysWebCommonValue CV
+				ON CV.AppID='INSPEC'
+				AND CV.CommonGroup='EmailApproval'
+				AND CV.IsDelete=0
+				AND CV.ID=CONVERT(VARCHAR(30),b.CompanyID)+CONVERT(VARCHAR(30),b.LocationID)+';SPV;'+b.SectionID
+                AND LTRIM(RTRIM(CV.Description))<>''
+                AND EXISTS
+                (
+                    SELECT 1
+                    FROM dbo.SplitStringConvertToTable(CV.Description,';') SPVEmail
+                    JOIN dbo.M_HRD_Employee SPVEmployee
+                      ON SPVEmployee.EmployeeID=LTRIM(RTRIM(SPVEmail.val))
+                    WHERE ISNULL(LTRIM(RTRIM(SPVEmployee.EmailAddress)),'')<>''
+                )
+			JOIN PIP_M_Equipment AS pme JOIN PIP_M_Location AS pml ON pml.CompanyID = pme.CompanyID AND pml.LocationID = pme.LocationID AND pml.LocationNo = pme.LocationNo 
+			ON pme.CompanyID=b.CompanyID AND pme.LocationID=b.LocationID AND pme.EquipmentCode=b.EquipmentCode
+			CROSS JOIN M_HRD_Employee AS mhe2  
+			WHERE mhe2.EmployeeID=@p_UpdateUser
+			AND EXISTS (SELECT 1 FROM PIP_T_WO_CheckList a JOIN @p_Dt1 aa ON aa.C1=a.KeyHD
+			            WHERE a.IsAnomali=1 AND a.KeyHD=b.KeyHD)
+	END
+END
+
+SELECT * FROM @tmp_Photos AS tp
+SELECT * FROM #tblEmail
+
+DROP TABLE #tblEmail
