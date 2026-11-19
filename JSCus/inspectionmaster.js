@@ -673,6 +673,7 @@
             var drawMode = false, drawingPath = false, suppressNextClick = false;
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
+            var orthogonalDrawing = false, orthogonalPreviewPoint = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
             function updateRectanglePreview(point) {
@@ -750,20 +751,46 @@
                 }
                 return pathPreview;
             }
-            function renderPathPreview(closePath) {
+            function renderPathPreview(closePath, previewPoint) {
                 var path = ensurePathPreview();
-                if (!pathPoints.length) { path.setAttribute('d', ''); return; }
-                var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
-                for (var p = 1; p < pathPoints.length; p++)
-                    d += ' L ' + pathPoints[p].x.toFixed(2) + ' ' + pathPoints[p].y.toFixed(2);
-                if (closePath && pathPoints.length >= 3) d += ' Z';
+                if (!pathPoints.length && !previewPoint) { path.setAttribute('d', ''); return; }
+                var points = pathPoints.slice(0);
+                if (previewPoint) points.push(previewPoint);
+                var orthogonal = shapeSelect && shapeSelect.value === 'ORTHOGONAL';
+                var d = '';
+                if (orthogonal) {
+                    if (points.length) {
+                        d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+                        for (var p = 1; p < points.length; p++) {
+                            var prev = points[p - 1], next = points[p];
+                            if (Math.abs(next.x - prev.x) >= Math.abs(next.y - prev.y)) {
+                                if (Math.abs(next.x - prev.x) >= 0.01)
+                                    d += ' L ' + next.x.toFixed(2) + ' ' + prev.y.toFixed(2);
+                                d += ' L ' + next.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                            } else {
+                                if (Math.abs(next.y - prev.y) >= 0.01)
+                                    d += ' L ' + prev.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                                d += ' L ' + next.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                            }
+                        }
+                    }
+                    path.setAttribute('fill', 'none');
+                } else {
+                    d = 'M ' + points[0].x.toFixed(2) + ' ' + points[0].y.toFixed(2);
+                    for (var q = 1; q < points.length; q++)
+                        d += ' L ' + points[q].x.toFixed(2) + ' ' + points[q].y.toFixed(2);
+                    if (closePath && points.length >= 3) d += ' Z';
+                    path.setAttribute('fill', 'rgba(13,110,253,.16)');
+                }
                 path.setAttribute('d', d);
             }
             function startPathDrawing() {
                 recordPathEditorAction();
-                if (shapeSelect) shapeSelect.value = 'PATH';
-                drawMode = true; drawingPath = false; pathPoints = [];
+                if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
+                drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = [];
                 if (pathField) pathField.value = '';
+                if (shapeAttributesField && shapeSelect && shapeSelect.value === 'ORTHOGONAL')
+                    shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                 var activeId = document.getElementById('hidPointID');
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (svg && activeId && activeId.value) {
@@ -772,10 +799,42 @@
                 }
                 renderPathPreview(false);
                 board.classList.add('path-drawing');
-                pathStatusText('Draw mode aktif: drag mengikuti batas area, lalu lepaskan untuk menutup path.');
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL')
+                    pathStatusText('Siku aktif: klik titik demi titik untuk membuat segmen 90°. Double-click untuk selesai.');
+                else
+                    pathStatusText('Draw mode aktif: drag mengikuti batas area, lalu lepaskan untuk menutup path.');
             }
             function finishPathDrawing() {
-                drawingPath = false; dragging = false;
+                drawingPath = false; dragging = false; orthogonalDrawing = false; orthogonalPreviewPoint = null;
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    if (pathPoints.length < 2) {
+                        pathPoints = []; renderPathPreview(false);
+                        pathStatusText('Garis siku perlu minimal 2 titik. Klik Draw SVG Path untuk mencoba lagi.');
+                        return;
+                    }
+                    renderPathPreview(false);
+                    var d = 'M ' + pathPoints[0].x.toFixed(2) + ' ' + pathPoints[0].y.toFixed(2);
+                    for (var o = 1; o < pathPoints.length; o++) {
+                        var prev = pathPoints[o - 1], next = pathPoints[o];
+                        if (Math.abs(next.x - prev.x) >= Math.abs(next.y - prev.y)) {
+                            if (Math.abs(next.x - prev.x) >= 0.01) d += ' L ' + next.x.toFixed(2) + ' ' + prev.y.toFixed(2);
+                            d += ' L ' + next.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                        } else {
+                            if (Math.abs(next.y - prev.y) >= 0.01) d += ' L ' + prev.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                            d += ' L ' + next.x.toFixed(2) + ' ' + next.y.toFixed(2);
+                        }
+                    }
+                    if (pathField) pathField.value = d;
+                    if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
+                    var sx = 0, sy = 0;
+                    pathPoints.forEach(function (point) { sx += point.x; sy += point.y; });
+                    if (markerX) markerX.value = (sx / pathPoints.length).toFixed(2);
+                    if (markerY) markerY.value = (sy / pathPoints.length).toFixed(2);
+                    drawMode = false;
+                    board.classList.remove('path-drawing');
+                    pathStatusText('Garis siku siap disimpan. Save Inspection Point untuk menyimpan jalur ini.');
+                    return;
+                }
                 if (pathPoints.length < 3) {
                     pathPoints = []; renderPathPreview(false);
                     pathStatusText('Path perlu minimal 3 titik. Klik Draw SVG Path untuk mencoba lagi.');
@@ -795,7 +854,13 @@
                 board.classList.remove('path-drawing');
                 pathStatusText('SVG Path siap disimpan. Save Inspection Point untuk menyimpan area ini.');
             }
-            if (drawButton) drawButton.addEventListener('click', startPathDrawing);
+            if (drawButton) drawButton.addEventListener('click', function () {
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && pathPoints.length >= 2) {
+                    finishPathDrawing();
+                    return;
+                }
+                startPathDrawing();
+            });
             updatePathHistoryButtons();
             if (undoButton) undoButton.addEventListener('click', undoPathAction);
             if (redoButton) redoButton.addEventListener('click', redoPathAction);
@@ -805,6 +870,8 @@
                 recordPathEditorAction();
                 drawMode = false;
                 drawingPath = false;
+                orthogonalDrawing = false;
+                orthogonalPreviewPoint = null;
                 pathPoints = [];
                 if (pathField) pathField.value = '';
                 if (shapeSelect) shapeSelect.value = 'CIRCLE';
@@ -841,6 +908,10 @@
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
+                if (this.value !== 'ORTHOGONAL') {
+                    orthogonalDrawing = false;
+                    orthogonalPreviewPoint = null;
+                }
                 if (this.value === 'CIRCLE') {
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
@@ -858,6 +929,12 @@
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = '{}';
                     pathStatusText('Rectangle: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
+                } else if (this.value === 'ORTHOGONAL') {
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
+                    if (pathField) pathField.value = '';
+                    if (pathPreview) pathPreview.setAttribute('d', '');
+                    if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
+                    pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
                 } else {
                     pathStatusText('Klik Draw SVG Path, lalu drag mengikuti batas area pada denah.');
                 }
@@ -876,6 +953,17 @@
                 }
                 if (!drawMode || event.button !== 0) return;
                 event.preventDefault(); event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    if (!drawingPath) {
+                        drawingPath = true;
+                        pathPoints = [mapPointFromEvent(event)];
+                        orthogonalDrawing = true;
+                        orthogonalPreviewPoint = null;
+                        renderPathPreview(false);
+                    }
+                    suppressNextClick = true;
+                    return;
+                }
                 drawingPath = true; suppressNextClick = true;
                 pathPoints = [mapPointFromEvent(event)];
                 renderPathPreview(false);
@@ -889,6 +977,11 @@
                 }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    orthogonalPreviewPoint = mapPointFromEvent(event);
+                    renderPathPreview(false, orthogonalPreviewPoint);
+                    return;
+                }
                 var next = mapPointFromEvent(event), last = pathPoints[pathPoints.length - 1];
                 var dx = next.x - last.x, dy = next.y - last.y;
                 if (Math.sqrt(dx * dx + dy * dy) >= 0.25) {
@@ -903,7 +996,26 @@
                 }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
+                    var point = mapPointFromEvent(event);
+                    var last = pathPoints[pathPoints.length - 1];
+                    var distance = last ? Math.hypot(point.x - last.x, point.y - last.y) : 0;
+                    if (distance >= 0.5) {
+                        pathPoints.push(point);
+                        orthogonalPreviewPoint = null;
+                        renderPathPreview(false);
+                        if (pathPoints.length === 2)
+                            pathStatusText('Siku: titik berikutnya akan otomatis dikunci horizontal/vertikal. Double-click untuk selesai.');
+                    }
+                    return;
+                }
                 finishPathDrawing();
+            }, true);
+            board.addEventListener('dblclick', function (event) {
+                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && drawingPath) {
+                    event.preventDefault(); event.stopImmediatePropagation();
+                    if (pathPoints.length >= 2) finishPathDrawing();
+                }
             }, true);
             board.addEventListener('pointercancel', function (event) {
                 if (rectangleDrawing) {
@@ -915,7 +1027,7 @@
                 }
                 if (!drawMode || !drawingPath) return;
                 event.preventDefault(); event.stopImmediatePropagation();
-                drawingPath = false; pathPoints = []; suppressNextClick = false; renderPathPreview(false);
+                drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = []; suppressNextClick = false; renderPathPreview(false);
             }, true);
 
             document.getElementById('btnMapZoomIn').addEventListener('click', function () { setZoom(zoom + 0.25); });
