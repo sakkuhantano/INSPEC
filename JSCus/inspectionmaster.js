@@ -643,12 +643,19 @@
                 pathStatusText('½ Lingkaran siap disimpan · arah ' + direction + '.');
             }
             function refreshHalfCircleDirection() {
-                if (!shapeSelect || shapeSelect.value !== 'HALF_CIRCLE' || !markerX || !markerY ||
-                    markerX.value === '' || markerY.value === '') return;
+                if (!shapeSelect || !halfCircleDirection) return;
+                // Changing the direction is an option of HALF_CIRCLE, never a
+                // request to switch the master shape to PATH/Freeform.
+                shapeSelect.value = 'HALF_CIRCLE';
+                if (halfCircleDirectionWrap) halfCircleDirectionWrap.style.display = '';
+                if (!markerX || !markerY || markerX.value === '' || markerY.value === '') return;
                 recordPathEditorAction();
                 placeHalfCircle(Number(markerX.value), Number(markerY.value));
             }
-            if (halfCircleDirection) halfCircleDirection.addEventListener('change', refreshHalfCircleDirection);
+            if (halfCircleDirection) halfCircleDirection.addEventListener('change', function (event) {
+                event.stopPropagation();
+                refreshHalfCircleDirection();
+            });
             // Action-based Undo/Redo for unsaved map geometry edits.
             var redoButton = document.getElementById('btnRedoPath');
             var pathUndoStack = [], pathRedoStack = [];
