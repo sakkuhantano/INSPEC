@@ -336,6 +336,7 @@ BEGIN
             @p_GPSLongitude=@p_GPSLongitude,
             @p_GPSAccuracy=@p_GPSAccuracy,
             @p_GPSCapturedAt=@p_GPSCapturedAt,
+            @p_InspectionMode='BATCH',
             @p_InspectionNo=@V_InspectionNo,
             @p_Photos=@V_EmptyPhotos,
             @p_Items=@V_EmptyItems,
@@ -482,6 +483,11 @@ BEGIN
                P.PhotoType,P.FileName,P.FileType,P.SeqNo,@p_UpdateUser,GETDATE()
         FROM PhotoRows P
         JOIN @V_PointMap PM ON PM.ClientPointID=P.ClientPointID;
+
+        EXEC dbo.spUTL_PIP_T_Inspection_SubmitWorkflow
+            @p_InspectionID=@V_InspectionID,
+            @p_ActorEmployeeID=@p_UpdateUser,
+            @p_ApprovalUrl=@p_ApprovalUrl;
 
         SELECT @V_InspectionID InspectionID,@p_ClientInspectionID ClientInspectionID,
                InspectionNo
