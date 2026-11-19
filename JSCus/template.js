@@ -198,6 +198,7 @@ let companyId = null;
 let locationId = null;
 
 let templateSessionDraftTimer = null;
+let templateSessionSaveRecoveryArmed = false;
 
 function getTemplateSessionDraftKey() {
     const login = typeof getLoginData === "function" ? (getLoginData() || {}) : {};
@@ -288,6 +289,23 @@ function markTemplatePostbackContinuation() {
     } catch (error) {
         console.warn("Template Builder postback continuation marker could not be saved:", error);
     }
+}
+
+function armTemplateSaveSessionRecovery() {
+    templateSessionSaveRecoveryArmed = true;
+    // Capture the latest in-memory structure immediately before a save request.
+    // The normal 180ms draft timer is intentionally not relied upon here.
+    persistTemplateSessionDraft();
+}
+
+function disarmTemplateSaveSessionRecovery() {
+    templateSessionSaveRecoveryArmed = false;
+}
+
+function markTemplateSaveSessionContinuation() {
+    if (!templateSessionSaveRecoveryArmed) return;
+    markTemplatePostbackContinuation();
+    templateSessionSaveRecoveryArmed = false;
 }
 
 function clearTemplateSessionContinuation() {
@@ -890,6 +908,13 @@ function isInspecSessionExpiredError(ex) {
 function redirectToInspecLogin() {
     if (window.__inspecLoginRedirecting) return;
     window.__inspecLoginRedirecting = true;
+
+    // If Save All lost the ASP.NET session, preserve the dirty Template Builder
+    // snapshot across the login page. sessionStorage survives the navigation,
+    // while the continuation marker tells template.aspx that this draft is an
+    // intentional recovery rather than an old draft left behind by normal navigation.
+    markTemplateSaveSessionContinuation();
+
     // template.aspx is under /Secure; default.aspx is at the application root.
     window.location.replace("../default.aspx");
 }
@@ -11005,6 +11030,12 @@ async function saveAllTemplate()
     saveAllTemplate._busy = true;
     showLoading("Saving template...");
 
+    // Arm recovery before the first PageMethod call. If the ASP.NET Session has
+    // expired, the global session guard will preserve this draft before redirecting
+    // the user to login. This is deliberately done after validation/payload build,
+    // so the snapshot contains exactly what Save All is about to submit.
+    armTemplateSaveSessionRecovery();
+
     try
     {
         // Metadata-only changes (e.g. Template Type / Inspection Type) do not
@@ -11093,6 +11124,7 @@ async function saveAllTemplate()
         // evaluateDirtyState();
         // evaluateDirtyIcon();
 
+        disarmTemplateSaveSessionRecovery();
         clearTemplateSessionDraft(true);
         showToast(
             "Save completed."
@@ -11104,6 +11136,10 @@ async function saveAllTemplate()
             (ex && ex.get_message) ||
             (typeof ex === "string" ? ex : "");
         console.error("Save All Template failed:", ex);
+        // Keep the local draft on any failed save. If this was a session-expiry
+        // failure, redirectToInspecLogin() has already armed the continuation marker.
+        if (!isInspecSessionExpiredError(ex))
+            disarmTemplateSaveSessionRecovery();
         alert(detail || "Save All Template failed. See the browser console for the server error details.");
     }
     finally
