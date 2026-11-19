@@ -69,8 +69,11 @@
             img.id = 'inspectionPdfCanvas';
             img.className = 'inspection-coordinate-pdf';
             img.alt = 'Inspection floor plan';
+            img.setAttribute('data-map-url', inspectionDraftObjectUrl);
             img.onload = function () {
-                board.style.aspectRatio = img.naturalWidth + ' / ' + img.naturalHeight;
+                // Draft images use the same aspect-ratio-aware content sizing as
+                // saved maps. Do not stretch them to the fixed-height point modal.
+                fitInspectionCoordinateContent(board, content, img.naturalWidth, img.naturalHeight);
                 var status = document.getElementById('inspectionPdfStatus');
                 if (status) status.style.display = 'none';
             };
