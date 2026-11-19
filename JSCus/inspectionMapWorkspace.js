@@ -983,8 +983,10 @@
             }
             var mime = String(blob.type || '').toLowerCase();
             var urlPath = String(map.MapUrl).split('?')[0].toLowerCase();
-            var isJpeg = mime.indexOf('image/jpeg') === 0 || /\.(jpg|jpeg)$/.test(urlPath);
-            if (isJpeg) {
+            // Inspection maps may be stored as PDF or raster images. Do not send
+            // PNG/GIF/WebP/BMP files to PDF.js just because they are not JPEG.
+            var isImage = mime.indexOf('image/') === 0 || /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/.test(urlPath);
+            if (isImage) {
                 canvas.style.display = 'none';
                 var image = document.createElement('img'); image.className = 'inspection-map-image'; image.alt = 'Inspection floor plan'; image.draggable = false;
                 stage.insertBefore(image, document.getElementById('inspectionMapPoints'));
@@ -1011,7 +1013,7 @@
                 };
                 image.onerror = function () {
                     if (requestId !== pdfRenderSequence) return;
-                    if (message) { message.textContent = 'Gambar JPG/JPEG tidak dapat dibuka.'; message.classList.remove('d-none'); }
+                    if (message) { message.textContent = 'File gambar denah tidak dapat dibuka.'; message.classList.remove('d-none'); }
                 };
                 image.src = objectUrl; return;
             }
@@ -1020,6 +1022,26 @@
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = '../JSCus/pdf.worker.min.js';
             var pdfData = new Uint8Array(await blob.arrayBuffer());
             if (requestId !== pdfRenderSequence) return;
+            // A successful HTTP response can still contain a login/error HTML page
+            // or an unexpected file. Validate the PDF header before invoking PDF.js.
+            var pdfHeaderFound = false;
+            var headerLimit = Math.min(pdfData.length, 1024);
+            for (var headerIndex = 0; headerIndex <= headerLimit - 5; headerIndex++) {
+                if (pdfData[headerIndex] === 0x25 && pdfData[headerIndex + 1] === 0x50 &&
+                    pdfData[headerIndex + 2] === 0x44 && pdfData[headerIndex + 3] === 0x46 &&
+                    pdfData[headerIndex + 4] === 0x2d) {
+                    pdfHeaderFound = true;
+                    break;
+                }
+            }
+            if (!pdfHeaderFound) {
+                var signature = Array.prototype.slice.call(pdfData.subarray(0, 8)).map(function (value) {
+                    return value.toString(16).padStart(2, '0');
+                }).join(' ');
+                throw new Error('Respons denah bukan PDF yang valid (Content-Type: ' +
+                    (mime || 'tidak diketahui') + ', ukuran: ' + blob.size + ' byte, signature: ' +
+                    (signature || 'kosong') + '). Periksa URL atau file map di server.');
+            }
             var loadedDocument = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
             if (requestId !== pdfRenderSequence) {
                 if (loadedDocument && loadedDocument.destroy) loadedDocument.destroy();
