@@ -34,7 +34,7 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_Lightning_Sync
     @p_CompanyID VARCHAR(10),
     @p_LocationID VARCHAR(3),
     @p_SectionID VARCHAR(10),
-    @p_InspectionTypeCode VARCHAR(2),
+    @p_InspectionTypeCode VARCHAR(10),
     @p_InspectionTypeDetailCode VARCHAR(20),
     @p_ScheduledTime VARCHAR(5),
     @p_IDTemplate INT,
