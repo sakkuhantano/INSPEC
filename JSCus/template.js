@@ -2426,11 +2426,8 @@ function showTemplateMenu(event,sectionId,idTemplate)
         menu
     );
 
-    menu.style.left =
-        event.pageX+'px';
-
-    menu.style.top =
-        event.pageY+'px';
+    // Use the same viewport-aware placement as Section shortcut menus.
+    positionContextMenu(menu, event);
 
     setTimeout(()=>
     {
@@ -2488,21 +2485,34 @@ function positionContextMenu(menu, event)
 
     const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
-    const rect = menu.getBoundingClientRect();
     const margin = 8;
+    const isFixed = window.getComputedStyle(menu).position === 'fixed';
 
-    // pageX/pageY are used because the menu is appended to body.
-    let left = (event.pageX || 0);
-    let top = (event.pageY || 0);
+    // Fixed menus use viewport coordinates; absolute menus use document coordinates.
+    let left = Number.isFinite(event.clientX)
+        ? (isFixed ? event.clientX : event.clientX + window.scrollX)
+        : (event.pageX || 0);
+    let top = Number.isFinite(event.clientY)
+        ? (isFixed ? event.clientY : event.clientY + window.scrollY)
+        : (event.pageY || 0);
 
-    if (left + rect.width > window.scrollX + viewportWidth - margin)
-        left = window.scrollX + viewportWidth - rect.width - margin;
+    // Measure after the menu has been added to the DOM and made visible.
+    const rect = menu.getBoundingClientRect();
+    const minLeft = isFixed ? margin : window.scrollX + margin;
+    const maxRight = isFixed ? viewportWidth - margin : window.scrollX + viewportWidth - margin;
+    const minTop = isFixed ? margin : window.scrollY + margin;
+    const maxBottom = isFixed ? viewportHeight - margin : window.scrollY + viewportHeight - margin;
 
-    if (top + rect.height > window.scrollY + viewportHeight - margin)
-        top = window.scrollY + viewportHeight - rect.height - margin;
+    // If there is not enough room on the right, align the menu's right edge
+    // with the viewport edge (the same left-opening behavior as Section menus).
+    if (left + rect.width > maxRight)
+        left = maxRight - rect.width;
 
-    left = Math.max(window.scrollX + margin, left);
-    top = Math.max(window.scrollY + margin, top);
+    if (top + rect.height > maxBottom)
+        top = maxBottom - rect.height;
+
+    left = Math.max(minLeft, left);
+    top = Math.max(minTop, top);
 
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
@@ -9247,11 +9257,7 @@ function showVersionContextMenu(e, version)
     // SHOW
     //---------------------------------
 
-    renderContextMenu(
-        e.pageX,
-        e.pageY,
-        items
-    );
+    renderContextMenu(e, items);
 }
 function hideContextMenu() {
 
@@ -9265,7 +9271,7 @@ function hideContextMenu() {
 
     menu.innerHTML = '';
 }
-function renderContextMenu(x, y, items) {
+function renderContextMenu(event, items) {
     let menu =
         document.getElementById('customContextMenu');
     if (!menu) {
@@ -9287,9 +9293,8 @@ function renderContextMenu(x, y, items) {
         });
         menu.appendChild(div);
     });
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
     menu.classList.remove('d-none');
+    positionContextMenu(menu, event);
 }
 async function cloneTemplateToAnotherSection(sourceSectionId, sourceRuntimeTemplateId)
 {
