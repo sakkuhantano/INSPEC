@@ -50,23 +50,23 @@ BEGIN
           AND ISNULL(IT.InspectionMode,'STANDARD')=@p_InspectionMode
     )
     BEGIN
-        RAISERROR(
-            'Inspection Type is not configured for the requested InspectionMode. [DB=%s; ClientInspectionID=%s; CompanyID=%s; LocationID=%s; SectionID=%s; InspectionTypeCode=%s; InspectionTypeDetailCode=%s; InspectionMode=%s; IDTemplate=%d; IDVersion=%d; TemplateNo=%s; TemplateVersion=%s; UpdateUser=%s]',
-            16, 1,
-            DB_NAME(),
-            ISNULL(@p_ClientInspectionID, '<NULL>'),
-            ISNULL(@p_CompanyID, '<NULL>'),
-            ISNULL(@p_LocationID, '<NULL>'),
-            ISNULL(@p_SectionID, '<NULL>'),
-            ISNULL(@p_InspectionTypeCode, '<NULL>'),
-            ISNULL(@p_InspectionTypeDetailCode, '<NULL>'),
-            ISNULL(@p_InspectionMode, '<NULL>'),
-            ISNULL(@p_IDTemplate, 0),
-            ISNULL(@p_IDVersion, 0),
-            ISNULL(@p_TemplateNo, '<NULL>'),
-            ISNULL(@p_TemplateVersion, '<NULL>'),
-            ISNULL(@p_UpdateUser, '<NULL>')
-        );
+        DECLARE @V_DiagnosticMessage VARCHAR(2047);
+        SET @V_DiagnosticMessage =
+            'Inspection Type is not configured for the requested InspectionMode.'
+            + ' [DB=' + ISNULL(DB_NAME(), '<NULL>')
+            + '; ClientInspectionID=' + ISNULL(@p_ClientInspectionID, '<NULL>')
+            + '; CompanyID=' + ISNULL(@p_CompanyID, '<NULL>')
+            + '; LocationID=' + ISNULL(@p_LocationID, '<NULL>')
+            + '; SectionID=' + ISNULL(@p_SectionID, '<NULL>')
+            + '; InspectionTypeCode=' + ISNULL(@p_InspectionTypeCode, '<NULL>')
+            + '; InspectionTypeDetailCode=' + ISNULL(@p_InspectionTypeDetailCode, '<NULL>')
+            + '; InspectionMode=' + ISNULL(@p_InspectionMode, '<NULL>')
+            + '; IDTemplate=' + ISNULL(CONVERT(VARCHAR(20), @p_IDTemplate), '<NULL>')
+            + '; IDVersion=' + ISNULL(CONVERT(VARCHAR(20), @p_IDVersion), '<NULL>')
+            + '; TemplateNo=' + ISNULL(@p_TemplateNo, '<NULL>')
+            + '; TemplateVersion=' + ISNULL(@p_TemplateVersion, '<NULL>')
+            + '; UpdateUser=' + ISNULL(@p_UpdateUser, '<NULL>') + ']';
+        RAISERROR('%s', 16, 1, @V_DiagnosticMessage);
         RETURN;
     END;
 
