@@ -306,6 +306,25 @@ body {
         
 .drag-handle { color: #aaa; cursor: grab; margin-right: 0.5rem; font-size: 0.9rem; }
 .drag-handle:active { cursor: grabbing; }
+
+/* Keep the Section drag handle reliably draggable above the collapsible header. */
+#sectionsContainer .section-drag-handle {
+    position: relative;
+    z-index: 5;
+    flex: 0 0 auto;
+    cursor: grab;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+#sectionsContainer .section-drag-handle:active {
+    cursor: grabbing;
+}
+#sectionsContainer .section-box.section-dragging {
+    opacity: .85;
+    outline: 2px dashed var(--primary-blue);
+    outline-offset: 1px;
+}
         
 .sortable-ghost { opacity: 0.4; }
 .sortable-chosen { background-color: #f8f9fa; }
