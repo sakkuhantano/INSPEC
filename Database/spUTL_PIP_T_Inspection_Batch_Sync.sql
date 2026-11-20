@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Batch_Sync]
     @p_CompanyID VARCHAR(10),
     @p_LocationID VARCHAR(3),
     @p_SectionID VARCHAR(10),
-    @p_InspectionTypeCode VARCHAR(2),
+    @p_InspectionTypeCode VARCHAR(10),
     @p_InspectionTypeDetailCode VARCHAR(20),
     @p_ScheduledTime VARCHAR(5),
     @p_IDTemplate INT,
@@ -50,7 +50,22 @@ BEGIN
           AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
     )
     BEGIN
-        RAISERROR('Inspection Type is not configured for BATCH mode.',16,1);
+        RAISERROR(
+            'Inspection Type is not configured for BATCH mode. [DB=%s; ClientInspectionID=%s; CompanyID=%s; LocationID=%s; SectionID=%s; InspectionTypeCode=%s; InspectionTypeDetailCode=%s; InspectionMode=BATCH; IDTemplate=%d; IDVersion=%d; TemplateNo=%s; TemplateVersion=%s; UpdateUser=%s]',
+            16, 1,
+            DB_NAME(),
+            ISNULL(@p_ClientInspectionID, '<NULL>'),
+            ISNULL(@p_CompanyID, '<NULL>'),
+            ISNULL(@p_LocationID, '<NULL>'),
+            ISNULL(@p_SectionID, '<NULL>'),
+            ISNULL(@p_InspectionTypeCode, '<NULL>'),
+            ISNULL(@p_InspectionTypeDetailCode, '<NULL>'),
+            ISNULL(@p_IDTemplate, 0),
+            ISNULL(@p_IDVersion, 0),
+            ISNULL(@p_TemplateNo, '<NULL>'),
+            ISNULL(@p_TemplateVersion, '<NULL>'),
+            ISNULL(@p_UpdateUser, '<NULL>')
+        );
         RETURN;
     END;
 
