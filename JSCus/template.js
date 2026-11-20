@@ -9638,13 +9638,10 @@ async function validateCurrentTemplate() {
         );
 
     const draft =
-        Object.values(
-            cache.Versions
-        ).find(
-            x =>
-                x.VersionInfo.Status ==
-                "Draft"
-        );
+        Object.values(cache && cache.Versions || {}).find(x => {
+            const status = String(x && x.VersionInfo && x.VersionInfo.Status || "").toUpperCase();
+            return status === "DRAFT" && !!x.Structure;
+        });
 
     if (!draft)
         return result;
@@ -11073,9 +11070,10 @@ async function saveAllTemplate()
         const payloadTemplate = payload.Templates[i].Template;
         const targetSection = getSectionCache(payloadTemplate.SectionID);
         const targetNode = targetSection && targetSection.Templates[payloadTemplate.RuntimeTemplateID];
-        const targetDraft = targetNode && Object.values(targetNode.Versions || {}).find(x =>
-            x && x.VersionInfo && x.VersionInfo.Status === "Draft" && x.Structure
-        );
+        const targetDraft = targetNode && Object.values(targetNode.Versions || {}).find(x => {
+            const status = String(x && x.VersionInfo && x.VersionInfo.Status || "").toUpperCase();
+            return status === "DRAFT" && !!x.Structure;
+        });
         if (!targetNode || !targetDraft) {
             currentTemplate = validationOriginalState.template;
             currentVersion = validationOriginalState.version;
