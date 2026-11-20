@@ -4998,8 +4998,12 @@ async function applyInspectionParameters() {
     }
 
     const record = currentInspectionRecord;
+    const inspectionMode = ["BATCH", "LIGHTNING"].includes(
+        String(type.InspectionMode || "STANDARD").trim().toUpperCase()
+    ) ? String(type.InspectionMode).trim().toUpperCase() : "STANDARD";
     const changed = String(record.SectionID || "") !== String(type.SectionID || "") ||
         String(record.InspectionTypeCode || "") !== String(type.InspectionTypeCode || "") ||
+        String(record.InspectionMode || "STANDARD").trim().toUpperCase() !== inspectionMode ||
         String(record.InspectionTypeDetailCode || "") !== String(detail.InspectionTypeDetailCode || "") ||
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
         Number(record.IDTemplate) !== Number(template.IDTemplate) ||
@@ -5032,6 +5036,7 @@ async function applyInspectionParameters() {
         SectionID: type.SectionID,
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
+        InspectionMode: inspectionMode,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
         ScheduledTime: scheduledTime,
@@ -5061,7 +5066,7 @@ async function applyInspectionParameters() {
     await updateInspectionChecklistGate();
     // Selecting/changing parameters while starting a new BATCH is not a save action.
     // Existing locally-saved batch drafts may still be updated when parameters change.
-    if (!isInspectionMapMode(record.InspectionMode) ||
+    if (!isInspectionMapMode(inspectionMode) ||
         await isInspectionRecordPersisted(record.LocalInspectionID)) {
         await persistInspectionRecord(record);
     }
