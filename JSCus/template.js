@@ -3730,208 +3730,134 @@ async function loadTemplateVersions(idTemplate)
 }
 function renderTemplateVersions(data,container)
 {
-    const templateRuntimeID =
-        container.dataset.templateId;
+    const templateRuntimeID = container.dataset.templateId;
+    const sectionId = container.dataset.sectionId;
 
-    const sectionId =
-        container.dataset.sectionId;    
-    container.innerHTML='';
-    if(!data || data.length==0)
-    {
-        container.innerHTML=
-        `
-        <div class="
-            text-muted
-            text-xs
-            fst-italic
-            p-2
-        ">
-            No versions
-        </div>
+    if (!Array.isArray(data) || data.length === 0) {
+        container.innerHTML = `
+            <div class="text-muted text-xs fst-italic p-2">
+                No versions
+            </div>
         `;
+        container.__versionDataById = Object.create(null);
         return;
     }
-    //------------------------------------
-    // Draft count
-    //------------------------------------
-    const draftCount =
-        data.filter(
-            x =>
-                x.VersionInfo.Status ==
-                'Draft'
-        ).length;
-    data.forEach(
-        (
-            versionNode,
-            index
-        ) =>
-        {
-            const version =
-                versionNode.VersionInfo;
-            //------------------------------------
-            // Status
-            //------------------------------------
-            const statusClass =
-                version.Status=='Active'
-                ?
-                'badge-status-active'
-                :
-                version.Status=='Draft'
-                ?
-                'badge-status-draft'
-                :
-                'badge-status-inactive';
-            let showMenu = true;
-            const menuHtml =
-                showMenu
-                ?
-                `
-                <i class="
-                bi
-                bi-three-dots-vertical
-                text-muted
-                cursor-pointer
-                version-menu-btn
-                ">
-                </i>
-                `
-                :
-                "";
-            const isCurrent =
-                currentVersion &&
-                version.RuntimeVersionID ==
-                currentVersion.RuntimeVersionID;                
-            //------------------------------------
-            // HTML
-            //------------------------------------
-            const html =
-            `
+
+    // Keep the row data available to delegated menu/drag handlers.
+    // This avoids creating multiple event-handler closures for every Version node.
+    const versionDataById = Object.create(null);
+    const html = data.map(function(versionNode) {
+        const version = versionNode.VersionInfo || {};
+        const versionId = String(version.RuntimeVersionID);
+        const status = String(version.Status || "").trim();
+        const normalizedStatus = status.toLowerCase();
+        const isActive = normalizedStatus === "active";
+        const statusClass = status === "Active"
+            ? "badge-status-active"
+            : status === "Draft"
+                ? "badge-status-draft"
+                : "badge-status-inactive";
+        const isCurrent = currentVersion &&
+            String(version.RuntimeVersionID) === String(currentVersion.RuntimeVersionID);
+
+        versionDataById[versionId] = version;
+
+        return `
             <div
-            class="
-            template-version-item ${isCurrent ? "active" : ""} ${String(version.Status).trim().toLowerCase() === "active" ? "active-version-draggable" : ""}
-            " data-version-id="${version.RuntimeVersionID}" ${String(version.Status).trim().toLowerCase() === "active" ? 'draggable="true"' : ""}
-            onclick="
-            loadVersionStructure(
-            ${templateRuntimeID},
-            ${version.RuntimeVersionID},
-            this
-            )
-            ">
-            <div class="
-            d-flex
-            justify-content-between
-            align-items-start
-            ">
-            <div class="
-            fw-semibold
-            text-xs
-            " id="versionNode_${sectionId}_${templateRuntimeID}_${version.RuntimeVersionID}">
-            Version
-            ${version.Version}
-            
-            <span class="dirty-placeholder"></span>
+                class="template-version-item ${isCurrent ? "active" : ""} ${isActive ? "active-version-draggable" : ""}"
+                data-version-id="${versionId}"
+                ${isActive ? 'draggable="true"' : ""}
+                onclick="loadVersionStructure(${templateRuntimeID},${version.RuntimeVersionID},this)">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="fw-semibold text-xs"
+                         id="versionNode_${sectionId}_${templateRuntimeID}_${version.RuntimeVersionID}">
+                        Version ${version.Version || ""}
+                        <span class="dirty-placeholder"></span>
+                    </div>
+                    <div class="d-flex gap-1 align-items-center">
+                        <span class="text-muted text-xs">${version.EffectiveDate || ""}</span>
+                        <span class="badge-status ${statusClass} px-1 py-0" style="font-size:0.55rem;">
+                            ${status}
+                        </span>
+                        <i class="bi bi-three-dots-vertical text-muted cursor-pointer version-menu-btn"></i>
+                    </div>
+                </div>
+                <div class="text-muted text-xs fst-italic text-truncate">
+                    ${version.Remark || "-"}
+                </div>
             </div>
-            <div class="
-            d-flex
-            gap-1
-            align-items-center
-            ">
-            <span class="
-            text-muted
-            text-xs
-            ">
-            ${version.EffectiveDate||''}
-            </span>
-            <span class="
-            badge-status
-            ${statusClass}
-            px-1
-            py-0
-            "
-            style="
-            font-size:
-            0.55rem;
-            ">
-            ${version.Status}
-            </span>
-            ${menuHtml}
-            </div>
-            </div>
-            <div class="
-            text-muted
-            text-xs
-            fst-italic
-            text-truncate
-            ">
-            ${version.Remark||'-'}
-            </div>
-            </div>
-            `;
-            container.insertAdjacentHTML(
-                'beforeend',
-                html
-            );
-            //------------------------------------
-            // Menu Event
-            //------------------------------------
-            const node =
-                container.lastElementChild;
-            // Dragging an Active version only copies it into another Template as a Draft.
-            // It does not edit the source version, so it must remain draggable even
-            // when the currently selected version is read-only.
-            if (String(version.Status).trim().toLowerCase() === "active") {
-                node.draggable = true;
-                node.setAttribute("draggable", "true");
-                node.classList.add("active-version-draggable");
-                node.title = "Drag this Active Version onto another Template to clone it as a Draft";
-                node.addEventListener("dragstart", function(event) {
-                    if (!event.dataTransfer) {
-                        console.warn("[Template Builder] Browser tidak menyediakan dataTransfer untuk drag.");
-                        return;
-                    }
-                    event.dataTransfer.effectAllowed = "copy";
-                    const dragPayload = JSON.stringify({
-                        sectionId: sectionId,
-                        templateRuntimeId: templateRuntimeID,
-                        versionRuntimeId: version.RuntimeVersionID
-                    });
-                    event.dataTransfer.setData("application/x-pip-version", dragPayload);
-                    // Firefox requires a plain-text payload to reliably start native drag operations.
-                    event.dataTransfer.setData("text/plain", dragPayload);
-                    node.classList.add("opacity-50");
-                    console.debug("[Template Builder] Active version drag started", {
-                        sectionId: sectionId,
-                        templateRuntimeId: templateRuntimeID,
-                        versionRuntimeId: version.RuntimeVersionID
-                    });
-                });
-                node.addEventListener("dragend", function() {
-                    node.classList.remove("opacity-50");
-                    document.querySelectorAll(".template-root-item.border-primary").forEach(function(root) {
-                        root.classList.remove("border", "border-primary");
-                    });
-                });
-            }
-            const menuBtn =
-                node.querySelector(
-                    '.version-menu-btn'
-                );
-            if(menuBtn)
-            {
-                menuBtn.addEventListener(
-                    'click',
-                    function(e)
-                    {
-                        e.stopPropagation();
-                        showVersionContextMenu(
-                            e,
-                            version
-                        );
-                    }
-                );
-            }
+        `;
+    }).join("");
+
+    // One DOM write instead of inserting each Version separately.
+    container.innerHTML = html;
+    container.__versionDataById = versionDataById;
+
+    // Bind once per container; subsequent renders only replace its contents/data map.
+    if (container.dataset.versionEventsBound === "1")
+        return;
+
+    container.dataset.versionEventsBound = "1";
+
+    container.addEventListener("click", function(event) {
+        const menuButton = event.target.closest(".version-menu-btn");
+        if (!menuButton || !container.contains(menuButton))
+            return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const node = menuButton.closest(".template-version-item");
+        const version = node && container.__versionDataById &&
+            container.__versionDataById[String(node.dataset.versionId)];
+
+        if (version)
+            showVersionContextMenu(event, version);
+    });
+
+    container.addEventListener("dragstart", function(event) {
+        const node = event.target.closest &&
+            event.target.closest(".template-version-item.active-version-draggable");
+        if (!node || !container.contains(node))
+            return;
+
+        if (!event.dataTransfer) {
+            console.warn("[Template Builder] Browser tidak menyediakan dataTransfer untuk drag.");
+            return;
         }
-    );
+
+        const version = container.__versionDataById &&
+            container.__versionDataById[String(node.dataset.versionId)];
+        if (!version)
+            return;
+
+        event.dataTransfer.effectAllowed = "copy";
+        const dragPayload = JSON.stringify({
+            sectionId: sectionId,
+            templateRuntimeId: templateRuntimeID,
+            versionRuntimeId: version.RuntimeVersionID
+        });
+        event.dataTransfer.setData("application/x-pip-version", dragPayload);
+        // Firefox requires a plain-text payload to reliably start native drag operations.
+        event.dataTransfer.setData("text/plain", dragPayload);
+        node.classList.add("opacity-50");
+        console.debug("[Template Builder] Active version drag started", {
+            sectionId: sectionId,
+            templateRuntimeId: templateRuntimeID,
+            versionRuntimeId: version.RuntimeVersionID
+        });
+    });
+
+    container.addEventListener("dragend", function(event) {
+        const node = event.target.closest &&
+            event.target.closest(".template-version-item.active-version-draggable");
+        if (node)
+            node.classList.remove("opacity-50");
+
+        document.querySelectorAll(".template-root-item.border-primary").forEach(function(root) {
+            root.classList.remove("border", "border-primary");
+        });
+    });
 }
 function normalizeVersionStructure(data)
 {
