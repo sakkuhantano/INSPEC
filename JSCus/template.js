@@ -2368,7 +2368,7 @@ function showTemplateMenu(event,sectionId,idTemplate)
                 <div
                 class="context-item text-danger"
                 onclick="publishVersion();">
-                <i class="bi bi-trash"></i>
+                <i class="bi bi-upload"></i>
                 Publish Template
                 </div>
                 `
@@ -3660,37 +3660,26 @@ async function loadTemplateVersions(idTemplate)
         // selectedDocument.Section = null;
         // selectedDocument.Item = null;
             
-        await showTemplateRootProperties(currentTemplate.Template, null);
-        if (versionsRequestId !== templateVersionsLoadRequestId ||
-            !currentTemplate || String(currentTemplate.Template.RuntimeTemplateID) !== String(idTemplate))
-            return;
         // =========================
         // PREVENT RELOAD
         // =========================
         if(versionContainer.dataset.loaded === '1') {
+            await showTemplateRootProperties(currentTemplate.Template, null);
             return;
         }
-            
-        // =========================
-        // LOADING
-        // =========================
+
+        // Show the versions immediately after the single versions request.
+        // Template Properties performs its own dropdown/metadata loading, so
+        // it must not block the Version list from appearing.
         versionContainer.innerHTML = `
             <div class="text-muted text-xs p-2">
                 Loading versions...
             </div>
         `;
-        // =========================
-        // LOAD FROM SERVER
-        // =========================
-        showLoading();
-        let result;
-        try {
-            result = await promisifyPageMethod(
-                PageMethods.GetTemplateVersions, idTemplate
-            );
-        } finally {
-            hideLoading();
-        }
+
+        const result = await promisifyPageMethod(
+            PageMethods.GetTemplateVersions, idTemplate
+        );
 
         if (versionsRequestId !== templateVersionsLoadRequestId ||
             !currentTemplate || String(currentTemplate.Template.RuntimeTemplateID) !== String(idTemplate))
@@ -3725,6 +3714,10 @@ async function loadTemplateVersions(idTemplate)
             // bsCollapse.show();
         // }
         versionContainer.dataset.loaded = '1';
+
+        // Populate the Properties panel after rendering the Version list.
+        // Slow metadata/dropdown calls no longer delay the visible versions.
+        await showTemplateRootProperties(currentTemplate.Template, null);
     }
     catch(ex)
     {
