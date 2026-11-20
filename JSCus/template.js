@@ -2704,6 +2704,12 @@ function markCurrentVersionDirty()
     currentVersion.Dirty = true;
     if (currentVersionData && currentVersionData.VersionInfo)
         currentVersionData.VersionInfo.Dirty = true;
+    // Keep an explicit dirty marker on the structure itself as well. This makes
+    // Save All resilient when the editor structure and VersionInfo objects were
+    // rehydrated from the local recovery/session cache and are no longer the same
+    // object reference.
+    if (currentVersionData)
+        currentVersionData.Dirty = true;
 
     const versionNode = templateNode && Object.values(templateNode.Versions || {}).find(node =>
         String(node && node.VersionInfo && node.VersionInfo.RuntimeVersionID || "") === runtimeVersionID
@@ -10981,11 +10987,19 @@ async function saveAllTemplate()
             // Draft Version
             //--------------------------------
             const draftVersion = Object.values(tpl.Versions || {})
-                .find(x =>
-                    x?.VersionInfo?.Status === "Draft" &&
-                    x.Structure !== null &&
-                    x?.Structure?.VersionInfo?.Dirty
-                );
+                .find(x => {
+                    const status = String(x?.VersionInfo?.Status || "").toUpperCase();
+                    if (status !== "DRAFT" || !x.Structure) return false;
+
+                    // Dirty can live on VersionInfo, the structure, or both after
+                    // a local-session recovery/rehydration. Treat any canonical
+                    // dirty marker as sufficient for Save All.
+                    return !!(
+                        x?.VersionInfo?.Dirty ||
+                        x?.Structure?.Dirty ||
+                        x?.Structure?.VersionInfo?.Dirty
+                    );
+                });
 
             if (!draftVersion)
                 return;            
