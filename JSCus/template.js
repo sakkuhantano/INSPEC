@@ -3664,7 +3664,8 @@ async function loadTemplateVersions(idTemplate)
         // PREVENT RELOAD
         // =========================
         if(versionContainer.dataset.loaded === '1') {
-            await showTemplateRootProperties(currentTemplate.Template, null);
+            showTemplateRootProperties(currentTemplate.Template, null)
+                .catch(ex => console.error("Template properties load error:", ex));
             return;
         }
 
@@ -3715,9 +3716,10 @@ async function loadTemplateVersions(idTemplate)
         // }
         versionContainer.dataset.loaded = '1';
 
-        // Populate the Properties panel after rendering the Version list.
-        // Slow metadata/dropdown calls no longer delay the visible versions.
-        await showTemplateRootProperties(currentTemplate.Template, null);
+        // Populate Properties in the background. Do not keep the Version
+        // selection handler waiting for metadata/dropdown requests to finish.
+        showTemplateRootProperties(currentTemplate.Template, null)
+            .catch(ex => console.error("Template properties load error:", ex));
     }
     catch(ex)
     {
