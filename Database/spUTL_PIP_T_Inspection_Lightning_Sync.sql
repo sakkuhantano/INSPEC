@@ -3,7 +3,7 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Lightning_Sync]
     @p_CompanyID VARCHAR(10),
     @p_LocationID VARCHAR(3),
     @p_SectionID VARCHAR(10),
-    @p_InspectionTypeCode VARCHAR(2),
+    @p_InspectionTypeCode VARCHAR(10),
     @p_InspectionTypeDetailCode VARCHAR(20),
     @p_ScheduledTime VARCHAR(5),
     @p_IDTemplate INT,
@@ -55,21 +55,18 @@ BEGIN
         RETURN;
     END;
 
-    DECLARE @V_ExistingInspectionID BIGINT;
-    SELECT @V_ExistingInspectionID=InspectionID
-    FROM dbo.PIP_T_Inspection
-    WHERE ClientInspectionID=@p_ClientInspectionID;
-
-    IF @V_ExistingInspectionID IS NOT NULL AND EXISTS
+    IF EXISTS
     (
-        SELECT 1 FROM dbo.PIP_T_Inspection
-        WHERE InspectionID=@V_ExistingInspectionID AND ISNULL(IsSubmitted,0)=1
+        SELECT 1
+        FROM dbo.PIP_T_Inspection
+        WHERE ClientInspectionID=@p_ClientInspectionID
+          AND ISNULL(IsSubmitted,0)=1
     )
     BEGIN
         SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,
                'ALREADY_SUBMITTED' WorkflowStatus
         FROM dbo.PIP_T_Inspection I
-        WHERE I.InspectionID=@V_ExistingInspectionID;
+        WHERE I.ClientInspectionID=@p_ClientInspectionID;
         RETURN;
     END;
 
