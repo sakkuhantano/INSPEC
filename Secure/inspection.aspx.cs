@@ -76,7 +76,13 @@ WHERE SU.EmployeeID=@UserID
             }
             catch (Exception ex)
             {
-                return new { success = false, message = ex.Message, results = outcomes };
+                System.Diagnostics.Trace.TraceError("SyncInspections request conversion failed: " + ex);
+                return new
+                {
+                    success = false,
+                    message = "Data inspeksi tidak dapat diproses. Silakan muat ulang halaman dan coba kembali.",
+                    results = outcomes
+                };
             }
 
             foreach (JObject record in records.OfType<JObject>())
@@ -971,15 +977,16 @@ WHERE InspectionID=@InspectionID",
                     WriteInspectionSyncError(syncStage, clientId, userId, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
-                    // Return the same diagnostic detail written to App_Data so the user can
-                    // identify the actual failing stage, SQL error, and stack location without
-                    // opening the IIS server log.
-                    string userMessage = String.Format(
-                        CultureInfo.InvariantCulture,
-                        "Tahap: {0}{1}{2}",
-                        syncStage ?? "unknown",
-                        Environment.NewLine,
-                        ex.ToString());
+                    // Keep technical diagnostics in server logs only. The client receives
+                    // a short, actionable message and never sees stack traces or code-behind details.
+                    string errorText = ex.ToString();
+                    bool inspectionConflict =
+                        errorText.IndexOf("An inspection already exists for this date, company/location, section, type, detail, schedule, and template.",
+                            StringComparison.OrdinalIgnoreCase) >= 0;
+
+                    string userMessage = inspectionConflict
+                        ? "Inspeksi tidak dapat disimpan karena jadwal dan data inspeksi yang sama sudah tercatat dari perangkat lain. Silakan muat ulang data inspeksi untuk melihat status terbaru."
+                        : "Inspeksi gagal disimpan. Silakan coba kembali. Jika masalah tetap terjadi, hubungi administrator.";
 
                     outcomes.Add(new
                     {
