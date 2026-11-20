@@ -7909,44 +7909,47 @@ function initSortable() {
     const sectionsContainer = document.getElementById('sectionsContainer');
     if (!sectionsContainer)
         return;
+
     if (sectionSortable) {
         sectionSortable.destroy();
         sectionSortable = null;
-    }       
-        
+    }
+
+    // Category/Section cards contain their own nested Sortable instances for
+    // checklist items. Use an explicit draggable selector and Sortable's
+    // fallback engine so the parent drag is not swallowed by nested/native
+    // drag handling (notably on touch devices and browsers with HTML5 DnD quirks).
     sectionSortable = new Sortable(sectionsContainer, {
         animation: 150,
+        draggable: '.section-box',
         handle: '.section-drag-handle',
         ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        forceFallback: true,
+        fallbackOnBody: true,
+        fallbackTolerance: 5,
+        touchStartThreshold: 4,
+        delay: 100,
+        delayOnTouchOnly: true,
         disabled: isReadonlyMode,
-        onEnd: function () {
+        onStart: function (evt) {
+            if (evt && evt.item) {
+                evt.item.classList.add('section-dragging');
+            }
+        },
+        onEnd: function (evt) {
+            if (evt && evt.item)
+                evt.item.classList.remove('section-dragging');
+
             syncSectionOrder();
             updateNumbers();
-            //evaluateDirtyState();
             markCurrentVersionDirty();
         }
     });
-    document.querySelectorAll('.items-container')
-        .forEach(container =>
-        {
-            initItemSortable(container);
-        });
-    
-    // document.querySelectorAll('.items-container')
-        // .forEach(container => {
-            // new Sortable(container, {
-                // group: 'shared-items',
-                // animation: 150,
-                // handle: '.item-drag-handle',
-                // ghostClass: 'sortable-ghost',
-                // disabled: isReadOnlyMode,
-                // onEnd: function () {
-                    // updateNumbers();
-                    // updateItemCounts();
-                    // evaluateDirtyState();
-                // }
-            // });
-        // });
+
+    document.querySelectorAll('.items-container').forEach(function (container) {
+        initItemSortable(container);
+    });
 }
 
 // ========================================================
