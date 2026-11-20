@@ -50,7 +50,23 @@ BEGIN
           AND ISNULL(IT.InspectionMode,'STANDARD')=@p_InspectionMode
     )
     BEGIN
-        RAISERROR('Inspection Type is not configured for the requested InspectionMode.',16,1);
+        RAISERROR(
+            'Inspection Type is not configured for the requested InspectionMode. [DB=%s; ClientInspectionID=%s; CompanyID=%s; LocationID=%s; SectionID=%s; InspectionTypeCode=%s; InspectionTypeDetailCode=%s; InspectionMode=%s; IDTemplate=%d; IDVersion=%d; TemplateNo=%s; TemplateVersion=%s; UpdateUser=%s]',
+            16, 1,
+            DB_NAME(),
+            ISNULL(@p_ClientInspectionID, '<NULL>'),
+            ISNULL(@p_CompanyID, '<NULL>'),
+            ISNULL(@p_LocationID, '<NULL>'),
+            ISNULL(@p_SectionID, '<NULL>'),
+            ISNULL(@p_InspectionTypeCode, '<NULL>'),
+            ISNULL(@p_InspectionTypeDetailCode, '<NULL>'),
+            ISNULL(@p_InspectionMode, '<NULL>'),
+            ISNULL(@p_IDTemplate, 0),
+            ISNULL(@p_IDVersion, 0),
+            ISNULL(@p_TemplateNo, '<NULL>'),
+            ISNULL(@p_TemplateVersion, '<NULL>'),
+            ISNULL(@p_UpdateUser, '<NULL>')
+        );
         RETURN;
     END;
 
