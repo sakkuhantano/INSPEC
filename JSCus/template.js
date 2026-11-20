@@ -2331,6 +2331,11 @@ function canPublishTemplate(sectionId,idTemplate)
 }
 function showTemplateMenu(event,sectionId,idTemplate)
 {
+    // Prevent the opening click from reaching document-level outside-click
+    // handlers left by a previously opened context menu. Otherwise those
+    // handlers can immediately remove this newly-created menu.
+    event?.preventDefault();
+    event?.stopPropagation();
     removeExistingContextMenu();
     const menu =
         document.createElement(
