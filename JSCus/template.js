@@ -3799,6 +3799,8 @@ function renderTemplateVersions(data,container)
 
     container.dataset.versionEventsBound = "1";
 
+    // Capture phase is required: the Version row has an inline onclick handler.
+    // Stop menu clicks before they reach that row handler.
     container.addEventListener("click", function(event) {
         const menuButton = event.target.closest(".version-menu-btn");
         if (!menuButton || !container.contains(menuButton))
@@ -3813,7 +3815,7 @@ function renderTemplateVersions(data,container)
 
         if (version)
             showVersionContextMenu(event, version);
-    });
+    }, true);
 
     container.addEventListener("dragstart", function(event) {
         const node = event.target.closest &&
