@@ -2629,13 +2629,20 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
     currentInspectionRecord.Items = point.Items || [];
     updateInspectionParameterTabGate();
     const host = document.getElementById("inspectionChecklistHost");
-    host.innerHTML = renderInspectionSections(
-        currentInspectionRecord.TemplateSnapshot,
-        point.Items || [],
-        pointReadOnly,
-        "inspectionSection"
-    );
-    renderBatchPointCondition(masterPoint, point, pointReadOnly);
+    const pointSheetMount = document.getElementById("inspectionMapPointChecklistMount");
+    const formPanel = document.getElementById("inspectionFormPanel");
+    const sameMountedPoint = !!(pointSheetMount && formPanel && pointSheetMount.contains(formPanel) &&
+        String(formPanel.getAttribute("data-map-point-id") || "") === String(point.InspectionPointID));
+    if (!sameMountedPoint) {
+        host.innerHTML = renderInspectionSections(
+            currentInspectionRecord.TemplateSnapshot,
+            point.Items || [],
+            pointReadOnly,
+            "inspectionSection"
+        );
+        renderBatchPointCondition(masterPoint, point, pointReadOnly);
+    }
+    if (formPanel) formPanel.setAttribute("data-map-point-id", String(point.InspectionPointID));
     // Keep the active map point identifiable in the compact mobile header.
     // The transaction info popover is extended with the point identity so the
     // technician can always confirm which plotted location owns this checklist.
@@ -2688,6 +2695,15 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         completeButton.classList.toggle("d-none", pointReadOnly);
     }
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
+    await renderInspectionPhotos();
+    await updateInspectionChecklistGate();
+    mountBatchValidationNavigator();
+    if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches &&
+        typeof window.showInspectionMapPointChecklistSheet === "function") {
+        window.showInspectionMapPointChecklistSheet(point);
+        if (validationError) window.setTimeout(() => focusBatchValidationTarget(validationError), 180);
+        return;
+    }
     const mapWorkspace = document.getElementById("inspectionMapWorkspace");
     if (mapWorkspace) mapWorkspace.classList.add("d-none");
     const mapTab = document.getElementById("btnInspectionMapTab");
@@ -2695,9 +2711,6 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
     if (mapTab) mapTab.classList.remove("active");
     if (checklistTab) checklistTab.classList.add("active");
     showInspectionEditorTab("checklist");
-    await renderInspectionPhotos();
-    await updateInspectionChecklistGate();
-    mountBatchValidationNavigator();
     if (validationError) window.setTimeout(() => focusBatchValidationTarget(validationError), 180);
     // Opening a map point is navigation only. The point and its parent batch
     // remain in memory until the user explicitly presses Save Point / Save Draft.
@@ -3635,6 +3648,8 @@ async function saveBatchInspectionPoint(status, options) {
     const completeButton = document.getElementById("btnCompleteInspection");
     if (saveButton) saveButton.innerHTML = '<i class="bi bi-save"></i> Save Draft';
     if (completeButton) completeButton.innerHTML = '<i class="bi bi-check-circle"></i> Submit';
+    if (typeof window.closeInspectionMapPointChecklistSheet === "function")
+        window.closeInspectionMapPointChecklistSheet(true);
     document.getElementById("inspectionChecklistPane").classList.add("d-none");
     if (typeof showInspectionMapWorkspace === "function") showInspectionMapWorkspace(record, true);
     if (typeof refreshInspectionMapPointStatuses === "function") refreshInspectionMapPointStatuses();
@@ -4756,6 +4771,8 @@ async function resetInspectionSelection() {
 }
 
 async function closeInspectionForm() {
+    if (typeof window.closeInspectionMapPointChecklistSheet === "function")
+        window.closeInspectionMapPointChecklistSheet(true);
     if (inspectionAutoSaveTimer) {
         clearTimeout(inspectionAutoSaveTimer);
         inspectionAutoSaveTimer = null;
