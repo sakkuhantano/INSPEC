@@ -821,8 +821,16 @@
         if (!point) return;
         var sheet = document.getElementById("inspectionMapPointSheet");
         var backdrop = document.getElementById("inspectionMapPointSheetBackdrop");
+        var formPanel = document.getElementById("inspectionFormPanel");
         if (!sheet) return;
         renderQuickPointSheet(point);
+        sheet.classList.remove("checklist-mode");
+        if (formPanel) formPanel.classList.add("d-none");
+        ["inspectionMapQuickOptions", "inspectionMapQuickNote", "btnOpenInspectionPointChecklist",
+            "btnCancelInspectionMapPoint", "btnApplyInspectionMapPoint"].forEach(function (id) {
+            var element = document.getElementById(id);
+            if (element) element.classList.remove("d-none");
+        });
         sheet.classList.remove("d-none");
         if (backdrop) {
             backdrop.classList.remove("d-none");
@@ -830,7 +838,63 @@
         }
     }
 
-    function hideQuickPointSheet() {
+    window.showInspectionMapPointChecklistSheet = function (point) {
+        if (!point) return;
+        selectedPoint = currentPoints.find(function (item) {
+            return Number(item.InspectionPointID) === Number(point.InspectionPointID);
+        }) || point;
+        var sheet = document.getElementById("inspectionMapPointSheet");
+        var backdrop = document.getElementById("inspectionMapPointSheetBackdrop");
+        var mount = document.getElementById("inspectionMapPointChecklistMount");
+        var formPanel = document.getElementById("inspectionFormPanel");
+        if (!sheet || !mount || !formPanel) return;
+        var code = document.getElementById("inspectionMapPointCode");
+        var name = document.getElementById("inspectionMapPointName");
+        var meta = document.getElementById("inspectionMapPointMeta");
+        var status = document.getElementById("inspectionMapPointStatus");
+        if (code) code.textContent = point.PointCode || "";
+        if (name) name.textContent = point.PointName || "Inspection Point";
+        if (meta) meta.textContent = "Checklist lengkap · " + (point.ScheduleTime || currentMapRecord && currentMapRecord.ActiveScheduleTime || "Batch");
+        if (status) status.textContent = "Isi seluruh item pemeriksaan dan remark yang diminta";
+        mount.appendChild(formPanel);
+        formPanel.classList.remove("d-none");
+        sheet.classList.add("checklist-mode");
+        ["inspectionMapQuickOptions", "inspectionMapQuickNote", "btnOpenInspectionPointChecklist",
+            "btnCancelInspectionMapPoint", "btnApplyInspectionMapPoint"].forEach(function (id) {
+            var element = document.getElementById(id);
+            if (element) element.classList.add("d-none");
+        });
+        sheet.classList.remove("d-none");
+        if (backdrop) {
+            backdrop.classList.remove("d-none");
+            backdrop.setAttribute("aria-hidden", "false");
+        }
+        var scrollHost = document.getElementById("inspectionMapPointChecklistScroll");
+        if (scrollHost) scrollHost.scrollTop = 0;
+    };
+
+    window.closeInspectionMapPointChecklistSheet = function (restoreForm) {
+        var sheet = document.getElementById("inspectionMapPointSheet");
+        var backdrop = document.getElementById("inspectionMapPointSheetBackdrop");
+        var formPanel = document.getElementById("inspectionFormPanel");
+        var mount = document.getElementById("inspectionMapPointChecklistMount");
+        var pane = document.getElementById("inspectionChecklistPane");
+        if (restoreForm && formPanel && pane && mount && mount.contains(formPanel)) {
+            pane.appendChild(formPanel);
+            formPanel.classList.add("d-none");
+            formPanel.removeAttribute("data-map-point-id");
+        }
+        if (sheet) {
+            sheet.classList.remove("checklist-mode");
+            sheet.classList.add("d-none");
+        }
+        if (backdrop) {
+            backdrop.classList.add("d-none");
+            backdrop.setAttribute("aria-hidden", "true");
+        }
+    };
+
+        function hideQuickPointSheet() {
         var sheet = document.getElementById("inspectionMapPointSheet");
         var backdrop = document.getElementById("inspectionMapPointSheetBackdrop");
         if (sheet) sheet.classList.add("d-none");
@@ -1760,22 +1824,44 @@
         });
 
         var close = document.getElementById("btnCloseInspectionMapPoint");
-        if (close) close.addEventListener("click", closePoint);
+        if (close) close.addEventListener("click", function () {
+            if (document.getElementById("inspectionMapPointSheet")?.classList.contains("checklist-mode")) {
+                hideQuickPointSheet();
+                return;
+            }
+            closePoint();
+        });
         var cancelQuick = document.getElementById("btnCancelInspectionMapPoint");
         if (cancelQuick) cancelQuick.addEventListener("click", closePoint);
         var applyQuick = document.getElementById("btnApplyInspectionMapPoint");
         if (applyQuick) applyQuick.addEventListener("click", applyQuickPointSheet);
         var quickBackdrop = document.getElementById("inspectionMapPointSheetBackdrop");
         if (quickBackdrop) quickBackdrop.addEventListener("click", closePoint);
-        var quickOptions = document.getElementById("inspectionMapQuickOptions");
+        var pointSheet = document.getElementById("inspectionMapPointSheet");
+        if (pointSheet && !pointSheet.dataset.optionToggleWired) {
+            pointSheet.dataset.optionToggleWired = "1";
+            pointSheet.addEventListener("click", function (event) {
+                var input = event.target.matches && event.target.matches('input[type="radio"][data-role="value"]')
+                    ? event.target : null;
+                var label = event.target.closest ? event.target.closest("label.inspection-option-choice") : null;
+                if (!input && label) input = document.getElementById(label.htmlFor);
+                if (!input || !input.checked || !input.closest('.inspection-item[data-item-type="OPTION"]')) return;
+                event.preventDefault();
+                event.stopPropagation();
+                input.checked = false;
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+            }, true);
+        }
+                var quickOptions = document.getElementById("inspectionMapQuickOptions");
         if (quickOptions) quickOptions.addEventListener("click", function (event) {
             var button = event.target.closest("[data-quick-option-item]");
             if (!button || button.disabled) return;
             var itemId = button.getAttribute("data-quick-option-item");
+            var wasActive = button.classList.contains("active");
             quickOptions.querySelectorAll('[data-quick-option-item="' + itemId.replace(/"/g, '\\"') + '"]').forEach(function (option) {
                 option.classList.remove("active");
             });
-            button.classList.add("active");
+            if (!wasActive) button.classList.add("active");
         });
         var mapView = document.getElementById("btnInspectionMapView");
         var listView = document.getElementById("btnInspectionPointListView");
