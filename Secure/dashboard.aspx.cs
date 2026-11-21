@@ -116,7 +116,7 @@ namespace INSPEC.Secure
                             new SqlParameter("@EmployeeID", employeeId),
                             new SqlParameter("@CompanyID", companyId),
                             new SqlParameter("@LocationID", locationId)
-                        }));
+                        }), true);
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                         throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -148,7 +148,7 @@ namespace INSPEC.Secure
                 }
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query",
-                    DashboardQueryParameters("206", section, templateNo, version, companyId, locationId, templateType, employeeId));
+                    DashboardQueryParameters("206", section, templateNo, version, companyId, locationId, templateType, employeeId), true);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
@@ -180,16 +180,16 @@ namespace INSPEC.Secure
                     DataTable dt1 = br.EQueryP(
                         "spPIP_Inspection_Query",
                         DashboardQueryParameters("207", row["IDTemplate"].ToString(), row["IDVersion"].ToString(),
-                            row["TemplateNo"].ToString(), templateType, modelcode));
+                            row["TemplateNo"].ToString(), templateType, modelcode), true);
                     DataTable dt2 = br.EQueryP(
                         "spPIP_Inspection_Query",
-                        DashboardQueryParameters("208"));
+                        DashboardQueryParameters("208"), true);
                     DataTable dtRepeat = br.EQueryP(
                         "spPIP_Inspection_Query",
-                        DashboardQueryParameters("209", row["IDVersion"].ToString()));
+                        DashboardQueryParameters("209", row["IDVersion"].ToString()), true);
                     DataTable dtRepeatFields = br.EQueryP(
                         "spPIP_Inspection_Query",
-                        DashboardQueryParameters("210", row["IDVersion"].ToString()));
+                        DashboardQueryParameters("210", row["IDVersion"].ToString()), true);
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
                         {
@@ -345,7 +345,7 @@ namespace INSPEC.Secure
                     InspectionDashboardQueryParameters("082", new SqlParameter[] {
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@EmployeeID", employeeId)
-                    }));
+                    }), true);
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -371,7 +371,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 if (companyAuth.Rows.Count == 0)
                     throw new HttpException(403, "Employee is not authorized for this company/location.");
 
@@ -382,7 +382,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@EmployeeID", employeeId)
-                    }));
+                    }), true);
 
                 DataTable details = br.EQueryP(
                     "spPIP_Inspection_Query",
@@ -390,7 +390,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@SectionList", section),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
 
                 var typeRows = types.AsEnumerable().Select(row => new
                 {
@@ -426,7 +426,7 @@ namespace INSPEC.Secure
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query",
                     DashboardQueryParameters("211", employeeid, sessionToken,
-                        Convert.ToDateTime(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)));
+                        Convert.ToDateTime(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)), true);
                 return GFC.getData(dt);
             }
         }
