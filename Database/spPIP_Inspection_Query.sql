@@ -3424,13 +3424,13 @@ BEGIN
 
     IF @p_Tipe = '211'
     BEGIN
-        DECLARE @V_GetDate DATETIME;
-        SET @V_GetDate=GETDATE();
+        DECLARE @V_GetDateMaster DATETIME;
+        SET @V_GetDateMaster=GETDATE();
         UPDATE dbo.UserSession
-           SET LastSyncMaster=@V_GetDate
+           SET LastSyncMaster=@V_GetDateMaster
          WHERE IsActive=1 AND UserID=@C1 AND Token=@C2 AND ExpireTime>GETDATE();
 
-        SELECT E.EmployeeID, E.Name, @V_GetDate LastSync
+        SELECT E.EmployeeID, E.Name, @V_GetDateMaster LastSync
         FROM dbo.M_HRD_Employee E
         WHERE EXISTS (
             SELECT 1
