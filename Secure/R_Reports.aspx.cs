@@ -22,6 +22,21 @@ namespace INSPEC.Secure
     public partial class R_Report : WAL.PB, WAL.I_ToolBar_2
     {
         private const string _MenuID = "12011";
+
+        private static SqlParameter[] ReportQueryParameters(string type, params string[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                data.Columns.Add("C" + i, typeof(string));
+            DataRow row = data.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            data.Rows.Add(row);
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
@@ -463,32 +478,15 @@ namespace INSPEC.Secure
                 .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (inspectionIds.Count == 0) return;
 
-            var parameters = new List<SqlParameter>();
-            var idNames = new List<string>();
-            for (int i = 0; i < inspectionIds.Count; i++)
-            {
-                string name = "@InspectionID" + i.ToString(CultureInfo.InvariantCulture);
-                idNames.Add(name);
-                parameters.Add(new SqlParameter(name, Convert.ToInt64(inspectionIds[i], CultureInfo.InvariantCulture)));
-            }
+            string inspectionIdList = String.Join(",",
+                inspectionIds.Select(id => Convert.ToInt64(id, CultureInfo.InvariantCulture)
+                    .ToString(CultureInfo.InvariantCulture)).ToArray());
 
             DataTable rows;
             using (var br = new WAL.BR.CF())
             {
-                rows = br.EQueryP(@"
-SELECT I.InspectionNo,I.InspectionDate,I.InspectionTypeDetailName,
-       P.PointCode,P.PointName,R.ItemLabel,V.ObjectIndex,
-       F.FieldKey,F.FieldLabel,F.FieldType,V.Value,F.Unit,
-       R.DisplayOrder,F.DisplayOrder AS FieldDisplayOrder
-FROM dbo.PIP_T_Inspection I
-JOIN dbo.PIP_T_InspectionResult R ON R.InspectionID=I.InspectionID
-JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
-JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F ON F.IDItem=R.IDItem AND F.FieldKey=V.FieldName
-LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=R.InspectionPointTransactionID
-LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
-WHERE I.InspectionID IN (" + String.Join(",", idNames.ToArray()) + @")
-ORDER BY I.InspectionNo,P.PointCode,R.DisplayOrder,V.ObjectIndex,F.DisplayOrder,F.FieldKey",
-                    parameters.ToArray());
+                rows = br.EQueryP("spPIP_Inspection_Query",
+                    ReportQueryParameters("218", inspectionIdList), true);
             }
             if (rows == null || rows.Rows.Count == 0) return;
 
