@@ -100,11 +100,12 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='001', @p_IDTemplate=@IDTemplate, @p_CompanyID=@CompanyID, @p_LocationID=@LocationID",
+                    "spPIP_Inspection_Query",
                     new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", id),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId)
+                        new SqlParameter("@p_Tipe", "001"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
                     });
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found or is not available in this company/location.");
@@ -120,9 +121,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='002', @p_IDVersion=@IDVersion",
+                    "spPIP_Inspection_Query",
                     new SqlParameter[] {
-                        new SqlParameter("@IDVersion", id)
+                        new SqlParameter("@p_Tipe", "002"),
+                        new SqlParameter("@p_IDVersion", id)
                     });
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Version was not found.");
@@ -246,9 +248,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='003', @p_IDTemplate=@IDTemplate",
+                    "spPIP_Inspection_Query",
                     new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", Convert.ToInt32(idTemplate))
+                        new SqlParameter("@p_Tipe", "003"),
+                        new SqlParameter("@p_IDTemplate", Convert.ToInt32(idTemplate))
                     });
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
@@ -282,9 +285,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(
-                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='004', @p_IDVersion=@IDVersion",
+                    "spPIP_Inspection_Query",
                     new SqlParameter[] {
-                        new SqlParameter("@IDVersion", Convert.ToInt32(idVersion))
+                        new SqlParameter("@p_Tipe", "004"),
+                        new SqlParameter("@p_IDVersion", Convert.ToInt32(idVersion))
                     });
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
