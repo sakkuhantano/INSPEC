@@ -13,6 +13,32 @@ namespace INSPEC.Secure
 {
     public partial class dashboard : System.Web.UI.Page
     {
+        private static SqlParameter[] InspectionDashboardQueryParameters(string type, params SqlParameter[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                data.Columns.Add("C" + i, typeof(string));
+            DataRow row = data.NewRow();
+            int index = 0;
+            if (values != null)
+            {
+                foreach (SqlParameter parameter in values)
+                {
+                    if (parameter == null) continue;
+                    if (index >= 13) throw new ArgumentException("Inspection dashboard TVP supports at most 13 values.", "values");
+                    object value = parameter.Value;
+                    row[index++] = value == null || value == DBNull.Value
+                        ? (object)DBNull.Value
+                        : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
+                }
+            }
+            data.Rows.Add(row);
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
+
         private static DataTable BuildDashboardQueryData(params string[] values)
         {
             DataTable table = new DataTable();
@@ -83,27 +109,11 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
-                          FROM dbo.SysWebUser SU
-                          
-                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-                            AND (
-                                EXISTS (
-                                    SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
-                                )
-                                OR EXISTS (
-                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                                    WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
-                                )
-                            )",
-                        new SqlParameter[] {
-                            new SqlParameter("@EmployeeID", employeeId),
+                    "spPIP_Inspection_Query",
+                    InspectionDashboardQueryParameters("082", new SqlParameter[] {
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                            new SqlParameter("@CompanyID", companyId),
-                            new SqlParameter("@LocationID", locationId)
-                        });
+                        new SqlParameter("@EmployeeID", employeeId)
+                    }));
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                         throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -354,65 +364,31 @@ namespace INSPEC.Secure
                     throw new HttpException(400, "Company and location are required for inspection master download.");
 
                 DataTable companyAuth = br.EQueryP(
-                    @"SELECT SU.UserID
-                      FROM dbo.SysWebUser SU
-                          
-                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-                        AND (
-                            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                                       WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
-                        )",
-                    new SqlParameter[] {
+                    "spPIP_Inspection_Query",
+                    InspectionDashboardQueryParameters("083", new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
-new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    });
+                    }));
                 if (companyAuth.Rows.Count == 0)
                     throw new HttpException(403, "Employee is not authorized for this company/location.");
 
-                DataTable types = br.EQuery(@"
-SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
-       ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode
-FROM dbo.PIP_M_InspectionType T
-WHERE T.IsActive=1
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM C
-      WHERE C.InspectionTypeCode=T.InspectionTypeCode
-        AND C.SectionID=T.SectionID
-        AND C.IsActive=1
-        AND ISNULL(C.TemplateType,'W')='I'
-        AND (ISNULL(C.CompanyScope,'S')='A'
-             OR (';' + ISNULL(C.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-        AND (ISNULL(C.EmployeeList,'')=''
-             OR (';' + ISNULL(C.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
-        AND EXISTS (
-            SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
-            WHERE V.IDTemplate=C.IDTemplate AND V.Status='Active'
-        )
-  )
-ORDER BY T.SectionID, T.InspectionTypeName",
-                    "@SectionList=" + section + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 +
-                    "@LocationID=" + locationId + GF.Str2 +
-                    "@EmployeeID=" + employeeId);
+                DataTable types = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    InspectionDashboardQueryParameters("084", new SqlParameter[] {
+                        new SqlParameter("@SectionList", section),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    }));
 
-                DataTable details = br.EQuery(@"
-SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
-       D.InspectionTypeDetailName, D.ScheduleTime
-FROM dbo.PIP_M_InspectionType T
-JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
-WHERE T.IsActive=1 AND D.IsActive=1
-  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
-ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
-                    "@SectionList=" + section + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 +
-                    "@LocationID=" + locationId);
+                DataTable details = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    InspectionDashboardQueryParameters("085", new SqlParameter[] {
+                        new SqlParameter("@SectionList", section),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    }));
 
                 var typeRows = types.AsEnumerable().Select(row => new
                 {
