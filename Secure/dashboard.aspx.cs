@@ -13,6 +13,26 @@ namespace INSPEC.Secure
 {
     public partial class dashboard : System.Web.UI.Page
     {
+        private static DataTable BuildDashboardQueryData(params string[] values)
+        {
+            DataTable table = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                table.Columns.Add("C" + i, typeof(string));
+            DataRow row = table.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            table.Rows.Add(row);
+            return table;
+        }
+
+        private static SqlParameter[] DashboardQueryParameters(string type, params string[] values)
+        {
+            SqlParameter data = new SqlParameter("@p_Data", SqlDbType.Structured);
+            data.TypeName = "dbo.Type_N_Tbl_C13";
+            data.Value = BuildDashboardQueryData(values);
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), data };
+        }
+
         private static string GetCurrentSessionToken()
         {
             HttpContext context = HttpContext.Current;
@@ -113,34 +133,9 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Requested Work Order section is not assigned to this employee.");
                     section = String.Join(";", requestedSections);
                 }
-                DataTable dt = br.EQuery(
-@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, ISNULL(B.CompanyScope,'S') CompanyScope, ISNULL(B.CompanyLocationList,'') CompanyLocationList, ISNULL(B.EmployeeList,'') EmployeeList, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, ISNULL(a.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) VersionIsFollowUpRequired, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
-JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
-WHERE b.IsActive=1
-AND ISNULL(b.TemplateType,'W')=@TemplateType
-AND (a.Status='Active' OR (@version<>'' AND a.Status='Archieved' AND EXISTS (
-    SELECT 1 FROM dbo.PIP_T_WO ExistingWO
-    WHERE ExistingWO.TemplateWOPM=B.TemplateNo AND ExistingWO.TemplateVersion=a.Version
-      AND ExistingWO.CompanyID=@CompanyID AND ExistingWO.LocationID=@LocationID
-      AND ExistingWO.SectionID=B.SectionID
-)))
-AND (
-    @TemplateType <> 'I'
-    OR ISNULL(B.EmployeeList,'')='' OR (';' + ISNULL(B.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%')
-)
-AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
-AND (ISNULL(b.CompanyScope,'S')='A' OR (';' + ISNULL(b.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
-AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
-ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, a.IDVersion
-",
-"@sectionlist=" + section + GF.Str2 +
-"@templateno=" + templateNo + GF.Str2 +
-"@version=" + version + GF.Str2 +
-"@CompanyID=" + companyId + GF.Str2 +
-"@LocationID=" + locationId + GF.Str2 +
-"@TemplateType=" + templateType + GF.Str2 +
-"@EmployeeID=" + employeeId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_WorkOrder_Query",
+                    DashboardQueryParameters("006", section, templateNo, version, companyId, locationId, templateType, employeeId));
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
@@ -169,63 +164,19 @@ ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplat
                     dict["IsRemark2Required"] = Convert.ToBoolean(row["VersionIsRemark2Required"]);
                     dict["Remark2Text"] = GF.GetString(row["VersionRemark2Text"]);
                     dict["PhotoRequirement"] = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(row["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(row["PhotoRequirement"]).ToUpperInvariant() : "NONE";
-                    DataTable dt1 = br.EQuery(
-@"SELECT  
-s.IDSection,
-s.SectionName,
-s.DisplayOrder AS SectionOrder,
-i.IDItem,
-i.IDSubSection,
-ISNULL(ss.SubSectionName,'') AS SubSectionName,
-ISNULL(ss.DisplayOrder,0) AS SubSectionOrder,
-i.ItemLabel,
-i.ItemType,
-ISNULL(i.OptionList,'') OptionList,
-i.MinValue,
-i.MaxValue,
-ISNULL(i.Unit,'') Unit,
-ISNULL(i.ShowUnitInRange,0) ShowUnitInRange,
-i.IsValueRequired,
-i.IsRemark1Required, i.IsRemark2Required, i.IsRemark1Mandatory, i.IsRemark2Mandatory, i.Remark1Text, i.Remark2Text, i.IsUseDefaultRemark1, i.IsUseDefaultRemark2, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
-i.DisplayOrder AS ItemOrder,
-v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
-FROM PIP_M_CheckListWOPM_Section s
-JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
-JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
-LEFT JOIN PIP_M_CheckListWOPM_SubSection ss ON ss.IDSubSection = i.IDSubSection
-JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
-WHERE m.IDTemplate=@IDTemplate
-  AND v.IDVersion=@IDVersion
-  AND m.TemplateNo = @TemplateNo
-  AND m.IsActive=1
-  AND ISNULL(m.TemplateType,'W')=@TemplateType
-  -- The header query has already authorized the requested Active version or
-  -- the exact archived version referenced by an existing WorkOrder.
-  AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
-ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrder ELSE ss.DisplayOrder END, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN 0 ELSE 1 END, i.DisplayOrder",
-                                        "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
-                                        "@ModelCode=" + modelcode + GF.Str2 +
-                                        "@TemplateType=" + templateType + GF.Str2 +
-                                        "@IDTemplate=" + row["IDTemplate"].ToString() + GF.Str2 +
-                                        "@IDVersion=" + row["IDVersion"].ToString());
-                    DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
-                                              "FROM PIP_M_CheckListWOPM_ItemGroup");
-                    DataTable dtRepeat = br.EQuery(@"
-SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion",
-                        "@IDVersion=" + row["IDVersion"].ToString());
-                    DataTable dtRepeatFields = br.EQuery(@"
-SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
-       F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion
-ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
-                        "@IDVersion=" + row["IDVersion"].ToString());
+                    DataTable dt1 = br.EQueryP(
+                        "spPIP_WorkOrder_Query",
+                        DashboardQueryParameters("007", row["IDTemplate"].ToString(), row["IDVersion"].ToString(),
+                            row["TemplateNo"].ToString(), templateType, modelcode));
+                    DataTable dt2 = br.EQueryP(
+                        "spPIP_WorkOrder_Query",
+                        DashboardQueryParameters("008"));
+                    DataTable dtRepeat = br.EQueryP(
+                        "spPIP_WorkOrder_Query",
+                        DashboardQueryParameters("009", row["IDVersion"].ToString()));
+                    DataTable dtRepeatFields = br.EQueryP(
+                        "spPIP_WorkOrder_Query",
+                        DashboardQueryParameters("010", row["IDVersion"].ToString()));
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
                         {
