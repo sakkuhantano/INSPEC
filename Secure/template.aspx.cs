@@ -1339,35 +1339,17 @@ namespace INSPEC.Secure
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT T.IDTemplate, T.SectionID,
-       InspectionSectionID=I.SectionID
-FROM dbo.PIP_M_CheckListWOPM T
-LEFT JOIN dbo.PIP_M_InspectionType I
-  ON I.InspectionTypeCode=@InspectionTypeCode AND I.IsActive=1
-WHERE T.IDTemplate=@IDTemplate
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
-                 AND CurrentPermission.CompanyID=@CompanyID
-                 AND CurrentPermission.LocationID=@LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=@CompanyID
-                    AND LoginCompany.LocationID=@LocationID)
-  )
-  AND
-  (
-       ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-       -- A brand-new template has no scope row yet; allow this first metadata save
-       -- to create the initial Selected Company / Location assignment below.
-       OR ISNULL(T.CompanyLocationList,'')=''
-  )",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
-                    "@InspectionTypeDetailCode=" + inspectionTypeDetailCode + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 +
-                    "@UpdateUser=" + updateUser + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "006"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_EmployeeID", updateUser),
+                        new SqlParameter("@p_UserID", sessionUserId)
+                    });
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
@@ -1378,69 +1360,30 @@ WHERE T.IDTemplate=@IDTemplate
                     return new { success = false, message = "Inspection Type must belong to the same Section as the selected root." };
                 if (templateType == "I" && inspectionTypeDetailCode.Length > 0)
                 {
-                    DataTable invalidDetails = br.EQueryP(@"
-SELECT X.val
-FROM dbo.SplitStringConvertToTable(@InspectionTypeDetailCode, ';') X
-LEFT JOIN dbo.PIP_M_InspectionTypeDetail D
-  ON D.InspectionTypeCode=@InspectionTypeCode
- AND D.InspectionTypeDetailCode=LTRIM(RTRIM(X.val))
- AND D.IsActive=1
-WHERE LTRIM(RTRIM(X.val))<>'' AND D.InspectionTypeDetailCode IS NULL",
+                    DataTable invalidDetails = br.EQueryP(
+                        "spPIP_Template_Command",
                         new SqlParameter[] {
-                            new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
-                            new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
+                            new SqlParameter("@p_Tipe", "007"),
+                            new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
+                            new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode)
                         });
                     if (invalidDetails.Rows.Count > 0)
                         return new { success = false, message = "Setiap Inspection Detail harus aktif dan termasuk Inspection Type yang dipilih." };
                 }
 
-                br.EQuery(@"
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-/* Normalize legacy employee assignments: EmployeeList uses semicolon delimiters only. */
-UPDATE dbo.PIP_M_CheckListWOPM
-SET EmployeeList=REPLACE(ISNULL(EmployeeList,''),':',';')
-WHERE IDTemplate=@IDTemplate AND EmployeeList LIKE '%:%';
-
-UPDATE dbo.PIP_M_CheckListWOPM
-SET TemplateType=@TemplateType,
-    InspectionTypeCode=@InspectionTypeCode,
-    InspectionTypeDetailCode=@InspectionTypeDetailCode,
-    CompanyScope=@CompanyScope,
-    UpdateUser=@UpdateUser,
-    UpdateDate=GETDATE()
-WHERE IDTemplate=@IDTemplate;
-
-IF @CompanyScope='S'
-AND (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @CompanyID + @LocationID + ';%')
-BEGIN
- UPDATE dbo.PIP_M_CheckListWOPM
- SET CompanyLocationList=CASE WHEN ISNULL(CompanyLocationList,'')='' THEN @CompanyID+@LocationID ELSE CompanyLocationList+';'+@CompanyID+@LocationID END
- WHERE IDTemplate=@IDTemplate;
-END;
-
-/* PM/WO templates do not retain Inspection employee assignments. */
-IF @TemplateType='W' UPDATE dbo.PIP_M_CheckListWOPM SET EmployeeList='' WHERE IDTemplate=@IDTemplate;
-IF @CompanyScope='S' AND @TemplateType='I'
-BEGIN
- UPDATE T SET EmployeeList=ISNULL(STUFF((
-  SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
-  JOIN dbo.M_HRD_Employee E ON E.EmployeeID=X.val
-  WHERE (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+E.CompanyID+E.LocationID+';%')
-  FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
- FROM dbo.PIP_M_CheckListWOPM T
- WHERE T.IDTemplate=@IDTemplate
-   AND ISNULL(T.EmployeeList,'')<>';';
-END;
-COMMIT TRANSACTION;",
-                    "@TemplateType=" + templateType + GF.Str2 +
-                    "@InspectionTypeCode=" + inspectionTypeCode + GF.Str2 +
-                    "@InspectionTypeDetailCode=" + inspectionTypeDetailCode + GF.Str2 +
-                    "@CompanyScope=" + companyScope + GF.Str2 +
-                    "@UpdateUser=" + updateUser + GF.Str2 +
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 +
-                    "@LocationID=" + locationId);
+                br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "017"),
+                        new SqlParameter("@p_TemplateType", templateType),
+                        new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
+                        new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
+                        new SqlParameter("@p_CompanyScope", companyScope),
+                        new SqlParameter("@p_UpdateUser", updateUser),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    });
                 return new { success = true, message = "" };
             }
         }
