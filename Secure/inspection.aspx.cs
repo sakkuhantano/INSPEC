@@ -2392,13 +2392,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
             if (inspectionIds.Length == 0 || inspectionIds.Length > 200)
                 throw new HttpException(400, "Jumlah transaksi tidak valid. Maksimal 200 transaksi.");
 
-            List<SqlParameter> parameters = new List<SqlParameter>();
-            parameters.Add(new SqlParameter("@EmployeeID", employeeId));
-            parameters.Add(new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0));
-            parameters.Add(new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)));
-            parameters.Add(new SqlParameter("@CompanyID", companyId));
-            parameters.Add(new SqlParameter("@LocationID", locationId));
-            using (var br = new WAL.BR.CF())
+using (var br = new WAL.BR.CF())
             {
                 DataTable rows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] {
                     new SqlParameter("@p_Tipe", "079"),
