@@ -7,7 +7,11 @@ ALTER PROCEDURE dbo.spPIP_Inspection_Query
     @p_IDTemplate INT = NULL,
     @p_IDVersion INT = NULL,
     @p_CompanyID VARCHAR(50) = NULL,
-    @p_LocationID VARCHAR(50) = NULL
+    @p_LocationID VARCHAR(50) = NULL,
+    @p_UserID VARCHAR(50) = NULL,
+    @p_EmployeeID VARCHAR(50) = NULL,
+    @p_SectionID VARCHAR(50) = NULL,
+    @p_InspectionTypeCode VARCHAR(10) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -80,19 +84,19 @@ BEGIN
                           LIKE '%;' + ISNULL(@p_CompanyID, '') + ISNULL(@p_LocationID, '') + ';%')
                   )
             ), 0)
-        FROM dbo.SplitStringConvertToTable(@p_CompanyID, ';') aa
+        FROM dbo.SplitStringConvertToTable(@p_SectionID, ';') aa
         WHERE (
             EXISTS (
                 SELECT 1
                 FROM dbo.SysWebUserCompanyLocation perm
                 WHERE perm.AppID = 'INSPEC'
-                  AND perm.UserID = @p_IDTemplate
+                  AND perm.UserID = @p_UserID
                   AND perm.CompanyID = @p_CompanyID
                   AND perm.LocationID = @p_LocationID
             )
             OR EXISTS (
                 SELECT 1
-                FROM dbo.F_SelectOneLogin('INSPEC', @p_IDVersion, '') loginCompany
+                FROM dbo.F_SelectOneLogin('INSPEC', @p_EmployeeID, '') loginCompany
                 WHERE loginCompany.CompanyID = @p_CompanyID
                   AND loginCompany.LocationID = @p_LocationID
             )
@@ -104,7 +108,7 @@ BEGIN
     BEGIN
         SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
         FROM dbo.PIP_M_InspectionType
-        WHERE SectionID=@p_IDTemplate AND IsActive=1
+        WHERE SectionID=@p_SectionID AND IsActive=1
         ORDER BY InspectionTypeName;
         RETURN;
     END;
@@ -119,7 +123,7 @@ BEGIN
         JOIN dbo.PIP_M_InspectionTypeDetail D
           ON D.InspectionTypeCode=T.InspectionTypeCode
          AND D.IsActive=1
-        WHERE T.InspectionTypeCode=@p_CompanyID
+        WHERE T.InspectionTypeCode=@p_InspectionTypeCode
           AND T.IsActive=1
         ORDER BY D.InspectionTypeDetailName, D.InspectionTypeDetailCode;
         RETURN;
