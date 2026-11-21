@@ -813,7 +813,7 @@ string.Format(@"
                                     .OrderBy(sv => sv["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(sv["ObjectIndex"]))
                                     .ThenBy(sv => Convert.ToString(sv["FieldName"]), StringComparer.OrdinalIgnoreCase)
                                     .ToList();
-                                foreach (DataRow repeatValue in repeatRows.Rows)
+                                foreach (DataRow repeatValue in repeatRows)
                                 {
                                     int objectIndex = repeatValue["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(repeatValue["ObjectIndex"]);
                                     var objectRow = repeatValues.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
