@@ -72,8 +72,8 @@ namespace INSPEC.Secure
                 using (var auth = new WAL.BR.CF())
                 {
                     DataTable allowed = auth.EQueryP(
-                        "spPIP_WorkOrder_Query",
-                        WorkOrderQueryParameters("001", Convert.ToString(keyhd), userid, GFC.GetEmployeeSection(userid)));
+                        "spPIP_Inspection_Query",
+                        WorkOrderQueryParameters("201", Convert.ToString(keyhd), userid, GFC.GetEmployeeSection(userid)));
                     if (allowed.Rows.Count == 0)
                         throw new HttpException(403, "Work Order is not authorized for this supervisor, section, or template company/location.");
                 }
@@ -108,8 +108,8 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_WorkOrder_Query",
-                    WorkOrderQueryParameters("005", scope[0], scope[1], section));
+                    "spPIP_Inspection_Query",
+                    WorkOrderQueryParameters("205", scope[0], scope[1], section));
                 return new
                 {
                     pending = dt.Rows[0]["Pending"].ToString(),
@@ -177,8 +177,8 @@ namespace INSPEC.Secure
                 string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
                 string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
-                    "spPIP_WorkOrder_Query",
-                    WorkOrderQueryParameters("002",
+                    "spPIP_Inspection_Query",
+                    WorkOrderQueryParameters("202",
                         employeeID, sessionToken, companyLocation, section, selectedCompanyID, selectedLocationID,
                         ParseLastSync(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
                         isApprovalMode ? "1" : "0", status, Convert.ToString(keyhd),
@@ -936,8 +936,8 @@ string.Format(@"
                             using (var followUpBr = new WAL.BR.CF())
                             {
                                 DataTable followUpRule = followUpBr.EQueryP(
-                                    "spPIP_WorkOrder_Query",
-                                    WorkOrderQueryParameters("003", Convert.ToString(followUpKey)));
+                                    "spPIP_Inspection_Query",
+                                    WorkOrderQueryParameters("203", Convert.ToString(followUpKey)));
                                 followUpRequired = followUpRule == null || followUpRule.Rows.Count == 0 ||
                                     Convert.ToBoolean(followUpRule.Rows[0]["IsFollowUpRequired"]);
                             }
@@ -993,8 +993,8 @@ string.Format(@"
                     using (var auth = new WAL.BR.CF())
                     {
                         DataTable allowed = auth.EQueryP(
-                            "spPIP_WorkOrder_Query",
-                            WorkOrderQueryParameters("004", userid, GFC.GetEmployeeSection(userid),
+                            "spPIP_Inspection_Query",
+                            WorkOrderQueryParameters("204", userid, GFC.GetEmployeeSection(userid),
                                 Convert.ToString(keyHD), actionSPV, selectedCompanyID, selectedLocationID));
                         if (allowed.Rows.Count == 0)
                             throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
