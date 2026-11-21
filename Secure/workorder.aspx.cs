@@ -18,6 +18,27 @@ namespace INSPEC.Secure
 {
     public partial class workorder : System.Web.UI.Page
     {
+
+        private static DataTable BuildWorkOrderQueryData(params string[] values)
+        {
+            DataTable table = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                table.Columns.Add("C" + i, typeof(string));
+            DataRow row = table.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            table.Rows.Add(row);
+            return table;
+        }
+
+        private static SqlParameter[] WorkOrderQueryParameters(string type, params string[] values)
+        {
+            SqlParameter data = new SqlParameter("@p_Data", SqlDbType.Structured);
+            data.TypeName = "dbo.Type_N_Tbl_C13";
+            data.Value = BuildWorkOrderQueryData(values);
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), data };
+        }
+
         private static string GetCurrentSessionToken()
         {
             HttpContext context = HttpContext.Current;
@@ -50,32 +71,9 @@ namespace INSPEC.Secure
             {
                 using (var auth = new WAL.BR.CF())
                 {
-                    DataTable allowed = auth.EQueryP(@"
-SELECT TOP 1 1
-FROM dbo.PIP_T_WO W
-JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-WHERE W.KeyHD=@KeyHD
-  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=W.SectionID)
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                 AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                  WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
-  )
-  AND EXISTS (
-      SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
-      WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
-        AND ISNULL(T.TemplateType,'W')='W'
-        AND (ISNULL(T.CompanyScope,'S')='A'
-             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
-  )",
-                        new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
-                            new SqlParameter("@EmployeeID", userid),
-                            new SqlParameter("@KeyHD", keyhd)
-                        });
+                    DataTable allowed = auth.EQueryP(
+                        "spPIP_WorkOrder_Query",
+                        WorkOrderQueryParameters("001", Convert.ToString(keyhd), userid, GFC.GetEmployeeSection(userid)));
                     if (allowed.Rows.Count == 0)
                         throw new HttpException(403, "Work Order is not authorized for this supervisor, section, or template company/location.");
                 }
@@ -186,63 +184,12 @@ WHERE W.KeyHD=@KeyHD
                 string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
                 string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
-@"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncWO=@V_GetDate
- WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
-SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
-Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
-ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
-TemplateVersionStatus=ISNULL((SELECT TOP 1 vv.Status
- FROM PIP_M_CheckListWOPM_Version vv
- JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
- WHERE tt.TemplateNo=a.TemplateWOPM AND tt.SectionID=a.SectionID
-   AND ISNULL(tt.TemplateType,'W')='W' AND vv.Version=a.TemplateVersion
-   AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
- ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
-SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText
-FROM PIP_M_CheckListWOPM_Version vv
-JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
-WHERE tt.TemplateNo=a.TemplateWOPM
-  AND ISNULL(tt.TemplateType,'W')='W'
-  AND tt.SectionID=a.SectionID
-  AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList, '') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
-  AND vv.Version=a.TemplateVersion
-ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
-FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
-FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
-IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
-StatusSPV=CASE WHEN ISNULL(a.IsSampling,0)=1 AND (a.ReasonRespondDC<>'' OR a.IsCompleteDC=1) THEN 'SYNCED' ELSE '' END,
-ActionSPV=CASE WHEN ISNULL(a.IsSampling,0)=1 THEN CASE WHEN a.ReasonRespondDC<>'' THEN 'VOID' WHEN a.IsCompleteDC=1 THEN 'APPROVED' END ELSE '' END,
-StartTime=(SELECT TOP 1 NULLIF(AA.StartDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA.KeyHD=a.KeyHD),
-EndTime=(SELECT TOP 1 NULLIF(AA.EndDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA.KeyHD=a.KeyHD), ISNULL(eqp.ModelCode,'') ModelCode
-FROM pip_t_wo a JOIN PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON d.KeyHD=h.KeyHD ON h.CompanyID=a.CompanyID AND h.LocationID=a.LocationID 
-JOIN PIP_M_Equipment eqp ON eqp.CompanyID=a.CompanyID AND eqp.LocationID=a.LocationID AND eqp.EquipmentCode=h.EquipmentCode AND a.WONo=d.WONo
-WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation 
-AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)
-AND EXISTS
-(
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
-    WHERE T.TemplateNo=a.TemplateWOPM
-      AND T.SectionID=a.SectionID
-      AND ISNULL(T.TemplateType,'W')='W'
-      AND
-      (
-          ISNULL(T.CompanyScope,'S')='A'
-          OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-      )
-)
-AND " + _condition +
-" ORDER BY a.KeyHD",
-                                new SqlParameter[] 
-                                {
-                                    new SqlParameter("@EmployeeID", employeeID),
-                                     new SqlParameter("@SessionToken", sessionToken),
-                                    new SqlParameter("@CompanyLocation", companyLocation),
-                                    new SqlParameter("@sectionlist", section),
-                                    new SqlParameter("@CompanyID", selectedCompanyID),
-                                    new SqlParameter("@LocationID", selectedLocationID),
-                                    new SqlParameter("@LastSync", ParseLastSync(lastSync))
-                                });
+                    "spPIP_WorkOrder_Query",
+                    WorkOrderQueryParameters("002",
+                        employeeID, sessionToken, companyLocation, section, selectedCompanyID, selectedLocationID,
+                        ParseLastSync(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
+                        isApprovalMode ? "1" : "0", status, Convert.ToString(keyhd),
+                        isTechnician ? "1" : "0", isSupervisor ? "1" : "0"));
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<object, object>();
@@ -995,13 +942,9 @@ string.Format(@"
                         {
                             using (var followUpBr = new WAL.BR.CF())
                             {
-                                DataTable followUpRule = followUpBr.EQueryP(@"
-SELECT ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired
-FROM dbo.PIP_T_WO W
-JOIN dbo.PIP_M_CheckListWOPM T ON T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
-LEFT JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate AND V.Version=W.TemplateVersion
-WHERE W.KeyHD=@KeyHD AND ISNULL(T.TemplateType,'W')='W'",
-                                    new SqlParameter[] { new SqlParameter("@KeyHD", followUpKey) });
+                                DataTable followUpRule = followUpBr.EQueryP(
+                                    "spPIP_WorkOrder_Query",
+                                    WorkOrderQueryParameters("003", Convert.ToString(followUpKey)));
                                 followUpRequired = followUpRule == null || followUpRule.Rows.Count == 0 ||
                                     Convert.ToBoolean(followUpRule.Rows[0]["IsFollowUpRequired"]);
                             }
@@ -1056,52 +999,10 @@ WHERE W.KeyHD=@KeyHD AND ISNULL(T.TemplateType,'W')='W'",
                     string actionSPV = actionByKey.ContainsKey(keyHD) ? actionByKey[keyHD] : "";
                     using (var auth = new WAL.BR.CF())
                     {
-                        DataTable allowed = auth.EQueryP(@"
-SELECT TOP 1 1
-FROM dbo.PIP_T_WO W
-JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-
-WHERE W.KeyHD=@KeyHD
-  AND W.CompanyID=@CompanyID
-  AND W.LocationID=@LocationID
-  AND EXISTS
-      (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S
-       WHERE S.val=W.SectionID)
-  AND
-      (
-          EXISTS (
-              SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
-          )
-          OR EXISTS (
-              SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-              WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
-          )
-      )
-  AND EXISTS
-      (
-          SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
-          WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
-            AND ISNULL(T.TemplateType,'W')='W'
-            AND (ISNULL(T.CompanyScope,'S')='A'
-                 OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
-      )
-  AND
-      (
-          (ISNULL(@ActionSPV,'')<>'' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012') AND ISNULL(W.IsSampling,0)=1)
-          OR
-          (ISNULL(@ActionSPV,'')='' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20011'))
-      )",
-                            new SqlParameter[]
-                            {
-                                new SqlParameter("@EmployeeID", userid),
-                                new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
-                                new SqlParameter("@KeyHD", keyHD),
-                                new SqlParameter("@ActionSPV", actionSPV),
-                                new SqlParameter("@CompanyID", selectedCompanyID),
-                                new SqlParameter("@LocationID", selectedLocationID)
-                            });
+                        DataTable allowed = auth.EQueryP(
+                            "spPIP_WorkOrder_Query",
+                            WorkOrderQueryParameters("004", userid, GFC.GetEmployeeSection(userid),
+                                Convert.ToString(keyHD), actionSPV, selectedCompanyID, selectedLocationID));
                         if (allowed.Rows.Count == 0)
                             throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
                     }
