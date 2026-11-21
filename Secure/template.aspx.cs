@@ -1570,14 +1570,12 @@ namespace INSPEC.Secure
             RequireVersionAccess(versionId.ToString());
             using (var br = new WAL.BR.CF())
             {
-                DataTable owner = br.EQueryP(@"
-SELECT T.IDTemplate, T.TemplateNo, T.TemplateType, V.Version, V.Status
-FROM dbo.PIP_M_CheckListWOPM T
-JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
-WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
+                DataTable owner = br.EQueryP(
+                    "spPIP_Template_Command",
                     new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", templateId),
-                        new SqlParameter("@IDVersion", versionId)
+                        new SqlParameter("@p_Tipe", "003"),
+                        new SqlParameter("@p_IDTemplate", templateId),
+                        new SqlParameter("@p_IDVersion", versionId)
                     });
                 if (owner.Rows.Count == 0)
                     return new { success = false, message = "Version tidak ditemukan pada template tersebut." };
@@ -1585,50 +1583,15 @@ WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
                     !String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Archieved", StringComparison.OrdinalIgnoreCase))
                     return new { success = false, message = "Hanya version Active/Archived yang dapat dikembalikan ke Draft." };
                 DataRow row = owner.Rows[0];
-                br.EQueryP(@"
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-IF EXISTS (
-    SELECT 1
-    FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
-    JOIN dbo.PIP_M_CheckListWOPM T
-      ON T.IDTemplate=@IDTemplate AND T.TemplateType='I'
-    WHERE I.IDTemplate=@IDTemplate AND I.IDVersion=@IDVersion
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Version sudah digunakan pada Inspection dan tidak dapat dikembalikan ke Draft.',16,1);
-    RETURN;
-END;
-IF EXISTS (
-    SELECT 1
-    FROM dbo.PIP_T_WO W WITH (UPDLOCK,HOLDLOCK)
-    WHERE LTRIM(RTRIM(CONVERT(VARCHAR(100), W.TemplateWOPM))) IN
-          (@TemplateNo, CONVERT(VARCHAR(20), @IDTemplate))
-      AND LTRIM(RTRIM(CONVERT(VARCHAR(50), W.TemplateVersion)))=@TemplateVersion
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Version sudah digunakan pada Work Order dan tidak dapat dikembalikan ke Draft.',16,1);
-    RETURN;
-END;
-UPDATE dbo.PIP_M_CheckListWOPM_Version
-SET Status='Draft', EffectiveDate=NULL
-WHERE IDTemplate=@IDTemplate AND IDVersion=@IDVersion
-  AND Status IN ('Active','Archieved');
-IF @@ROWCOUNT=0
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Version status changed. Refresh the template and try again.',16,1);
-    RETURN;
-END;
-COMMIT TRANSACTION;",
+                br.EQueryP(
+                    "spPIP_Template_Command",
                     new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", templateId),
-                        new SqlParameter("@IDVersion", versionId),
-                        new SqlParameter("@TemplateNo", GF.GetString(row["TemplateNo"])),
-                        new SqlParameter("@TemplateVersion", GF.GetString(row["Version"]))
-                    }, false, false);
+                        new SqlParameter("@p_Tipe", "014"),
+                        new SqlParameter("@p_IDTemplate", templateId),
+                        new SqlParameter("@p_IDVersion", versionId),
+                        new SqlParameter("@p_TemplateNo", GF.GetString(owner.Rows[0]["TemplateNo"])),
+                        new SqlParameter("@p_Version", GF.GetString(owner.Rows[0]["Version"]))
+                    });
                 return new { success = true, message = "Version berhasil dikembalikan ke Draft." };
             }
         }
@@ -1696,29 +1659,15 @@ COMMIT TRANSACTION;",
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT T.TemplateType, T.CompanyScope, T.SectionID,
-       E.EmployeeID, E.SectionID EmployeeSectionID, E.CompanyID, E.LocationID EmployeeLocationID
-FROM dbo.PIP_M_CheckListWOPM T
-JOIN dbo.M_HRD_Employee E ON E.EmployeeID=@EmployeeID
-WHERE T.IDTemplate=@IDTemplate
-  AND E.SectionID=T.SectionID
-  AND ISNULL(E.TerminationDate,'')=''
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
-                 AND CurrentPermission.CompanyID=@CurrentCompanyID
-                 AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                    AND LoginCompany.LocationID=@CurrentLocationID)
-  )
-  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@EmployeeID=" + employeeId + GF.Str2 +
-                    "@UpdateUser=" + updateUser + GF.Str2 +
-                    "@CurrentCompanyID=" + companyId + GF.Str2 +
-                    "@CurrentLocationID=" + locationId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "012"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_CurrentCompanyID", companyId),
+                        new SqlParameter("@p_CurrentLocationID", locationId)
+                    });
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template or employee was not found." };
 
@@ -1731,142 +1680,17 @@ WHERE T.IDTemplate=@IDTemplate
                 // not necessarily the employee's home company/location. The query above already validates
                 // that the selected context is within this template's scope.
 
-                br.EQuery(@"
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-/* Repair legacy colon-separated values before any ADD/REMOVE operation. */
-UPDATE dbo.PIP_M_CheckListWOPM
-SET EmployeeList=REPLACE(ISNULL(EmployeeList,''),':',';')
-WHERE IDTemplate=@IDTemplate AND EmployeeList LIKE '%:%';
-
-DECLARE @CurrentEmployeeList VARCHAR(8000);
-SELECT @CurrentEmployeeList=ISNULL(EmployeeList,'')
-FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
-WHERE IDTemplate=@IDTemplate;
-
-IF @CurrentEmployeeList IS NULL
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Template was not found.',16,1);
-    RETURN;
-END;
-
-/* An explicit ';' value represents no assigned employees. Empty string remains ALL eligible employees. */
-
-IF @Action='REMOVE'
-BEGIN
-    /* Empty means all eligible employees. Materialize that set before removing one employee. */
-    IF @CurrentEmployeeList=''
-    BEGIN
-        UPDATE T
-        SET EmployeeList=CASE WHEN ISNULL(STUFF((
-            SELECT ';'+E.EmployeeID
-            FROM dbo.M_HRD_Employee E
-            WHERE E.SectionID=T.SectionID
-              AND ISNULL(E.TerminationDate,'')=''
-                          AND (
-               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
-                         AND CurrentPermission.CompanyID=@CurrentCompanyID
-                         AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
-                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                            AND LoginCompany.LocationID=@CurrentLocationID)
-           )
-              AND (ISNULL(T.CompanyScope,'S')='A'
-                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
-              AND E.EmployeeID<>@EmployeeID
-            ORDER BY E.EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')='' THEN ';' ELSE STUFF((
-            SELECT ';'+E.EmployeeID
-            FROM dbo.M_HRD_Employee E
-            WHERE E.SectionID=T.SectionID
-              AND ISNULL(E.TerminationDate,'')=''
-                          AND (
-               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
-                         AND CurrentPermission.CompanyID=@CurrentCompanyID
-                         AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
-                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                            AND LoginCompany.LocationID=@CurrentLocationID)
-           )
-              AND (ISNULL(T.CompanyScope,'S')='A'
-                   OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
-              AND E.EmployeeID<>@EmployeeID
-            ORDER BY E.EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,'')
-        END
-        FROM dbo.PIP_M_CheckListWOPM T
-        WHERE T.IDTemplate=@IDTemplate;
-    END
-    ELSE
-    BEGIN
-        UPDATE T
-        SET EmployeeList=CASE WHEN ISNULL(STUFF((
-            SELECT ';'+X.val
-            FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
-            WHERE X.val<>@EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')='' THEN ';' ELSE STUFF((
-            SELECT ';'+X.val
-            FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
-            WHERE X.val<>@EmployeeID
-            FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,'')
-        END
-        FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
-    END
-END
-ELSE
-BEGIN
-    /* ';' is the explicit no-assignment state; adding the first employee starts a normal list. */
-    IF @CurrentEmployeeList=';'
-    BEGIN
-        UPDATE dbo.PIP_M_CheckListWOPM
-        SET EmployeeList=@EmployeeID, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-        WHERE IDTemplate=@IDTemplate;
-    END
-    ELSE IF @CurrentEmployeeList<>''
-    BEGIN
-        UPDATE dbo.PIP_M_CheckListWOPM
-        SET EmployeeList=CASE
-            WHEN (';' + @CurrentEmployeeList + ';' NOT LIKE '%;' + @EmployeeID + ';%')
-                THEN @CurrentEmployeeList+';'+@EmployeeID
-            ELSE @CurrentEmployeeList
-        END
-        WHERE IDTemplate=@IDTemplate;
-
-        /* If every currently eligible employee is now explicitly assigned, normalize back to empty. */
-        UPDATE T
-        SET EmployeeList=''
-        FROM dbo.PIP_M_CheckListWOPM T
-        WHERE T.IDTemplate=@IDTemplate
-          AND NOT EXISTS (
-              SELECT 1
-              FROM dbo.M_HRD_Employee E
-              WHERE E.SectionID=T.SectionID
-                AND ISNULL(E.TerminationDate,'')=''
-                              AND (
-               EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-                       WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
-                         AND CurrentPermission.CompanyID=@CurrentCompanyID
-                         AND CurrentPermission.LocationID=@CurrentLocationID)
-               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
-                          WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                            AND LoginCompany.LocationID=@CurrentLocationID)
-           )
-                AND (ISNULL(T.CompanyScope,'S')='A'
-                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
-                AND (';' + ISNULL(T.EmployeeList,'') + ';' NOT LIKE '%;' + E.EmployeeID + ';%')
-          );
-    END
-END
-COMMIT TRANSACTION;",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@EmployeeID=" + employeeId + GF.Str2 +
-                    "@Action=" + action + GF.Str2 +
-                    "@UpdateUser=" + updateUser + GF.Str2 +
-                    "@CurrentCompanyID=" + companyId + GF.Str2 +
-                    "@CurrentLocationID=" + locationId);
+                br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "013"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_Action", action),
+                        new SqlParameter("@p_UpdateUser", updateUser),
+                        new SqlParameter("@p_CurrentCompanyID", companyId),
+                        new SqlParameter("@p_CurrentLocationID", locationId)
+                    });
                 return new { success = true, message = "" };
             }
         }
