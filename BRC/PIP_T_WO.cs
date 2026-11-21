@@ -377,8 +377,7 @@ namespace INSPEC.BRC
                             string fileNameWithExt = System.IO.Path.GetFileName(filePath);
                             DataTable dt = ocf.EQueryP(
                                 "spPIP_Inspection_Query",
-                                CreateDispatcherParameters("212", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt),
-                                false, ref _mainConnection, ref _transaction);
+                                CreateDispatcherParameters("212", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt),true, ref _mainConnection, ref _transaction);
                             if (dt.Rows.Count == 0)
                             {
                                 try
@@ -602,8 +601,7 @@ namespace INSPEC.BRC
                         // inspection sync procedure. Do not let EQueryP create its own transaction.
                         DataTable autoNumResult = autoNumCommon.EQueryP(
                             "spPIP_Inspection_Query",
-                            CreateDispatcherParameters("086", "PIPINS" + companyId + locationId),
-                            false, ref _mainConnection, ref _transaction);
+                            CreateDispatcherParameters("086", "PIPINS" + companyId + locationId),true, ref _mainConnection, ref _transaction);
 
                         if (autoNumResult == null || autoNumResult.Rows.Count == 0 ||
                             autoNumResult.Rows[0]["ID"] == DBNull.Value)
