@@ -19,7 +19,7 @@ namespace INSPEC.Secure
     public partial class workorder : System.Web.UI.Page
     {
 
-        private static DataTable BuildWorkOrderQueryData(params string[] values)
+        // Positional TVP contract: first supplied value -> C1, second -> C2, etc.\n        private static DataTable BuildWorkOrderQueryData(params string[] values)
         {
             DataTable table = new DataTable();
             for (int i = 1; i <= 13; i++)
