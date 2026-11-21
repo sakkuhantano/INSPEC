@@ -2830,6 +2830,50 @@ function selectInspectionPointNavigatorRecord(detail) {
     state.scheduleTime = wanted;
 }
 
+function renderInspectionPointNavigatorPointControls(point) {
+    const state = inspectionPointNavigatorState, record = state.record;
+    if (!record) return '<div class="inspection-point-navigator-unavailable small text-muted">Belum ada transaksi untuk detail ini. Pilih Lihat Denah untuk memulai inspeksi.</div>';
+    const snapshot = record.TemplateSnapshot || state.baseRecord && state.baseRecord.TemplateSnapshot || {};
+    const optionItems = [];
+    (Array.isArray(snapshot.sections) ? snapshot.sections : []).forEach(section => (section.items || []).forEach(item => {
+        if (String(item.type || item.Type || "").toUpperCase() === "OPTION") optionItems.push(item);
+    }));
+    if (!optionItems.length) return "";
+    const schedule = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING" ? String(state.scheduleTime || record.ActiveScheduleTime || "") : "";
+    const transaction = (record.Points || []).find(item => Number(item.InspectionPointID) === Number(point.InspectionPointID) && String(item.ScheduleTime || "") === schedule);
+    const savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
+    const readOnly = String(record.Status || "").toUpperCase() === "DONE" || (record === currentInspectionRecord && currentInspectionReadOnly);
+    const groups = optionItems.map(item => {
+        const id = Number(item.idItem || item.IDItem || 0), saved = savedItems.find(answer => Number(answer.IDItem) === id);
+        const selected = String(saved && saved.Value || "");
+        const options = String(item.optionList || item.OptionList || "").split(";").map(value => value.trim()).filter(Boolean);
+        if (!options.length) return "";
+        const raw = item.remarkRequiredOptions || item.RemarkRequiredOptions || [];
+        const remarkOptions = Array.isArray(raw) ? raw.map(value => String(value).trim()) : String(raw || "").split(";").map(value => value.trim()).filter(Boolean);
+        const version = snapshot.VersionInfo || snapshot.versionInfo || snapshot;
+        let remarks = "";
+        [1,2].forEach(number => {
+            const field = number === 1 ? "Remark1" : "Remark2";
+            const itemRequired = isInspectionFlagEnabled(number === 1 ? (item.isRemark1Required || item.IsRemark1Required) : (item.isRemark2Required || item.IsRemark2Required), false);
+            const versionRequired = isInspectionFlagEnabled(number === 1 ? (item.versionIsRemark1Required || item.VersionIsRemark1Required || version.VersionIsRemark1Required || version.IsRemark1Required) : (item.versionIsRemark2Required || item.VersionIsRemark2Required || version.VersionIsRemark2Required || version.IsRemark2Required), false);
+            if (!(itemRequired || (versionRequired && remarkOptions.length))) return;
+            const visible = itemRequired || (versionRequired && remarkOptions.includes(selected.trim()));
+            const mandatory = isInspectionFlagEnabled(number === 1 ? (item.isRemark1Mandatory || item.IsRemark1Mandatory) : (item.isRemark2Mandatory || item.IsRemark2Mandatory), false);
+            const label = number === 1 ? (item.remark1Text || item.Remark1Text || "Remark 1") : (item.remark2Text || item.Remark2Text || "Remark 2");
+            remarks += '<label class="inspection-point-navigator-remark ' + (visible ? "" : "d-none") + '"><span>' + escInspection(label) +
+                (visible && (mandatory || remarkOptions.includes(selected.trim())) ? ' <b>*</b>' : '') + '</span><input type="text" maxlength="500" class="form-control form-control-sm" data-nav-point-remark="' + id +
+                '" data-nav-point-remark-field="' + number + '" data-nav-point-id="' + escInspection(point.InspectionPointID) +
+                '" value="' + escInspection(saved && saved[field] || "") + '"' + (readOnly ? " disabled" : "") + '></label>';
+        });
+        return '<div class="inspection-point-navigator-option-group"><div class="small text-muted mb-1">' + escInspection(item.label || item.Label || "Checklist") +
+            '</div><div class="inspection-point-navigator-options">' + options.map(option => '<button type="button" class="btn btn-sm ' +
+            (selected === option ? "btn-primary" : "btn-outline-primary") + '" data-nav-point-option="' + id + '" data-nav-point-value="' +
+            escInspection(option) + '" data-nav-point-id="' + escInspection(point.InspectionPointID) + '"' + (readOnly ? " disabled" : "") + '>' +
+            escInspection(option) + '</button>').join("") + '</div>' + remarks + '</div>';
+    }).join("");
+    return groups ? '<div class="inspection-point-navigator-controls">' + groups + '</div>' : "";
+}
+
 function renderInspectionPointNavigatorList() {
     const state = inspectionPointNavigatorState;
     const host = document.getElementById("inspectionPointNavigatorList");
@@ -2894,21 +2938,17 @@ function renderInspectionPointNavigatorList() {
     }
 
     const rowsHtml = pageRows.map(point => {
-        const status = statusFor(point);
-        const map = maps.find(item => Number(item.MapID) === Number(point.MapID));
-        return '<div class="inspection-point-navigator-row">' +
-            '<div class="inspection-point-navigator-main">' +
-                '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
-                '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
-                '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") +
-                    (point.ScheduleTime ? ' · ' + escInspection(point.ScheduleTime) : '') + '</div>' +
-            '</div>' +
-            '<div class="inspection-point-navigator-actions">' +
-                '<span class="badge ' + status.badge + '">' + escInspection(status.label) + '</span>' +
-                '<button type="button" class="btn btn-sm btn-outline-primary" data-point-navigator-open="' +
-                    escInspection(point.InspectionPointID) + '"><i class="bi bi-geo-alt me-1"></i>Lihat Map</button>' +
-            '</div>' +
-        '</div>';
+        const status = statusFor(point), map = maps.find(item => Number(item.MapID) === Number(point.MapID));
+        return '<div class="inspection-point-navigator-row"><div class="inspection-point-navigator-heading"><div class="inspection-point-navigator-main">' +
+            '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
+            '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
+            '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") +
+            (point.ScheduleTime ? ' · ' + escInspection(point.ScheduleTime) : '') + '</div></div><span class="badge ' + status.badge + '">' +
+            escInspection(status.label) + '</span></div>' + renderInspectionPointNavigatorPointControls(point) +
+            '<div class="inspection-point-navigator-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-point-navigator-checklist="' +
+            escInspection(point.InspectionPointID) + '"><i class="bi bi-list-check me-1"></i>Checklist</button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" data-point-navigator-open="' + escInspection(point.InspectionPointID) +
+            '"><i class="bi bi-map me-1"></i>Lihat Denah</button></div></div>';
     }).join("");
 
     let pagerHtml = "";
@@ -2987,6 +3027,7 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         selectInspectionPointNavigatorRecord(detail);
         if (state.record && state.record.BatchMapSetup && Array.isArray(state.record.BatchMapSetup.points))
             state.setup = state.record.BatchMapSetup;
+        if (state.record) state.record.BatchMapSetup = state.setup;
         if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
             scheduleSelect.value = state.scheduleTime;
         renderInspectionPointNavigatorList();
@@ -3090,7 +3131,24 @@ function wireInspectionPointNavigator() {
         inspectionPointNavigatorState.page = 1;
         renderInspectionPointNavigatorList();
     });
-    document.getElementById("inspectionPointNavigatorList").addEventListener("click", function (event) {
+    document.getElementById("inspectionPointNavigatorList").addEventListener("click", async function (event) {
+        const state = inspectionPointNavigatorState;
+        const optionButton = event.target.closest("[data-nav-point-option]");
+        if (optionButton) {
+            if (!state.record || optionButton.disabled) return;
+            optionButton.disabled = true;
+            try {
+                await window.setBatchInspectionPointOption(optionButton.getAttribute("data-nav-point-id"), optionButton.getAttribute("data-nav-point-option"), optionButton.getAttribute("data-nav-point-value"), state.record);
+                renderInspectionPointNavigatorList();
+            } catch (error) { showToast(error.message || "Pilihan point gagal disimpan.", "warning"); }
+            finally { optionButton.disabled = false; }
+            return;
+        }
+        const checklistButton = event.target.closest("[data-point-navigator-checklist]");
+        if (checklistButton) {
+            await openInspectionPointNavigatorTarget(Number(checklistButton.getAttribute("data-point-navigator-checklist")), true);
+            return;
+        }
         const pageButton = event.target.closest("[data-point-navigator-page]");
         if (pageButton) {
             const state = inspectionPointNavigatorState;
@@ -3121,6 +3179,16 @@ function wireInspectionPointNavigator() {
         const button = event.target.closest("[data-point-navigator-open]");
         if (!button) return;
         openInspectionPointNavigatorTarget(Number(button.getAttribute("data-point-navigator-open")));
+    });
+    document.getElementById("inspectionPointNavigatorList").addEventListener("change", async function (event) {
+        const input = event.target.closest("[data-nav-point-remark]"), state = inspectionPointNavigatorState;
+        if (!input || !state.record || input.disabled) return;
+        input.disabled = true;
+        try {
+            await window.setBatchInspectionPointRemark(input.getAttribute("data-nav-point-id"), input.getAttribute("data-nav-point-remark"),
+                input.getAttribute("data-nav-point-remark-field"), input.value, state.record);
+            renderInspectionPointNavigatorList();
+        } catch (error) { showToast(error.message || "Remark point gagal disimpan.", "warning"); input.disabled = false; }
     });
 }
 
@@ -3184,7 +3252,7 @@ window.openInspectionPointNavigator = async function () {
     if (details.length) await loadInspectionPointNavigatorDetail(detailSelect.value);
 };
 
-async function openInspectionPointNavigatorTarget(pointId) {
+async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
     const state = inspectionPointNavigatorState;
     const baseRecord = state.baseRecord;
     const masterPoint = (state.setup && state.setup.points || []).find(point =>
@@ -3271,14 +3339,19 @@ async function openInspectionPointNavigatorTarget(pointId) {
         ? await window.focusInspectionMapPoint(pointId) : false;
     if (!focused && typeof showToast === "function")
         showToast("Titik ditemukan, tetapi denah/koordinat map belum tersedia. Gunakan daftar Inspection Point.", "warning");
+    if (openChecklist) {
+        const masterPoint = (activeRecord.BatchMapSetup && activeRecord.BatchMapSetup.points || state.setup.points || [])
+            .find(point => Number(point.InspectionPointID) === Number(pointId));
+        if (masterPoint) await window.openBatchInspectionPointChecklist(masterPoint);
+    }
 }
 
 
-window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNumber, value) {
-    const record = currentInspectionRecord;
+window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNumber, value, targetRecord) {
+    const record = targetRecord || currentInspectionRecord;
     if (!record || !isInspectionMapMode(record.InspectionMode))
         throw new Error("Batch/Lightning inspection tidak sedang aktif.");
-    if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
+    if ((record === currentInspectionRecord && currentInspectionReadOnly) || String(record.Status || "").toUpperCase() === "DONE")
         throw new Error("Batch yang sudah disubmit bersifat read-only.");
 
     const templateItems = [];
@@ -3291,7 +3364,7 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
     const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
-        ? String(activeInspectionScheduleTime || record.ActiveScheduleTime || "") : "";
+        ? String(inspectionPointNavigatorState.record === record ? inspectionPointNavigatorState.scheduleTime : (activeInspectionScheduleTime || record.ActiveScheduleTime || "")) : "";
     let point = record.Points.find(item =>
         Number(item.InspectionPointID) === Number(pointId) &&
         String(item.ScheduleTime || "") === scheduleTime);
@@ -3366,14 +3439,14 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
     return true;
 };
 
-window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
-    const record = currentInspectionRecord;
+window.setBatchInspectionPointOption = async function (pointId, itemId, value, targetRecord) {
+    const record = targetRecord || currentInspectionRecord;
     if (!record || !isInspectionMapMode(record.InspectionMode))
         throw new Error("Batch/Lightning inspection tidak sedang aktif.");
-    if (currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE")
+    if ((record === currentInspectionRecord && currentInspectionReadOnly) || String(record.Status || "").toUpperCase() === "DONE")
         throw new Error("Batch yang sudah disubmit bersifat read-only.");
 
-    const quickOptionBlockReason = getBatchPointQuickOptionBlockReason({ InspectionPointID: pointId });
+    const quickOptionBlockReason = record === currentInspectionRecord ? getBatchPointQuickOptionBlockReason({ InspectionPointID: pointId }) : "";
     if (quickOptionBlockReason) throw new Error(quickOptionBlockReason);
 
     const templateItems = [];
@@ -3385,7 +3458,7 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value) {
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
     const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
-        ? String(activeInspectionScheduleTime || record.ActiveScheduleTime || "") : "";
+        ? String(inspectionPointNavigatorState.record === record ? inspectionPointNavigatorState.scheduleTime : (activeInspectionScheduleTime || record.ActiveScheduleTime || "")) : "";
     let point = record.Points.find(item =>
         Number(item.InspectionPointID) === Number(pointId) &&
         String(item.ScheduleTime || "") === scheduleTime);
