@@ -20,6 +20,10 @@ BEGIN
       003: C1=KeyHD
       004: C1=EmployeeID, C2=SectionList, C3=KeyHD, C4=ActionSPV,
            C5=CompanyID, C6=LocationID
+      006: C1=SectionList, C2=TemplateNo, C3=Version, C4=CompanyID, C5=LocationID, C6=TemplateType, C7=EmployeeID
+      007: C1=IDTemplate, C2=IDVersion, C3=TemplateNo, C4=TemplateType, C5=ModelCode
+      008: no parameters (legacy item-group lookup)
+      009-010: C1=IDVersion
       005: C1=CompanyID, C2=LocationID, C3=SectionList (WO approval dashboard counters)
     */
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX),
@@ -192,6 +196,96 @@ BEGIN
                 AND ISNULL(T.TemplateType,'W')='W'
                 AND (ISNULL(T.CompanyScope,'S')='A'
                      OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%')));
+        RETURN;
+    END;
+
+
+    IF @p_Tipe = '006'
+    BEGIN
+        SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID,
+               ISNULL(B.TemplateType,'W') TemplateType,
+               ISNULL(B.InspectionTypeCode,'') InspectionTypeCode,
+               ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode,
+               ISNULL(B.CompanyScope,'S') CompanyScope,
+               ISNULL(B.CompanyLocationList,'') CompanyLocationList,
+               ISNULL(B.EmployeeList,'') EmployeeList,
+               A.IDVersion, A.Version, A.StatusOption,
+               ISNULL(A.RemarkRequiredOptions,'') VersionRemarkRequiredOptions,
+               ISNULL(A.SummarySampleText,'') SummarySampleText,
+               ISNULL(A.IsSummaryRequired,1) VersionIsSummaryRequired,
+               ISNULL(A.IsFollowUpRequired,1) VersionIsFollowUpRequired,
+               A.IsRemark1Required VersionIsRemark1Required, A.Remark1Text VersionRemark1Text,
+               A.IsRemark2Required VersionIsRemark2Required, A.Remark2Text VersionRemark2Text,
+               ISNULL(A.PhotoRequirement,'NONE') PhotoRequirement
+        FROM dbo.PIP_M_CheckListWOPM_Version A
+        JOIN dbo.PIP_M_CheckListWOPM B ON A.IDTemplate=B.IDTemplate
+        WHERE B.IsActive=1 AND ISNULL(B.TemplateType,'W')=@C6
+          AND (A.Status='Active' OR (@C3<>'' AND A.Status='Archieved' AND EXISTS (
+                SELECT 1 FROM dbo.PIP_T_WO ExistingWO
+                WHERE ExistingWO.TemplateWOPM=B.TemplateNo AND ExistingWO.TemplateVersion=A.Version
+                  AND ExistingWO.CompanyID=@C4 AND ExistingWO.LocationID=@C5
+                  AND ExistingWO.SectionID=B.SectionID)))
+          AND (@C6<>'I' OR ISNULL(B.EmployeeList,'')='' OR (';' + ISNULL(B.EmployeeList,'') + ';' LIKE '%;' + @C7 + ';%'))
+          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@C1,';') S WHERE S.val=B.SectionID)
+          AND (ISNULL(B.CompanyScope,'S')='A' OR (';' + ISNULL(B.CompanyLocationList,'') + ';' LIKE '%;' + @C4 + @C5 + ';%'))
+          AND B.TemplateNo=CASE WHEN @C2='' THEN B.TemplateNo ELSE @C2 END
+          AND A.Version=CASE WHEN @C3='' THEN A.Version ELSE @C3 END
+        ORDER BY CASE WHEN ISNULL(B.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, A.IDVersion;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '007'
+    BEGIN
+        SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+               I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+               ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+               I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+               I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange,
+               I.IsValueRequired, I.IsRemark1Required, I.IsRemark2Required,
+               I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text,
+               I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
+               I.DisplayOrder AS ItemOrder, V.StatusOption, I.ModelCode,
+               I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+        FROM dbo.PIP_M_CheckListWOPM_Section S
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON S.IDSection=I.IDSection
+        LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+        JOIN dbo.PIP_M_CheckListWOPM M ON M.IDTemplate=V.IDTemplate
+        WHERE M.IDTemplate=CONVERT(INT,@C1) AND V.IDVersion=CONVERT(INT,@C2)
+          AND M.TemplateNo=@C3 AND M.IsActive=1 AND ISNULL(M.TemplateType,'W')=@C4
+          AND (ISNULL(I.ModelCode,'')='' OR I.ModelCode=@C5 OR @C5='')
+        ORDER BY S.DisplayOrder,
+                 CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+                 CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN 0 ELSE 1 END, I.DisplayOrder;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '008'
+    BEGIN
+        SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder
+        FROM dbo.PIP_M_CheckListWOPM_ItemGroup;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '009'
+    BEGIN
+        SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=CONVERT(INT,@C1);
+        RETURN;
+    END;
+
+    IF @p_Tipe = '010'
+    BEGIN
+        SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+               F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=CONVERT(INT,@C1)
+        ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;
         RETURN;
     END;
 
