@@ -17,6 +17,46 @@ namespace INSPEC.Secure
 {
     public partial class template : WAL.PB
     {
+
+        // Shared dispatcher TVP contract: C1 = original SQL parameter name; C2 = value.
+        // C3-C10 are reserved. Key/value rows prevent positional parameter mismatches.
+        private static SqlParameter[] InspectionQueryParameters(string type, params SqlParameter[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 10; i++)
+                data.Columns.Add("C" + i, typeof(string));
+
+            if (values != null)
+            {
+                foreach (SqlParameter parameter in values)
+                {
+                    if (parameter == null || String.Equals(parameter.ParameterName, "@p_Tipe", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    DataRow row = data.NewRow();
+                    row["C1"] = parameter.ParameterName;
+                    object value = parameter.Value;
+                    if (value == null || value == DBNull.Value)
+                        row["C2"] = DBNull.Value;
+                    else if (value is DateTime)
+                        row["C2"] = ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
+                    else if (value is bool)
+                        row["C2"] = (bool)value ? "1" : "0";
+                    else
+                        row["C2"] = Convert.ToString(value, CultureInfo.InvariantCulture);
+                    for (int i = 3; i <= 10; i++)
+                        row["C" + i] = DBNull.Value;
+                    data.Rows.Add(row);
+                }
+            }
+
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C10";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
+
+
         private const string INSPEC_MENU_ID = "10011";
 
         public string ClientContextJson { get; private set; }
@@ -100,13 +140,11 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "001"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("001", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found or is not available in this company/location.");
                 RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
@@ -121,11 +159,9 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "002"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("002", new SqlParameter[] {
                         new SqlParameter("@p_IDVersion", id)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Version was not found.");
                 RequireTemplateAccess(GF.GetString(dt.Rows[0]["IDTemplate"]));
@@ -144,15 +180,13 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable invalid = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "001"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("101", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionIds),
                         new SqlParameter("@p_SubSectionIDs", subSectionIds),
                         new SqlParameter("@p_ItemIDs", itemIds),
                         new SqlParameter("@p_GroupIDs", groupIds),
                         new SqlParameter("@p_IDVersion", idVersion)
-                    });
+                    }));
                     "@SectionIDs=" + (sectionIds ?? "") + GF.Str2 +
                     "@SubSectionIDs=" + (subSectionIds ?? "") + GF.Str2 +
                     "@ItemIDs=" + (itemIds ?? "") + GF.Str2 +
@@ -221,15 +255,13 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "005"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("005", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionList),
                         new SqlParameter("@p_UserID", userId),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    });
+                    }));
 
                 var data = dt.AsEnumerable()
                     .Select(row => new
@@ -248,11 +280,9 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "003"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("003", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", Convert.ToInt32(idTemplate))
-                    });
+                    }));
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeVersionID = Convert.ToInt32(row["RuntimeVersionID"]),
@@ -285,11 +315,9 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataSet ds = br.EQuery_DS(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "004"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("004", new SqlParameter[] {
                         new SqlParameter("@p_IDVersion", Convert.ToInt32(idVersion))
-                    });
+                    }));
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
                 DataRow versionRow = ds.Tables[0].Rows[0];
@@ -471,15 +499,13 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "008"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("008", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_UserID", userId)
-                    });
+                    }));
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeTemplateID = Convert.ToInt32(row["RuntimeTemplateID"]),
@@ -596,12 +622,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 // 1. Validasi Duplikasi Nomor Template
-                if (br.EQueryP("spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "003"),
+                if (br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("103", new SqlParameter[] {
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_IDTemplate", idTemplate)
-                    }).Rows.Count > 0)
+                    })).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -614,14 +638,12 @@ namespace INSPEC.Secure
                 }
 
                 // 2. Validasi Duplikasi Versi
-                if (br.EQueryP("spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "004"),
+                if (br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("104", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionID),
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_Version", version),
                         new SqlParameter("@p_IDVersion", idVersion)
-                    }).Rows.Count > 0)
+                    })).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -830,11 +852,9 @@ namespace INSPEC.Secure
                                     using (var ownerBr = new WAL.BR.CF())
                                     {
                                         DataTable ownerDt = ownerBr.EQueryP(
-                                            "spPIP_Template_Command",
-                                            new SqlParameter[] {
-                                                new SqlParameter("@p_Tipe", "002"),
+                                            "spPIP_Inspection_Query", InspectionQueryParameters("102", new SqlParameter[] {
                                                 new SqlParameter("@p_IDVersion", accessVersionId)
-                                            });
+                                            }));
                                         if (ownerDt.Rows.Count == 0 || (accessTemplateId > 0 && Convert.ToInt32(ownerDt.Rows[0]["IDTemplate"]) != accessTemplateId))
                                             throw new HttpException(403, "Version does not belong to the selected Template.");
                                     }
@@ -1227,13 +1247,11 @@ namespace INSPEC.Secure
                             if (targetVersionID > 0)
                             {
                                 flagBr.EQueryP(
-                                    "spPIP_Template_Command",
-                                    new SqlParameter[] {
-                                        new SqlParameter("@p_Tipe", "016"),
+                                    "spPIP_Inspection_Query", InspectionQueryParameters("116", new SqlParameter[] {
                                         new SqlParameter("@p_IDVersion", targetVersionID),
                                         new SqlParameter("@p_IsSummaryRequired", versionFlag.Item3),
                                         new SqlParameter("@p_IsFollowUpRequired", versionFlag.Item4)
-                                    });
+                                    }));
                             }
                         }
                     }
@@ -1264,11 +1282,9 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "006"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("006", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionId)
-                    });
+                    }));
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
@@ -1288,11 +1304,9 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "007"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("007", new SqlParameter[] {
                         new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode)
-                    });
+                    }));
                 if (dt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
                 RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
                 var rows = dt.AsEnumerable().Select(row => new
@@ -1342,16 +1356,14 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "006"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("106", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_EmployeeID", updateUser),
                         new SqlParameter("@p_UserID", sessionUserId)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
@@ -1363,20 +1375,16 @@ namespace INSPEC.Secure
                 if (templateType == "I" && inspectionTypeDetailCode.Length > 0)
                 {
                     DataTable invalidDetails = br.EQueryP(
-                        "spPIP_Template_Command",
-                        new SqlParameter[] {
-                            new SqlParameter("@p_Tipe", "007"),
+                        "spPIP_Inspection_Query", InspectionQueryParameters("107", new SqlParameter[] {
                             new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
                             new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode)
-                        });
+                        }));
                     if (invalidDetails.Rows.Count > 0)
                         return new { success = false, message = "Setiap Inspection Detail harus aktif dan termasuk Inspection Type yang dipilih." };
                 }
 
                 br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "017"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("117", new SqlParameter[] {
                         new SqlParameter("@p_TemplateType", templateType),
                         new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
                         new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
@@ -1385,7 +1393,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    });
+                    }));
                 return new { success = true, message = "" };
             }
         }
@@ -1405,15 +1413,13 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "009"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("009", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_UserID", userId),
                         new SqlParameter("@p_EmployeeID", employeeId)
-                    });
+                    }));
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
@@ -1446,15 +1452,13 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "008"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("108", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CurrentCompanyID", currentCompanyId),
                         new SqlParameter("@p_CurrentLocationID", currentLocationId),
                         new SqlParameter("@p_EmployeeID", updateUser),
                         new SqlParameter("@p_UserID", sessionUserId)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
                 if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
@@ -1463,37 +1467,31 @@ namespace INSPEC.Secure
                 if (action == "ADD")
                 {
                     br.EQueryP(
-                        "spPIP_Template_Command",
-                        new SqlParameter[] {
-                            new SqlParameter("@p_Tipe", "009"),
+                        "spPIP_Inspection_Query", InspectionQueryParameters("109", new SqlParameter[] {
                             new SqlParameter("@p_Action", "ADD"),
                             new SqlParameter("@p_IDTemplate", id),
                             new SqlParameter("@p_CompanyID", companyId),
                             new SqlParameter("@p_LocationID", locationId),
                             new SqlParameter("@p_UserID", sessionUserId),
                             new SqlParameter("@p_EmployeeID", updateUser)
-                        });
+                        }));
                 }
                 else
                 {
                     DataTable scopeCount = br.EQueryP(
-                        "spPIP_Template_Command",
-                        new SqlParameter[] {
-                            new SqlParameter("@p_Tipe", "005"),
+                        "spPIP_Inspection_Query", InspectionQueryParameters("105", new SqlParameter[] {
                             new SqlParameter("@p_IDTemplate", id)
-                        });
+                        }));
                     if (Convert.ToInt32(scopeCount.Rows[0]["Total"]) <= 1)
                         return new { success = false, message = "Selected Company requires at least one company/location assignment." };
 
                     br.EQueryP(
-                        "spPIP_Template_Command",
-                        new SqlParameter[] {
-                            new SqlParameter("@p_Tipe", "009"),
+                        "spPIP_Inspection_Query", InspectionQueryParameters("109", new SqlParameter[] {
                             new SqlParameter("@p_Action", "REMOVE"),
                             new SqlParameter("@p_IDTemplate", id),
                             new SqlParameter("@p_CompanyID", companyId),
                             new SqlParameter("@p_LocationID", locationId)
-                        });
+                        }));
                 }
                 return new { success = true, message = "" };
             }
@@ -1514,23 +1512,19 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable scope = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "010"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("110", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    });
+                    }));
                 if (scope.Rows.Count == 0)
                     return new { success = false, message = "Inspection template is not assigned to this company/location." };
 
                 br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "011"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("111", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_UpdateUser", updateUser)
-                    });
+                    }));
                 return new { success = true, message = "" };
             }
         }
@@ -1549,12 +1543,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable result = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "015"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("115", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_UpdateUser", employeeId)
-                    });
+                    }));
                 return new { success = true, message = "Template berhasil dinonaktifkan." };
             }
         }
@@ -1573,12 +1565,10 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable owner = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "003"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("103", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", templateId),
                         new SqlParameter("@p_IDVersion", versionId)
-                    });
+                    }));
                 if (owner.Rows.Count == 0)
                     return new { success = false, message = "Version tidak ditemukan pada template tersebut." };
                 if (!String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Active", StringComparison.OrdinalIgnoreCase) &&
@@ -1586,14 +1576,12 @@ namespace INSPEC.Secure
                     return new { success = false, message = "Hanya version Active/Archived yang dapat dikembalikan ke Draft." };
                 DataRow row = owner.Rows[0];
                 br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "014"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("114", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", templateId),
                         new SqlParameter("@p_IDVersion", versionId),
                         new SqlParameter("@p_TemplateNo", GF.GetString(owner.Rows[0]["TemplateNo"])),
                         new SqlParameter("@p_Version", GF.GetString(owner.Rows[0]["Version"]))
-                    });
+                    }));
                 return new { success = true, message = "Version berhasil dikembalikan ke Draft." };
             }
         }
@@ -1614,11 +1602,9 @@ namespace INSPEC.Secure
             using (var sectionBr = new WAL.BR.CF())
             {
                 DataTable sectionDt = sectionBr.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "010"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("010", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id)
-                    });
+                    }));
                 if (sectionDt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found.");
                 sectionId = GF.GetString(sectionDt.Rows[0]["SectionID"]);
@@ -1629,14 +1615,12 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "011"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("011", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_SectionID", sectionId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    });
+                    }));
 
                 var rows = dt.AsEnumerable().Select(row => new
                 {
@@ -1668,14 +1652,12 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "012"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("112", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template or employee was not found." };
 
@@ -1689,16 +1671,14 @@ namespace INSPEC.Secure
                 // that the selected context is within this template's scope.
 
                 br.EQueryP(
-                    "spPIP_Template_Command",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "013"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("113", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_Action", action),
                         new SqlParameter("@p_UpdateUser", updateUser),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    });
+                    }));
                 return new { success = true, message = "" };
             }
         }
@@ -1715,13 +1695,11 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "012"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("012", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    });
+                    }));
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     GroupEquipment = row.Field<string>("GroupEquipment"),
@@ -1742,13 +1720,11 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "013"),
+                    "spPIP_Inspection_Query", InspectionQueryParameters("013", new SqlParameter[] {
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_InspectionTypeCode", groupEqp)
-                    });
+                    }));
                 if (dt.Rows.Count == 0)
                     return new JavaScriptSerializer().Serialize(new object[0]);
 
