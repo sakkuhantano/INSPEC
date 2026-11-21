@@ -1017,17 +1017,7 @@ namespace INSPEC.Secure
                 if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
-                DataTable templateAccess = br.EQueryP(@"
-SELECT 1
-FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.IDTemplate=@IDTemplate
-  AND T.SectionID=@SectionID
-  AND ISNULL(T.TemplateType,'W')='I'
-  AND (ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-  AND (ISNULL(T.EmployeeList,'')=''
-       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
-                    new SqlParameter[] {
+                DataTable templateAccess = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "066"),
 new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@SectionID", sectionId),
                         new SqlParameter("@CompanyID", companyId),
@@ -1084,35 +1074,7 @@ new SqlParameter("@CompanyID", companyId),
                 if (sections.Count == 0)
                     return new { success = true, data = new List<Dictionary<string, object>>() };
 
-                DataTable rows = br.EQueryP(@"
-SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
-       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
-       I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
-       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
-       I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
-       I.Status, I.IsApproved, I.ReasonVoid
-FROM dbo.PIP_T_Inspection I
-LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
-WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND ISNULL(I.IsActive,1)=1
-  AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
-  AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM T
-      WHERE T.IDTemplate=I.IDTemplate
-        AND T.SectionID=I.SectionID
-        AND ISNULL(T.TemplateType,'W')='I'
-        AND (ISNULL(T.CompanyScope,'S')='A'
-             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
-        AND (ISNULL(T.EmployeeList,'')=''
-             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  )
-ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
-                    new SqlParameter[] {
+                DataTable rows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "067"),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
@@ -1148,17 +1110,7 @@ ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
             if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                 throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
-            DataTable templateAccess = br.EQueryP(@"
-SELECT 1
-FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.IDTemplate=@IDTemplate
-  AND T.SectionID=@SectionID
-  AND ISNULL(T.TemplateType,'W')='I'
-  AND (ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-  AND (ISNULL(T.EmployeeList,'')=''
-       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
-                new SqlParameter[] {
+            DataTable templateAccess = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "068"),
 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                     new SqlParameter("@SectionID", sectionId),
                     new SqlParameter("@CompanyID", companyId),
@@ -1434,46 +1386,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                 if (sections.Count == 0)
                     return new { success = true, technicianName = technicianName, data = new List<Dictionary<string, object>>() };
 
-                DataTable rows = br.EQueryP(@"
-SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
-       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
-       I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
-       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
-       I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
-       I.IsSubmitted, I.IsApproved, I.IsApproved1, I.IsApproved2,
-       I.ApprovedDate, I.SyncDate, I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2,
-       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
-FROM dbo.PIP_T_Inspection I
-LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
-LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
-LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND I.OwnerEmployeeID=@EmployeeID
-  AND ISNULL(I.IsActive,1)=1
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM T
-      WHERE T.IDTemplate=I.IDTemplate
-        AND T.SectionID=I.SectionID
-        AND ISNULL(T.TemplateType,'W')='I'
-        AND (ISNULL(T.CompanyScope,'S')='A'
-             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
-        AND (ISNULL(T.EmployeeList,'')=''
-             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  )
-  AND I.SyncDate >= @FromDate AND I.SyncDate < DATEADD(DAY, 1, @ThruDate)
-  -- A supervisor-voided transaction is surfaced in Draft for technician handling,
-  -- not again in Submitted just because its SyncDate falls in the selected range.
-  AND NOT (
-      I.Status='DRAFT'
-      AND ISNULL(I.IsSubmitted,0)=0
-      AND ISNULL(I.ReasonVoid,'')<>''
-  )
-  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
-ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
-                    new SqlParameter[] {
+                DataTable rows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "069"),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
@@ -1682,242 +1595,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             using (var br = new WAL.BR.CF())
             {
 
-                DataTable rows = br.EQueryP(@"
-                ;WITH InspectionData AS
-                (
-                    SELECT
-                        I.Status,
-                        I.IsSubmitted,
-                        I.IsApproved,
-                        I.IsApproved1,
-                        I.IsApproved2,
-                        I.ApprovedDate,
-                        I.ReasonVoid,
-                        I.CompanyID,
-                        I.LocationID,
-                        I.SectionID,
-                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')
-                            AS InspectionMode
-                    FROM dbo.PIP_T_Inspection I
-                    LEFT JOIN dbo.PIP_M_InspectionType IT
-                        ON IT.InspectionTypeCode = I.InspectionTypeCode
-                    WHERE I.CompanyID = @CompanyID
-                      AND I.LocationID = @LocationID
-                      AND ISNULL(I.IsActive, 1) = 1
-
-                      AND EXISTS
-                      (
-                          SELECT 1
-                          FROM dbo.PIP_M_CheckListWOPM T
-                          WHERE T.IDTemplate = I.IDTemplate
-                            AND T.SectionID = I.SectionID
-                            AND ISNULL(T.TemplateType, 'W') = 'I'
-                            AND
-                            (
-                                ISNULL(T.CompanyScope, 'S') = 'A'
-                                OR
-                                (
-                                    ';' + ISNULL(T.CompanyLocationList, '') + ';'
-                                    LIKE '%;' + I.CompanyID + I.LocationID + ';%'
-                                )
-                            )
-                            AND
-                            (
-                                ISNULL(T.EmployeeList, '') = ''
-                                OR
-                                (
-                                    ';' + ISNULL(T.EmployeeList, '') + ';'
-                                    LIKE '%;' + I.OwnerEmployeeID + ';%'
-                                )
-                            )
-                      )
-
-                      AND EXISTS
-                      (
-                          SELECT 1
-                          FROM dbo.SysWebUser SU
-                          WHERE SU.EmployeeID = @EmployeeID
-                            AND SU.IsActive = 1
-
-                            AND (
-                                @IsAdministrator=1
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.F_SelectALLMenuAuthorization(
-                                        'inspecfo', @EmployeeID, ''
-                                    ) AM
-                                    WHERE AM.MenuID = '20022'
-                                )
-                            )
-
-                            AND
-                            (
-                                @IsAdministrator=1
-                                OR (
-                                EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';SPV;' + I.SectionID
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';CHIEF_ENG'
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';CHIEF_SEC'
-                                )
-                            ))
-
-                            AND
-                            (
-                                EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID = SU.EmployeeID
-                                      AND C.AppID = 'pip'
-                                      AND C.CompanyID = I.CompanyID
-                                      AND C.LocationID = I.LocationID
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.F_SelectOneLogin(
-                                        'pip', SU.EmployeeID, ''
-                                    ) L
-                                    WHERE L.CompanyID = I.CompanyID
-                                      AND L.LocationID = I.LocationID
-                                )
-                            )
-                      )
-                ),
-                ApprovalFlags AS
-                (
-                    SELECT
-                        I.*,
-                        CASE
-                            WHEN @IsAdministrator=1
-                                 AND I.InspectionMode<>'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted,0)=1
-                                 AND ISNULL(I.IsApproved,0)=0
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 1
-                                 AND ISNULL(I.IsApproved1, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved1, 0) = 1
-                                 AND ISNULL(I.IsApproved2, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode <> 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            ELSE 0
-                        END AS CanApprove
-                    FROM InspectionData I
-                )
-                SELECT
-                    ISNULL(SUM(
-                        CASE
-                            WHEN Status = 'DONE'
-                             AND IsSubmitted = 1
-                             AND CanApprove = 1
-                             AND (InspectionMode = 'LIGHTNING' OR IsApproved = 0)
-                            THEN 1 ELSE 0
-                        END
-                    ), 0) AS PendingApproval,
-
-                    ISNULL(SUM(
-                        CASE
-                            WHEN IsApproved = 1
-                             AND ApprovedDate >=
-                                 CONVERT(DATETIME,
-                                     CONVERT(VARCHAR(10), GETDATE(), 120),
-                                     120)
-                            THEN 1 ELSE 0
-                        END
-                    ), 0) AS ApprovedToday,
-
-                    ISNULL(SUM(
-                        CASE
-                            WHEN Status = 'DRAFT'
-                             AND IsSubmitted = 0
-                             AND ISNULL(ReasonVoid, '') <> ''
-                            THEN 1 ELSE 0
-                        END
-                    ), 0) AS VoidCount
-                FROM ApprovalFlags;
-                ",
-                                new SqlParameter[]
-                {
+                DataTable rows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "070"),
                     new SqlParameter("@EmployeeID", employeeId),
                     new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@SectionList",
@@ -2210,108 +1888,7 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable header = br.EQueryP(@"
-SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
-       I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
-       CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
-            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
-            WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
-            WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
-       I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
-       I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
-       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
-       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
-       I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,
-       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
-       I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
-FROM dbo.PIP_T_Inspection I
-LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
-LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
-LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-WHERE I.InspectionID=@InspectionID
-  AND EXISTS (
-      SELECT 1
-      FROM dbo.PIP_M_CheckListWOPM T
-      WHERE T.IDTemplate=I.IDTemplate
-        AND T.SectionID=I.SectionID
-        AND ISNULL(T.TemplateType,'W')='I'
-        AND (ISNULL(T.CompanyScope,'S')='A'
-             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
-        AND (ISNULL(T.EmployeeList,'')=''
-             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  )
-  AND (
-       ((I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1)
-        OR (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''))
-  )
-  AND (
-      (@TechnicianView=1
-       AND I.OwnerEmployeeID=@EmployeeID
-       AND I.Status='DONE'
-       AND ISNULL(I.IsSubmitted,0)=1
-       AND EXISTS (
-           SELECT 1
-           FROM dbo.SysWebUser SU
-           WHERE SU.EmployeeID=@EmployeeID
-             AND SU.IsActive=1
-             AND (
-                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
-             )
-       )
-      )
-      OR
-      (@TechnicianView=0
-       AND EXISTS (
-           SELECT 1 FROM dbo.SysWebUser SU
-           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-             AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022'))
-             AND (@IsAdministrator=1 OR (
-               (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
-                   SELECT 1 FROM dbo.SysWebCommonValue C
-                   WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                     AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
-                     AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-               ))
-               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
-                   EXISTS (
-                       SELECT 1 FROM dbo.SysWebCommonValue C
-                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
-                   )
-                   OR EXISTS (
-                       SELECT 1 FROM dbo.SysWebCommonValue C
-                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
-                   )
-                   OR EXISTS (
-                       SELECT 1 FROM dbo.SysWebCommonValue C
-                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
-                   )
-               ))
-             ))
-             AND (
-                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
-                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
-                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
-             )
-       )
-      )
-  )",
-                    new SqlParameter[] {
+                DataTable header = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "071"),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
@@ -3102,30 +2679,7 @@ ORDER BY I.InspectionID";
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable authorized = br.EQueryP(@"
-SELECT TOP 1 1
-FROM dbo.PIP_T_Inspection I
-JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
-LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
-WHERE I.InspectionID=@InspectionID
-  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
-  AND ISNULL(T.TemplateType,'W')='I' 
-  AND (ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
-  AND (ISNULL(T.EmployeeList,'')=''
-       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
-  AND (@IsAdministrator=1 OR EXISTS (
-      SELECT 1 FROM dbo.SysWebCommonValue C
-      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
-        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-  ))
-  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0
-  AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
-",
-                    new SqlParameter[] {
+                DataTable authorized = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "072"),
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
@@ -3440,18 +2994,7 @@ WHERE I.InspectionID=@InspectionID
             bool emailConfigured = false;
             using (var configBr = new WAL.BR.CF())
             {
-                DataTable emailConfig = configBr.EQueryP(@"
-SELECT TOP 1 1 AS IsEnabled
-FROM dbo.PIP_T_Inspection I
-JOIN dbo.SysWebCommonValue C
-  ON C.AppID='INSPEC'
- AND C.CommonGroup='EmailApproval'
- AND C.IsDelete=0
- AND C.Description='1'
- AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)
-          +';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
-WHERE I.CompanyID=@C",
-                    new SqlParameter[] { new SqlParameter("@C", companyId ?? "") });
+                DataTable emailConfig = configBr.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "073"), new SqlParameter("@C", companyId ?? "") });
                 emailConfigured = emailConfig != null && emailConfig.Rows.Count > 0;
             }
 
