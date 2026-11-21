@@ -66,6 +66,65 @@ BEGIN
         RETURN;
     END;
 
+    IF @p_Tipe = '005'
+    BEGIN
+        SELECT
+            aa.val SectionID,
+            TotalTemplate = ISNULL((
+                SELECT COUNT(*)
+                FROM dbo.PIP_M_CheckListWOPM bb
+                WHERE bb.SectionID = aa.val
+                  AND (
+                      ISNULL(bb.CompanyScope, 'S') = 'A'
+                      OR (';' + ISNULL(bb.CompanyLocationList, '') + ';'
+                          LIKE '%;' + ISNULL(@p_CompanyID, '') + ISNULL(@p_LocationID, '') + ';%')
+                  )
+            ), 0)
+        FROM dbo.SplitStringConvertToTable(@p_CompanyID, ';') aa
+        WHERE (
+            EXISTS (
+                SELECT 1
+                FROM dbo.SysWebUserCompanyLocation perm
+                WHERE perm.AppID = 'INSPEC'
+                  AND perm.UserID = @p_IDTemplate
+                  AND perm.CompanyID = @p_CompanyID
+                  AND perm.LocationID = @p_LocationID
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM dbo.F_SelectOneLogin('INSPEC', @p_IDVersion, '') loginCompany
+                WHERE loginCompany.CompanyID = @p_CompanyID
+                  AND loginCompany.LocationID = @p_LocationID
+            )
+        );
+        RETURN;
+    END;
+
+    IF @p_Tipe = '006'
+    BEGIN
+        SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
+        FROM dbo.PIP_M_InspectionType
+        WHERE SectionID=@p_IDTemplate AND IsActive=1
+        ORDER BY InspectionTypeName;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '007'
+    BEGIN
+        SELECT
+            T.SectionID,
+            D.InspectionTypeDetailCode,
+            D.InspectionTypeDetailName
+        FROM dbo.PIP_M_InspectionType T
+        JOIN dbo.PIP_M_InspectionTypeDetail D
+          ON D.InspectionTypeCode=T.InspectionTypeCode
+         AND D.IsActive=1
+        WHERE T.InspectionTypeCode=@p_CompanyID
+          AND T.IsActive=1
+        ORDER BY D.InspectionTypeDetailName, D.InspectionTypeDetailCode;
+        RETURN;
+    END;
+
     IF @p_Tipe = '004'
     BEGIN
         SELECT
