@@ -99,17 +99,13 @@ namespace INSPEC.Secure
             string locationId = SessionValue(user, "LocationID");
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT SectionID
-FROM dbo.PIP_M_CheckListWOPM
-WHERE IDTemplate=@IDTemplate
-  AND (
-       ISNULL(CompanyScope,'S')='A'
-       OR (';' + ISNULL(CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-  )",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 +
-                    "@LocationID=" + locationId);
+                DataTable dt = br.EQueryP(
+                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='001', @p_IDTemplate=@IDTemplate, @p_CompanyID=@CompanyID, @p_LocationID=@LocationID",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", id),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found or is not available in this company/location.");
                 RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
@@ -123,9 +119,11 @@ WHERE IDTemplate=@IDTemplate
                 throw new HttpException(400, "Invalid Version ID.");
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(
-                    "SELECT IDTemplate FROM dbo.PIP_M_CheckListWOPM_Version WHERE IDVersion=@IDVersion",
-                    "@IDVersion=" + id);
+                DataTable dt = br.EQueryP(
+                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='002', @p_IDVersion=@IDVersion",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDVersion", id)
+                    });
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Version was not found.");
                 RequireTemplateAccess(GF.GetString(dt.Rows[0]["IDTemplate"]));
@@ -240,64 +238,11 @@ FROM
             if (String.IsNullOrWhiteSpace(sectionList)) return new JavaScriptSerializer().Serialize(new object[0]);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT aa.val SectionID,
-       TotalTemplate = ISNULL((
-           SELECT COUNT(*)
-           FROM PIP_M_CheckListWOPM bb
-           WHERE bb.SectionID = aa.val
-             AND (
-                 ISNULL(bb.CompanyScope, 'S') = 'A'
-                 OR (';' + ISNULL(bb.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-             )
-       ), 0)
-FROM dbo.SplitStringConvertToTable(@SectionList, ';') aa
-WHERE 1=1
-  AND (
-      EXISTS (
-          SELECT 1
-          FROM dbo.SysWebUserCompanyLocation perm
-          WHERE perm.AppID = 'INSPEC'
-            AND perm.UserID = @UserID
-            AND perm.CompanyID = @CompanyID
-            AND perm.LocationID = @LocationID
-      )
-      OR EXISTS (
-          SELECT 1
-          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
-          WHERE loginCompany.CompanyID = @CompanyID
-            AND loginCompany.LocationID = @LocationID
-      )
-  )",
-                    "@SectionList=" + sectionList
-                    + GF.Str2 + "@UserID=" + userId
-                    + GF.Str2 + "@CompanyID=" + companyId
-                    + GF.Str2 + "@LocationID=" + locationId
-                    + GF.Str2 + "@EmployeeID=" + employeeId);
-
-                var data = dt.AsEnumerable()
-                    .Select(row => new
-                    {
-                        SectionID = row.Field<string>("SectionID"),
-                        TotalTemplate = row.Field<int>("TotalTemplate")
-                    })
-                    .ToList();
-
-                JavaScriptSerializer serializer =
-                    new JavaScriptSerializer();
-
-                return serializer.Serialize(data);
-            }
-        }
-        [WebMethod(EnableSession = true)]
-        public static object GetTemplateVersions(string idTemplate)
-        {
-            RequireTemplateAccess(idTemplate);
-            using (var br = new WAL.BR.CF())
-            {
-                DataTable dt = br.EQuery(@"
-SELECT a.IDVersion, a.Version, a.[Status], a.EffectiveDate, a.StatusOption, a.Remark, RuntimeVersionID=a.IDVersion, a.GroupEquipment, a.RemarkRequiredOptions, a.SummarySampleText, a.IsRemark1Required, a.Remark1Text, a.IsRemark2Required, a.Remark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(a.IsSummaryRequired,1) IsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) IsFollowUpRequired
-FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
+                DataTable dt = br.EQueryP(
+                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='003', @p_IDTemplate=@IDTemplate",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDTemplate", Convert.ToInt32(idTemplate))
+                    });
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeVersionID = Convert.ToInt32(row["RuntimeVersionID"]),
@@ -334,44 +279,11 @@ FROM PIP_M_CheckListWOPM_Version a WHERE a.IDTemplate=@IDTemplate", "@IDTemplate
             RequireVersionAccess(idVersion);
             using (var br = new WAL.BR.CF())
             {
-                DataSet ds = br.EQuery_DS(@"
-SELECT IDVersion, A.IDTemplate, B.TemplateNo, B.TemplateName, A.Version, A.Status, A.EffectiveDate, A.Remark, A.StatusOption StatusOptionRaw, A.GroupEquipment, A.RemarkRequiredOptions RemarkRequiredOptionsRaw, A.SummarySampleText, A.IsRemark1Required, A.Remark1Text, A.IsRemark2Required, A.Remark2Text, ISNULL(A.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(A.IsSummaryRequired,1) IsSummaryRequired, ISNULL(A.IsFollowUpRequired,1) IsFollowUpRequired
-FROM PIP_M_CheckListWOPM_Version A JOIN PIP_M_CheckListWOPM B ON B.IDTemplate = A.IDTemplate 
-WHERE IDVersion = @IDVersion;
-
-SELECT IDSection, SectionName, DisplayOrder 
-FROM PIP_M_CheckListWOPM_Section WHERE IDVersion = @IDVersion ORDER BY DisplayOrder;
-
-SELECT A.IDItem, A.IDSection, A.IDSubSection, A.ItemLabel, A.ItemType, A.DisplayOrder, A.Unit, 
-        a.IsRemark1Required, a.IsRemark2Required, a.IsRemark1Mandatory, a.IsRemark2Mandatory, a.Remark1Text, a.Remark2Text, a.IsUseDefaultRemark1, a.IsUseDefaultRemark2, A.IsValueRequired, a.ShowUnitInRange, 
-        UseDefaultOption=CAST((CASE WHEN a.ItemType='OPTION' AND ISNULL(a.OptionList,'')='' THEN 1 ELSE 0 END) AS BIT), 
-        a.OptionList OptionListRaw, a.RemarkRequiredOptions RemarkRequiredOptionsRaw, a.MinValue, a.MaxValue, a.MinTolerance, a.MaxTolerance, a.ModelCode, a.IsToleranceRequired
-FROM PIP_M_CheckListWOPM_Item A JOIN PIP_M_CheckListWOPM_Section B ON B.IDSection = A.IDSection 
-WHERE B.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
-
-SELECT A.IDGroup, A.IDItem, A.GroupName, FieldListRaw=A.FieldList, A.Unit, A.DisplayOrder
-FROM PIP_M_CheckListWOPM_ItemGroup A JOIN PIP_M_CheckListWOPM_Item B ON B.IDItem = A.IDItem
-JOIN PIP_M_CheckListWOPM_Section C ON C.IDSection = B.IDSection 
-WHERE C.IDVersion = @IDVersion ORDER BY A.DisplayOrder;
-
-SELECT SS.IDSubSection, SS.IDSection, SS.SubSectionName, SS.DisplayOrder
-FROM PIP_M_CheckListWOPM_SubSection SS
-JOIN PIP_M_CheckListWOPM_Section SEC ON SEC.IDSection=SS.IDSection
-WHERE SEC.IDVersion=@IDVersion ORDER BY SS.DisplayOrder;
-
-SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion;
-
-SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion
-ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
-"@IDVersion=" + idVersion);
+                DataSet ds = br.EQuery_DS(
+                    "EXEC dbo.spPIP_Inspection_Query @p_Tipe='004', @p_IDVersion=@IDVersion",
+                    new SqlParameter[] {
+                        new SqlParameter("@IDVersion", Convert.ToInt32(idVersion))
+                    });
                 if (ds.Tables[0].Rows.Count == 0) return "{}";
 
                 DataRow versionRow = ds.Tables[0].Rows[0];
