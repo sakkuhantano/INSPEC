@@ -3359,6 +3359,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
             await window.openBatchInspectionPointChecklist(checklistPoint);
         }
     } else {
+        window.inspectionReturnToPointNavigator = false;
         const focused = typeof window.focusInspectionMapPoint === "function"
             ? await window.focusInspectionMapPoint(pointId) : false;
         if (!focused && typeof showToast === "function")
