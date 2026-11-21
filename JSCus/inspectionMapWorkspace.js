@@ -1169,9 +1169,23 @@
             }
             var mime = String(blob.type || '').toLowerCase();
             var urlPath = String(map.MapUrl).split('?')[0].toLowerCase();
-            // Inspection maps may be stored as PDF or raster images. Do not send
-            // PNG/GIF/WebP/BMP files to PDF.js just because they are not JPEG.
-            var isImage = mime.indexOf('image/') === 0 || /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/.test(urlPath);
+            // Do not rely only on Content-Type or URL extension: some download
+            // endpoints return PNG bytes as application/octet-stream with an
+            // extensionless URL. Detect the actual file signature as well.
+            var fileHead = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+            if (requestId !== pdfRenderSequence) return;
+            var isPng = fileHead.length >= 8 &&
+                fileHead[0] === 0x89 && fileHead[1] === 0x50 && fileHead[2] === 0x4e &&
+                fileHead[3] === 0x47 && fileHead[4] === 0x0d && fileHead[5] === 0x0a &&
+                fileHead[6] === 0x1a && fileHead[7] === 0x0a;
+            var isJpeg = fileHead.length >= 3 && fileHead[0] === 0xff &&
+                fileHead[1] === 0xd8 && fileHead[2] === 0xff;
+            var isGif = fileHead.length >= 6 && String.fromCharCode.apply(null, fileHead.slice(0, 6)).indexOf('GIF8') === 0;
+            var isWebp = fileHead.length >= 12 && String.fromCharCode.apply(null, fileHead.slice(0, 4)) === 'RIFF' &&
+                String.fromCharCode.apply(null, fileHead.slice(8, 12)) === 'WEBP';
+            var isBmp = fileHead.length >= 2 && fileHead[0] === 0x42 && fileHead[1] === 0x4d;
+            var isImage = mime.indexOf('image/') === 0 || isPng || isJpeg || isGif || isWebp || isBmp ||
+                /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/.test(urlPath);
             if (isImage) {
                 canvas.style.display = 'none';
                 var image = document.createElement('img'); image.className = 'inspection-map-image'; image.alt = 'Inspection floor plan'; image.draggable = false;
