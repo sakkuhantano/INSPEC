@@ -146,8 +146,8 @@ namespace INSPEC.Secure
                     section = String.Join(";", requestedSections);
                 }
                 DataTable dt = br.EQueryP(
-                    "spPIP_WorkOrder_Query",
-                    DashboardQueryParameters("006", section, templateNo, version, companyId, locationId, templateType, employeeId));
+                    "spPIP_Inspection_Query",
+                    DashboardQueryParameters("206", section, templateNo, version, companyId, locationId, templateType, employeeId));
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
@@ -177,18 +177,18 @@ namespace INSPEC.Secure
                     dict["Remark2Text"] = GF.GetString(row["VersionRemark2Text"]);
                     dict["PhotoRequirement"] = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(row["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(row["PhotoRequirement"]).ToUpperInvariant() : "NONE";
                     DataTable dt1 = br.EQueryP(
-                        "spPIP_WorkOrder_Query",
-                        DashboardQueryParameters("007", row["IDTemplate"].ToString(), row["IDVersion"].ToString(),
+                        "spPIP_Inspection_Query",
+                        DashboardQueryParameters("207", row["IDTemplate"].ToString(), row["IDVersion"].ToString(),
                             row["TemplateNo"].ToString(), templateType, modelcode));
                     DataTable dt2 = br.EQueryP(
-                        "spPIP_WorkOrder_Query",
-                        DashboardQueryParameters("008"));
+                        "spPIP_Inspection_Query",
+                        DashboardQueryParameters("208"));
                     DataTable dtRepeat = br.EQueryP(
-                        "spPIP_WorkOrder_Query",
-                        DashboardQueryParameters("009", row["IDVersion"].ToString()));
+                        "spPIP_Inspection_Query",
+                        DashboardQueryParameters("209", row["IDVersion"].ToString()));
                     DataTable dtRepeatFields = br.EQueryP(
-                        "spPIP_WorkOrder_Query",
-                        DashboardQueryParameters("010", row["IDVersion"].ToString()));
+                        "spPIP_Inspection_Query",
+                        DashboardQueryParameters("210", row["IDVersion"].ToString()));
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
                         {
@@ -423,8 +423,8 @@ namespace INSPEC.Secure
             using (var br=new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_WorkOrder_Query",
-                    DashboardQueryParameters("011", employeeid, sessionToken,
+                    "spPIP_Inspection_Query",
+                    DashboardQueryParameters("211", employeeid, sessionToken,
                         Convert.ToDateTime(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)));
                 return GFC.getData(dt);
             }
