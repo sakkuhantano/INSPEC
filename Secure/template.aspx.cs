@@ -146,7 +146,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found or is not available in this company/location.");
                 RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
@@ -163,7 +163,7 @@ namespace INSPEC.Secure
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query", InspectionQueryParameters("002", new SqlParameter[] {
                         new SqlParameter("@p_IDVersion", id)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     throw new HttpException(404, "Version was not found.");
                 RequireTemplateAccess(GF.GetString(dt.Rows[0]["IDTemplate"]));
@@ -188,7 +188,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_ItemIDs", itemIds),
                         new SqlParameter("@p_GroupIDs", groupIds),
                         new SqlParameter("@p_IDVersion", idVersion)
-                    }));
+                    }), true);
                     "@SectionIDs=" + (sectionIds ?? "") + GF.Str2 +
                     "@SubSectionIDs=" + (subSectionIds ?? "") + GF.Str2 +
                     "@ItemIDs=" + (itemIds ?? "") + GF.Str2 +
@@ -263,7 +263,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    }));
+                    }), true);
 
                 var data = dt.AsEnumerable()
                     .Select(row => new
@@ -284,7 +284,7 @@ namespace INSPEC.Secure
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query", InspectionQueryParameters("003", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", Convert.ToInt32(idTemplate))
-                    }));
+                    }), true);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeVersionID = Convert.ToInt32(row["RuntimeVersionID"]),
@@ -507,7 +507,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_UserID", userId)
-                    }));
+                    }), true);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeTemplateID = Convert.ToInt32(row["RuntimeTemplateID"]),
@@ -627,7 +627,7 @@ namespace INSPEC.Secure
                 if (br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("103", new SqlParameter[] {
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_IDTemplate", idTemplate)
-                    })).Rows.Count > 0)
+                    }), true).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -645,7 +645,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_Version", version),
                         new SqlParameter("@p_IDVersion", idVersion)
-                    })).Rows.Count > 0)
+                    }), true).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -856,7 +856,7 @@ namespace INSPEC.Secure
                                         DataTable ownerDt = ownerBr.EQueryP(
                                             "spPIP_Inspection_Query", InspectionQueryParameters("102", new SqlParameter[] {
                                                 new SqlParameter("@p_IDVersion", accessVersionId)
-                                            }));
+                                            }), true);
                                         if (ownerDt.Rows.Count == 0 || (accessTemplateId > 0 && Convert.ToInt32(ownerDt.Rows[0]["IDTemplate"]) != accessTemplateId))
                                             throw new HttpException(403, "Version does not belong to the selected Template.");
                                     }
@@ -1253,7 +1253,7 @@ namespace INSPEC.Secure
                                         new SqlParameter("@p_IDVersion", targetVersionID),
                                         new SqlParameter("@p_IsSummaryRequired", versionFlag.Item3),
                                         new SqlParameter("@p_IsFollowUpRequired", versionFlag.Item4)
-                                    }));
+                                    }), true);
                             }
                         }
                     }
@@ -1286,7 +1286,7 @@ namespace INSPEC.Secure
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query", InspectionQueryParameters("006", new SqlParameter[] {
                         new SqlParameter("@p_SectionID", sectionId)
-                    }));
+                    }), true);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
@@ -1308,7 +1308,7 @@ namespace INSPEC.Secure
                 DataTable dt = br.EQueryP(
                     "spPIP_Inspection_Query", InspectionQueryParameters("007", new SqlParameter[] {
                         new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
                 RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
                 var rows = dt.AsEnumerable().Select(row => new
@@ -1365,7 +1365,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_EmployeeID", updateUser),
                         new SqlParameter("@p_UserID", sessionUserId)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
 
@@ -1380,7 +1380,7 @@ namespace INSPEC.Secure
                         "spPIP_Inspection_Query", InspectionQueryParameters("107", new SqlParameter[] {
                             new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
                             new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode)
-                        }));
+                        }), true);
                     if (invalidDetails.Rows.Count > 0)
                         return new { success = false, message = "Setiap Inspection Detail harus aktif dan termasuk Inspection Type yang dipilih." };
                 }
@@ -1395,7 +1395,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    }));
+                    }), true);
                 return new { success = true, message = "" };
             }
         }
@@ -1421,7 +1421,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_UserID", userId),
                         new SqlParameter("@p_EmployeeID", employeeId)
-                    }));
+                    }), true);
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
@@ -1460,7 +1460,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_CurrentLocationID", currentLocationId),
                         new SqlParameter("@p_EmployeeID", updateUser),
                         new SqlParameter("@p_UserID", sessionUserId)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
                 if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
@@ -1476,14 +1476,14 @@ namespace INSPEC.Secure
                             new SqlParameter("@p_LocationID", locationId),
                             new SqlParameter("@p_UserID", sessionUserId),
                             new SqlParameter("@p_EmployeeID", updateUser)
-                        }));
+                        }), true);
                 }
                 else
                 {
                     DataTable scopeCount = br.EQueryP(
                         "spPIP_Inspection_Query", InspectionQueryParameters("105", new SqlParameter[] {
                             new SqlParameter("@p_IDTemplate", id)
-                        }));
+                        }), true);
                     if (Convert.ToInt32(scopeCount.Rows[0]["Total"]) <= 1)
                         return new { success = false, message = "Selected Company requires at least one company/location assignment." };
 
@@ -1493,7 +1493,7 @@ namespace INSPEC.Secure
                             new SqlParameter("@p_IDTemplate", id),
                             new SqlParameter("@p_CompanyID", companyId),
                             new SqlParameter("@p_LocationID", locationId)
-                        }));
+                        }), true);
                 }
                 return new { success = true, message = "" };
             }
@@ -1518,7 +1518,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    }));
+                    }), true);
                 if (scope.Rows.Count == 0)
                     return new { success = false, message = "Inspection template is not assigned to this company/location." };
 
@@ -1526,7 +1526,7 @@ namespace INSPEC.Secure
                     "spPIP_Inspection_Query", InspectionQueryParameters("111", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_UpdateUser", updateUser)
-                    }));
+                    }), true);
                 return new { success = true, message = "" };
             }
         }
@@ -1548,7 +1548,7 @@ namespace INSPEC.Secure
                     "spPIP_Inspection_Query", InspectionQueryParameters("115", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id),
                         new SqlParameter("@p_UpdateUser", employeeId)
-                    }));
+                    }), true);
                 return new { success = true, message = "Template berhasil dinonaktifkan." };
             }
         }
@@ -1570,7 +1570,7 @@ namespace INSPEC.Secure
                     "spPIP_Inspection_Query", InspectionQueryParameters("118", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", templateId),
                         new SqlParameter("@p_IDVersion", versionId)
-                    }));
+                    }), true);
                 if (owner.Rows.Count == 0)
                     return new { success = false, message = "Version tidak ditemukan pada template tersebut." };
                 if (!String.Equals(GF.GetString(owner.Rows[0]["Status"]), "Active", StringComparison.OrdinalIgnoreCase) &&
@@ -1583,7 +1583,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_IDVersion", versionId),
                         new SqlParameter("@p_TemplateNo", GF.GetString(owner.Rows[0]["TemplateNo"])),
                         new SqlParameter("@p_Version", GF.GetString(owner.Rows[0]["Version"]))
-                    }));
+                    }), true);
                 return new { success = true, message = "Version berhasil dikembalikan ke Draft." };
             }
         }
@@ -1606,7 +1606,7 @@ namespace INSPEC.Secure
                 DataTable sectionDt = sectionBr.EQueryP(
                     "spPIP_Inspection_Query", InspectionQueryParameters("010", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", id)
-                    }));
+                    }), true);
                 if (sectionDt.Rows.Count == 0)
                     throw new HttpException(404, "Template was not found.");
                 sectionId = GF.GetString(sectionDt.Rows[0]["SectionID"]);
@@ -1622,7 +1622,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_SectionID", sectionId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    }));
+                    }), true);
 
                 var rows = dt.AsEnumerable().Select(row => new
                 {
@@ -1659,7 +1659,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template or employee was not found." };
 
@@ -1680,7 +1680,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_UpdateUser", updateUser),
                         new SqlParameter("@p_CurrentCompanyID", companyId),
                         new SqlParameter("@p_CurrentLocationID", locationId)
-                    }));
+                    }), true);
                 return new { success = true, message = "" };
             }
         }
@@ -1701,7 +1701,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_SectionID", sectionId),
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
-                    }));
+                    }), true);
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     GroupEquipment = row.Field<string>("GroupEquipment"),
@@ -1726,7 +1726,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_InspectionTypeCode", groupEqp)
-                    }));
+                    }), true);
                 if (dt.Rows.Count == 0)
                     return new JavaScriptSerializer().Serialize(new object[0]);
 
