@@ -19,6 +19,22 @@ namespace INSPEC
 {
     public partial class Login : WAL.PB
     {
+        private static SqlParameter[] LoginQueryParameters(string type, params string[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                data.Columns.Add("C" + i, typeof(string));
+            DataRow row = data.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            data.Rows.Add(row);
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
+
+
         #region Control Event
         protected void Page_Load(object sender, System.EventArgs e)
         {
@@ -171,16 +187,8 @@ namespace INSPEC
         {
             using (var br = new WAL.BR.CF())
             {
-                br.EQuery(
-                    @"UPDATE UserSession
-                      SET IsActive = 0
-                      WHERE BrowserGuid = @BrowserGuid
-                        AND ServerGuid = @ServerGuid
-                        AND Token = @Token
-                        AND IsActive = 1",
-                    "@BrowserGuid=" + browserGuid + GF.Str2 +
-                    "@ServerGuid=" + serverGuid + GF.Str2 +
-                    "@Token=" + token);
+                br.EQueryP("spUTL_INSPEC_Login_Command",
+                    LoginQueryParameters("001", browserGuid, serverGuid, token), true);
                 GFC.ClearCookie();
                 return true;
             }
@@ -208,16 +216,9 @@ namespace INSPEC
                 using (var oUser = new WAL.BR.CF())
                 {
                     // Consume the short-lived portal ticket atomically to prevent replay.
-                    DataTable dtTicket = oUser.EQuery(
-                        @"UPDATE SysWebInfo
-                          SET ExpiredDate = GETDATE(), UpdateDate = GETDATE()
-                          OUTPUT deleted.Description1 AS EmployeeID,
-                                 deleted.Description2 AS PasswordHash
-                          WHERE ID = @InfoID
-                            AND Type = 'LinkApp'
-                            AND AppID = 'WebApp'
-                            AND ExpiredDate > GETDATE()",
-                        "@InfoID=" + infoID);
+                    DataTable dtTicket = oUser.EQueryP(
+                        "spUTL_INSPEC_Login_Command",
+                        LoginQueryParameters("002", infoID), true);
 
                     if (dtTicket.Rows.Count != 1)
                         return new { success = false, message = "Portal login ticket is invalid, expired, or already used." };
@@ -264,27 +265,9 @@ namespace INSPEC
         {
             using (var oUser = new WAL.BR.CF())
             {
-                DataTable dt = oUser.EQuery(
-                    @"SELECT U.UserID, U.UserName, U.employeeid AS EmployeeID, U.Password,
-                             ISNULL(L.SectionList, '') AS Section,
-                             ISNULL(NULLIF(L.Theme, ''), 'L') AS Theme,
-                             a.JobTitleName, a.EmailAddress, a.ProfitCenterNo,
-                             ISNULL(us.LastSyncMaster, CAST('' AS SMALLDATETIME)) AS LastSyncMaster,
-                             a.UserName AS UserName1,
-                             ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
-                      FROM SysWebUser U
-                      LEFT JOIN INSPEC_User L ON L.UserID = U.employeeid
-                      OUTER APPLY
-                      (
-                          SELECT TOP 1 LastSyncMaster, LastSyncWO
-                          FROM UserSession
-                          WHERE UserID = U.EmployeeID AND BrowserGuid = @BrowserGuid
-                          ORDER BY LoginTime DESC, ID DESC
-                      ) us
-                      CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
-                      WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
-                    "@EmployeeID=" + p_employeeid + GF.Str2 +
-                     "@BrowserGuid=" + p_browserGuid);
+                DataTable dt = oUser.EQueryP(
+                    "spUTL_INSPEC_Login_Command",
+                    LoginQueryParameters("003", p_employeeid, p_browserGuid), true);
                 var _arrList = new ArrayList();
                 if (dt.Rows.Count == 0) return new { success = false, message = "user not found..." };
                 if (Convert.ToString(dt.Rows[0]["Password"]).Trim() != V_Pwd.Trim())
@@ -337,13 +320,9 @@ namespace INSPEC
                     menu["HeaderDetail"] = menuRow["HeaderDetail"];
                     menus.Add(menu);
                 }
-                foreach (DataRow row in oUser.EQuery(
-                    "select companylocation, companyname from (" +
-                    "select companylocation, companyname, sourcepriority, ROW_NUMBER() OVER (PARTITION BY companylocation ORDER BY sourcepriority) rn from (" +
-                    "SELECT a.companyid+';'+a.locationid companylocation, a.alias companyname, 0 sourcepriority FROM dbo.F_SelectOneLogin('pip', @userid, '') a " +
-                    "union all select a.companyid+';'+a.locationid, b.alias, 1 from syswebusercompanylocation a join syswebcompany b on a.companyid=b.companyid where a.userid=@userid and a.appid='pip' " +
-                    ") sources ) ranked where rn=1 order by sourcepriority, companylocation",
-                    "@userid=" + V_EmpID).Rows)
+                foreach (DataRow row in oUser.EQueryP(
+                    "spUTL_INSPEC_Login_Command",
+                    LoginQueryParameters("004", V_EmpID), true).Rows)
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     dict["companylocation"] = row["companylocation"]; dict["companyname"] = row["companyname"];
@@ -352,47 +331,9 @@ namespace INSPEC
                 }
                 try
                 {
-                    oUser.EQuery(
-@"SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-DECLARE @NewID INT;
-DECLARE @SessionID INT;
-SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
-SELECT TOP 1 @SessionID = ID
-FROM UserSession
-WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid
-ORDER BY LoginTime DESC, ID DESC;
-
--- A login refreshes only this browser's session. Other devices remain active.
-UPDATE UserSession
-SET IsActive = 0
-WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid AND IsActive = 1;
-
-IF @SessionID IS NULL
-BEGIN
-    -- New browser/device: do not inherit another device's sync watermark.
-    DELETE FROM UserSession
-    WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
-
-    SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
-    INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
-    VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
-END
-ELSE
-BEGIN
-    -- Reuse this device's row so its own sync watermarks survive re-login.
-    UPDATE UserSession
-    SET ServerGuid = @ServerGuid,
-        Token = @Token,
-        LoginTime = GETDATE(),
-        ExpireTime = DATEADD(DAY,2,GETDATE()),
-        IsActive = 1,
-        DeviceName = @DeviceName
-    WHERE ID = @SessionID;
-END
-COMMIT TRANSACTION;",
-                    "@EmployeeID=" + V_EmpID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
-                    "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
+                    oUser.EQueryP(
+                        "spUTL_INSPEC_Login_Command",
+                        LoginQueryParameters("005", V_EmpID, p_browserGuid, v_serverguid, v_token, p_deviceName), true);
                     GFC.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
                         companylist = _arrList, menus = menus, userid = V_UserID, username = v_username, curcompany = v_currcompany,
