@@ -25,6 +25,7 @@ BEGIN
       008: no parameters (legacy item-group lookup)
       009-010: C1=IDVersion
       011: C1=EmployeeID, C2=SessionToken, C3=LastSync (ISO datetime)
+      012: C1=CompanyID, C2=LocationID, C3=DocNo, C4=FileNameType (WO photo metadata lookup)
       005: C1=CompanyID, C2=LocationID, C3=SectionList (WO approval dashboard counters)
     */
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX),
@@ -316,6 +317,17 @@ BEGIN
           AND E.TerminationDate=''
           AND E.UpdateDate>=CONVERT(DATETIME,@C3,126)
         ORDER BY E.CompanyID,E.LocationID,E.EmployeeID;
+        RETURN;
+    END;
+
+
+    IF @p_Tipe = '012'
+    BEGIN
+        SELECT *
+        FROM dbo.PIP_T_DocumentAttachment
+        WHERE CompanyID=@C1 AND LocationID=@C2 AND DocNo=@C3
+          AND [FileName]+'.'+[FileType]=@C4
+          AND [Type] IN ('WO1','WO2','WO3');
         RETURN;
     END;
 
