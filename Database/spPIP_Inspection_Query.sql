@@ -2918,6 +2918,15 @@ BEGIN
         RETURN;
     END;
 
+    IF @p_Tipe = '118'
+    BEGIN
+        SELECT V.IDTemplate, V.Status
+        FROM dbo.PIP_M_CheckListWOPM_Version V
+        WHERE V.IDTemplate=@p_IDTemplate
+          AND V.IDVersion=@p_IDVersion;
+        RETURN;
+    END;
+
     IF @p_Tipe = '114'
     BEGIN
         BEGIN TRANSACTION;
