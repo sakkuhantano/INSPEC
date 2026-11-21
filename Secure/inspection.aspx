@@ -1277,6 +1277,72 @@
         }
     }
 
+    /* Explicit MAP-tab state: remove sticky offset and reserve a visible toolbar row for Navigator. */
+    @media (max-width: 767.98px) {
+        body.inspection-map-tab-active #inspectionEditorStickyHeader {
+            position: static !important;
+            top: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            transform: none !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace {
+            margin-top: 0 !important;
+        }
+    }
+    @media (max-width: 575.98px) {
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            justify-content: flex-start !important;
+            flex-wrap: nowrap !important;
+            gap: .3rem !important;
+            padding: .35rem .45rem !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-title-wrap {
+            display: block !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions {
+            display: flex !important;
+            flex: 0 0 auto !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            overflow: visible !important;
+            gap: .3rem !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace #btnInspectionPointNavigator {
+            display: inline-flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            flex: 0 0 38px !important;
+            width: 38px !important;
+            min-width: 38px !important;
+            max-width: 38px !important;
+            height: 32px !important;
+            min-height: 32px !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            order: -1 !important;
+            position: static !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace #btnInspectionPointNavigator .bi {
+            display: inline-block !important;
+            margin: 0 !important;
+            font-size: 1rem !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace #btnInspectionPointNavigator .inspection-point-navigator-button-label {
+            display: none !important;
+        }
+    }
+
     /* Phone full-height Batch/Lightning map workspace: keep Submit Batch visible. */
     @media (max-width: 767.98px) {
         body.inspection-map-mobile-active #pageStickyBar {
