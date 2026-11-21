@@ -3348,14 +3348,21 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
         window.showInspectionMapWorkspace(activeRecord, true);
     if (typeof window.refreshInspectionMapPointStatuses === "function")
         window.refreshInspectionMapPointStatuses();
-    const focused = typeof window.focusInspectionMapPoint === "function"
-        ? await window.focusInspectionMapPoint(pointId) : false;
-    if (!focused && typeof showToast === "function")
-        showToast("Titik ditemukan, tetapi denah/koordinat map belum tersedia. Gunakan daftar Inspection Point.", "warning");
+    // Checklist editing does not depend on map coordinates. Only the
+    // "Lihat Denah" action should attempt to focus the marker and warn if
+    // the map geometry is unavailable.
     if (openChecklist) {
-        const masterPoint = (activeRecord.BatchMapSetup && activeRecord.BatchMapSetup.points || state.setup.points || [])
+        const checklistPoint = (activeRecord.BatchMapSetup && activeRecord.BatchMapSetup.points || state.setup.points || [])
             .find(point => Number(point.InspectionPointID) === Number(pointId));
-        if (masterPoint) await window.openBatchInspectionPointChecklist(masterPoint);
+        if (checklistPoint) {
+            window.inspectionReturnToPointNavigator = true;
+            await window.openBatchInspectionPointChecklist(checklistPoint);
+        }
+    } else {
+        const focused = typeof window.focusInspectionMapPoint === "function"
+            ? await window.focusInspectionMapPoint(pointId) : false;
+        if (!focused && typeof showToast === "function")
+            showToast("Titik ditemukan, tetapi denah/koordinat map belum tersedia. Gunakan daftar Inspection Point.", "warning");
     }
 }
 
