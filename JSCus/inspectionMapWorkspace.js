@@ -1671,6 +1671,16 @@
             else if (typeof showToast === "function")
                 showToast("Point Navigator belum siap. Refresh aplikasi setelah update.", "warning");
         });
+        var pointListButton = document.getElementById("btnInspectionMapPointList");
+        if (pointListButton) pointListButton.addEventListener("click", function () {
+            var workspace = document.getElementById("inspectionMapWorkspace");
+            if (!workspace) return;
+            var isOpen = workspace.classList.toggle("map-point-list-open");
+            pointListButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+            pointListButton.innerHTML = isOpen
+                ? '<i class="bi bi-map me-1"></i><span>Denah</span>'
+                : '<i class="bi bi-card-list me-1"></i><span>Point List</span>';
+        });
         var zoomIn = document.getElementById("btnInspectionMapZoomIn");
         var zoomOut = document.getElementById("btnInspectionMapZoomOut");
         var zoomReset = document.getElementById("btnInspectionMapZoomReset");
