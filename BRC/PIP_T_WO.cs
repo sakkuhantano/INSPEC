@@ -391,8 +391,8 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                         {
                             string fileNameWithExt = System.IO.Path.GetFileName(filePath);
                             DataTable dt = ocf.EQueryP(
-                                "spPIP_WorkOrder_Query",
-                                CreateDispatcherParameters("012", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt),
+                                "spPIP_Inspection_Query",
+                                CreateDispatcherParameters("212", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt),
                                 false, ref _mainConnection, ref _transaction);
                             if (dt.Rows.Count == 0)
                             {
