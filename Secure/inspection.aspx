@@ -1120,6 +1120,19 @@
             align-items: center;
             gap: .2rem !important;
         }
+        /* Keep the point navigator reachable on phones; use a compact icon button
+           so it cannot be pushed outside the toolbar by the other map actions. */
+        #inspectionMapWorkspace #btnInspectionPointNavigator {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 30px !important;
+            min-width: 30px !important;
+            padding: .1rem !important;
+        }
+        #inspectionMapWorkspace #btnInspectionPointNavigator .inspection-point-navigator-button-label {
+            display: none !important;
+        }
         #inspectionMapWorkspace .inspection-map-actions > .btn {
             flex: 0 0 auto !important;
             width: auto !important;
@@ -1234,9 +1247,14 @@
         }
         body.inspection-map-mobile-active #contentbody #inspectionEditorStickyHeader {
             flex: 0 0 auto;
-            margin-bottom: .15rem !important;
-            padding-top: .15rem;
-            padding-bottom: .15rem;
+            margin-top: 0 !important;
+            margin-bottom: .08rem !important;
+            padding-top: 0 !important;
+            padding-bottom: .08rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionEditorStickyHeader > .inspection-form-header {
+            margin-top: 0 !important;
+            margin-bottom: .12rem !important;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace {
             display: flex;
