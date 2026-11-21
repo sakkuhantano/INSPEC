@@ -1694,6 +1694,324 @@ BEGIN
         WHERE I.CompanyID=@C
         RETURN;
     END;
+    IF @p_Tipe = '075'
+    BEGIN
+        SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
+               I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+               I.IDTemplate, I.TemplateNo, I.ScheduledTime
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+        LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+        LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+        LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+        WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND ISNULL(I.IsActive,1)=1
+          AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+          AND EXISTS (
+              SELECT 1
+              FROM dbo.PIP_M_CheckListWOPM T
+              WHERE T.IDTemplate=I.IDTemplate
+                AND T.SectionID=I.SectionID
+                AND ISNULL(T.TemplateType,'W')='I'
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+                AND (ISNULL(T.EmployeeList,'')=''
+                     OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+          )
+          AND (
+               (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+                AND ISNULL(I.IsApproved,0)=0)
+               OR
+               (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+                AND ISNULL(I.IsApproved,0)=1
+                AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+               OR
+               (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM dbo.SysWebUser SU
+              WHERE SU.EmployeeID=@EmployeeID
+                AND SU.IsActive=1
+                AND (
+                     EXISTS (
+                         SELECT 1
+                         FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                         WHERE AM.MenuID='20022'
+                     )
+                     OR @IsAdministrator=1
+                     OR (
+                         EXISTS (
+                             SELECT 1
+                             FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                             WHERE AM.MenuID='20021'
+                         )
+                         AND I.OwnerEmployeeID=SU.EmployeeID
+                     )
+                )
+                AND (@IsAdministrator=1 OR EXISTS (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                ))
+                AND (ISNULL(I.IsSubmitted,0)=1 OR (I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>''))
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM dbo.SysWebUserCompanyLocation C
+                        WHERE C.UserID=SU.EmployeeID
+                          AND C.AppID='pip'
+                          AND C.CompanyID=I.CompanyID
+                          AND C.LocationID=I.LocationID
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                        WHERE L.CompanyID=I.CompanyID
+                          AND L.LocationID=I.LocationID
+                    )
+                )
+          )
+        ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.ScheduledTime
+        RETURN;
+    END;
+
+    IF @p_Tipe = '076'
+    BEGIN
+        SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
+               I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+               I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
+               I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
+               ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
+               I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
+               I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+               I.ApprovalRemark,I.ReasonVoid,I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
+               ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+               CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+                    WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
+                    WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+        LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+        LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+        LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+        WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND ISNULL(I.IsActive,1)=1
+          AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+          AND EXISTS (
+              SELECT 1
+              FROM dbo.PIP_M_CheckListWOPM T
+              WHERE T.IDTemplate=I.IDTemplate
+                AND T.SectionID=I.SectionID
+                AND ISNULL(T.TemplateType,'W')='I'
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+                AND (ISNULL(T.EmployeeList,'')=''
+                     OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+          )
+          AND (
+               (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+                AND ISNULL(I.IsApproved,0)=0)
+               OR
+               (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+                AND ISNULL(I.IsApproved,0)=1
+                AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+               OR
+               (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
+          )
+          AND EXISTS (
+              SELECT 1
+              FROM dbo.SysWebUser SU
+              WHERE SU.EmployeeID=@EmployeeID
+                AND SU.IsActive=1
+                AND (
+                     EXISTS (
+                         SELECT 1
+                         FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                         WHERE AM.MenuID='20022'
+                     )
+                     OR @IsAdministrator=1
+                     OR (
+                         EXISTS (
+                             SELECT 1
+                             FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                             WHERE AM.MenuID='20021'
+                         )
+                         AND I.OwnerEmployeeID=SU.EmployeeID
+                     )
+                )
+                AND (@IsAdministrator=1 OR EXISTS (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                ))
+                AND (ISNULL(I.IsSubmitted,0)=1 OR (I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>''))
+                AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM dbo.SysWebUserCompanyLocation C
+                        WHERE C.UserID=SU.EmployeeID
+                          AND C.AppID='pip'
+                          AND C.CompanyID=I.CompanyID
+                          AND C.LocationID=I.LocationID
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                        WHERE L.CompanyID=I.CompanyID
+                          AND L.LocationID=I.LocationID
+                    )
+                )
+          )
+          AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+          AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+          AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+          AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+        ORDER BY I.InspectionDate DESC, I.InspectionID DESC
+        RETURN;
+    END;
+
+    IF @p_Tipe = '077'
+    BEGIN
+        SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo,I.ScheduledTime
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+        LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+        LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+        WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
+          AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND ISNULL(I.IsActive,1)=1
+          AND (
+              (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
+               AND ((@IsAdministrator=1 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+                 OR (ISNULL(I.IsApproved,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))))
+              OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1
+               AND (
+                    @IsAdministrator=1
+                    OR (ISNULL(I.IsApproved,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved1,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved2,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+               ))
+              OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
+               AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+                 OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+                 OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) OR @IsAdministrator=1)
+          )
+          )
+          AND (@ApprovalTab='OUTSTANDING' OR
+               (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
+          AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+          AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+          AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+          AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+          AND EXISTS (
+              SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+              WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+                AND ISNULL(T.TemplateType,'W')='I'
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+                AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+          )
+        ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.ScheduledTime
+        RETURN;
+    END;
+
+    IF @p_Tipe = '078'
+    BEGIN
+        SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.SectionID,
+               I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
+               I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
+               I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
+               ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) SubmittedByName,I.SubmittedDate,
+               I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
+               I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
+               I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,'LIGHTNING' InspectionMode,
+               CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+                    WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
+               CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+        LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+        LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+        WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
+          AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND ISNULL(I.IsActive,1)=1
+          AND (
+              (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
+               AND ((@IsAdministrator=1 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+                 OR (ISNULL(I.IsApproved,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))))
+              OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1
+               AND (
+                    @IsAdministrator=1
+                    OR (ISNULL(I.IsApproved,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved1,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+                 OR (ISNULL(I.IsApproved2,0)=1
+                     AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+               ))
+              OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
+               AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+                 OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+                 OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) OR @IsAdministrator=1)
+          )
+          )
+          AND (@ApprovalTab='OUTSTANDING' OR
+               (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
+          AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+          AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+          AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+          AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+          AND EXISTS (
+              SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+              WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+                AND ISNULL(T.TemplateType,'W')='I'
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+                AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+          )
+        ORDER BY I.InspectionDate DESC,I.InspectionID DESC
+        RETURN;
+    END;
+
+    IF @p_Tipe = '079'
+    BEGIN
+        SELECT I.InspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,I.InspectionDate,I.TemplateNo,I.TemplateName,I.OwnerEmployeeID,I.Status,I.IsApproved
+        FROM dbo.PIP_T_Inspection I
+        JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+        JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+        WHERE I.InspectionID IN (SELECT TRY_CONVERT(BIGINT,LTRIM(RTRIM(val))) FROM dbo.SplitStringConvertToTable(@InspectionIDs,','))
+        AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1 AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+        AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
+        AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID))
+        ORDER BY I.InspectionID
+        RETURN;
+    END;
+
+    IF @p_Tipe = '080'
+    BEGIN
+        SELECT COUNT(1) PendingCount FROM dbo.PIP_T_InspectionEmailOutbox O
+        WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
+        AND EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection I JOIN dbo.SysWebCommonValue C ON C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.Description='1'
+        AND ((O.EntityType='LIGHTNING' AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+        OR (O.EntityType='INSPECTION' AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')))
+        WHERE I.InspectionID=O.EntityID)
+        RETURN;
+    END;
+
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
 END;
 GO
