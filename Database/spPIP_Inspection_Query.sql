@@ -3452,7 +3452,7 @@ BEGIN
     END;
 
 
-    -- 213: C1=KeyHD (WO checklist values, group/repeat subvalues, and photo metadata)
+    -- 213: C1=KeyHD, C2=CompanyID, C3=LocationID, C4=WONo (WO checklist/subvalues/photos)
     IF @p_Tipe = '213'
     BEGIN
         SELECT A.IDItem, A.Value, A.Remark1, A.Remark2,
