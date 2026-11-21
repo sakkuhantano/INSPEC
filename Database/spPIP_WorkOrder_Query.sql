@@ -24,6 +24,7 @@ BEGIN
       007: C1=IDTemplate, C2=IDVersion, C3=TemplateNo, C4=TemplateType, C5=ModelCode
       008: no parameters (legacy item-group lookup)
       009-010: C1=IDVersion
+      011: C1=EmployeeID, C2=SessionToken, C3=LastSync (ISO datetime)
       005: C1=CompanyID, C2=LocationID, C3=SectionList (WO approval dashboard counters)
     */
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX),
@@ -286,6 +287,35 @@ BEGIN
         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
         WHERE S.IDVersion=CONVERT(INT,@C1)
         ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;
+        RETURN;
+    END;
+
+
+    IF @p_Tipe = '011'
+    BEGIN
+        DECLARE @V_GetDate DATETIME;
+        SET @V_GetDate=GETDATE();
+        UPDATE dbo.UserSession
+           SET LastSyncMaster=@V_GetDate
+         WHERE IsActive=1 AND UserID=@C1 AND Token=@C2 AND ExpireTime>GETDATE();
+
+        SELECT E.EmployeeID, E.Name, @V_GetDate LastSync
+        FROM dbo.M_HRD_Employee E
+        WHERE EXISTS (
+            SELECT 1
+            FROM dbo.M_HRD_Employee E1
+            CROSS JOIN dbo.SysWebCommonValue V
+            CROSS APPLY dbo.SplitStringConvertToTable(V.Description,'|') S
+            WHERE E1.EmployeeID=@C1
+              AND V.AppID='PIP' AND V.CommonGroup='GroupEmployeeWO' AND V.IsDelete=0
+              AND E.CompanyID+E.LocationID IN (V.ID,S.val)
+              AND E1.CompanyID+E1.LocationID IN (V.ID,S.val)
+              AND E.ProfitCenterNo=E1.ProfitCenterNo
+              AND E1.TerminationDate=''
+        )
+          AND E.TerminationDate=''
+          AND E.UpdateDate>=CONVERT(DATETIME,@C3,126)
+        ORDER BY E.CompanyID,E.LocationID,E.EmployeeID;
         RETURN;
     END;
 
