@@ -4,13 +4,13 @@ GO
 
 ALTER PROCEDURE dbo.spPIP_Inspection_Query
     @p_Tipe VARCHAR(3),
-    @p_Data dbo.Type_N_Tbl_C10 READONLY
+    @p_Data dbo.Type_N_Tbl_C13 READONLY
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    -- Shared scalar locals loaded from the key/value TVP.
+    -- Scalar locals populated from the positional TVP columns for each operation.
     DECLARE @p_IDTemplate INT;
     DECLARE @p_IDVersion INT;
     DECLARE @p_CompanyID VARCHAR(50);
@@ -74,69 +74,492 @@ BEGIN
     DECLARE @FromDate DATETIME;
     DECLARE @ThruDate DATETIME;
 
-    -- TVP contract: C1 = original parameter name (including @); C2 = value.
-    -- One row per supplied parameter; C3-C10 reserved.
-    SELECT @p_IDTemplate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IDTemplate');
-    SELECT @p_IDVersion = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IDVersion');
-    SELECT @p_CompanyID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_CompanyID');
-    SELECT @p_LocationID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_LocationID');
-    SELECT @p_UserID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_UserID');
-    SELECT @p_EmployeeID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_EmployeeID');
-    SELECT @p_SectionID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_SectionID');
-    SELECT @p_InspectionTypeCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_InspectionTypeCode');
-    SELECT @IDTemplate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@IDTemplate');
-    SELECT @IDVersion = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@IDVersion');
-    SELECT @TemplateVersion = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@TemplateVersion');
-    SELECT @SectionID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@SectionID');
-    SELECT @CompanyID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@CompanyID');
-    SELECT @LocationID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@LocationID');
-    SELECT @EmployeeID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@EmployeeID');
-    SELECT @InspectionMode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionMode');
-    SELECT @InspectionTypeDetailCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionTypeDetailCode');
-    SELECT @InspectionDate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionDate');
-    SELECT @ClientInspectionID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ClientInspectionID');
-    SELECT @InspectionID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionID');
-    SELECT @SectionList = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@SectionList');
-    SELECT @InspectionNo = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionNo');
-    SELECT @ScheduledTime = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ScheduledTime');
-    SELECT @DateFrom = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@DateFrom');
-    SELECT @DateThru = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@DateThru');
-    SELECT @IsAdministrator = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@IsAdministrator');
-    SELECT @TypeCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@TypeCode');
-    SELECT @DetailCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@DetailCode');
-    SELECT @BatchSize = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@BatchSize');
-    SELECT @E = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@E');
-    SELECT @C = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@C');
-    SELECT @ID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ID');
-    SELECT @Error = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@Error');
-    SELECT @TemplateId = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@TemplateId');
-    SELECT @ScheduleTime = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ScheduleTime');
-    SELECT @ApprovalTab = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ApprovalTab');
-    SELECT @InspectionTypeCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionTypeCode');
-    SELECT @TechnicianView = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@TechnicianView');
-    SELECT @InspectionIDs = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@InspectionIDs');
-    SELECT @p_SubSectionIDs = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_SubSectionIDs');
-    SELECT @p_ItemIDs = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_ItemIDs');
-    SELECT @p_GroupIDs = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_GroupIDs');
-    SELECT @p_TemplateNo = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_TemplateNo');
-    SELECT @p_Version = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_Version');
-    SELECT @p_TemplateType = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_TemplateType');
-    SELECT @p_InspectionTypeDetailCode = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_InspectionTypeDetailCode');
-    SELECT @p_CompanyScope = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_CompanyScope');
-    SELECT @p_UpdateUser = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_UpdateUser');
-    SELECT @p_CurrentCompanyID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_CurrentCompanyID');
-    SELECT @p_CurrentLocationID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_CurrentLocationID');
-    SELECT @p_Action = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_Action');
-    SELECT @p_IsSummaryRequired = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IsSummaryRequired');
-    SELECT @p_IsFollowUpRequired = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IsFollowUpRequired');
-    SELECT @UserID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@UserID');
-    SELECT @OriginalStatus = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalStatus');
-    SELECT @OriginalSyncStatus = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalSyncStatus');
-    SELECT @ReasonCancel = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ReasonCancel');
-    SELECT @DeletedBy = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@DeletedBy');
-    SELECT @OriginalTransactionJson = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalTransactionJson');
-    SELECT @FromDate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@FromDate');
-    SELECT @ThruDate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ThruDate');
+    -- TVP contract: one row per call; positional C1-C13 mapping is defined per operation.
+    DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX), @C4 NVARCHAR(MAX), @C5 NVARCHAR(MAX), @C6 NVARCHAR(MAX), @C7 NVARCHAR(MAX), @C8 NVARCHAR(MAX), @C9 NVARCHAR(MAX), @C10 NVARCHAR(MAX), @C11 NVARCHAR(MAX), @C12 NVARCHAR(MAX), @C13 NVARCHAR(MAX);
+
+    SELECT TOP 1 @C1=C1, @C2=C2, @C3=C3, @C4=C4, @C5=C5, @C6=C6, @C7=C7, @C8=C8, @C9=C9, @C10=C10, @C11=C11, @C12=C12, @C13=C13
+    FROM @p_Data;
+
+    -- Load operation-specific values from positional TVP columns.
+    IF @p_Tipe = '001'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_CompanyID=@C2, @p_LocationID=@C3;
+    END;
+
+    IF @p_Tipe = '002'
+    BEGIN
+        SELECT @p_IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '003'
+    BEGIN
+        SELECT @p_IDTemplate=@C1;
+    END;
+
+    IF @p_Tipe = '004'
+    BEGIN
+        SELECT @p_IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '005'
+    BEGIN
+        SELECT @p_SectionID=@C1, @p_UserID=@C2, @p_EmployeeID=@C3, @p_CompanyID=@C4, @p_LocationID=@C5;
+    END;
+
+    IF @p_Tipe = '006'
+    BEGIN
+        SELECT @p_SectionID=@C1;
+    END;
+
+    IF @p_Tipe = '007'
+    BEGIN
+        SELECT @p_InspectionTypeCode=@C1;
+    END;
+
+    IF @p_Tipe = '008'
+    BEGIN
+        SELECT @p_SectionID=@C1, @p_CompanyID=@C2, @p_LocationID=@C3, @p_EmployeeID=@C4, @p_UserID=@C5;
+    END;
+
+    IF @p_Tipe = '009'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_CompanyID=@C2, @p_LocationID=@C3, @p_UserID=@C4, @p_EmployeeID=@C5;
+    END;
+
+    IF @p_Tipe = '010'
+    BEGIN
+        SELECT @p_IDTemplate=@C1;
+    END;
+
+    IF @p_Tipe = '011'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_SectionID=@C2, @p_CompanyID=@C3, @p_LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '012'
+    BEGIN
+        SELECT @p_SectionID=@C1, @p_CompanyID=@C2, @p_LocationID=@C3;
+    END;
+
+    IF @p_Tipe = '013'
+    BEGIN
+        SELECT @p_CompanyID=@C1, @p_LocationID=@C2, @p_InspectionTypeCode=@C3;
+    END;
+
+    IF @p_Tipe = '014'
+    BEGIN
+        SELECT @IDTemplate=@C1, @IDVersion=@C2, @TemplateVersion=@C3, @SectionID=@C4, @CompanyID=@C5, @LocationID=@C6, @EmployeeID=@C7, @InspectionTypeCode=@C8, @InspectionMode=@C9, @InspectionTypeDetailCode=@C10;
+    END;
+
+    IF @p_Tipe = '015'
+    BEGIN
+        SELECT @IDTemplate=@C1, @IDVersion=@C2;
+    END;
+
+    IF @p_Tipe = '016'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '017'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '018'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '019'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '020'
+    BEGIN
+        SELECT @CompanyID=@C1, @LocationID=@C2, @InspectionTypeCode=@C3, @InspectionTypeDetailCode=@C4;
+    END;
+
+    IF @p_Tipe = '021'
+    BEGIN
+        SELECT @ClientInspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '022'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '023'
+    BEGIN
+        SELECT @UserID=@C1;
+    END;
+
+    IF @p_Tipe = '024'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '025'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '026'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '027'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '028'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '029'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '030'
+    BEGIN
+        SELECT @EmployeeID=@C1, @SectionList=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '031'
+    BEGIN
+        SELECT @CompanyID=@C1, @LocationID=@C2, @SectionID=@C3, @InspectionTypeCode=@C4, @InspectionTypeDetailCode=@C5, @ScheduledTime=@C6, @IDTemplate=@C7, @InspectionDate=@C8;
+    END;
+
+    IF @p_Tipe = '032'
+    BEGIN
+        SELECT @EmployeeID=@C1, @SectionList=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '033'
+    BEGIN
+        SELECT @EmployeeID=@C1, @SectionList=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '034'
+    BEGIN
+        SELECT @ClientInspectionID=@C1, @CompanyID=@C2, @LocationID=@C3, @SectionID=@C4, @InspectionTypeCode=@C5, @InspectionTypeDetailCode=@C6, @IDTemplate=@C7, @InspectionDate=@C8, @OriginalStatus=@C9, @OriginalSyncStatus=@C10, @ReasonCancel=@C11, @DeletedBy=@C12, @OriginalTransactionJson=@C13;
+    END;
+
+    IF @p_Tipe = '035'
+    BEGIN
+        SELECT @InspectionID=@C1, @ClientInspectionID=@C2, @CompanyID=@C3, @LocationID=@C4, @SectionID=@C5, @EmployeeID=@C6, @ReasonCancel=@C7;
+    END;
+
+    IF @p_Tipe = '036'
+    BEGIN
+        SELECT @InspectionID=@C1, @ClientInspectionID=@C2, @CompanyID=@C3, @LocationID=@C4, @EmployeeID=@C5;
+    END;
+
+    IF @p_Tipe = '037'
+    BEGIN
+        SELECT @TypeCode=@C1, @SectionList=@C2;
+    END;
+
+    IF @p_Tipe = '038'
+    BEGIN
+        SELECT @TypeCode=@C1, @DetailCode=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '039'
+    BEGIN
+        SELECT @CompanyID=@C1, @LocationID=@C2, @TypeCode=@C3, @DetailCode=@C4;
+    END;
+
+    IF @p_Tipe = '040'
+    BEGIN
+        SELECT @EmployeeID=@C1, @SectionList=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '041'
+    BEGIN
+        SELECT @ClientInspectionID=@C1, @EmployeeID=@C2, @SectionList=@C3, @CompanyID=@C4, @LocationID=@C5;
+    END;
+
+    IF @p_Tipe = '042'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '043'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '044'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '045'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '046'
+    BEGIN
+        SELECT @IDTemplate=@C1, @IDVersion=@C2;
+    END;
+
+    IF @p_Tipe = '047'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '048'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '049'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '050'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '051'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '052'
+    BEGIN
+        SELECT @EmployeeID=@C1, @SectionList=@C2, @CompanyID=@C3, @LocationID=@C4;
+    END;
+
+    IF @p_Tipe = '053'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '054'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '055'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '056'
+    BEGIN
+        SELECT @InspectionID=@C1;
+    END;
+
+    IF @p_Tipe = '057'
+    BEGIN
+        SELECT @IDTemplate=@C1, @IDVersion=@C2;
+    END;
+
+    IF @p_Tipe = '058'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '059'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '060'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '061'
+    BEGIN
+        SELECT @IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '062'
+    BEGIN
+        SELECT @E=@C1, @C=@C2;
+    END;
+
+    IF @p_Tipe = '063'
+    BEGIN
+        SELECT @BatchSize=@C1;
+    END;
+
+    IF @p_Tipe = '064'
+    BEGIN
+        SELECT @ID=@C1;
+    END;
+
+    IF @p_Tipe = '065'
+    BEGIN
+        SELECT @Error=@C1, @ID=@C2;
+    END;
+
+    IF @p_Tipe = '066'
+    BEGIN
+        SELECT @IDTemplate=@C1, @SectionID=@C2, @CompanyID=@C3, @LocationID=@C4, @EmployeeID=@C5;
+    END;
+
+    IF @p_Tipe = '067'
+    BEGIN
+        SELECT @EmployeeID=@C1, @CompanyID=@C2, @LocationID=@C3, @SectionList=@C4;
+    END;
+
+    IF @p_Tipe = '068'
+    BEGIN
+        SELECT @IDTemplate=@C1, @SectionID=@C2, @CompanyID=@C3, @LocationID=@C4, @EmployeeID=@C5;
+    END;
+
+    IF @p_Tipe = '069'
+    BEGIN
+        SELECT @EmployeeID=@C1, @CompanyID=@C2, @LocationID=@C3, @FromDate=@C4, @ThruDate=@C5, @SectionList=@C6;
+    END;
+
+    IF @p_Tipe = '070'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @SectionList=@C3, @CompanyID=@C4, @LocationID=@C5;
+    END;
+
+    IF @p_Tipe = '071'
+    BEGIN
+        SELECT @SectionList=@C1, @InspectionID=@C2, @EmployeeID=@C3, @TechnicianView=@C4, @IsAdministrator=@C5;
+    END;
+
+    IF @p_Tipe = '072'
+    BEGIN
+        SELECT @InspectionID=@C1, @EmployeeID=@C2, @IsAdministrator=@C3, @SectionList=@C4, @CompanyID=@C5, @LocationID=@C6;
+    END;
+
+    IF @p_Tipe = '073'
+    BEGIN
+        SELECT @C=@C1;
+    END;
+
+    IF @p_Tipe = '075'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @SectionList=@C3, @CompanyID=@C4, @LocationID=@C5, @DateFrom=@C6, @DateThru=@C7;
+    END;
+
+    IF @p_Tipe = '076'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @SectionList=@C3, @CompanyID=@C4, @LocationID=@C5, @DateFrom=@C6, @DateThru=@C7, @InspectionTypeCode=@C8, @InspectionTypeDetailCode=@C9, @TemplateId=@C10, @ScheduleTime=@C11;
+    END;
+
+    IF @p_Tipe = '077'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @CompanyID=@C3, @LocationID=@C4, @ApprovalTab=@C5, @DateFrom=@C6, @DateThru=@C7, @InspectionTypeCode=@C8, @InspectionTypeDetailCode=@C9, @TemplateId=@C10, @ScheduleTime=@C11;
+    END;
+
+    IF @p_Tipe = '078'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @CompanyID=@C3, @LocationID=@C4, @ApprovalTab=@C5, @DateFrom=@C6, @DateThru=@C7, @InspectionTypeCode=@C8, @InspectionTypeDetailCode=@C9, @TemplateId=@C10, @ScheduleTime=@C11;
+    END;
+
+    IF @p_Tipe = '079'
+    BEGIN
+        SELECT @EmployeeID=@C1, @IsAdministrator=@C2, @SectionList=@C3, @CompanyID=@C4, @LocationID=@C5, @InspectionIDs=@C6;
+    END;
+
+    IF @p_Tipe = '101'
+    BEGIN
+        SELECT @p_SectionID=@C1, @p_SubSectionIDs=@C2, @p_ItemIDs=@C3, @p_GroupIDs=@C4, @p_IDVersion=@C5;
+    END;
+
+    IF @p_Tipe = '102'
+    BEGIN
+        SELECT @p_IDVersion=@C1;
+    END;
+
+    IF @p_Tipe = '103'
+    BEGIN
+        SELECT @p_TemplateNo=@C1, @p_IDTemplate=@C2;
+    END;
+
+    IF @p_Tipe = '104'
+    BEGIN
+        SELECT @p_SectionID=@C1, @p_TemplateNo=@C2, @p_Version=@C3, @p_IDVersion=@C4;
+    END;
+
+    IF @p_Tipe = '105'
+    BEGIN
+        SELECT @p_IDTemplate=@C1;
+    END;
+
+    IF @p_Tipe = '106'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_InspectionTypeCode=@C2, @p_CompanyID=@C3, @p_LocationID=@C4, @p_EmployeeID=@C5, @p_UserID=@C6;
+    END;
+
+    IF @p_Tipe = '107'
+    BEGIN
+        SELECT @p_InspectionTypeCode=@C1, @p_InspectionTypeDetailCode=@C2;
+    END;
+
+    IF @p_Tipe = '108'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_CurrentCompanyID=@C2, @p_CurrentLocationID=@C3, @p_EmployeeID=@C4, @p_UserID=@C5;
+    END;
+
+    IF @p_Tipe = '109'
+    BEGIN
+        SELECT @p_Action=@C1, @p_IDTemplate=@C2, @p_CompanyID=@C3, @p_LocationID=@C4, @p_UserID=@C5, @p_EmployeeID=@C6;
+    END;
+
+    IF @p_Tipe = '110'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_CurrentCompanyID=@C2, @p_CurrentLocationID=@C3;
+    END;
+
+    IF @p_Tipe = '111'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_UpdateUser=@C2;
+    END;
+
+    IF @p_Tipe = '112'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_EmployeeID=@C2, @p_CurrentCompanyID=@C3, @p_CurrentLocationID=@C4;
+    END;
+
+    IF @p_Tipe = '113'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_EmployeeID=@C2, @p_Action=@C3, @p_UpdateUser=@C4, @p_CurrentCompanyID=@C5, @p_CurrentLocationID=@C6;
+    END;
+
+    IF @p_Tipe = '114'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_IDVersion=@C2, @p_TemplateNo=@C3, @p_Version=@C4;
+    END;
+
+    IF @p_Tipe = '115'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_UpdateUser=@C2;
+    END;
+
+    IF @p_Tipe = '116'
+    BEGIN
+        SELECT @p_IDVersion=@C1, @p_IsSummaryRequired=@C2, @p_IsFollowUpRequired=@C3;
+    END;
+
+    IF @p_Tipe = '117'
+    BEGIN
+        SELECT @p_TemplateType=@C1, @p_InspectionTypeCode=@C2, @p_InspectionTypeDetailCode=@C3, @p_CompanyScope=@C4, @p_UpdateUser=@C5, @p_IDTemplate=@C6, @p_CompanyID=@C7, @p_LocationID=@C8;
+    END;
+
+    IF @p_Tipe = '118'
+    BEGIN
+        SELECT @p_IDTemplate=@C1, @p_IDVersion=@C2;
+    END;
 
 BEGIN
     SET NOCOUNT ON;
