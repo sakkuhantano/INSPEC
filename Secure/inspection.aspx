@@ -811,7 +811,7 @@
         overflow-x:hidden;overflow-y:auto!important;overscroll-behavior:contain;
         scroll-behavior:smooth
     }
-    #inspectionMapWorkspace>#inspectionMapSummaryHost{flex:0 0 auto;max-height:12vh;overflow:auto;padding-top:.25rem!important;padding-bottom:.25rem!important}
+    #inspectionMapWorkspace>#inspectionMapSummaryHost{flex:0 0 auto;max-height:none;overflow:visible;padding-top:.25rem!important;padding-bottom:.35rem!important}
     #inspectionMapWorkspace>.d-flex.justify-content-end{flex:0 0 auto;padding:.35rem .55rem!important}
     @media(max-width:767.98px){
         #inspectionMapWorkspace{height:calc(100dvh - 142px);min-height:0}
@@ -822,14 +822,13 @@
             height:100%!important;min-height:0!important;max-height:none!important;padding:2px!important
         }
         #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{display:none!important}
-        #inspectionMapWorkspace.map-point-list-open .inspection-map-content>#inspectionPointList{
-            display:block!important;position:absolute;z-index:30;left:.45rem;right:.45rem;top:3.35rem;bottom:.45rem;
-            width:auto;height:auto;min-height:0;max-height:none;overflow-y:auto;border:1px solid var(--bs-border-color);
-            border-radius:.75rem;box-shadow:0 12px 32px rgba(0,0,0,.25);background:var(--bs-body-bg);
+        #inspectionPointListModal .modal-body{padding:.65rem;min-height:0}
+        #inspectionPointListModal #inspectionPointList{
+            display:block!important;width:100%;height:auto;min-height:0;max-height:calc(100dvh - 220px);
+            overflow-y:auto;overflow-x:hidden;padding:.45rem;background:transparent;
         }
-        #inspectionMapWorkspace.map-point-list-open .inspection-map-panel{visibility:hidden}
+        #inspectionPointListModal .inspection-point-list-tools{top:0}
         #inspectionMapWorkspace #btnInspectionMapPointList{display:inline-flex!important;align-items:center}
-        #inspectionMapWorkspace.map-point-list-open #btnInspectionMapPointList{background:var(--bs-primary);color:#fff}
         #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:none!important;max-height:none!important}
     }
 
@@ -841,8 +840,8 @@
     .inspection-map-svg-path.incomplete{fill:rgba(255,193,7,.22);stroke:#b8860b}
     .inspection-map-svg-path.selected{stroke-width:1.8!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.75))}
 
-.inspection-map-option-summary-host{width:100%;overflow-x:auto;overflow-y:hidden;padding:.15rem 0 .25rem;scrollbar-width:thin}
-.inspection-map-option-summary{display:flex;gap:.5rem;align-items:stretch;min-width:max-content}
+.inspection-map-option-summary-host{width:100%;overflow:visible;padding:.15rem 0 .25rem;scrollbar-width:thin}
+.inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch;min-width:0}
 .inspection-map-option-summary-card{min-width:170px;max-width:280px;padding:.45rem .55rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
 .inspection-map-option-summary-title{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.25rem}
 .inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.25rem}
@@ -850,8 +849,8 @@
 .inspection-map-option-chip strong{font-size:.72rem}
 .inspection-map-option-chip-muted{opacity:.7}
 @media(max-width:767.98px){
-    #inspectionMapWorkspace>#inspectionMapSummaryHost{max-height:15vh!important}
-    .inspection-map-option-summary-card{min-width:145px;max-width:230px}
+    #inspectionMapWorkspace>#inspectionMapSummaryHost{max-height:none!important;overflow:visible!important}
+    .inspection-map-option-summary-card{min-width:130px;max-width:230px;flex:1 1 145px}
 }
 .inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
 .inspection-map-picker-heading h5{font-size:1.05rem}
@@ -1728,6 +1727,13 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none">
+            <div id="inspectionLightningWorkflowCards"></div>
+            <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none">
+                <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
+                <div class="inspection-map-option-summary"></div>
+            </div>
+        </div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
             <div class="inspection-map-picker-heading mb-2">
                 <div class="inspection-map-eyebrow">LOKASI INSPEKSI</div>
@@ -1755,7 +1761,6 @@
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"><div id="inspectionLightningWorkflowCards"></div><div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none"><div class="inspection-map-option-summary"></div></div></div>
         <div id="inspectionMapSubmitBar" class="d-flex justify-content-end gap-2 p-2 border-top d-none">
             <button type="button" id="btnSubmitInspectionBatch" class="btn btn-primary btn-sm"><i class="bi bi-send-check me-1"></i>Submit Batch</button>
         </div>
@@ -1914,6 +1919,23 @@
                         <div class="text-muted small text-center py-4">Pilih Inspection Detail.</div>
                     </div>
                 </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="inspectionPointListModal" tabindex="-1" aria-labelledby="inspectionPointListTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title mb-1" id="inspectionPointListTitle"><i class="bi bi-card-list me-2 text-primary"></i>Point List</h5>
+                        <div class="small text-muted">Daftar point pada map yang sedang dipilih.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body" id="inspectionPointListModalBody"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
                 </div>
