@@ -206,27 +206,10 @@ namespace INSPEC.Secure
                     dict["ActionSPV"] = row["ActionSPV"];
                     _modelCode = row["ModelCode"] + "";
                     dict["ModelCode"] = _modelCode;
-                    //DataTable dt1 = br.EQueryP("SELECT d.EmployeeID, mhe.Name, ISNULL(pms.[Description],'') SectionName " +
-                    //                         "FROM PIP_T_D_WO_Employee d JOIN PIP_T_WO h ON h.KeyHD = d.KeyHD " +
-                    //                         "JOIN M_HRD_Employee mhe ON mhe.EmployeeID = d.EmployeeID " +
-                    //                         "LEFT JOIN PIP_M_Section AS pms ON pms.SectionID = mhe.SectionID " +
-                    //                         "WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
-                    //                         new SqlParameter[] 
-                    //                         {
-                    //                            new SqlParameter("@CompanyLocation", companyLocation),
-                    //                            new SqlParameter("@WONo", "2025061656")
-                    //                         });
-                    DataTable dt1 = br.EQueryP(
-@"SELECT mhe.EmployeeID, mhe.Name, ISNULL(pms.[Description],'') SectionName 
-FROM PIP_T_WO h CROSS APPLY dbo.SplitStringConvertToTable(h.EmployeeAssigned,';') a 
-JOIN M_HRD_Employee mhe ON mhe.EmployeeID = a.val 
-LEFT JOIN PIP_M_Section AS pms ON pms.SectionID = mhe.SectionID 
-WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
-                                             new SqlParameter[] 
-                                             {
-                                                new SqlParameter("@CompanyLocation", companyLocation),
-                                                new SqlParameter("@WONo", row["WONo"])
-                                             });
+                    //DataTable dt1 = br.EQueryP(
+                        "spPIP_Inspection_Query",
+                        WorkOrderQueryParameters("214", companyLocation, Convert.ToString(row["WONo"])),
+                        true);
 
                     //string sEmployee = "";
                     int colorIndex = 0;
@@ -776,11 +759,21 @@ string.Format(@"
                     var listData = _checkList as List<Dictionary<string, object>>;
                     dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
 
-                    // data saved checklist
-                    dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
-                                    "FROM PIP_T_WO_CheckList A JOIN PIP_M_CheckListWOPM_Item B ON A.IDItem=B.IDItem " +
-                                    "WHERE A.KeyHD=@KeyHD",
-                                    "@KeyHD=" + row["KeyHD"].ToString());
+                    // Load saved checklist, repeat/group values, and photo metadata in one dispatcher call.
+                    DataSet detailData = br.EQueryP_DS(
+                        "spPIP_Inspection_Query",
+                        WorkOrderQueryParameters("213",
+                            Convert.ToString(row["KeyHD"]),
+                            Convert.ToString(row["CompanyID"]),
+                            Convert.ToString(row["LocationID"]),
+                            Convert.ToString(row["WONo"])),
+                        true);
+                    dt1 = detailData != null && detailData.Tables.Count > 0
+                        ? detailData.Tables[0] : new DataTable();
+                    DataTable dtSubValues = detailData != null && detailData.Tables.Count > 1
+                        ? detailData.Tables[1] : new DataTable();
+                    DataTable dtAttachments = detailData != null && detailData.Tables.Count > 2
+                        ? detailData.Tables[2] : new DataTable();
                     Dictionary<string, object> outputJson = new Dictionary<string, object>();
                     if (dt1.Rows.Count > 0)
                     {
@@ -806,16 +799,20 @@ string.Format(@"
                             if (itemType == "GROUP")
                             {
                                 Dictionary<string, object> groupValues = new Dictionary<string, object>();
-                                foreach (DataRow r1 in br.EQuery("SELECT * FROM PIP_T_WO_CheckList_subvalue WHERE IDResult=@IDResult AND ISNULL(ObjectIndex,0)=0",
-                                    "@IDResult=" + r["IDResult"].ToString()).Rows)
+                                foreach (DataRow r1 in dtSubValues.AsEnumerable().Where(sv =>
+                                    Convert.ToString(sv["IDResult"]) == Convert.ToString(r["IDResult"]) &&
+                                    (sv["ObjectIndex"] == DBNull.Value || Convert.ToInt32(sv["ObjectIndex"]) == 0)))
                                     groupValues[r1["FieldName"].ToString()] = r1["Value"];
                                 itemRow["Values"] = groupValues;
                             }
                             else if (itemType == "REPEAT")
                             {
                                 var repeatValues = new List<Dictionary<string, object>>();
-                                DataTable repeatRows = br.EQuery("SELECT ObjectIndex,FieldName,Value FROM PIP_T_WO_CheckList_SubValue WHERE IDResult=@IDResult ORDER BY ObjectIndex,FieldName",
-                                    "@IDResult=" + r["IDResult"].ToString());
+                                var repeatRows = dtSubValues.AsEnumerable()
+                                    .Where(sv => Convert.ToString(sv["IDResult"]) == Convert.ToString(r["IDResult"]))
+                                    .OrderBy(sv => sv["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(sv["ObjectIndex"]))
+                                    .ThenBy(sv => Convert.ToString(sv["FieldName"]), StringComparer.OrdinalIgnoreCase)
+                                    .ToList();
                                 foreach (DataRow repeatValue in repeatRows.Rows)
                                 {
                                     int objectIndex = repeatValue["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(repeatValue["ObjectIndex"]);
@@ -846,10 +843,7 @@ string.Format(@"
                     
                     // saved foto 
                     outputJson = new Dictionary<string, object>();
-                    dt1 = br.EQuery("SELECT * FROM PIP_T_DocumentAttachment WHERE type IN ('WO1','WO2') AND CompanyID=@CompanyID AND LocationID=@LocationID AND DocNo=@DocNo",
-                                    "@CompanyID=" + row["CompanyID"].ToString() + GF.Str2 +
-                                    "@LocationID=" + row["LocationID"].ToString() + GF.Str2 +
-                                    "@DocNo=" + row["WONo"].ToString());
+                    dt1 = dtAttachments;
                     if (dt1.Rows.Count > 0)
                     {
                         outputJson["KeyHD"] = Convert.ToInt32(row["KeyHD"]);
