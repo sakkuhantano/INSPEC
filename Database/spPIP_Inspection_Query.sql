@@ -74,6 +74,12 @@ BEGIN
     DECLARE @FromDate DATETIME;
     DECLARE @ThruDate DATETIME;
 
+    -- Dashboard download/authorization operations:
+    -- 081: C1=SectionList, C2=EmployeeID, C3=CompanyID, C4=LocationID (inspection checklist download authorization)
+    -- 082: C1=SectionList, C2=EmployeeID (inspection master authorization)
+    -- 083: C1=EmployeeID, C2=CompanyID, C3=LocationID (company/location authorization)
+    -- 084: C1=SectionList, C2=CompanyID, C3=LocationID, C4=EmployeeID (active inspection types)
+    -- 085: C1=SectionList, C2=CompanyID, C3=LocationID (inspection type details)
     -- TVP contract: one row per call; positional C1-C13 mapping is defined per operation.
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX), @C4 NVARCHAR(MAX), @C5 NVARCHAR(MAX), @C6 NVARCHAR(MAX), @C7 NVARCHAR(MAX), @C8 NVARCHAR(MAX), @C9 NVARCHAR(MAX), @C10 NVARCHAR(MAX), @C11 NVARCHAR(MAX), @C12 NVARCHAR(MAX), @C13 NVARCHAR(MAX);
 
