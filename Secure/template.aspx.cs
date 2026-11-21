@@ -22,36 +22,38 @@ namespace INSPEC.Secure
         // C3-C10 are reserved. Key/value rows prevent positional parameter mismatches.
         private static SqlParameter[] InspectionQueryParameters(string type, params SqlParameter[] values)
         {
+            // Parameter order must match the C1-C13 contract for the selected @p_Tipe in spPIP_Inspection_Query.
             DataTable data = new DataTable();
-            for (int i = 1; i <= 10; i++)
+            for (int i = 1; i <= 13; i++)
                 data.Columns.Add("C" + i, typeof(string));
 
+            DataRow row = data.NewRow();
+            int valueIndex = 0;
             if (values != null)
             {
                 foreach (SqlParameter parameter in values)
                 {
                     if (parameter == null || String.Equals(parameter.ParameterName, "@p_Tipe", StringComparison.OrdinalIgnoreCase))
                         continue;
+                    if (valueIndex >= 13)
+                        throw new ArgumentException("Inspection query TVP supports a maximum of 13 values.", "values");
 
-                    DataRow row = data.NewRow();
-                    row["C1"] = parameter.ParameterName;
                     object value = parameter.Value;
                     if (value == null || value == DBNull.Value)
-                        row["C2"] = DBNull.Value;
+                        row[valueIndex] = String.Empty;
                     else if (value is DateTime)
-                        row["C2"] = ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
+                        row[valueIndex] = ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
                     else if (value is bool)
-                        row["C2"] = (bool)value ? "1" : "0";
+                        row[valueIndex] = (bool)value ? "1" : "0";
                     else
-                        row["C2"] = Convert.ToString(value, CultureInfo.InvariantCulture);
-                    for (int i = 3; i <= 10; i++)
-                        row["C" + i] = DBNull.Value;
-                    data.Rows.Add(row);
+                        row[valueIndex] = Convert.ToString(value, CultureInfo.InvariantCulture);
+                    valueIndex++;
                 }
             }
+            data.Rows.Add(row);
 
             SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
-            tvp.TypeName = "dbo.Type_N_Tbl_C10";
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
             tvp.Value = data;
             return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
         }
@@ -1565,7 +1567,7 @@ namespace INSPEC.Secure
             using (var br = new WAL.BR.CF())
             {
                 DataTable owner = br.EQueryP(
-                    "spPIP_Inspection_Query", InspectionQueryParameters("103", new SqlParameter[] {
+                    "spPIP_Inspection_Query", InspectionQueryParameters("118", new SqlParameter[] {
                         new SqlParameter("@p_IDTemplate", templateId),
                         new SqlParameter("@p_IDVersion", versionId)
                     }));
