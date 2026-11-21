@@ -23,7 +23,8 @@ namespace INSPEC.Secure
     {
         private const string _MenuID = "12011";
 
-        // Positional TVP: the first value maps to C1, then C2, etc.; names are not serialized.\n        private static SqlParameter[] ReportQueryParameters(string type, params string[] values)
+        // Positional TVP: the first value maps to C1, then C2, etc.; names are not serialized.
+        private static SqlParameter[] ReportQueryParameters(string type, params string[] values)
         {
             DataTable data = new DataTable();
             for (int i = 1; i <= 13; i++)
