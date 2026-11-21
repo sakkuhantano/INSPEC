@@ -109,11 +109,13 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    InspectionDashboardQueryParameters("082", new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@EmployeeID", employeeId)
-                    }));
+                        "spPIP_Inspection_Query",
+                        InspectionDashboardQueryParameters("081", new SqlParameter[] {
+                            new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                            new SqlParameter("@EmployeeID", employeeId),
+                            new SqlParameter("@CompanyID", companyId),
+                            new SqlParameter("@LocationID", locationId)
+                        }));
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                         throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -338,12 +340,11 @@ namespace INSPEC.Secure
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
-                      FROM dbo.SysWebUser SU
-                      
-                      WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1",
-                    new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@EmployeeID", employeeId) });
+                    "spPIP_Inspection_Query",
+                    InspectionDashboardQueryParameters("082", new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                        new SqlParameter("@EmployeeID", employeeId)
+                    }));
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -422,30 +423,9 @@ namespace INSPEC.Secure
             using (var br=new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-@"DECLARE @V_GetDate DATETIME = GETDATE()
-UPDATE UserSession SET LastSyncMaster=@V_GetDate
- WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
-SELECT e.EmployeeID, e.Name, @V_GetDate LastSync   --, e.CompanyID, e.LocationID, e.ProfitCenterNo
-FROM M_HRD_Employee e
-WHERE EXISTS (
-    SELECT 1 
-    FROM M_HRD_Employee e1
-    CROSS JOIN SysWebCommonValue v
-    CROSS APPLY dbo.SplitStringConvertToTable(v.Description, '|') s
-    WHERE e1.EmployeeID = @EmployeeID
-      AND v.AppID = 'PIP' AND v.CommonGroup='GroupEmployeeWO' AND v.IsDelete=0
-      AND e.CompanyID+e.LocationID IN (v.ID, s.val)
-      AND e1.CompanyID+e1.LocationID IN (v.ID, s.val)
-      AND e.ProfitCenterNo=e1.ProfitCenterNo
-      AND e1.TerminationDate=''
-) AND e.TerminationDate='' and e.UpdateDate>=@LastSync
-ORDER BY e.CompanyID, e.LocationID, e.EmployeeID",
-new SqlParameter[] 
-{ 
-    new SqlParameter("@EmployeeID", employeeid),
-     new SqlParameter("@SessionToken", sessionToken),
-    new SqlParameter("@LastSync", Convert.ToDateTime(lastSync))
-});
+                    "spPIP_WorkOrder_Query",
+                    DashboardQueryParameters("011", employeeid, sessionToken,
+                        Convert.ToDateTime(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)));
                 return GFC.getData(dt);
             }
         }
