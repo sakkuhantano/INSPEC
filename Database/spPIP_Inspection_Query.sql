@@ -2027,14 +2027,6 @@ BEGIN
         RETURN;
     END;
 
-    IF @p_Tipe = '081'
-    BEGIN
-        SELECT COUNT(1) AS SavedCount
-        FROM dbo.PIP_T_Inspection_Delete
-        WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy;
-        RETURN;
-    END;
-
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
 END;
 GO
