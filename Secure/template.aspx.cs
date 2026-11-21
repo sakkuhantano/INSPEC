@@ -597,7 +597,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_Tipe", "003"),
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_IDTemplate", idTemplate)
-                    }).Rows.Count > 0)                if (br.EQuery(queryTemplate, paramsTemplate).Rows.Count > 0)
+                    }).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -617,7 +617,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_TemplateNo", templateNo),
                         new SqlParameter("@p_Version", version),
                         new SqlParameter("@p_IDVersion", idVersion)
-                    }).Rows.Count > 0)                if (br.EQuery(queryVersion, paramsVersion).Rows.Count > 0)
+                    }).Rows.Count > 0)
                 {
                     r["success"] = false;
 
