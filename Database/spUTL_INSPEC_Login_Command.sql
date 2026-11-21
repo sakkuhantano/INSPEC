@@ -141,7 +141,7 @@ BEGIN
             IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
             DECLARE @LoginError NVARCHAR(4000);
             SET @LoginError=ERROR_MESSAGE();
-            RAISERROR(@LoginError,16,1);
+            RAISERROR('%s',16,1,@LoginError);
             RETURN;
         END CATCH;
     END;
