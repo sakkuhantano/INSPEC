@@ -63,7 +63,7 @@ namespace INSPEC.Secure
             if (String.IsNullOrWhiteSpace(employeeId)) return false;
             using (var br = new WAL.BR.CF())
             {
-                DataTable admin = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("023", new SqlParameter[] { new SqlParameter("@UserID", employeeId) }));
+                DataTable admin = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("023", new SqlParameter[] { new SqlParameter("@UserID", employeeId) }), true);
                 return admin != null && admin.Rows.Count > 0;
             }
         }
@@ -425,7 +425,7 @@ namespace INSPEC.Secure
                                 new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                 new SqlParameter("@InspectionMode", inspectionMode),
                                 new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
-                            }));
+                            }), true);
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
                             throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
 
@@ -435,7 +435,7 @@ namespace INSPEC.Secure
                             DataTable versionRules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("015", new SqlParameter[] {
                                     new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }));
+                                }), true);
                             if (versionRules == null || versionRules.Rows.Count != 1)
                                 throw new Exception("Master Checklist Version tidak ditemukan untuk validasi BATCH.");
 
@@ -457,15 +457,15 @@ namespace INSPEC.Secure
 
                             DataTable versionItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("016", new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }));
+                                }), true);
                             if (versionItems == null || versionItems.Rows.Count == 0)
                                 throw new Exception("Master Checklist Version tidak memiliki item checklist.");
 
                             DataTable versionGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("017", new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }));
-                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("018", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }));
-                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("019", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }));
+                                }), true);
+                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("018", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }), true);
+                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("019", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }), true);
 
                             string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
                             JArray versionPointArray = record["Points"] as JArray ?? new JArray();
@@ -725,7 +725,7 @@ namespace INSPEC.Secure
                                     new SqlParameter("@LocationID", locationId),
                                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                     new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
-                                }));
+                                }), true);
                             var validMasterPointIDs = new HashSet<long>();
                             foreach (DataRow masterPoint in coveragePoints.Rows)
                             {
@@ -756,7 +756,7 @@ namespace INSPEC.Secure
                         }
 
                         syncStage = "preflight existing inspection";
-                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("021", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) }));
+                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("021", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) }), true);
                         if (existingRows != null && existingRows.Rows.Count > 0)
                         {
                             DataRow existing = existingRows.Rows[0];
@@ -785,7 +785,7 @@ namespace INSPEC.Secure
                                 else
                                     record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
                             }
-                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("022", new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) }));
+                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("022", new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) }), true);
                             if (oldPhotoRows == null)
                                 throw new Exception("Could not load existing Inspection photo records before sync.");
                         }
@@ -1048,7 +1048,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for Inspection entry.");
@@ -1065,7 +1065,7 @@ new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@EmployeeID", employeeId)
-                    }));
+                    }), true);
                 if (templateAccess.Rows.Count == 0)
                     throw new HttpException(403, "This employee is not assigned to the selected Inspection template and company/location.");
 
@@ -1078,7 +1078,7 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@ScheduledTime", scheduledTime ?? ""),
                         new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@InspectionDate", ParseDate(inspectionDate, DateTime.Today))
-                    }));
+                    }), true);
 
                 return new
                 {
@@ -1106,7 +1106,7 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized to view Inspection schedules.");
 
@@ -1121,7 +1121,7 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionList", String.Join(";", sections))
-                    }));
+                    }), true);
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1143,7 +1143,7 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId)
-                }));
+                }), true);
             if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                 throw new HttpException(403, "This account is not authorized to delete Inspection transactions.");
             var sections = auth.Rows[0]["Section"].ToString()
@@ -1158,7 +1158,7 @@ new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
                     new SqlParameter("@EmployeeID", employeeId)
-                }));
+                }), true);
             if (templateAccess.Rows.Count == 0)
                 throw new HttpException(403, "This employee is not assigned to the Inspection template and company/location.");
         }
@@ -1205,7 +1205,7 @@ new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
-                    }));
+                    }), true);
                 DataTable confirmed = br.EQueryP("SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)), new SqlParameter("@DeletedBy", Limit(employeeId, 50)) });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
@@ -1246,14 +1246,14 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
                         new SqlParameter("@EmployeeID", Limit(employeeId, 50)),
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel))
-                    }));
+                    }), true);
                 DataTable confirmed = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("036", new SqlParameter[] {
 new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
                         new SqlParameter("@EmployeeID", Limit(employeeId, 50))
-                    }));
+                    }), true);
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
         }
@@ -1281,7 +1281,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                 DataTable type = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("037", new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@SectionList", sectionList)
-                    }));
+                    }), true);
                 if (type == null || type.Rows.Count == 0)
                     throw new HttpException(403, "Inspection Type is not configured for BATCH/LIGHTNING map inspection or not assigned to this inspector.");
 
@@ -1290,7 +1290,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@DetailCode", detailCode),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 if (detail == null || detail.Rows.Count == 0)
                     throw new HttpException(404, "Inspection Type Detail is not active for this company/location.");
 
@@ -1299,7 +1299,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@DetailCode", detailCode)
-                    }));
+                    }), true);
 
                 var mapRows = new List<Dictionary<string, object>>();
                 var mapIds = new HashSet<long>();
@@ -1411,7 +1411,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized to view Inspection entry records.");
@@ -1430,7 +1430,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@FromDate", submittedFrom),
                         new SqlParameter("@ThruDate", submittedThru),
                         new SqlParameter("@SectionList", String.Join(";", sections))
-                    }));
+                    }), true);
 
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
@@ -1482,7 +1482,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable filterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("075", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate) }));
+                DataTable filterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("075", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate) }), true);
 
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filterRows.Rows)
@@ -1493,7 +1493,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                     filters.Add(item);
                 }
 
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("076", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }));
+                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("076", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }), true);
 
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
@@ -1526,7 +1526,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId)
-                }));
+                }), true);
 
                 if (rows.Rows.Count == 0)
                     return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
@@ -1556,7 +1556,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1602,7 +1602,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable filtersTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("077", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", "") }));
+                DataTable filtersTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("077", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", "") }), true);
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filtersTable.Rows)
                 {
@@ -1610,7 +1610,7 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                     foreach (DataColumn col in filtersTable.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     filters.Add(item);
                 }
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("078", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }));
+                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("078", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }), true);
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1741,12 +1741,12 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@TechnicianView", technicianView ? 1 : 0),
                         new SqlParameter("@IsAdministrator", !technicianView && IsInspectionAdministrator(employeeId) ? 1 : 0)
-                    }));
+                    }), true);
                 if (header.Rows.Count == 0)
                     throw new HttpException(404, "Inspection not found or not authorized for approval.");
 
                 DataTable results = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("042", new SqlParameter[] {
-new SqlParameter("@InspectionID", inspectionId) }));
+new SqlParameter("@InspectionID", inspectionId) }), true);
 
                 var groupedItems = new Dictionary<int, Dictionary<string, object>>();
                 foreach (DataRow row in results.Rows)
@@ -1798,9 +1798,9 @@ new SqlParameter("@InspectionID", inspectionId) }));
                 if (String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) ||
                     String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                 {
-                    DataTable pointMasterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("043", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }));
+                    DataTable pointMasterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("043", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
 
-                    DataTable pointResultRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("044", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }));
+                    DataTable pointResultRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("044", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
 
                     var pointItems = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
                     foreach (DataRow row in pointResultRows.Rows)
@@ -1896,7 +1896,7 @@ new SqlParameter("@InspectionID", inspectionId) }));
 
                     if (String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
-                        DataTable scheduleRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("045", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }));
+                        DataTable scheduleRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("045", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
                         foreach (DataRow scheduleRow in scheduleRows.Rows)
                             batchScheduleRows.Add(new Dictionary<string, object> {
                                 { "ScheduleTime", GF.GetString(scheduleRow["ScheduleTime"]) },
@@ -1913,16 +1913,16 @@ new SqlParameter("@InspectionID", inspectionId) }));
                 DataTable meta = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("046", new SqlParameter[] {
 new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
                         new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
-                    }));
+                    }), true);
                 if (meta.Rows.Count > 0)
                 {
                     DataRow m = meta.Rows[0];
                     DataTable templateItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("047", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }));
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
                     DataTable templateGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("048", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }));
-                    DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("049", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }));
-                    DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("050", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }));
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
+                    DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("049", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
+                    DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("050", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
 
                     var sections = templateItems.AsEnumerable()
                         .GroupBy(row => new
@@ -2015,7 +2015,7 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }))
                         sections = sections
                     };
                 }
-                DataTable photoTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("051", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }));
+                DataTable photoTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("051", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow photo in photoTable.Rows)
                 {
@@ -2060,13 +2060,13 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }))
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow header in headers.Rows)
                 {
                     long id = Convert.ToInt64(header["InspectionID"]);
                     DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("053", new SqlParameter[] {
-new SqlParameter("@InspectionID", id) }));
+new SqlParameter("@InspectionID", id) }), true);
                     var grouped = new Dictionary<int, Dictionary<string, object>>();
                     foreach (DataRow row in rows.Rows)
                     {
@@ -2109,8 +2109,8 @@ new SqlParameter("@InspectionID", id) }));
                     if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase) ||
                         String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
-                        DataTable returnedPoints = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("054", new SqlParameter[] { new SqlParameter("@InspectionID", id) }));
-                        DataTable returnedPointItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("055", new SqlParameter[] { new SqlParameter("@InspectionID", id) }));
+                        DataTable returnedPoints = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("054", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
+                        DataTable returnedPointItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("055", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
                         var pointGroups = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
                         foreach (DataRow pointItemRow in returnedPointItems.Rows)
                         {
@@ -2180,7 +2180,7 @@ new SqlParameter("@InspectionID", id) }));
                         record["Points"] = returnedPointList;
                         if (String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                         {
-                            DataTable returnedSchedules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("056", new SqlParameter[] { new SqlParameter("@InspectionID", id) }));
+                            DataTable returnedSchedules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("056", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
                             record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new
                             {
                                 ScheduleTime = GF.GetString(row["ScheduleTime"]),
@@ -2196,16 +2196,16 @@ new SqlParameter("@InspectionID", id) }));
                     DataTable meta = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("057", new SqlParameter[] {
 new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
                             new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
-                        }));
+                        }), true);
                     if (meta.Rows.Count > 0)
                     {
                         DataRow m = meta.Rows[0];
                         DataTable templateItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("058", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }));
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
                         DataTable templateGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("059", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }));
-                        DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("060", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }));
-                        DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("061", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }));
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
+                        DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("060", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
+                        DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("061", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
 
                         var sections = templateItems.AsEnumerable()
                             .GroupBy(row => new
@@ -2438,7 +2438,7 @@ using (var br = new WAL.BR.CF())
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
                     new SqlParameter("@InspectionIDs", String.Join(",", inspectionIds.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray()))
-                }));
+                }), true);
                 if (rows == null || rows.Rows.Count != inspectionIds.Length)
                     throw new HttpException(403, "Satu atau lebih transaksi tidak ditemukan atau berada di luar hak akses Supervisor.");
                 List<string> types = rows.AsEnumerable()
@@ -2500,7 +2500,7 @@ using (var br = new WAL.BR.CF())
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }));
+                    }), true);
                 if (authorized == null || authorized.Rows.Count == 0)
                     throw new HttpException(403, "Inspection is outside the supervisor's authorized section, template, or company/location scope.");
 
@@ -2543,7 +2543,7 @@ using (var br = new WAL.BR.CF())
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable header = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("024", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }));
+                        new SqlParameter("@InspectionID", inspectionId) }), true);
                     if (header.Rows.Count == 0)
                     {
                         html.Append(baseHtml ?? "");
@@ -2558,7 +2558,7 @@ using (var br = new WAL.BR.CF())
                     DataTable schedules;
                     if (inspectionMode == "LIGHTNING")
                         schedules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("025", new SqlParameter[] {
-                            new SqlParameter("@InspectionID", inspectionId) }));
+                            new SqlParameter("@InspectionID", inspectionId) }), true);
                     else
                     {
                         schedules = new DataTable();
@@ -2566,13 +2566,13 @@ using (var br = new WAL.BR.CF())
                         schedules.Rows.Add("");
                     }
                     DataTable points = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("026", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }));
+                        new SqlParameter("@InspectionID", inspectionId) }), true);
                     DataTable results = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("027", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }));
+                        new SqlParameter("@InspectionID", inspectionId) }), true);
                     DataTable resultValues = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("028", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }));
+                        new SqlParameter("@InspectionID", inspectionId) }), true);
                     DataTable photos = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("029", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }));
+                        new SqlParameter("@InspectionID", inspectionId) }), true);
 
                     html.Append(baseHtml ?? "");
                     html.Append("<hr/><h2>").Append(HttpUtility.HtmlEncode(inspectionMode == "LIGHTNING" ? "LIGHTNING DAILY INSPECTION REVIEW" :
@@ -2808,7 +2808,7 @@ using (var br = new WAL.BR.CF())
             bool emailConfigured = false;
             using (var configBr = new WAL.BR.CF())
             {
-                DataTable emailConfig = configBr.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("073", new SqlParameter[] { new SqlParameter("@C", companyId ?? "") }));
+                DataTable emailConfig = configBr.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("073", new SqlParameter[] { new SqlParameter("@C", companyId ?? "") }), true);
                 emailConfigured = emailConfig != null && emailConfig.Rows.Count > 0;
             }
 
@@ -2822,7 +2822,7 @@ using (var br = new WAL.BR.CF())
                 DataTable sender = senderBr.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("062", new SqlParameter[] {
                         new SqlParameter("@E", senderEmployeeId ?? ""),
                         new SqlParameter("@C", companyId ?? "")
-                    }));
+                    }), true);
                 if (sender != null && sender.Rows.Count > 0)
                 {
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
@@ -2832,7 +2832,7 @@ using (var br = new WAL.BR.CF())
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable queue = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("063", new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }), false, true);
+                DataTable queue = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("063", new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }),true, true);
 
                 int sent = 0, failed = 0;
                 foreach (DataRow row in queue.Rows)
@@ -2861,7 +2861,7 @@ using (var br = new WAL.BR.CF())
                                 ""))
                             throw new InvalidOperationException("GF.SendEmail returned false.");
 
-                        br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("064", new SqlParameter[] { new SqlParameter("@ID", outboxId) }));
+                        br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("064", new SqlParameter[] { new SqlParameter("@ID", outboxId) }), true);
                         sent++;
                     }
                     catch (Exception ex)
@@ -2871,12 +2871,12 @@ using (var br = new WAL.BR.CF())
                         br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("065", new SqlParameter[] {
                                 new SqlParameter("@Error", error),
                                 new SqlParameter("@ID", outboxId)
-                            }));
+                            }), true);
                         failed++;
                     }
                 }
 
-                DataTable pending = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("080", new SqlParameter[] {}));
+                DataTable pending = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("080", new SqlParameter[] {}), true);
                 return new
                 {
                     attempted = queue.Rows.Count,
