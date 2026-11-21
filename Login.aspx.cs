@@ -35,7 +35,6 @@ namespace INSPEC
             return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
         }
 
-
         #region Control Event
         protected void Page_Load(object sender, System.EventArgs e)
         {
@@ -114,18 +113,8 @@ namespace INSPEC
         {
             using (var br=new WAL.BR.CF())
             {
-                bool valid = br.EQuery(@"SELECT TOP 1 S.UserID
-                    FROM UserSession S
-                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
-                    WHERE S.BrowserGuid = @BrowserGuid
-                      AND S.ServerGuid = @ServerGuid
-                      AND S.Token = @Token
-                      AND S.IsActive = 1
-                      AND S.ExpireTime > GETDATE()
-                      AND U.IsActive = 1",
-                    "@BrowserGuid=" + browserGuid + GF.Str2 +
-                    "@ServerGuid=" + serverGuid + GF.Str2 +
-                    "@Token=" + token).Rows.Count > 0;
+                bool valid = br.EQueryP("spPIP_Inspection_Query",
+                    LoginQueryParameters("225", browserGuid, serverGuid, token), true).Rows.Count > 0;
                 if (!valid)
                     return false;
 
@@ -172,14 +161,8 @@ namespace INSPEC
 
             using (var br = new WAL.BR.CF())
             {
-                return br.EQuery(@"SELECT TOP 1 S.UserID
-                    FROM UserSession S
-                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
-                    WHERE S.Token = @Token
-                      AND S.IsActive = 1
-                      AND S.ExpireTime > GETDATE()
-                      AND U.IsActive = 1",
-                    "@Token=" + token).Rows.Count > 0;
+                return br.EQueryP("spPIP_Inspection_Query",
+                    LoginQueryParameters("226", token), true).Rows.Count > 0;
             }
         }
 
@@ -188,8 +171,8 @@ namespace INSPEC
         {
             using (var br = new WAL.BR.CF())
             {
-                br.EQueryP("spUTL_INSPEC_Login_Command",
-                    LoginQueryParameters("001", browserGuid, serverGuid, token), true);
+                br.EQueryP("spPIP_Inspection_Query",
+                    LoginQueryParameters("220", browserGuid, serverGuid, token), true);
                 GFC.ClearCookie();
                 return true;
             }
@@ -218,8 +201,8 @@ namespace INSPEC
                 {
                     // Consume the short-lived portal ticket atomically to prevent replay.
                     DataTable dtTicket = oUser.EQueryP(
-                        "spUTL_INSPEC_Login_Command",
-                        LoginQueryParameters("002", infoID), true);
+                        "spPIP_Inspection_Query",
+                        LoginQueryParameters("221", infoID), true);
 
                     if (dtTicket.Rows.Count != 1)
                         return new { success = false, message = "Portal login ticket is invalid, expired, or already used." };
@@ -229,14 +212,9 @@ namespace INSPEC
                     if (String.IsNullOrWhiteSpace(employeeID) || String.IsNullOrWhiteSpace(passwordHash))
                         return new { success = false, message = "Portal login ticket does not contain valid user credentials." };
 
-                    DataTable dtUser = oUser.EQuery(
-                        @"SELECT TOP 2 UserID
-                          FROM SysWebUser
-                          WHERE employeeid = @EmployeeID
-                            AND [Password] = @Password
-                            AND IsActive = 1",
-                        "@EmployeeID=" + employeeID + GF.Str2 +
-                        "@Password=" + passwordHash);
+                    DataTable dtUser = oUser.EQueryP(
+                        "spPIP_Inspection_Query",
+                        LoginQueryParameters("228", employeeID, passwordHash), true);
 
                     if (dtUser.Rows.Count != 1)
                         return new { success = false, message = "INSPEC account not found or inactive." };
@@ -267,8 +245,8 @@ namespace INSPEC
             using (var oUser = new WAL.BR.CF())
             {
                 DataTable dt = oUser.EQueryP(
-                    "spUTL_INSPEC_Login_Command",
-                    LoginQueryParameters("003", p_employeeid, p_browserGuid), true);
+                    "spPIP_Inspection_Query",
+                    LoginQueryParameters("222", p_employeeid, p_browserGuid), true);
                 var _arrList = new ArrayList();
                 if (dt.Rows.Count == 0) return new { success = false, message = "user not found..." };
                 if (Convert.ToString(dt.Rows[0]["Password"]).Trim() != V_Pwd.Trim())
@@ -286,13 +264,9 @@ namespace INSPEC
 
                 // Load the authorized INSPEC front-end menu from SysWeb2.
                 // EmployeeID is the NIK used by SysWebUserUserGroup and the authorization function.
-                DataTable dtMenus = oUser.EQuery(
-                    @"SELECT MenuID, ParentMenuID, Caption, URL, AppID, IsReport,
-                             [COUNTER], Line, ImageUrl, [DESCRIPTION], isActive, HeaderDetail
-                      FROM dbo.F_SelectALLMenuAuthorization(@AppID, @EmployeeID, '')
-                      ORDER BY [COUNTER], MenuID",
-                    "@AppID=inspecfo" + GF.Str2 +
-                    "@EmployeeID=" + V_EmpID);
+                DataTable dtMenus = oUser.EQueryP(
+                    "spPIP_Inspection_Query",
+                    LoginQueryParameters("227", V_EmpID), true);
 
                 // Match the same authorized child-menu set required by dashboard.aspx.
                 // Parent menus or unrelated INSPEC menus alone must not create a session.
@@ -322,8 +296,8 @@ namespace INSPEC
                     menus.Add(menu);
                 }
                 foreach (DataRow row in oUser.EQueryP(
-                    "spUTL_INSPEC_Login_Command",
-                    LoginQueryParameters("004", V_EmpID), true).Rows)
+                    "spPIP_Inspection_Query",
+                    LoginQueryParameters("223", V_EmpID), true).Rows)
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     dict["companylocation"] = row["companylocation"]; dict["companyname"] = row["companyname"];
@@ -333,8 +307,8 @@ namespace INSPEC
                 try
                 {
                     oUser.EQueryP(
-                        "spUTL_INSPEC_Login_Command",
-                        LoginQueryParameters("005", V_EmpID, p_browserGuid, v_serverguid, v_token, p_deviceName), true);
+                        "spPIP_Inspection_Query",
+                        LoginQueryParameters("224", V_EmpID, p_browserGuid, v_serverguid, v_token, p_deviceName), true);
                     GFC.SetCookie(v_token);
                     return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
                         companylist = _arrList, menus = menus, userid = V_UserID, username = v_username, curcompany = v_currcompany,
