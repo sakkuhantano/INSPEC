@@ -437,7 +437,7 @@ namespace INSPEC.Secure
             {
                 using (WAL.BR.CF br = new WAL.BR.CF())
                     rows = br.EQueryP("spPIP_Inspection_Query",
-                        DailyLogQueryParameters("215", LoginEmployeeID, period, selectedTypeSql, keyword,
+                        DailyLogQueryParameters("215", LoginEmployeeID, period, NormalizeLogType(SelectedLogType), keyword,
                             start.ToString(CultureInfo.InvariantCulture), end.ToString(CultureInfo.InvariantCulture)),
                         true);
             }
@@ -534,7 +534,7 @@ namespace INSPEC.Secure
                 if (date > TodayDate.AddDays(1))
                     throw new InvalidOperationException("Tanggal aktivitas maksimal besok.");
                 string periodSql = date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-                string typeSql = SafeSqlLiteral(NormalizeLogType(SelectedLogType), 10, "Jenis log");
+                string typeSql = NormalizeLogType(SelectedLogType);
                 DataTable V_dt = br.EQueryP("spPIP_Inspection_Query",
                     DailyLogQueryParameters("216", LoginEmployeeID, periodSql, typeSql), true);
 
@@ -697,8 +697,10 @@ namespace INSPEC.Secure
                 throw new InvalidOperationException("Tanggal aktivitas maksimal besok.");
 
             string periodSql = date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
-            string memberSql = SafeSqlLiteral(memberId, 10, "EmployeeID");
-            string typeSql = SafeSqlLiteral(NormalizeLogType(SelectedLogType), 10, "Jenis log");
+            if (String.IsNullOrWhiteSpace(memberId) || memberId.Length > 10)
+                throw new InvalidOperationException("EmployeeID tidak valid.");
+            string memberSql = memberId.Trim();
+            string typeSql = NormalizeLogType(SelectedLogType);
             DataTable raw;
             using (WAL.BR.CF br = new WAL.BR.CF())
             {
