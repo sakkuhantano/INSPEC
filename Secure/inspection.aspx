@@ -1208,6 +1208,75 @@
         .inspection-entry-header-actions .btn { font-size: .57rem !important; padding-left: .28rem !important; padding-right: .28rem !important; }
     }
 
+    /* Map tab mobile corrections: keep Navigator visible and remove the sticky-header offset. */
+    @media (max-width: 767.98px) {
+        body.inspection-map-mobile-active #contentbody #inspectionEditorStickyHeader {
+            position: static !important;
+            top: auto !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace {
+            margin-top: 0 !important;
+        }
+    }
+    @media (max-width: 575.98px) {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-toolbar {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: .35rem !important;
+            padding: .35rem .45rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-toolbar .inspection-map-title-wrap {
+            flex: 0 0 auto !important;
+            width: 100% !important;
+            max-width: none !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-toolbar .inspection-map-actions {
+            display: flex !important;
+            flex: 0 0 auto !important;
+            flex-wrap: wrap !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            overflow: visible !important;
+            gap: .3rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-actions #btnInspectionPointNavigator {
+            display: inline-flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            flex: 0 0 auto !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 36px !important;
+            min-width: 36px !important;
+            max-width: 36px !important;
+            height: 30px !important;
+            min-height: 30px !important;
+            padding: .15rem !important;
+            order: 0 !important;
+            font-size: .8rem !important;
+            line-height: 1 !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-actions #btnInspectionPointNavigator .bi {
+            display: inline-block !important;
+            margin: 0 !important;
+            font-size: .9rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-actions #btnInspectionPointNavigator .inspection-point-navigator-button-label {
+            display: none !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-actions > .btn {
+            flex: 0 0 auto !important;
+        }
+    }
+
     /* Phone full-height Batch/Lightning map workspace: keep Submit Batch visible. */
     @media (max-width: 767.98px) {
         body.inspection-map-mobile-active #pageStickyBar {
