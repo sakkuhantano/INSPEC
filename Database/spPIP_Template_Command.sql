@@ -77,24 +77,28 @@ BEGIN
     IF @p_Tipe='003'
     BEGIN
         SELECT IDTemplate
-        FROM dbo.PIP_M_CheckListWOPM_Version
-        WHERE IDVersion=@p_IDVersion;
+        FROM dbo.PIP_M_CheckListWOPM
+        WHERE TemplateNo=@p_TemplateNo AND IDTemplate<>@p_IDTemplate;
         RETURN;
     END;
 
     IF @p_Tipe='004'
     BEGIN
-        SELECT IDTemplate
-        FROM dbo.PIP_M_CheckListWOPM_Version
-        WHERE IDVersion=@p_IDVersion;
+        SELECT A.IDVersion
+        FROM dbo.PIP_M_CheckListWOPM_Version A
+        JOIN dbo.PIP_M_CheckListWOPM B ON A.IDTemplate=B.IDTemplate
+        WHERE B.SectionID=@p_SectionID
+          AND B.TemplateNo=@p_TemplateNo
+          AND A.Version=@p_Version
+          AND A.IDVersion<>@p_IDVersion;
         RETURN;
     END;
 
     IF @p_Tipe='005'
     BEGIN
-        SELECT IDTemplate
-        FROM dbo.PIP_M_CheckListWOPM_Version
-        WHERE IDVersion=@p_IDVersion;
+        SELECT COUNT(*) Total
+        FROM dbo.SplitStringConvertToTable(
+            (SELECT ISNULL(CompanyLocationList,'') FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@p_IDTemplate), ';');
         RETURN;
     END;
 
