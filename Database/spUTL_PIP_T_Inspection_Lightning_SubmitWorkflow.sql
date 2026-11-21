@@ -19,7 +19,7 @@ BEGIN
     DECLARE @V_ChiefEngEmail VARCHAR(4000), @V_ChiefEngName VARCHAR(4000);
     DECLARE @V_ChiefSecEmail VARCHAR(4000), @V_ChiefSecName VARCHAR(4000);
     DECLARE @V_ExistingStatus VARCHAR(30), @V_Action VARCHAR(20);
-    DECLARE @V_EventID BIGINT, @V_LastActionCode VARCHAR(20);
+    DECLARE @V_EventID BIGINT, @V_LastActionCode VARCHAR(20), @V_IsActorSPV BIT=0;
 
     SELECT @V_CompanyID=I.CompanyID,@V_LocationID=I.LocationID,@V_SectionID=I.SectionID,
            @V_OwnerEmployeeID=I.OwnerEmployeeID,@V_InspectionNo=I.InspectionNo,
@@ -50,6 +50,9 @@ BEGIN
     FROM dbo.SysWebCommonValue C
     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
       AND C.ID=@V_ConfigScope+';CHIEF_SEC';
+
+    IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID)
+        SET @V_IsActorSPV=1;
 
     IF ISNULL(@V_SPVID,'')='' OR ISNULL(@V_ChiefEngID,'')='' OR ISNULL(@V_ChiefSecID,'')=''
     BEGIN RAISERROR('SPV, Chief Engineering, and Chief Security routing must be configured for this Company, Location, and Section.',16,1); RETURN; END;
@@ -150,7 +153,9 @@ BEGIN
         -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
         UPDATE dbo.PIP_T_Inspection
         SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
-            IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+            IsApproved=CASE WHEN @V_IsActorSPV=1 THEN 1 ELSE 0 END,
+            ApprovedBy=CASE WHEN @V_IsActorSPV=1 THEN @p_ActorEmployeeID ELSE '' END,
+            ApprovedDate=CASE WHEN @V_IsActorSPV=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
             IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
             IsApproved2=0,Approved2By='',Approved2Date=CONVERT(DATETIME,'19000101',112),
             ApprovalRemark='',ReasonVoid='',ReasonVoid1='',ReasonVoid2='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
@@ -162,9 +167,19 @@ BEGIN
                 'TECHNICIAN',@V_Action,@p_ActorEmployeeID,GETDATE(),NULL);
         SET @V_EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
 
+        IF @V_IsActorSPV=1
+        BEGIN
+            INSERT dbo.PIP_T_InspectionApprovalHistory
+            (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
+            VALUES ('LIGHTNING',@p_InspectionID,@V_CompanyID,@V_LocationID,@V_SectionID,
+                    'SPV','APPROVED',@p_ActorEmployeeID,GETDATE(),N'Auto-approved: inspection owner is a configured SPV.');
+            SET @V_EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
+        END;
+
         IF @V_EmailEnabled=1
         BEGIN
             /* One outbox row per configured SPV; RecipientEmployeeID is a single NIK. */
+            IF @V_IsActorSPV=0
             INSERT dbo.PIP_T_InspectionEmailOutbox
             (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,ApprovalToken,
              EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
@@ -188,15 +203,32 @@ BEGIN
             ) X
             CROSS APPLY (SELECT NEWID() ApprovalToken) T;
 
+            IF @V_IsActorSPV=1
+                INSERT dbo.PIP_T_InspectionEmailOutbox
+                (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,ApprovalToken,
+                 EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+                SELECT 'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':CHIEF_ENG:'+X.EmployeeID,
+                       @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,T.ApprovalToken,
+                       N'Lightning Inspection menunggu approval Chief Engineering - '+ISNULL(@V_InspectionNo,''),
+                       N'<p>SPV '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah auto-approve inspeksi miliknya. Daily Lightning Inspection menunggu review Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'&approvalToken='+CONVERT(NVARCHAR(36),T.ApprovalToken)+N'">Buka halaman approval INSPEC</a></p>',
+                       N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N') setelah auto-approval SPV.',
+                       'PENDING',0,GETDATE()
+                FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress,
+                             ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+                      FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') S
+                      JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+                      WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'') X
+                CROSS APPLY (SELECT NEWID() ApprovalToken) T;
+
             INSERT dbo.PIP_T_InspectionEmailOutbox
             (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
              EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
             VALUES
             ('LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':TECHNICIAN',
              @V_EventID,'LIGHTNING',@p_InspectionID,'TECHNICIAN',@V_OwnerEmployeeID,@V_TechnicianEmail,
-             N'Lightning Inspection telah dikirim - '+ISNULL(@V_InspectionNo,''),
-             N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'.</p>',
-             N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'. Status: CHECKED.','PENDING',0,GETDATE());
+             CASE WHEN @V_IsActorSPV=1 THEN N'Lightning Inspection SPV verified - ' ELSE N'Lightning Inspection telah dikirim - ' END+ISNULL(@V_InspectionNo,''),
+             CASE WHEN @V_IsActorSPV=1 THEN N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah diverifikasi otomatis oleh Anda sebagai SPV dan menunggu Chief Engineering.</p>' ELSE N'<p>Halo '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N'), Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah dikirim dan berstatus CHECKED. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'.</p>' END,
+             CASE WHEN @V_IsActorSPV=1 THEN N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah diverifikasi otomatis oleh SPV dan menunggu Chief Engineering.' ELSE N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' milik '+ISNULL(@V_TechnicianName,@V_OwnerEmployeeID)+N' ('+ISNULL(@V_OwnerEmployeeID,'')+N') telah dikirim. Menunggu verifikasi SPV '+ISNULL(@V_SPVName,@V_SPVID)+N'. Status: CHECKED.' END,'PENDING',0,GETDATE());
         END;
 
     END TRY
