@@ -238,41 +238,16 @@ FROM
             if (String.IsNullOrWhiteSpace(sectionList)) return new JavaScriptSerializer().Serialize(new object[0]);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT aa.val SectionID,
-       TotalTemplate = ISNULL((
-           SELECT COUNT(*)
-           FROM PIP_M_CheckListWOPM bb
-           WHERE bb.SectionID = aa.val
-             AND (
-                 ISNULL(bb.CompanyScope, 'S') = 'A'
-                 OR (';' + ISNULL(bb.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-             )
-       ), 0)
-FROM dbo.SplitStringConvertToTable(@SectionList, ';') aa
-WHERE 1=1
-  AND (
-      EXISTS (
-          SELECT 1
-          FROM dbo.SysWebUserCompanyLocation perm
-          WHERE perm.AppID = 'INSPEC'
-            AND perm.UserID = @UserID
-            AND perm.CompanyID = @CompanyID
-            AND perm.LocationID = @LocationID
-      )
-      OR EXISTS (
-          SELECT 1
-          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
-          WHERE loginCompany.CompanyID = @CompanyID
-            AND loginCompany.LocationID = @LocationID
-      )
-  )",
-                    "@SectionList=" + sectionList
-                    + GF.Str2 + "@UserID=" + userId
-                    + GF.Str2 + "@CompanyID=" + companyId
-                    + GF.Str2 + "@LocationID=" + locationId
-                    + GF.Str2 + "@EmployeeID=" + employeeId);
-
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "005"),
+                        new SqlParameter("@p_SectionID", sectionList),
+                        new SqlParameter("@p_UserID", userId),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    });
                 var data = dt.AsEnumerable()
                     .Select(row => new
                     {
