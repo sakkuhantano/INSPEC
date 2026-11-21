@@ -21,13 +21,7 @@ namespace INSPEC.Secure
             if (String.IsNullOrWhiteSpace(employeeId)) return false;
             using (var br = new WAL.BR.CF())
             {
-                DataTable admin = br.EQueryP(@"
-SELECT TOP 1 1
-FROM dbo.SysWebUser SU
-JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
-WHERE SU.EmployeeID=@UserID
-  AND SU.IsActive=1
-  AND UG.UserGroupID='administrator'",
+                DataTable admin = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "023"),
                     new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
                 return admin != null && admin.Rows.Count > 0;
             }
@@ -379,39 +373,7 @@ WHERE SU.EmployeeID=@UserID
                     using (var br = new WAL.BR.CF())
                     {
                         syncStage = "validate inspection template detail";
-                        DataTable templateDetailCheck = br.EQueryP(@"
-SELECT T.IDTemplate
-FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.IDTemplate=@IDTemplate
-  AND T.SectionID=@SectionID
-  AND T.TemplateType='I'
-  
-  AND (ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-  AND (ISNULL(T.EmployeeList,'')=''
-       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
-  AND EXISTS (
-       SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
-       WHERE V.IDTemplate=T.IDTemplate
-         AND V.IDVersion=@IDVersion
-         AND V.Version=@TemplateVersion
-         AND V.Status IN ('Active','Archieved')
-  )
-  AND T.InspectionTypeCode=@InspectionTypeCode
-  AND EXISTS (
-       SELECT 1 FROM dbo.PIP_M_InspectionType IT
-       WHERE IT.InspectionTypeCode=@InspectionTypeCode
-         AND IT.SectionID=@SectionID
-         AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')=@InspectionMode
-  )
-  AND (
-       ISNULL(T.InspectionTypeDetailCode,'')=''
-       OR EXISTS (
-           SELECT 1
-           FROM dbo.SplitStringConvertToTable(T.InspectionTypeDetailCode, ';') AllowedDetail
-           WHERE LTRIM(RTRIM(AllowedDetail.val))=@InspectionTypeDetailCode
-       )
-  )",
+                        DataTable templateDetailCheck = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "014"),
                             new SqlParameter[] {
                                 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                 new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")),
@@ -430,16 +392,7 @@ WHERE T.IDTemplate=@IDTemplate
                         if (isBatchInspection)
                         {
                             syncStage = "validate batch checklist version rules";
-                            DataTable versionRules = br.EQueryP(@"
-SELECT ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement,
-       ISNULL(V.IsSummaryRequired,1) IsSummaryRequired,
-       ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired,
-       ISNULL(V.IsRemark1Required,0) IsRemark1Required,
-       ISNULL(V.IsRemark2Required,0) IsRemark2Required,
-       ISNULL(V.StatusOption,'') StatusOption,
-       ISNULL(V.RemarkRequiredOptions,'') RemarkRequiredOptions
-FROM dbo.PIP_M_CheckListWOPM_Version V
-WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
+                            DataTable versionRules = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "015"),
                                 new SqlParameter[] {
                                     new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
@@ -463,52 +416,20 @@ WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
                                  String.IsNullOrWhiteSpace(TokenString(record, "FollowUpRemark"))))
                                 throw new Exception("Responsible Section dan Follow Up Remark wajib diisi sesuai Master Checklist Version.");
 
-                            DataTable versionItems = br.EQueryP(@"
-SELECT I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
-       ISNULL(I.IsValueRequired,0) IsValueRequired,
-       ISNULL(I.IsRemark1Required,0) IsRemark1Required,
-       ISNULL(I.IsRemark2Required,0) IsRemark2Required,
-       ISNULL(I.IsRemark1Mandatory,0) IsRemark1Mandatory,
-       ISNULL(I.IsRemark2Mandatory,0) IsRemark2Mandatory,
-       ISNULL(I.IsUseDefaultRemark1,0) IsUseDefaultRemark1,
-       ISNULL(I.IsUseDefaultRemark2,0) IsUseDefaultRemark2,
-       ISNULL(I.IsToleranceRequired,0) IsToleranceRequired,
-       I.MinValue, I.MaxValue, I.MinTolerance, I.MaxTolerance,
-       ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions
-FROM dbo.PIP_M_CheckListWOPM_Item I
-INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion
-ORDER BY S.DisplayOrder, I.DisplayOrder",
+                            DataTable versionItems = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "016"),
                                 new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
                             if (versionItems == null || versionItems.Rows.Count == 0)
                                 throw new Exception("Master Checklist Version tidak memiliki item checklist.");
 
-                            DataTable versionGroups = br.EQueryP(@"
-SELECT G.IDItem, G.GroupName, G.FieldList
-FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
-INNER JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
-INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion
-ORDER BY G.DisplayOrder",
+                            DataTable versionGroups = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "017"),
                                 new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
-                            DataTable versionRepeatConfig = br.EQueryP(@"
-SELECT R.IDItem,R.RepeatMode,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion",
+                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "018"),
                                 new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
-                            DataTable versionRepeatFields = br.EQueryP(@"
-SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
-FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
-JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
-JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-WHERE S.IDVersion=@IDVersion
-ORDER BY F.IDItem,F.DisplayOrder",
+                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "019"),
                                 new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
 
                             string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
@@ -764,16 +685,7 @@ ORDER BY F.IDItem,F.DisplayOrder",
                             foreach (JObject submittedPoint in submittedPointArray.OfType<JObject>())
                                 submittedPointIDs.Add(TokenLong(submittedPoint, "InspectionPointID"));
 
-                            DataTable coveragePoints = br.EQueryP(@"
-SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
-       ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
-FROM dbo.PIP_M_InspectionPoint P
-INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
-LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
-WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
-  AND M.InspectionTypeCode=@InspectionTypeCode
-  AND M.InspectionTypeDetailCode=@InspectionTypeDetailCode
-  AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1",
+                            DataTable coveragePoints = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "020"),
                                 new SqlParameter[] {
                                     new SqlParameter("@CompanyID", companyId),
                                     new SqlParameter("@LocationID", locationId),
@@ -810,11 +722,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                         }
 
                         syncStage = "preflight existing inspection";
-                        DataTable existingRows = br.EQueryP(@"
-SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
-       StartDateTime, EndDateTime, ReasonVoid, IsSubmitted
-FROM dbo.PIP_T_Inspection
-WHERE ClientInspectionID=@ClientInspectionID",
+                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "021"),
                             new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
                         if (existingRows != null && existingRows.Rows.Count > 0)
                         {
@@ -844,10 +752,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                                 else
                                     record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
                             }
-                            oldPhotoRows = br.EQueryP(@"
-SELECT FileName, FileType, PhotoType, SeqNo
-FROM dbo.PIP_T_InspectionPhoto
-WHERE InspectionID=@InspectionID",
+                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "022"),
                                 new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) });
                             if (oldPhotoRows == null)
                                 throw new Exception("Could not load existing Inspection photo records before sync.");
