@@ -13,7 +13,7 @@ namespace INSPEC.Secure
 {
     public partial class dashboard : System.Web.UI.Page
     {
-        private static SqlParameter[] InspectionDashboardQueryParameters(string type, params SqlParameter[] values)
+        // Positional TVP contract: first supplied value -> C1, second -> C2, etc.; parameter names are not serialized.\n        private static SqlParameter[] InspectionDashboardQueryParameters(string type, params SqlParameter[] values)
         {
             DataTable data = new DataTable();
             for (int i = 1; i <= 13; i++)
