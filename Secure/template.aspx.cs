@@ -141,38 +141,16 @@ namespace INSPEC.Secure
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable invalid = br.EQuery(@"
-SELECT TOP 1 EntityType
-FROM
-(
-    SELECT 'SECTION' EntityType
-    FROM dbo.SplitStringConvertToTable(@SectionIDs,';') X
-    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
-        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Section S
-         WHERE S.IDSection=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
-    UNION ALL
-    SELECT 'SUBSECTION'
-    FROM dbo.SplitStringConvertToTable(@SubSectionIDs,';') X
-    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
-        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_SubSection SS
-         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=SS.IDSection
-         WHERE SS.IDSubSection=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
-    UNION ALL
-    SELECT 'ITEM'
-    FROM dbo.SplitStringConvertToTable(@ItemIDs,';') X
-    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
-        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Item I
-         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-         WHERE I.IDItem=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
-    UNION ALL
-    SELECT 'GROUP'
-    FROM dbo.SplitStringConvertToTable(@GroupIDs,';') X
-    WHERE LTRIM(RTRIM(X.val))<>'' AND NOT EXISTS
-        (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
-         JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
-         JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
-         WHERE G.IDGroup=CONVERT(INT,X.val) AND S.IDVersion=@IDVersion)
-) InvalidEntities",
+                DataTable invalid = br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "001"),
+                        new SqlParameter("@p_SectionID", sectionIds),
+                        new SqlParameter("@p_SubSectionIDs", subSectionIds),
+                        new SqlParameter("@p_ItemIDs", itemIds),
+                        new SqlParameter("@p_GroupIDs", groupIds),
+                        new SqlParameter("@p_IDVersion", idVersion)
+                    });
                     "@SectionIDs=" + (sectionIds ?? "") + GF.Str2 +
                     "@SubSectionIDs=" + (subSectionIds ?? "") + GF.Str2 +
                     "@ItemIDs=" + (itemIds ?? "") + GF.Str2 +
@@ -615,14 +593,12 @@ FROM
             using (var br = new WAL.BR.CF())
             {
                 // 1. Validasi Duplikasi Nomor Template
-                string queryTemplate = @"
-            SELECT IDTemplate FROM PIP_M_CheckListWOPM
-            WHERE TemplateNo=@TemplateNo AND IDTemplate<>@IDTemplate";
-
-                string paramsTemplate = "@TemplateNo=" + templateNo + GF.Str2 +
-                                         "@IDTemplate=" + idTemplate;
-
-                if (br.EQuery(queryTemplate, paramsTemplate).Rows.Count > 0)
+                if (br.EQueryP("spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "003"),
+                        new SqlParameter("@p_TemplateNo", templateNo),
+                        new SqlParameter("@p_IDTemplate", idTemplate)
+                    }).Rows.Count > 0)                if (br.EQuery(queryTemplate, paramsTemplate).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -635,18 +611,14 @@ FROM
                 }
 
                 // 2. Validasi Duplikasi Versi
-                string queryVersion = @"
-            SELECT A.* FROM PIP_M_CheckListWOPM_Version A
-            INNER JOIN PIP_M_CheckListWOPM B ON A.IDTemplate=B.IDTemplate
-            WHERE B.SectionID=@SectionID AND B.TemplateNo=@TemplateNo
-            AND A.Version=@Version AND A.IDVersion<>@IDVersion";
-
-                string paramsVersion = "@SectionID=" + sectionID + GF.Str2 +
-                                       "@TemplateNo=" + templateNo + GF.Str2 +
-                                       "@Version=" + version + GF.Str2 +
-                                       "@IDVersion=" + idVersion;
-
-                if (br.EQuery(queryVersion, paramsVersion).Rows.Count > 0)
+                if (br.EQueryP("spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "004"),
+                        new SqlParameter("@p_SectionID", sectionID),
+                        new SqlParameter("@p_TemplateNo", templateNo),
+                        new SqlParameter("@p_Version", version),
+                        new SqlParameter("@p_IDVersion", idVersion)
+                    }).Rows.Count > 0)                if (br.EQuery(queryVersion, paramsVersion).Rows.Count > 0)
                 {
                     r["success"] = false;
 
@@ -854,7 +826,12 @@ FROM
                                     RequireVersionAccess(accessVersionId.ToString());
                                     using (var ownerBr = new WAL.BR.CF())
                                     {
-                                        DataTable ownerDt = ownerBr.EQuery("SELECT IDTemplate FROM dbo.PIP_M_CheckListWOPM_Version WHERE IDVersion=@IDVersion", "@IDVersion=" + accessVersionId);
+                                        DataTable ownerDt = ownerBr.EQueryP(
+                                            "spPIP_Template_Command",
+                                            new SqlParameter[] {
+                                                new SqlParameter("@p_Tipe", "002"),
+                                                new SqlParameter("@p_IDVersion", accessVersionId)
+                                            });
                                         if (ownerDt.Rows.Count == 0 || (accessTemplateId > 0 && Convert.ToInt32(ownerDt.Rows[0]["IDTemplate"]) != accessTemplateId))
                                             throw new HttpException(403, "Version does not belong to the selected Template.");
                                     }
@@ -1246,14 +1223,14 @@ FROM
                                 throw new Exception("Could not resolve the saved Version ID for version-level flags.");
                             if (targetVersionID > 0)
                             {
-                                flagBr.EQueryP(@"UPDATE dbo.PIP_M_CheckListWOPM_Version
-SET IsSummaryRequired=@IsSummaryRequired,
-    IsFollowUpRequired=@IsFollowUpRequired
-WHERE IDVersion=@IDVersion",
+                                flagBr.EQueryP(
+                                    "spPIP_Template_Command",
                                     new SqlParameter[] {
-                                        new SqlParameter("@IsSummaryRequired", versionFlag.Item3),
-                                        new SqlParameter("@IsFollowUpRequired", versionFlag.Item4),
-                                        new SqlParameter("@IDVersion", targetVersionID)
+                                        new SqlParameter("@p_Tipe", "016"),
+                                        new SqlParameter("@p_IDVersion", targetVersionID),
+                                        new SqlParameter("@p_IsSummaryRequired", versionFlag.Item3),
+                                        new SqlParameter("@p_IsFollowUpRequired", versionFlag.Item4)
+                                    });
                                     }, false, false);
                             }
                         }
