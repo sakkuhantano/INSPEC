@@ -11,7 +11,23 @@ ALTER PROCEDURE dbo.spPIP_Inspection_Query
     @p_UserID VARCHAR(50) = NULL,
     @p_EmployeeID VARCHAR(50) = NULL,
     @p_SectionID VARCHAR(50) = NULL,
-    @p_InspectionTypeCode VARCHAR(10) = NULL
+    @p_InspectionTypeCode VARCHAR(10) = NULL,
+    @IDTemplate INT = NULL,
+    @IDVersion INT = NULL,
+    @TemplateVersion VARCHAR(10) = NULL,
+    @SectionID VARCHAR(50) = NULL,
+    @CompanyID VARCHAR(50) = NULL,
+    @LocationID VARCHAR(50) = NULL,
+    @EmployeeID VARCHAR(50) = NULL,
+    @InspectionMode VARCHAR(10) = NULL,
+    @InspectionTypeDetailCode VARCHAR(20) = NULL,
+    @InspectionDate DATETIME = NULL,
+    @ClientInspectionID VARCHAR(36) = NULL,
+    @InspectionID BIGINT = NULL,
+    @SectionList VARCHAR(MAX) = NULL,
+    @InspectionNo VARCHAR(20) = NULL,
+    @ScheduledTime VARCHAR(5) = NULL,
+    @UserID VARCHAR(50) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
