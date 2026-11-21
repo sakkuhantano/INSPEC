@@ -1462,6 +1462,150 @@
         }
     }
 
+
+    /* Compact multi-map selector and lock the phone workspace to the viewport. */
+    @media (max-width: 767.98px) {
+        body.inspection-map-mobile-active {
+            height: 100dvh !important;
+            overflow: hidden !important;
+        }
+        body.inspection-map-mobile-active #contentbody {
+            box-sizing: border-box !important;
+            height: calc(100dvh - 44px) !important;
+            max-height: calc(100dvh - 44px) !important;
+            overflow: hidden !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace {
+            box-sizing: border-box !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapPicker {
+            flex: 0 0 auto !important;
+            width: 100%;
+            max-height: 58px;
+            min-height: 0;
+            padding: .2rem .4rem !important;
+            overflow: hidden;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapPicker .inspection-map-choice-grid {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            justify-content: flex-start !important;
+            gap: .3rem !important;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 0 0 .15rem;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-choice-card {
+            display: flex !important;
+            flex: 0 0 116px !important;
+            align-items: center;
+            justify-content: center;
+            width: 116px !important;
+            min-width: 116px !important;
+            max-width: 116px !important;
+            height: 38px !important;
+            min-height: 38px !important;
+            max-height: 38px !important;
+            padding: .25rem .4rem !important;
+            overflow: hidden;
+            border-radius: .45rem;
+            box-shadow: none !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-choice-title {
+            display: block;
+            width: 100%;
+            font-size: .66rem !important;
+            line-height: 1.15;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapOptionSummaryHost {
+            flex: 0 0 auto !important;
+            max-height: 64px;
+            min-height: 0;
+            overflow: hidden;
+            padding: .15rem .45rem .2rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-host > .small {
+            font-size: .58rem;
+            line-height: 1.1;
+            margin-bottom: .12rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary {
+            flex-wrap: nowrap;
+            gap: .3rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: .1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-card {
+            flex: 0 0 auto;
+            min-width: 0;
+            max-width: 100%;
+            padding: .18rem .32rem;
+            border-radius: .4rem;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-title {
+            display: none;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-chip {
+            padding: .14rem .32rem;
+            font-size: .62rem;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSummaryHost {
+            flex: 0 1 auto !important;
+            max-height: 13dvh !important;
+            min-height: 0 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            overscroll-behavior: contain;
+            padding: .15rem .45rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-content:not(.d-none) {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            height: auto !important;
+            overflow: hidden !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel {
+            flex: 1 1 0 !important;
+            min-height: 0 !important;
+            height: 100% !important;
+            overflow: hidden !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas {
+            flex: 1 1 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-legend {
+            position: static !important;
+            inset: auto !important;
+            flex: 0 0 auto !important;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .25rem .5rem;
+            max-width: 100%;
+            margin: .1rem 0 0;
+            padding: .3rem .4rem;
+            font-size: .6rem;
+            line-height: 1.2;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-hint {
+            display: none !important;
+        }
+    }
+
 </style>
 </asp:Content>
 
@@ -1756,12 +1900,12 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
+        <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none px-3">
+            <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
+            <div class="inspection-map-option-summary"></div>
+        </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none">
             <div id="inspectionLightningWorkflowCards"></div>
-            <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none">
-                <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
-                <div class="inspection-map-option-summary"></div>
-            </div>
         </div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
             <div class="inspection-map-picker-heading mb-2">
