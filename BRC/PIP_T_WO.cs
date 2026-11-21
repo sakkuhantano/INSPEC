@@ -33,39 +33,27 @@ namespace INSPEC.BRC
 
         public DataTable SelectOneByKeyHD(SqlConnection conn = null, SqlTransaction Trans = null)
         {
-            SqlCommand cmdToExecute = new SqlCommand();
-            cmdToExecute.CommandText = @"
-SELECT A.*, 
-StartTime = ISNULL((SELECT StartDate FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME)),
-EndTime = ISNULL((SELECT EndDate FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME))
-FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0 
-";
-            cmdToExecute.CommandType = CommandType.Text;
             DataTable toReturn = new DataTable("PIP_T_WO");
-            SqlDataAdapter adapter = new SqlDataAdapter(cmdToExecute);
-
-            SqlConnection _conn;
-            SqlTransaction _trans;
-            if (conn == null)
-            {
-                _mainConnection.Open();
-                _conn = _mainConnection;
-                _trans = _transaction;
-            }
-            else
-            {
-                _conn = conn;
-                _trans = Trans;
-            }
-
             try
             {
-                cmdToExecute.Connection = _conn;
-                cmdToExecute.Transaction = _trans;
-                cmdToExecute.Parameters.AddWithValue("@KeyHD", KeyHD);
-
-                // // Execute query.                
-                adapter.Fill(toReturn);
+                using (WAL.BR.CF common = new WAL.BR.CF())
+                {
+                    if (conn == null)
+                    {
+                        _mainConnection.Open();
+                        toReturn = common.EQueryP(
+                            "spPIP_Inspection_Query",
+                            CreateDispatcherParameters("219", Convert.ToString(KeyHD)),
+                            true, ref _mainConnection, ref _transaction);
+                    }
+                    else
+                    {
+                        toReturn = common.EQueryP(
+                            "spPIP_Inspection_Query",
+                            CreateDispatcherParameters("219", Convert.ToString(KeyHD)),
+                            true, ref conn, ref Trans);
+                    }
+                }
 
                 if (toReturn.Rows.Count > 0)
                 {
@@ -141,11 +129,8 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             }
             finally
             {
-                // // Close connection.                
                 if (conn == null)
                     _mainConnection.Close();
-                cmdToExecute.Dispose();
-                adapter.Dispose();
             }
         }
 
