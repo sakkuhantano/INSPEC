@@ -42,7 +42,8 @@ namespace INSPEC
             {
                 using (var ocf = new WAL.BR.CF())
                 {
-                    if (ocf.EQuery("SELECT * FROM SysWebCommonValue v WHERE v.AppID = 'ALL' AND v.ID = '" + Context.Request.Url.Host + "' AND v.CommonGroup = 'DomainNonWWW' ").Rows.Count > 0)
+                    if (ocf.EQueryP("spPIP_Inspection_Query",
+                        LoginQueryParameters("229", Context.Request.Url.Host), true).Rows.Count > 0)
                     {
                         Response.Redirect(HttpContext.Current.Request.Url.AbsoluteUri.Replace("://", "://www."));
                     }
