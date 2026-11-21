@@ -20,6 +20,7 @@ BEGIN
       003: C1=KeyHD
       004: C1=EmployeeID, C2=SectionList, C3=KeyHD, C4=ActionSPV,
            C5=CompanyID, C6=LocationID
+      005: C1=CompanyID, C2=LocationID, C3=SectionList (WO approval dashboard counters)
     */
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX),
             @C4 NVARCHAR(MAX), @C5 NVARCHAR(MAX), @C6 NVARCHAR(MAX),
@@ -175,5 +176,24 @@ BEGIN
           );
         RETURN;
     END;
+
+    IF @p_Tipe = '005'
+    BEGIN
+        SELECT
+            Pending=ISNULL(SUM(CASE WHEN W.isRespondDC=0 AND ISNULL(W.RemarkTechnician,'')<>'' AND W.ReasonRespondDC='' THEN 1 ELSE 0 END),0),
+            [Void]=ISNULL(SUM(CASE WHEN W.isRespondDC=0 AND W.ReasonRespondDC<>'' THEN 1 ELSE 0 END),0),
+            [Approved]=ISNULL(SUM(CASE WHEN ISNULL(W.RemarkTechnician,'')<>'' AND W.isCompleteDC=1
+                AND CONVERT(VARCHAR(8),W.ApprovedRespondDCDate,112)=CONVERT(VARCHAR(8),GETDATE(),112) THEN 1 ELSE 0 END),0)
+        FROM dbo.PIP_T_WO W
+        WHERE W.WOType='p' AND W.CompanyID=@C1 AND W.LocationID=@C2
+          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@C3,';') S WHERE S.val=W.SectionID)
+          AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+              WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+                AND ISNULL(T.TemplateType,'W')='W'
+                AND (ISNULL(T.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%')));
+        RETURN;
+    END;
+
 END;
 GO
