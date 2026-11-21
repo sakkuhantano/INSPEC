@@ -1230,7 +1230,6 @@ namespace INSPEC.Secure
                                         new SqlParameter("@p_IsSummaryRequired", versionFlag.Item3),
                                         new SqlParameter("@p_IsFollowUpRequired", versionFlag.Item4)
                                     });
-                                    }, false, false);
                             }
                         }
                     }
