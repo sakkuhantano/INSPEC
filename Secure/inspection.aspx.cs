@@ -2832,7 +2832,7 @@ using (var br = new WAL.BR.CF())
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable queue = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("063", new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }),true, true);
+                DataTable queue = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("063", new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }), true, true);
 
                 int sent = 0, failed = 0;
                 foreach (DataRow row in queue.Rows)
