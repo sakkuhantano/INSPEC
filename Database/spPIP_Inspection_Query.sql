@@ -10,6 +10,16 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    /*
+      Transaction ownership:
+      - Branches that contain BEGIN/COMMIT/ROLLBACK own their transaction; callers must use
+        EQueryP with p_IsSP=true and leave p_IsWithBeginTrans=false.
+      - Branch 063 is the email-outbox claim/update and is intentionally wrapped by EQueryP
+        with p_IsSP=true, p_IsWithBeginTrans=true; do not add transaction statements to branch 063.
+      - BRC sync calls use their caller-owned SqlTransaction through the ref-connection overload;
+        those branches must not begin/commit/rollback that external transaction.
+    */
+
     -- Scalar locals populated from the positional TVP columns for each operation.
     DECLARE @p_IDTemplate INT;
     DECLARE @p_IDVersion INT;
