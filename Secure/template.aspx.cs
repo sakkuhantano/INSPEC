@@ -40,7 +40,7 @@ namespace INSPEC.Secure
 
                     object value = parameter.Value;
                     if (value == null || value == DBNull.Value)
-                        row[valueIndex] = String.Empty;
+                        row[valueIndex] = DBNull.Value;
                     else if (value is DateTime)
                         row[valueIndex] = ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
                     else if (value is bool)
