@@ -1854,29 +1854,6 @@
             }
             closePoint();
         });
-        var pointSheet = document.getElementById("inspectionMapPointSheet");
-        if (pointSheet && !pointSheet.dataset.optionToggleWired) {
-            pointSheet.dataset.optionToggleWired = "1";
-            pointSheet.addEventListener("click", function (event) {
-                // The checklist uses Bootstrap's hidden .btn-check radio with
-                // a visible label. Handle the label click once, before the
-                // browser performs its native radio activation.
-                var label = event.target.closest ? event.target.closest("label.inspection-option-choice") : null;
-                if (!label || !pointSheet.contains(label)) return;
-                var input = document.getElementById(label.htmlFor);
-                if (!input || input.disabled || !input.matches('input[type="radio"][data-role="value"]') ||
-                    !input.closest('.inspection-item[data-item-type="OPTION"]')) return;
-                event.preventDefault();
-                event.stopPropagation();
-                var wasChecked = input.checked;
-                var groupName = input.name;
-                pointSheet.querySelectorAll('input[type="radio"][data-role="value"]').forEach(function (option) {
-                    if (option.name === groupName) option.checked = false;
-                });
-                input.checked = !wasChecked;
-                input.dispatchEvent(new Event("change", { bubbles: true }));
-            }, true);
-        }
                 var quickOptions = document.getElementById("inspectionMapQuickOptions");
         if (quickOptions) quickOptions.addEventListener("click", function (event) {
             var button = event.target.closest("[data-quick-option-item]");
