@@ -1425,6 +1425,7 @@
 
     window.resetInspectionMapWorkspace = async function () {
         document.body.classList.remove("inspection-map-mobile-active");
+        document.body.classList.remove("inspection-map-tab-active");
         currentMapRecord = null;
         currentScheduleTime = "";
         var scheduleTabs = document.getElementById("inspectionLightningScheduleTabs");
@@ -1521,6 +1522,7 @@
 
         if (activate) {
             // Apply the mobile full-height layout before revealing the map so PDF.js measures a real viewport.
+            document.body.classList.add("inspection-map-tab-active");
             document.body.classList.add("inspection-map-mobile-active");
             workspace.classList.remove("d-none");
             var paramPane = document.getElementById("inspectionParamsPane");
@@ -1702,6 +1704,7 @@
 
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
         if (checklistTab) checklistTab.addEventListener("click", function () {
+            document.body.classList.remove("inspection-map-tab-active");
             if (currentMapRecord && ["BATCH", "LIGHTNING"].indexOf(String(currentMapRecord.InspectionMode || "").toUpperCase()) >= 0 &&
                 !Number(currentMapRecord.ActiveInspectionPointID || 0)) {
                 if (typeof showToast === "function")
@@ -1716,6 +1719,7 @@
         var paramTab = document.getElementById("btnInspectionParamTab");
         if (paramTab) paramTab.addEventListener("click", function () {
             setInspectionSectionNavForTab("param");
+            document.body.classList.remove("inspection-map-tab-active");
             var workspace = document.getElementById("inspectionMapWorkspace");
             if (workspace) workspace.classList.add("d-none");
         });
