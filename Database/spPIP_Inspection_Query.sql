@@ -3154,6 +3154,8 @@ BEGIN
       209-210: C1=IDVersion
       211: C1=EmployeeID, C2=SessionToken, C3=LastSync (ISO datetime; update LastSyncMaster)
       212: C1=CompanyID, C2=LocationID, C3=DocNo, C4=FileNameType (WO photo metadata lookup)
+      213: C1=KeyHD, C2=CompanyID, C3=LocationID, C4=WONo (WO checklist/subvalues/photos)
+      214: C1=CompanyLocation (CompanyID;LocationID), C2=WONo (assigned employees)
     */
 
     IF @p_Tipe = '201'
