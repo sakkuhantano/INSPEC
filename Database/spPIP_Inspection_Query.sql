@@ -80,6 +80,7 @@ BEGIN
     -- 083: C1=EmployeeID, C2=CompanyID, C3=LocationID (company/location authorization)
     -- 084: C1=SectionList, C2=CompanyID, C3=LocationID, C4=EmployeeID (active inspection types)
     -- 085: C1=SectionList, C2=CompanyID, C3=LocationID (inspection type details)
+    -- 086: C1=AutoNum key for transactional InspectionNo generation
     -- TVP contract: one row per call; positional C1-C13 mapping is defined per operation.
     DECLARE @C1 NVARCHAR(MAX), @C2 NVARCHAR(MAX), @C3 NVARCHAR(MAX), @C4 NVARCHAR(MAX), @C5 NVARCHAR(MAX), @C6 NVARCHAR(MAX), @C7 NVARCHAR(MAX), @C8 NVARCHAR(MAX), @C9 NVARCHAR(MAX), @C10 NVARCHAR(MAX), @C11 NVARCHAR(MAX), @C12 NVARCHAR(MAX), @C13 NVARCHAR(MAX);
 
@@ -3122,6 +3123,16 @@ BEGIN
           AND D.CompanyID=@C2 AND D.LocationID=@C3
           AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@C1,';') S WHERE S.val=T.SectionID)
         ORDER BY D.InspectionTypeCode,D.ScheduleTime,D.InspectionTypeDetailCode;
+        RETURN;
+    END;
+
+
+    IF @p_Tipe = '086'
+    BEGIN
+        DECLARE @V_AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+        INSERT INTO @V_AutoNumResult
+        EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @C1, 1;
+        SELECT ID FROM @V_AutoNumResult;
         RETURN;
     END;
 
