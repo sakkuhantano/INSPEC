@@ -424,6 +424,160 @@ BEGIN
         RETURN;
     END;
 
+    IF @p_Tipe = '023'
+    BEGIN
+        
+        SELECT TOP 1 1
+        FROM dbo.SysWebUser SU
+        JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+        WHERE SU.EmployeeID=@UserID
+          AND SU.IsActive=1
+          AND UG.UserGroupID='administrator'
+        RETURN;
+    END;
+
+    IF @p_Tipe = '014'
+    BEGIN
+        
+        SELECT T.IDTemplate
+        FROM dbo.PIP_M_CheckListWOPM T
+        WHERE T.IDTemplate=@IDTemplate
+          AND T.SectionID=@SectionID
+          AND T.TemplateType='I'
+          
+          AND (ISNULL(T.CompanyScope,'S')='A'
+               OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+          AND (ISNULL(T.EmployeeList,'')=''
+               OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
+          AND EXISTS (
+               SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+               WHERE V.IDTemplate=T.IDTemplate
+                 AND V.IDVersion=@IDVersion
+                 AND V.Version=@TemplateVersion
+                 AND V.Status IN ('Active','Archieved')
+          )
+          AND T.InspectionTypeCode=@InspectionTypeCode
+          AND EXISTS (
+               SELECT 1 FROM dbo.PIP_M_InspectionType IT
+               WHERE IT.InspectionTypeCode=@InspectionTypeCode
+                 AND IT.SectionID=@SectionID
+                 AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')=@InspectionMode
+          )
+          AND (
+               ISNULL(T.InspectionTypeDetailCode,'')=''
+               OR EXISTS (
+                   SELECT 1
+                   FROM dbo.SplitStringConvertToTable(T.InspectionTypeDetailCode, ';') AllowedDetail
+                   WHERE LTRIM(RTRIM(AllowedDetail.val))=@InspectionTypeDetailCode
+               )
+          )
+        RETURN;
+    END;
+
+    IF @p_Tipe = '015'
+    BEGIN
+        
+        SELECT ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement,
+               ISNULL(V.IsSummaryRequired,1) IsSummaryRequired,
+               ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired,
+               ISNULL(V.IsRemark1Required,0) IsRemark1Required,
+               ISNULL(V.IsRemark2Required,0) IsRemark2Required,
+               ISNULL(V.StatusOption,'') StatusOption,
+               ISNULL(V.RemarkRequiredOptions,'') RemarkRequiredOptions
+        FROM dbo.PIP_M_CheckListWOPM_Version V
+        WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion
+        RETURN;
+    END;
+
+    IF @p_Tipe = '016'
+    BEGIN
+        
+        SELECT I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+               ISNULL(I.IsValueRequired,0) IsValueRequired,
+               ISNULL(I.IsRemark1Required,0) IsRemark1Required,
+               ISNULL(I.IsRemark2Required,0) IsRemark2Required,
+               ISNULL(I.IsRemark1Mandatory,0) IsRemark1Mandatory,
+               ISNULL(I.IsRemark2Mandatory,0) IsRemark2Mandatory,
+               ISNULL(I.IsUseDefaultRemark1,0) IsUseDefaultRemark1,
+               ISNULL(I.IsUseDefaultRemark2,0) IsUseDefaultRemark2,
+               ISNULL(I.IsToleranceRequired,0) IsToleranceRequired,
+               I.MinValue, I.MaxValue, I.MinTolerance, I.MaxTolerance,
+               ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions
+        FROM dbo.PIP_M_CheckListWOPM_Item I
+        INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY S.DisplayOrder, I.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '017'
+    BEGIN
+        
+        SELECT G.IDItem, G.GroupName, G.FieldList
+        FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+        INNER JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+        INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY G.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '018'
+    BEGIN
+        
+        SELECT R.IDItem,R.RepeatMode,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        RETURN;
+    END;
+
+    IF @p_Tipe = '019'
+    BEGIN
+        
+        SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY F.IDItem,F.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '020'
+    BEGIN
+        
+        SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+               ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
+        FROM dbo.PIP_M_InspectionPoint P
+        INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+        LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
+        WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+          AND M.InspectionTypeCode=@InspectionTypeCode
+          AND M.InspectionTypeDetailCode=@InspectionTypeDetailCode
+          AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1
+        RETURN;
+    END;
+
+    IF @p_Tipe = '021'
+    BEGIN
+        
+        SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
+               StartDateTime, EndDateTime, ReasonVoid, IsSubmitted
+        FROM dbo.PIP_T_Inspection
+        WHERE ClientInspectionID=@ClientInspectionID
+        RETURN;
+    END;
+
+    IF @p_Tipe = '022'
+    BEGIN
+        
+        SELECT FileName, FileType, PhotoType, SeqNo
+        FROM dbo.PIP_T_InspectionPhoto
+        WHERE InspectionID=@InspectionID
+        RETURN;
+    END;
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
 END;
 GO
