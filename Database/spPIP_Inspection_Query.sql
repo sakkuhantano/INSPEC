@@ -594,6 +594,71 @@ BEGIN
         WHERE InspectionID=@InspectionID
         RETURN;
     END;
+    IF @p_Tipe = '024'
+    BEGIN
+        SELECT I.CompanyID,I.LocationID,I.InspectionDate,I.InspectionNo,I.InspectionTypeName,I.InspectionTypeDetailName,
+               I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+        WHERE I.InspectionID=@InspectionID
+        RETURN;
+    END;
+
+    IF @p_Tipe = '025'
+    BEGIN
+        SELECT DISTINCT D.ScheduleTime FROM dbo.PIP_T_Inspection I
+        JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=I.InspectionTypeCode
+         AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+        WHERE I.InspectionID=@InspectionID ORDER BY D.ScheduleTime
+        RETURN;
+    END;
+
+    IF @p_Tipe = '026'
+    BEGIN
+        SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
+               P.PointCode,P.PointName,P.MapID,P.MapX,P.MapY,P.DisplayOrder,
+               M.MapCode,M.MapName,M.ImagePath,M.MapGroupID,G.GroupName,G.Sequence GroupSequence
+        FROM dbo.PIP_T_InspectionPoint TP
+        JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+        LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+        LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+        WHERE TP.InspectionID=@InspectionID
+        ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrder,P.PointCode
+        RETURN;
+    END;
+
+    IF @p_Tipe = '027'
+    BEGIN
+        SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
+        FROM dbo.PIP_T_InspectionResult R
+        WHERE R.InspectionID=@InspectionID
+        ORDER BY R.InspectionPointTransactionID,R.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '028'
+    BEGIN
+        SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,
+               V.ObjectIndex,V.FieldName,ISNULL(F.FieldLabel,V.FieldName) FieldLabel,V.Value FieldValue
+        FROM dbo.PIP_T_InspectionResult R
+        JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        LEFT JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=R.IDItem
+         AND F.IDRepeat=CASE WHEN V.FieldName<>'' AND LEN(V.FieldName)<=10 AND V.FieldName NOT LIKE '%[^0-9]%'
+                             THEN CAST(V.FieldName AS INT) ELSE 0 END
+        WHERE R.InspectionID=@InspectionID
+        ORDER BY R.InspectionResultID,V.ObjectIndex,V.FieldName
+        RETURN;
+    END;
+
+    IF @p_Tipe = '029'
+    BEGIN
+        SELECT InspectionPointTransactionID,PhotoType,FileName,FileType,SeqNo
+        FROM dbo.PIP_T_InspectionPhoto
+        WHERE InspectionID=@InspectionID
+        ORDER BY InspectionPointTransactionID,PhotoType,SeqNo
+        RETURN;
+    END;
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
 END;
 GO
