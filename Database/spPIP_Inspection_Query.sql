@@ -3552,6 +3552,17 @@ BEGIN
         RETURN;
     END;
 
+    -- 219: C1=KeyHD (WorkOrder header with employee start/end times)
+    IF @p_Tipe = '219'
+    BEGIN
+        SELECT A.*,
+               StartTime=ISNULL((SELECT B.StartDate FROM dbo.PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME)),
+               EndTime=ISNULL((SELECT B.EndDate FROM dbo.PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME))
+        FROM dbo.PIP_T_WO A
+        WHERE A.KeyHD=CONVERT(INT,@C1) AND A.IsDelete=0;
+        RETURN;
+    END;
+
     -- 218: C1=comma-separated InspectionIDs (repeat-field report details)
     IF @p_Tipe = '218'
     BEGIN
