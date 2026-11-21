@@ -1217,7 +1217,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_dt_DelVersion", dtDeletedVersion),
                         new SqlParameter("@p_UpdateUser", employeeID),
                         new SqlParameter("@p_IsPublished", (isPublished == "Y"))
-                    }, true, true);
+                    }, true);
 
                     saveStage = "Process stored procedure result rows";
                     if (dt == null) throw new Exception("spUTL_PIP_M_CheckListWOPM returned a null DataTable.");
