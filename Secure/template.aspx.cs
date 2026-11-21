@@ -489,59 +489,16 @@ FROM
             RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT a.IDTemplate,
-       a.TemplateNo,
-       a.TemplateName,
-       a.IsActive,
-       a.SectionID,
-       a.TemplateType,
-       a.InspectionTypeCode,
-       ISNULL(a.InspectionTypeDetailCode,'') InspectionTypeDetailCode,
-       a.CompanyScope,
-       HasActiveVersion = CAST(
-           CASE WHEN EXISTS (
-               SELECT 1
-               FROM PIP_M_CheckListWOPM_Version aa
-               WHERE aa.IDTemplate = a.IDTemplate
-                 AND aa.Status = 'Active'
-           ) THEN 1 ELSE 0 END AS BIT),
-       CanDeleted = CAST(
-           CASE WHEN NOT EXISTS (
-               SELECT 1
-               FROM PIP_M_CheckListWOPM_Version aa
-               WHERE aa.IDTemplate = a.IDTemplate
-                 AND aa.Status = 'Active'
-           ) THEN 1 ELSE 0 END AS BIT),
-       RuntimeTemplateID = a.IDTemplate
-FROM PIP_M_CheckListWOPM a
-WHERE a.SectionID = @SectionID
-  AND (
-      EXISTS (
-          SELECT 1
-          FROM dbo.SysWebUserCompanyLocation perm
-          WHERE perm.AppID = 'INSPEC'
-            AND perm.UserID = @UserID
-            AND perm.CompanyID = @CompanyID
-            AND perm.LocationID = @LocationID
-      )
-      OR EXISTS (
-          SELECT 1
-          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
-          WHERE loginCompany.CompanyID = @CompanyID
-            AND loginCompany.LocationID = @LocationID
-      )
-  )
-  AND (
-      ISNULL(a.CompanyScope, 'S') = 'A'
-      OR (';' + ISNULL(a.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
-  )",
-                    "@SectionID=" + sectionId
-                    + GF.Str2 + "@CompanyID=" + companyId
-                    + GF.Str2 + "@LocationID=" + locationId
-                    + GF.Str2 + "@EmployeeID=" + employeeId
-                    + GF.Str2 + "@UserID=" + userId);
-
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "008"),
+                        new SqlParameter("@p_SectionID", sectionId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_UserID", userId)
+                    });
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     RuntimeTemplateID = Convert.ToInt32(row["RuntimeTemplateID"]),
@@ -1525,48 +1482,16 @@ COMMIT TRANSACTION;",
                 id = 0;
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT L.CompanyID, L.LocationID, L.CompanyName, L.LocationName,
-       IsAssigned=CAST(CASE
-           WHEN T.IDTemplate IS NOT NULL AND (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + L.CompanyID + L.LocationID + ';%') THEN 1
-           WHEN @IDTemplate<=0 AND L.CompanyID=@CompanyID AND L.LocationID=@LocationID THEN 1
-           ELSE 0 END AS BIT)
-FROM
-(
-    SELECT swc.CompanyID, swl.LocationID, swc.CompanyName, swl.LocationName
-    FROM dbo.SysWebLocation swl
-     JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
-     WHERE swc.IsActive=1 AND swl.IsActive=1
-       AND (
-           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-                   WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-                     AND perm.UserID=@UserID AND perm.AppID='INSPEC')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
-                      WHERE LoginCompany.CompanyID=swl.CompanyID
-                        AND LoginCompany.LocationID=swl.LocationID)
-       )
-) L
-LEFT JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
-WHERE (
-     EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-             WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
-               AND CurrentPermission.CompanyID=@CompanyID AND CurrentPermission.LocationID=@LocationID)
-     OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
-                WHERE LoginCompany.CompanyID=@CompanyID AND LoginCompany.LocationID=@LocationID)
- )
-AND
-(
-    @IDTemplate<=0
-    OR EXISTS
-    (
-        SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
-        WHERE T.IDTemplate=@IDTemplate
-          AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
-    )
-)
-ORDER BY L.CompanyID, L.LocationID",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@UserID=" + userId + GF.Str2 + "@EmployeeID=" + employeeId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "009"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_UserID", userId),
+                        new SqlParameter("@p_EmployeeID", employeeId)
+                    });
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     CompanyID = GF.GetString(row["CompanyID"]),
@@ -1846,42 +1771,29 @@ COMMIT TRANSACTION;",
             RequireTemplateAccess(idTemplate);
             using (var sectionBr = new WAL.BR.CF())
             {
-                DataTable sectionDt = sectionBr.EQuery("SELECT SectionID FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate", "@IDTemplate=" + idTemplate);
+                DataTable sectionDt = sectionBr.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "010"),
+                        new SqlParameter("@p_IDTemplate", id)
+                    }); 
                 if (sectionDt.Rows.Count == 0) throw new HttpException(404, "Template was not found.");
                 sectionId = GF.GetString(sectionDt.Rows[0]["SectionID"]);
-            }
             RequireAllowedSection(sectionId);
             int id;
             if (!Int32.TryParse(idTemplate, out id))
                 id = 0;
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
-       IsAssigned=CAST(CASE WHEN ISNULL(T.EmployeeList,'')='' OR (';' + REPLACE(ISNULL(T.EmployeeList,''),':',';') + ';' LIKE '%;' + E.EmployeeID + ';%') THEN 1 ELSE 0 END AS BIT), swc.BuildingName
-FROM dbo.M_HRD_Employee E JOIN SysWebCompany swc ON swc.CompanyID=E.CompanyID
-JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@IDTemplate
-
-WHERE E.SectionID=T.SectionID
-  AND E.SectionID=@SectionID
-  AND T.TemplateType='I'
-  AND ISNULL(E.TerminationDate,'')=''
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=e.EmployeeID)
-                 AND CurrentPermission.CompanyID=@CurrentCompanyID
-                 AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', e.EmployeeID, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                    AND LoginCompany.LocationID=@CurrentLocationID)
-  )
-
-  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))
-ORDER BY E.CompanyID, E.LocationID, E.EmployeeID",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@SectionID=" + sectionId + GF.Str2 +
-                    "@CurrentCompanyID=" + companyId + GF.Str2 +
-                    "@CurrentLocationID=" + locationId + GF.Str2 + "@UserID=" + userId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "011"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_SectionID", sectionId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    });
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     EmployeeID = GF.GetString(row["EmployeeID"]),
@@ -2098,13 +2010,14 @@ COMMIT TRANSACTION;",
             RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT GroupEquipment, Description
-FROM PIP_M_GroupEquipment B 
-WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID AND B.SectionID=@SectionID",
-"@SectionID=" + sectionId + GF.Str2 +
-"@CompanyID=" + companyId + GF.Str2 +
-"@LocationID=" + locationId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "012"),
+                        new SqlParameter("@p_SectionID", sectionId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    });
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     GroupEquipment = row.Field<string>("GroupEquipment"),
@@ -2123,19 +2036,26 @@ WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID AND B.SectionID=@Secti
             locationId = SessionValue(inspecUser, "LocationID");
             using (var accessBr = new WAL.BR.CF())
             {
-                DataTable accessDt = accessBr.EQuery("SELECT TOP 1 SectionID FROM dbo.PIP_M_GroupEquipment WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND GroupEquipment=@GroupEquipment", "@CompanyID=" + companyId + GF.Str2 + "@LocationID=" + locationId + GF.Str2 + "@GroupEquipment=" + groupEqp);
+                DataTable accessDt = accessBr.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "013"),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_InspectionTypeCode", groupEqp)
+                    });
                 if (accessDt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
                 RequireAllowedSection(GF.GetString(accessDt.Rows[0]["SectionID"]));
-            }
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT a.ModelCode, a.Remark
-FROM PIP_M_GroupEquipment_Model a JOIN PIP_M_GroupEquipment B on A.ID=B.ID 
-WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID AND B.GroupEquipment=@GroupEquipment",
-"@GroupEquipment=" + groupEqp + GF.Str2 +
-"@CompanyID=" + companyId + GF.Str2 +
-"@LocationID=" + locationId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "013"),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_InspectionTypeCode", groupEqp)
+                    });
                 var versionList = dt.AsEnumerable().Select(row => new
                 {
                     ModelCode = row.Field<string>("ModelCode"),
