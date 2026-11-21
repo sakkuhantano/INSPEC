@@ -27,7 +27,22 @@ ALTER PROCEDURE dbo.spPIP_Inspection_Query
     @SectionList VARCHAR(MAX) = NULL,
     @InspectionNo VARCHAR(20) = NULL,
     @ScheduledTime VARCHAR(5) = NULL,
-    @UserID VARCHAR(50) = NULL
+    @DateFrom DATETIME = NULL,
+    @DateThru DATETIME = NULL,
+    @IsAdministrator BIT = NULL,
+    @TypeCode VARCHAR(50) = NULL,
+    @DetailCode VARCHAR(50) = NULL,
+    @BatchSize INT = NULL,
+    @E VARCHAR(50) = NULL,
+    @C VARCHAR(50) = NULL,
+    @ID BIGINT = NULL,
+    @Error VARCHAR(2000) = NULL,
+    @TemplateId VARCHAR(20) = NULL,
+    @ScheduleTime VARCHAR(5) = NULL,
+    @ApprovalTab VARCHAR(20) = NULL,
+    @InspectionTypeCode VARCHAR(10) = NULL,
+    @TechnicianView BIT = NULL,
+    @InspectionIDs VARCHAR(MAX) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1989,7 +2004,7 @@ BEGIN
         FROM dbo.PIP_T_Inspection I
         JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
         JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
-        WHERE I.InspectionID IN (SELECT TRY_CONVERT(BIGINT,LTRIM(RTRIM(val))) FROM dbo.SplitStringConvertToTable(@InspectionIDs,','))
+        WHERE I.InspectionID IN (SELECT CONVERT(BIGINT,LTRIM(RTRIM(val))) FROM dbo.SplitStringConvertToTable(@InspectionIDs,','))
         AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1 AND ISNULL(T.TemplateType,'W')='I'
         AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
         AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
