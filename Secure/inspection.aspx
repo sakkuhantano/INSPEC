@@ -1589,7 +1589,7 @@
                     </div>
                 </div>
                 <div class="inspection-map-legend" aria-label="Legenda status inspection point"><span><i class="inspection-map-dot pending"></i> <span id="inspectionMapPendingLegend">Belum diperiksa</span></span><span><i class="inspection-map-dot done"></i> Normal / Selesai</span><span id="inspectionMapAbnormalLegendItem"><i class="inspection-map-dot abnormal"></i> Abnormal</span><span><i class="inspection-map-dot incomplete"></i> Belum lengkap</span></div>
-                <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pada HP, tap marker untuk membuka checklist langsung. Pada desktop, marker menyorot point di daftar.</div>
+                <div class="inspection-map-hint"><i class="bi bi-hand-index-thumb me-1"></i>Pada HP, tap marker untuk membuka hasil cepat. Checklist lengkap tetap tersedia. Pada desktop, marker menyorot point di daftar.</div>
             </div>
         <div id="inspectionPointList" class="inspection-point-list"></div>
         </div>
