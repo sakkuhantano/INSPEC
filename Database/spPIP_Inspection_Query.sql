@@ -3452,6 +3452,106 @@ BEGIN
     END;
 
 
+    -- 215: C1=LoginEmployeeID, C2=Period(yyyyMMdd), C3=LogType, C4=Keyword, C5=StartRow, C6=EndRow (DailyLog summary page)
+    IF @p_Tipe = '215'
+    BEGIN
+        ;WITH Numbered AS
+        (
+            SELECT D.StartDateTime, D.EndDateTime,
+                   ISNULL(M.Name,D.EmployeeID) AS FullName,
+                   D.Activity, D.Status,
+                   ROW_NUMBER() OVER (ORDER BY D.StartDateTime,D.Id) AS RowNum
+            FROM dbo.Inspec_T_DailyLog_Hd H
+            INNER JOIN dbo.Inspec_T_DailyLog_Dt D ON D.Idhd=H.Id
+            LEFT JOIN dbo.M_HRD_Employee M ON M.EmployeeID=D.EmployeeID
+            WHERE H.EmployeeID=@C1
+              AND H.PeriodDate=CONVERT(DATE,@C2,112)
+              AND D.LogType=@C3
+              AND (ISNULL(@C4,'')=''
+                   OR CHARINDEX(@C4,ISNULL(M.Name,N''))>0
+                   OR CHARINDEX(@C4,ISNULL(D.Activity,N''))>0
+                   OR CHARINDEX(@C4,ISNULL(D.Status,N''))>0)
+        )
+        SELECT StartDateTime,EndDateTime,FullName,Activity,Status
+        FROM Numbered
+        WHERE RowNum BETWEEN CONVERT(INT,@C5) AND CONVERT(INT,@C6)
+        ORDER BY RowNum;
+        RETURN;
+    END;
+
+    -- 216: C1=LoginEmployeeID, C2=Period(yyyyMMdd), C3=LogType (DailyLog team member status)
+    IF @p_Tipe = '216'
+    BEGIN
+        SELECT Member.EmployeeID AS MemberId, Member.EmployeeID AS StaffCode,
+               Member.Name AS FullName,
+               ISNULL(T.ActivityCount,0) AS ActivityCount,
+               ISNULL(CONVERT(VARCHAR(5),F.StartDateTime,108),'') AS FirstStart,
+               ISNULL(CONVERT(VARCHAR(5),F.EndDateTime,108),'') AS FirstEnd,
+               CAST(1 AS BIT) AS IsCurrentMember,
+               CAST(CASE WHEN F.StartDateTime IS NOT NULL
+                              AND CONVERT(DATE,F.StartDateTime)<>CONVERT(DATE,F.EndDateTime)
+                         THEN 1 ELSE 0 END AS BIT) AS CrossDay
+        FROM dbo.M_HRD_Employee AS LoginEmp
+        INNER JOIN dbo.M_HRD_Employee AS Member
+          ON Member.EmployeeID=LoginEmp.EmployeeID
+          OR (Member.CompanyID=LoginEmp.CompanyID
+              AND Member.LocationID=LoginEmp.LocationID
+              AND Member.ProfitCenterNo=LoginEmp.ProfitCenterNo
+              AND Member.SectionID=LoginEmp.SectionID)
+        OUTER APPLY
+        (
+            SELECT COUNT(1) AS ActivityCount
+            FROM dbo.Inspec_T_DailyLog_Hd H
+            INNER JOIN dbo.Inspec_T_DailyLog_Dt D
+              ON D.Idhd=H.Id AND D.EmployeeID=Member.EmployeeID
+             AND D.IsActive=1 AND D.LogType=@C3
+            WHERE H.EmployeeID=LoginEmp.EmployeeID
+              AND H.PeriodDate=CONVERT(DATE,@C2,112)
+        ) T
+        OUTER APPLY
+        (
+            SELECT TOP (1) D.StartDateTime,D.EndDateTime
+            FROM dbo.Inspec_T_DailyLog_Hd H
+            INNER JOIN dbo.Inspec_T_DailyLog_Dt D
+              ON D.Idhd=H.Id AND D.EmployeeID=Member.EmployeeID
+             AND D.IsActive=1 AND D.LogType=@C3
+            WHERE H.EmployeeID=LoginEmp.EmployeeID
+              AND H.PeriodDate=CONVERT(DATE,@C2,112)
+            ORDER BY D.StartDateTime,D.Id
+        ) F
+        WHERE LoginEmp.EmployeeID=@C1 AND Member.TerminationDate=''
+        ORDER BY Member.Name,Member.EmployeeID;
+        RETURN;
+    END;
+
+    -- 217: C1=LoginEmployeeID, C2=MemberEmployeeID, C3=LogType, C4=Period(yyyyMMdd) (DailyLog activities)
+    IF @p_Tipe = '217'
+    BEGIN
+        SELECT D.Id AS ActivityId,D.StartDateTime,D.EndDateTime,D.Activity,
+               D.Status,D.LogType,
+               CAST(CASE WHEN EXISTS
+               (
+                   SELECT 1
+                   FROM dbo.M_HRD_Employee AS LoginEmp
+                   INNER JOIN dbo.M_HRD_Employee AS Member
+                     ON Member.EmployeeID=D.EmployeeID
+                   WHERE LoginEmp.EmployeeID=@C1
+                     AND (Member.EmployeeID=LoginEmp.EmployeeID OR
+                          (Member.CompanyID=LoginEmp.CompanyID
+                           AND Member.LocationID=LoginEmp.LocationID
+                           AND Member.ProfitCenterNo=LoginEmp.ProfitCenterNo
+                           AND Member.SectionID=LoginEmp.SectionID))
+               ) THEN 1 ELSE 0 END AS BIT) AS IsCurrentMember
+        FROM dbo.Inspec_T_DailyLog_Hd H
+        INNER JOIN dbo.Inspec_T_DailyLog_Dt D ON D.Idhd=H.Id AND D.IsActive=1
+        WHERE H.EmployeeID=@C1
+          AND D.EmployeeID=@C2
+          AND D.LogType=@C3
+          AND H.PeriodDate=CONVERT(DATE,@C4,112)
+        ORDER BY D.StartDateTime,D.Id;
+        RETURN;
+    END;
+
     -- 213: C1=KeyHD, C2=CompanyID, C3=LocationID, C4=WONo (WO checklist/subvalues/photos)
     IF @p_Tipe = '213'
     BEGIN
