@@ -1164,7 +1164,7 @@ new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
                     });
-                DataTable confirmed = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "081"), new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)), new SqlParameter("@DeletedBy", Limit(employeeId, 50)) });
+                DataTable confirmed = br.EQueryP("SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)), new SqlParameter("@DeletedBy", Limit(employeeId, 50)) });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
         }
