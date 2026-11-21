@@ -17,8 +17,8 @@ namespace INSPEC.Secure
     public partial class inspection : System.Web.UI.Page
     {
 
-        // Shared dispatcher TVP contract: C1 = original SQL parameter name; C2 = value.
-        // C3-C10 are reserved. Key/value rows prevent positional parameter mismatches.
+        // Shared dispatcher TVP contract: values are positional (first supplied SqlParameter value -> C1, second -> C2, etc.).
+        // Parameter names are not sent in the TVP; keep the caller's parameter order aligned with the SQL branch mapping.
         private static SqlParameter[] InspectionQueryParameters(string type, params SqlParameter[] values)
         {
             // Parameter order must match the C1-C13 contract for the selected @p_Tipe in spPIP_Inspection_Query.
