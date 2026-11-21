@@ -208,12 +208,14 @@ namespace INSPEC.Secure
             string employeeId)
         {
             DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
-            userId = Convert.ToString(inspecUser["UserID"]).Trim();
-            employeeId = Convert.ToString(inspecUser["EmployeeID"]).Trim();
-            companyId = Convert.ToString(inspecUser["CompanyID"]).Trim();
-            locationId = Convert.ToString(inspecUser["LocationID"]).Trim();
+            userId = SessionValue(inspecUser, "UserID");
+            employeeId = SessionValue(inspecUser, "EmployeeID");
+            companyId = SessionValue(inspecUser, "CompanyID");
+            locationId = SessionValue(inspecUser, "LocationID");
             string sectionList = String.Join(";", GetAllowedSections(employeeId).ToArray());
-            if (String.IsNullOrWhiteSpace(sectionList)) return new JavaScriptSerializer().Serialize(new object[0]);
+            if (String.IsNullOrWhiteSpace(sectionList))
+                return new JavaScriptSerializer().Serialize(new object[0]);
+
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
@@ -226,18 +228,15 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
                     });
+
                 var data = dt.AsEnumerable()
                     .Select(row => new
                     {
-                        SectionID = row.Field<string>("SectionID"),
-                        TotalTemplate = row.Field<int>("TotalTemplate")
-                    })
-                    .ToList();
+                        SectionID = GF.GetString(row["SectionID"]),
+                        TotalTemplate = Convert.ToInt32(row["TotalTemplate"])
+                    }).ToList();
 
-                JavaScriptSerializer serializer = new JavaScriptSerializer();
-                return serializer.Serialize(versionList);
-
-
+                return new JavaScriptSerializer().Serialize(data);
             }
         }
         [WebMethod(EnableSession = true)]
@@ -1603,7 +1602,12 @@ namespace INSPEC.Secure
             companyId = SessionValue(inspecUser, "CompanyID");
             locationId = SessionValue(inspecUser, "LocationID");
             userId = SessionValue(inspecUser, "UserID");
+
             RequireTemplateAccess(idTemplate);
+            int id;
+            if (!Int32.TryParse(idTemplate, out id) || id <= 0)
+                throw new HttpException(400, "Invalid Template ID.");
+
             using (var sectionBr = new WAL.BR.CF())
             {
                 DataTable sectionDt = sectionBr.EQueryP(
@@ -1611,13 +1615,14 @@ namespace INSPEC.Secure
                     new SqlParameter[] {
                         new SqlParameter("@p_Tipe", "010"),
                         new SqlParameter("@p_IDTemplate", id)
-                    }); 
-                if (sectionDt.Rows.Count == 0) throw new HttpException(404, "Template was not found.");
+                    });
+                if (sectionDt.Rows.Count == 0)
+                    throw new HttpException(404, "Template was not found.");
                 sectionId = GF.GetString(sectionDt.Rows[0]["SectionID"]);
+            }
+
             RequireAllowedSection(sectionId);
-            int id;
-            if (!Int32.TryParse(idTemplate, out id))
-                id = 0;
+
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
@@ -1629,6 +1634,7 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_CompanyID", companyId),
                         new SqlParameter("@p_LocationID", locationId)
                     });
+
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     EmployeeID = GF.GetString(row["EmployeeID"]),
@@ -1637,11 +1643,10 @@ namespace INSPEC.Secure
                     LocationID = GF.GetString(row["LocationID"]),
                     IsAssigned = Convert.ToBoolean(row["IsAssigned"])
                 }).ToList();
-                JavaScriptSerializer serializer = new JavaScriptSerializer();
-                return serializer.Serialize(rows);
+
+                return new JavaScriptSerializer().Serialize(rows);
             }
         }
-
         [WebMethod(EnableSession = true)]
         public static object SetTemplateEmployeeAssignment(string idTemplate, string employeeId, string action, string updateUser, string companyId, string locationId)
         {
@@ -1730,18 +1735,7 @@ namespace INSPEC.Secure
             DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
             companyId = SessionValue(inspecUser, "CompanyID");
             locationId = SessionValue(inspecUser, "LocationID");
-            using (var accessBr = new WAL.BR.CF())
-            {
-                DataTable accessDt = accessBr.EQueryP(
-                    "spPIP_Inspection_Query",
-                    new SqlParameter[] {
-                        new SqlParameter("@p_Tipe", "013"),
-                        new SqlParameter("@p_CompanyID", companyId),
-                        new SqlParameter("@p_LocationID", locationId),
-                        new SqlParameter("@p_InspectionTypeCode", groupEqp)
-                    });
-                if (accessDt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
-                RequireAllowedSection(GF.GetString(accessDt.Rows[0]["SectionID"]));
+
             using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
@@ -1752,18 +1746,19 @@ namespace INSPEC.Secure
                         new SqlParameter("@p_LocationID", locationId),
                         new SqlParameter("@p_InspectionTypeCode", groupEqp)
                     });
-                var versionList = dt.AsEnumerable().Select(row => new
+                if (dt.Rows.Count == 0)
+                    return new JavaScriptSerializer().Serialize(new object[0]);
+
+                RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
+
+                var rows = dt.AsEnumerable().Select(row => new
                 {
-                    ModelCode = row.Field<string>("ModelCode"),
-                    Remark = row["Remark"] == DBNull.Value ? null : row.Field<string>("Remark")
+                    ModelCode = GF.GetString(row["ModelCode"]),
+                    Remark = row["Remark"] == DBNull.Value ? null : GF.GetString(row["Remark"])
                 }).ToList();
 
-                JavaScriptSerializer serializer = new JavaScriptSerializer();
-                return serializer.Serialize(versionList);
-
-
+                return new JavaScriptSerializer().Serialize(rows);
             }
-
         }
     }
 }
