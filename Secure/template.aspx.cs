@@ -1443,24 +1443,16 @@ namespace INSPEC.Secure
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT T.CompanyScope
-FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.IDTemplate=@IDTemplate
-  AND (
-       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
-               WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@UserID
-                 AND CurrentPermission.CompanyID=@CurrentCompanyID
-                 AND CurrentPermission.LocationID=@CurrentLocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
-                  WHERE LoginCompany.CompanyID=@CurrentCompanyID
-                    AND LoginCompany.LocationID=@CurrentLocationID)
-  )
-  AND (ISNULL(T.CompanyScope,'S')='A' OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@UpdateUser=" + updateUser + GF.Str2 +
-                    "@CurrentCompanyID=" + currentCompanyId + GF.Str2 +
-                    "@CurrentLocationID=" + currentLocationId + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "008"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_CurrentCompanyID", currentCompanyId),
+                        new SqlParameter("@p_CurrentLocationID", currentLocationId),
+                        new SqlParameter("@p_EmployeeID", updateUser),
+                        new SqlParameter("@p_UserID", sessionUserId)
+                    });
                 if (dt.Rows.Count == 0)
                     return new { success = false, message = "Template was not found." };
                 if (GF.GetString(dt.Rows[0]["CompanyScope"]) == "A")
@@ -1468,54 +1460,38 @@ WHERE T.IDTemplate=@IDTemplate
 
                 if (action == "ADD")
                 {
-                    br.EQuery(@"
-IF NOT EXISTS
-(
-    SELECT 1
-    FROM dbo.SysWebLocation swl
-     JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
-     WHERE swc.IsActive=1 AND swl.IsActive=1
-       AND swl.CompanyID=@CompanyID AND swl.LocationID=@LocationID
-       AND (
-           EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
-                   WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
-                     AND perm.UserID=@UserID AND perm.AppID='INSPEC')
-           OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') LoginCompany
-                      WHERE LoginCompany.CompanyID=swl.CompanyID
-                        AND LoginCompany.LocationID=swl.LocationID)
-       )
-)
-    RAISERROR('The company/location is inactive or you do not have INSPEC permission for it.',16,1);
-IF (';' + ISNULL((SELECT CompanyLocationList FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate),'') + ';' NOT LIKE '%;' + @CompanyID + @LocationID + ';%')
- UPDATE dbo.PIP_M_CheckListWOPM SET CompanyLocationList=CASE WHEN ISNULL(CompanyLocationList,'')='' THEN @CompanyID+@LocationID ELSE CompanyLocationList+';'+@CompanyID+@LocationID END WHERE IDTemplate=@IDTemplate",
-                        "@IDTemplate=" + id + GF.Str2 +
-                        "@CompanyID=" + companyId + GF.Str2 +
-                        "@LocationID=" + locationId + GF.Str2 +
-                        "@UpdateUser=" + updateUser + GF.Str2 + "@EmployeeID=" + updateUser + GF.Str2 + "@UserID=" + sessionUserId);
+                    br.EQueryP(
+                        "spPIP_Template_Command",
+                        new SqlParameter[] {
+                            new SqlParameter("@p_Tipe", "009"),
+                            new SqlParameter("@p_Action", "ADD"),
+                            new SqlParameter("@p_IDTemplate", id),
+                            new SqlParameter("@p_CompanyID", companyId),
+                            new SqlParameter("@p_LocationID", locationId),
+                            new SqlParameter("@p_UserID", sessionUserId),
+                            new SqlParameter("@p_EmployeeID", updateUser)
+                        });
                 }
                 else
                 {
-                    DataTable scopeCount = br.EQuery(@"
-SELECT COUNT(*) Total
-FROM dbo.SplitStringConvertToTable((SELECT ISNULL(CompanyLocationList,'') FROM dbo.PIP_M_CheckListWOPM WHERE IDTemplate=@IDTemplate), ';')",
-                        "@IDTemplate=" + id);
+                    DataTable scopeCount = br.EQueryP(
+                        "spPIP_Template_Command",
+                        new SqlParameter[] {
+                            new SqlParameter("@p_Tipe", "005"),
+                            new SqlParameter("@p_IDTemplate", id)
+                        });
                     if (Convert.ToInt32(scopeCount.Rows[0]["Total"]) <= 1)
                         return new { success = false, message = "Selected Company requires at least one company/location assignment." };
 
-                    br.EQuery(@"
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-UPDATE T
-SET EmployeeList=CASE WHEN ISNULL(T.EmployeeList,'')=';' THEN ';' ELSE ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.EmployeeList,''),';') X
- WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=X.val AND E.CompanyID=@CompanyID AND E.LocationID=@LocationID)
- FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'') END,
- CompanyLocationList=ISNULL(STUFF((SELECT ';'+X.val FROM dbo.SplitStringConvertToTable(ISNULL(T.CompanyLocationList,''),';') X
- WHERE X.val<>@CompanyID+@LocationID FOR XML PATH(''),TYPE).value('.','varchar(8000)'),1,1,''),'')
-FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=@IDTemplate;
-COMMIT TRANSACTION;",
-                        "@IDTemplate=" + id + GF.Str2 +
-                        "@CompanyID=" + companyId + GF.Str2 +
-                        "@LocationID=" + locationId);
+                    br.EQueryP(
+                        "spPIP_Template_Command",
+                        new SqlParameter[] {
+                            new SqlParameter("@p_Tipe", "009"),
+                            new SqlParameter("@p_Action", "REMOVE"),
+                            new SqlParameter("@p_IDTemplate", id),
+                            new SqlParameter("@p_CompanyID", companyId),
+                            new SqlParameter("@p_LocationID", locationId)
+                        });
                 }
                 return new { success = true, message = "" };
             }
@@ -1535,25 +1511,24 @@ COMMIT TRANSACTION;",
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable scope = br.EQuery(@"
-SELECT 1
-FROM dbo.PIP_M_CheckListWOPM T
-WHERE T.IDTemplate=@IDTemplate
-  AND T.TemplateType='I'
-  AND (ISNULL(T.CompanyScope,'S')='A'
-       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CurrentCompanyID + @CurrentLocationID + ';%'))",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@CurrentCompanyID=" + companyId + GF.Str2 +
-                    "@CurrentLocationID=" + locationId);
+                DataTable scope = br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "010"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_CurrentCompanyID", companyId),
+                        new SqlParameter("@p_CurrentLocationID", locationId)
+                    });
                 if (scope.Rows.Count == 0)
                     return new { success = false, message = "Inspection template is not assigned to this company/location." };
 
-                br.EQuery(@"
-UPDATE dbo.PIP_M_CheckListWOPM
-SET EmployeeList='', UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
-                    "@IDTemplate=" + id + GF.Str2 +
-                    "@UpdateUser=" + updateUser);
+                br.EQueryP(
+                    "spPIP_Template_Command",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "011"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_UpdateUser", updateUser)
+                    });
                 return new { success = true, message = "" };
             }
         }
@@ -1571,35 +1546,12 @@ WHERE IDTemplate=@IDTemplate AND TemplateType='I'",
             RequireTemplateAccess(id.ToString());
             using (var br = new WAL.BR.CF())
             {
-                DataTable result = br.EQueryP(@"
-SET XACT_ABORT ON;
-BEGIN TRANSACTION;
-IF NOT EXISTS (
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM WITH (UPDLOCK,HOLDLOCK)
-    WHERE IDTemplate=@IDTemplate
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Template was not found.',16,1);
-    RETURN;
-END;
-IF EXISTS (
-    SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version WITH (UPDLOCK,HOLDLOCK)
-    WHERE IDTemplate=@IDTemplate AND Status='Active'
-)
-BEGIN
-    ROLLBACK TRANSACTION;
-    RAISERROR('Template cannot be deactivated while it has an Active version.',16,1);
-    RETURN;
-END;
-UPDATE dbo.PIP_M_CheckListWOPM
-SET IsActive=0, UpdateUser=@UpdateUser, UpdateDate=GETDATE()
-WHERE IDTemplate=@IDTemplate;
-COMMIT TRANSACTION;
-SELECT CAST(1 AS BIT) Success;",
+                DataTable result = br.EQueryP(
+                    "spPIP_Template_Command",
                     new SqlParameter[] {
-                        new SqlParameter("@IDTemplate", id),
-                        new SqlParameter("@UpdateUser", employeeId)
+                        new SqlParameter("@p_Tipe", "015"),
+                        new SqlParameter("@p_IDTemplate", id),
+                        new SqlParameter("@p_UpdateUser", employeeId)
                     });
                 return new { success = true, message = "Template berhasil dinonaktifkan." };
             }
