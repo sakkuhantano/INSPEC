@@ -20,7 +20,7 @@ BEGIN
          @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
          @EmailEnabled BIT,@SPV VARCHAR(4000),@SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),
           @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
-         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20);
+         @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsActorSPV BIT=0;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
@@ -40,6 +40,8 @@ BEGIN
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
+ IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(ISNULL(@SPV,''),';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID)
+  SET @IsActorSPV=1;
  /* SPV routing is mandatory only when approval email notification is enabled.
     With notification disabled (missing config or Description='0'), sync and workflow
     submission must still succeed; the SPV can be configured later for approval access. */
@@ -107,16 +109,25 @@ BEGIN
   -- Transaction lifecycle is owned by BRC.PIP_T_WO.SyncInspection().
   UPDATE dbo.PIP_T_Inspection
   SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
-      IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+      IsApproved=CASE WHEN @IsActorSPV=1 THEN 1 ELSE 0 END,
+      ApprovedBy=CASE WHEN @IsActorSPV=1 THEN @p_ActorEmployeeID ELSE '' END,
+      ApprovedDate=CASE WHEN @IsActorSPV=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
       ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
   WHERE InspectionID=@p_InspectionID;
 
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
    VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'TECHNICIAN',@Action,@p_ActorEmployeeID,GETDATE(),NULL);
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
+  IF @IsActorSPV=1
+  BEGIN
+   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
+   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SPV','APPROVED',@p_ActorEmployeeID,GETDATE(),N'Auto-approved: inspection owner is a configured SPV.');
+   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
+  END;
   IF @EmailEnabled=1
   BEGIN
-   /* One outbox row per SPV approver. */
+   /* One outbox row per SPV approver; omitted when the owner is that SPV. */
+   IF @IsActorSPV=0
    INSERT dbo.PIP_T_InspectionEmailOutbox
    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
     EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
@@ -144,9 +155,9 @@ BEGIN
    VALUES
    ('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',
     @EventID,'INSPECTION',@p_InspectionID,'TECHNICIAN',@Owner,@TechEmail,
-    N'Inspection telah dikirim - '+ISNULL(@No,''),
-    N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.</p>',
-    N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.',
+    CASE WHEN @IsActorSPV=1 THEN N'Inspection telah di-approve SPV - ' ELSE N'Inspection telah dikirim - ' END+ISNULL(@No,''),
+    CASE WHEN @IsActorSPV=1 THEN N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah otomatis di-approve oleh Anda sebagai SPV.</p>' ELSE N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.</p>' END,
+    CASE WHEN @IsActorSPV=1 THEN N'Inspection '+ISNULL(@No,'')+N' telah otomatis di-approve oleh owner yang merupakan SPV.' ELSE N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.' END,
     'PENDING',0,GETDATE());
   END;
   END TRY
