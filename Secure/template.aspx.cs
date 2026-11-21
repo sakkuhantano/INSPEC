@@ -238,6 +238,61 @@ FROM
             if (String.IsNullOrWhiteSpace(sectionList)) return new JavaScriptSerializer().Serialize(new object[0]);
             using (var br = new WAL.BR.CF())
             {
+                DataTable dt = br.EQuery(@"
+SELECT aa.val SectionID,
+       TotalTemplate = ISNULL((
+           SELECT COUNT(*)
+           FROM PIP_M_CheckListWOPM bb
+           WHERE bb.SectionID = aa.val
+             AND (
+                 ISNULL(bb.CompanyScope, 'S') = 'A'
+                 OR (';' + ISNULL(bb.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+             )
+       ), 0)
+FROM dbo.SplitStringConvertToTable(@SectionList, ';') aa
+WHERE 1=1
+  AND (
+      EXISTS (
+          SELECT 1
+          FROM dbo.SysWebUserCompanyLocation perm
+          WHERE perm.AppID = 'INSPEC'
+            AND perm.UserID = @UserID
+            AND perm.CompanyID = @CompanyID
+            AND perm.LocationID = @LocationID
+      )
+      OR EXISTS (
+          SELECT 1
+          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
+          WHERE loginCompany.CompanyID = @CompanyID
+            AND loginCompany.LocationID = @LocationID
+      )
+  )",
+                    "@SectionList=" + sectionList
+                    + GF.Str2 + "@UserID=" + userId
+                    + GF.Str2 + "@CompanyID=" + companyId
+                    + GF.Str2 + "@LocationID=" + locationId
+                    + GF.Str2 + "@EmployeeID=" + employeeId);
+
+                var data = dt.AsEnumerable()
+                    .Select(row => new
+                    {
+                        SectionID = row.Field<string>("SectionID"),
+                        TotalTemplate = row.Field<int>("TotalTemplate")
+                    })
+                    .ToList();
+
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(versionList);
+
+
+            }
+        }
+        [WebMethod(EnableSession = true)]
+        public static object GetTemplateVersions(string idTemplate)
+        {
+            RequireTemplateAccess(idTemplate);
+            using (var br = new WAL.BR.CF())
+            {
                 DataTable dt = br.EQueryP(
                     "EXEC dbo.spPIP_Inspection_Query @p_Tipe='003', @p_IDTemplate=@IDTemplate",
                     new SqlParameter[] {
@@ -250,10 +305,7 @@ FROM
                     Version = row.Field<string>("Version"),
                     Status = row.Field<string>("Status"),
                     StatusOption = row.Field<string>("StatusOption"),
-                    // Handle nilai NULL untuk tanggal agar menghasilkan null di JSON
                     EffectiveDate = row["EffectiveDate"] == DBNull.Value ? null : Convert.ToDateTime(row["EffectiveDate"]).ToString("yyyy-MM-dd"),
-
-                    // Handle nilai NULL untuk string agar tetap aman
                     Remark = row["Remark"] == DBNull.Value ? null : row.Field<string>("Remark"),
                     GroupEquipment = GF.GetString(row["GroupEquipment"]),
                     RemarkRequiredOptions = String.IsNullOrWhiteSpace(GF.GetString(row["RemarkRequiredOptions"])) ? new string[0] : GF.GetString(row["RemarkRequiredOptions"]).Split(';'),
@@ -269,8 +321,6 @@ FROM
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
                 return serializer.Serialize(versionList);
-
-
             }
         }
         [WebMethod(EnableSession = true)]
