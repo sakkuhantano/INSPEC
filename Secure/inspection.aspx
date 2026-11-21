@@ -33,6 +33,24 @@
 .inspection-map-quick-focus-ring::after{content:"";position:absolute;inset:-4px;border:2px dashed rgba(245,158,11,.55);border-radius:50%;animation:inspectionMapQuickFocusPulse 1.15s ease-in-out infinite}
 @keyframes inspectionMapQuickFocusPulse{0%,100%{opacity:.25;box-shadow:0 0 0 0 rgba(245,158,11,.35)}50%{opacity:1;box-shadow:0 0 0 8px rgba(245,158,11,0)}}
 .inspection-map-point-sheet{max-height:min(70dvh,620px);overflow:auto}
+.inspection-map-point-sheet.checklist-mode{display:flex;flex-direction:column;gap:.25rem}
+.inspection-map-point-checklist-scroll{max-height:calc(76dvh - 112px);overflow-y:auto;overscroll-behavior:contain;min-height:0}
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel{display:block!important;max-width:none;margin:0!important;padding:.35rem!important;border:0!important;box-shadow:none!important;background:transparent!important}
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>.inspection-photo-panel,
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>#inspectionChecklistGateMessage,
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>#inspectionChecklistHost,
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>#inspectionPointConditionPanel,
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>#inspectionAfterPhotoPanel,
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel>.d-flex.flex-wrap.gap-2.mt-3{margin-top:.5rem!important}
+.inspection-map-point-sheet.checklist-mode .inspection-map-point-status{margin-top:.2rem!important}
+.inspection-map-point-sheet.checklist-mode .inspection-map-point-name{font-size:.9rem}
+.inspection-map-point-sheet.checklist-mode .inspection-section-nav{position:sticky;top:0;z-index:3}
+.inspection-map-point-sheet.checklist-mode .inspection-item{padding:.65rem!important;margin-bottom:.55rem!important}
+.inspection-map-point-sheet.checklist-mode .inspection-item .inspection-option-choice{min-height:38px;padding:.4rem .7rem;font-size:.78rem}
+@media(max-width:767.98px){.inspection-map-point-sheet.checklist-mode{max-height:84dvh;padding:.7rem .7rem calc(.7rem + env(safe-area-inset-bottom))}
+.inspection-map-point-checklist-scroll{max-height:calc(84dvh - 116px)}
+.inspection-map-point-sheet.checklist-mode #inspectionFormPanel{padding:.15rem!important}
+.inspection-map-point-sheet.checklist-mode .inspection-map-sheet-handle{margin-bottom:.35rem}}
 .inspection-map-point-sheet-backdrop{position:fixed;inset:0;z-index:1080;background:rgba(15,23,42,.46);backdrop-filter:blur(1px)}
 .inspection-map-point-sheet-backdrop.d-none{display:none!important}
 @media(max-width:767.98px){
@@ -1827,7 +1845,7 @@
             <div class="inspection-entry-heading text-end"><div class="fw-semibold">Inspection Entry</div><div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div></div>
             <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
         </div>
-    </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
+    </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item d-none"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab" tabindex="-1" aria-hidden="true">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
     <div id="inspectionParamsPane">
     <div id="inspectionParameterNotice" class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-2 small" role="note">
         <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
@@ -1960,8 +1978,11 @@
             <div id="inspectionMapPointDescription" class="small text-muted mt-2"></div>
             <div id="inspectionMapQuickOptions" class="inspection-map-quick-options mt-3"></div>
             <div id="inspectionMapQuickNote" class="inspection-map-quick-note text-muted mt-2"></div>
+            <div id="inspectionMapPointChecklistScroll" class="inspection-map-point-checklist-scroll">
+                <div id="inspectionMapPointChecklistMount"></div>
+            </div>
             <div class="d-flex justify-content-end mt-2">
-                <button type="button" id="btnOpenInspectionPointChecklist" class="btn btn-link btn-sm px-0"><i class="bi bi-clipboard-check me-1"></i>Checklist Lengkap</button>
+                <button type="button" id="btnOpenInspectionPointChecklist" class="btn btn-link btn-sm px-0 d-none"><i class="bi bi-clipboard-check me-1"></i>Checklist Lengkap</button>
             </div>
             <div class="inspection-map-quick-actions mt-2">
                 <button type="button" id="btnCancelInspectionMapPoint" class="btn btn-light border">Batal</button>
