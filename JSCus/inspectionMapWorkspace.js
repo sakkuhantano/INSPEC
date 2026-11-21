@@ -593,12 +593,17 @@
         if (!host) return;
 
         var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        if (typeof template === "string") {
+            try { template = JSON.parse(template); }
+            catch (ignore) { template = null; }
+        }
+
         var optionItems = [];
         var sections = template && (template.sections || template.Sections);
         (Array.isArray(sections) ? sections : []).forEach(function (section) {
             var items = section && (section.items || section.Items);
             (Array.isArray(items) ? items : []).forEach(function (item) {
-                if (String(item.type || item.Type || item.ItemType || "").toUpperCase() === "OPTION")
+                if (String(item && (item.type || item.Type || item.ItemType) || "").toUpperCase() === "OPTION")
                     optionItems.push(item);
             });
         });
@@ -610,9 +615,12 @@
         }
 
         var cards = optionItems.map(function (item) {
-            var itemId = Number(item.idItem != null ? item.idItem : item.IDItem);
-            var label = String(item.itemLabel || item.ItemLabel || item.label || "Option");
-            var rawOptions = item.optionList != null ? item.optionList : item.OptionList;
+            var itemId = Number(item.idItem != null ? item.idItem :
+                (item.IDItem != null ? item.IDItem : item.id));
+            var label = String(item.itemLabel || item.ItemLabel || item.label || item.Label || "Option");
+            var rawOptions = item.optionList != null ? item.optionList :
+                (item.OptionList != null ? item.OptionList :
+                    (item.StatusOption != null ? item.StatusOption : item.statusOption));
             var options = Array.isArray(rawOptions)
                 ? rawOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
                 : String(rawOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
@@ -620,12 +628,18 @@
             options.forEach(function (option) { counts[option] = 0; });
             var unanswered = 0;
 
-            points.forEach(function (point) {
+            (Array.isArray(points) ? points : []).forEach(function (point) {
                 var transaction = getPointTransaction(point);
-                var answer = transaction && Array.isArray(transaction.Items)
-                    ? transaction.Items.find(function (result) { return Number(result.IDItem) === itemId; })
+                var transactionItems = transaction && (transaction.Items || transaction.items);
+                var answer = Array.isArray(transactionItems)
+                    ? transactionItems.find(function (result) {
+                        return Number(result.IDItem != null ? result.IDItem :
+                            (result.idItem != null ? result.idItem : result.id)) === itemId;
+                    })
                     : null;
-                var value = String(answer && (answer.Value != null ? answer.Value : answer.value) || "").trim();
+                var rawValue = answer && (answer.Value != null ? answer.Value :
+                    (answer.value != null ? answer.value : answer.Result));
+                var value = String(rawValue == null ? "" : rawValue).trim();
                 if (!value) {
                     unanswered++;
                     return;
