@@ -19,7 +19,8 @@ namespace INSPEC
 {
     public partial class Login : WAL.PB
     {
-        // Positional TVP: the first value maps to C1, then C2, etc.; names are not serialized.\n        private static SqlParameter[] LoginQueryParameters(string type, params string[] values)
+        // Positional TVP: the first value maps to C1, then C2, etc.; names are not serialized.
+        private static SqlParameter[] LoginQueryParameters(string type, params string[] values)
         {
             DataTable data = new DataTable();
             for (int i = 1; i <= 13; i++)
