@@ -822,6 +822,14 @@
             height:100%!important;min-height:0!important;max-height:none!important;padding:2px!important
         }
         #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{display:none!important}
+        #inspectionMapWorkspace.map-point-list-open .inspection-map-content>#inspectionPointList{
+            display:block!important;position:absolute;z-index:30;left:.45rem;right:.45rem;top:3.35rem;bottom:.45rem;
+            width:auto;height:auto;min-height:0;max-height:none;overflow-y:auto;border:1px solid var(--bs-border-color);
+            border-radius:.75rem;box-shadow:0 12px 32px rgba(0,0,0,.25);background:var(--bs-body-bg);
+        }
+        #inspectionMapWorkspace.map-point-list-open .inspection-map-panel{visibility:hidden}
+        #inspectionMapWorkspace #btnInspectionMapPointList{display:inline-flex!important;align-items:center}
+        #inspectionMapWorkspace.map-point-list-open #btnInspectionMapPointList{background:var(--bs-primary);color:#fff}
         #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:none!important;max-height:none!important}
     }
 
@@ -1552,6 +1560,7 @@
             <div class="inspection-map-actions">
 
                 <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
+                <button type="button" id="btnInspectionMapPointList" class="btn btn-sm btn-outline-primary d-md-none" aria-expanded="false" title="Tampilkan daftar point"><i class="bi bi-card-list me-1"></i><span>Point List</span></button>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
                 <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
