@@ -1327,12 +1327,12 @@ WHERE IDVersion=@IDVersion",
             RequireAllowedSection(sectionId);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT InspectionTypeCode, InspectionTypeName, SectionID, IsActive
-FROM dbo.PIP_M_InspectionType
-WHERE SectionID=@SectionID AND IsActive=1
-ORDER BY InspectionTypeName",
-                    "@SectionID=" + sectionId);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "006"),
+                        new SqlParameter("@p_SectionID", sectionId)
+                    });
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
@@ -1349,20 +1349,16 @@ ORDER BY InspectionTypeName",
         {
             RequireMenuAccess(INSPEC_MENU_ID);
             inspectionTypeCode = (inspectionTypeCode ?? "").Trim().ToUpperInvariant();
-            using (var accessBr = new WAL.BR.CF())
-            {
-                DataTable accessDt = accessBr.EQuery("SELECT TOP 1 SectionID FROM dbo.PIP_M_InspectionType WHERE InspectionTypeCode=@InspectionTypeCode AND IsActive=1", "@InspectionTypeCode=" + inspectionTypeCode);
-                if (accessDt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
-                RequireAllowedSection(GF.GetString(accessDt.Rows[0]["SectionID"]));
-            }
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQuery(@"
-SELECT InspectionTypeDetailCode, InspectionTypeDetailName
-FROM dbo.PIP_M_InspectionTypeDetail
-WHERE InspectionTypeCode=@InspectionTypeCode AND IsActive=1
-ORDER BY InspectionTypeDetailName, InspectionTypeDetailCode",
-                    "@InspectionTypeCode=" + inspectionTypeCode);
+                DataTable dt = br.EQueryP(
+                    "spPIP_Inspection_Query",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_Tipe", "007"),
+                        new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode)
+                    });
+                if (dt.Rows.Count == 0) return new JavaScriptSerializer().Serialize(new object[0]);
+                RequireAllowedSection(GF.GetString(dt.Rows[0]["SectionID"]));
                 var rows = dt.AsEnumerable().Select(row => new
                 {
                     InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
