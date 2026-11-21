@@ -65,6 +65,15 @@ BEGIN
     DECLARE @p_IsSummaryRequired BIT;
     DECLARE @p_IsFollowUpRequired BIT;
 
+    DECLARE @UserID VARCHAR(50);
+    DECLARE @OriginalStatus VARCHAR(10);
+    DECLARE @OriginalSyncStatus VARCHAR(20);
+    DECLARE @ReasonCancel NVARCHAR(MAX);
+    DECLARE @DeletedBy VARCHAR(50);
+    DECLARE @OriginalTransactionJson NVARCHAR(MAX);
+    DECLARE @FromDate DATETIME;
+    DECLARE @ThruDate DATETIME;
+
     -- TVP contract: C1 = original parameter name (including @); C2 = value.
     -- One row per supplied parameter; C3-C10 reserved.
     SELECT @p_IDTemplate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IDTemplate');
@@ -120,6 +129,14 @@ BEGIN
     SELECT @p_Action = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_Action');
     SELECT @p_IsSummaryRequired = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IsSummaryRequired');
     SELECT @p_IsFollowUpRequired = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@p_IsFollowUpRequired');
+    SELECT @UserID = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@UserID');
+    SELECT @OriginalStatus = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalStatus');
+    SELECT @OriginalSyncStatus = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalSyncStatus');
+    SELECT @ReasonCancel = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ReasonCancel');
+    SELECT @DeletedBy = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@DeletedBy');
+    SELECT @OriginalTransactionJson = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@OriginalTransactionJson');
+    SELECT @FromDate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@FromDate');
+    SELECT @ThruDate = (SELECT TOP 1 C2 FROM @p_Data WHERE C1 = '@ThruDate');
 
 BEGIN
     SET NOCOUNT ON;
