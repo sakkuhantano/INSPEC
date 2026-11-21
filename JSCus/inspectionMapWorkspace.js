@@ -1158,6 +1158,57 @@
         }
         try {
             if (message) { message.textContent = 'Memuat denah...'; message.classList.remove('d-none'); }
+            var urlPath = String(map.MapUrl).split('?')[0].toLowerCase();
+            var directImage = /\.(png|jpg|jpeg|gif|bmp|webp|svg)$/.test(urlPath);
+            if (directImage) {
+                // Raster floor plans are best loaded directly by the browser.
+                // This avoids fetch/Blob/PDF.js handling and works with image
+                // endpoints that send non-standard Content-Type headers.
+                canvas.style.display = 'none';
+                var direct = document.createElement('img');
+                direct.className = 'inspection-map-image';
+                direct.alt = 'Inspection floor plan';
+                direct.draggable = false;
+                stage.insertBefore(direct, document.getElementById('inspectionMapPoints'));
+                direct.onload = function () {
+                    if (requestId !== pdfRenderSequence) return;
+                    var bounds = getInspectionMapFitBounds();
+                    var naturalWidth = direct.naturalWidth || direct.clientWidth;
+                    var naturalHeight = direct.naturalHeight || direct.clientHeight;
+                    if (!naturalWidth || !naturalHeight) {
+                        if (message) { message.textContent = 'File gambar denah kosong atau tidak valid.'; message.classList.remove('d-none'); }
+                        return;
+                    }
+                    var scale = Math.min(bounds.width / naturalWidth, bounds.height / naturalHeight, 1);
+                    var displayWidth = Math.max(1, Math.round(naturalWidth * scale));
+                    var displayHeight = Math.max(1, Math.round(naturalHeight * scale));
+                    direct.style.width = displayWidth + 'px';
+                    direct.style.height = displayHeight + 'px';
+                    direct.style.maxWidth = 'none';
+                    direct.style.maxHeight = 'none';
+                    direct.style.objectFit = 'contain';
+                    direct.style.display = 'block';
+                    stage.style.width = displayWidth + 'px';
+                    stage.style.height = displayHeight + 'px';
+                    stage.style.minHeight = '0';
+                    stage.style.maxWidth = 'none';
+                    stage.style.maxHeight = 'none';
+                    if (message) message.classList.add('d-none');
+                    applyMapTransform();
+                    renderPoints();
+                };
+                direct.onerror = function () {
+                    if (requestId !== pdfRenderSequence) return;
+                    console.error('Inspection map image URL failed:', map.MapUrl);
+                    if (message) {
+                        message.textContent = 'Gambar denah tidak dapat dibuka dari URL: ' + map.MapUrl;
+                        message.classList.remove('d-none');
+                    }
+                };
+                direct.src = map.MapUrl;
+                return;
+            }
+
             var blob = map.MapBlob || map.PdfBlob || null;
             if (!blob || typeof blob.arrayBuffer !== 'function') {
                 var response = await fetch(map.MapUrl, { credentials: 'same-origin' });
