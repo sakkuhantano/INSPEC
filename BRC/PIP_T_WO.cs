@@ -14,6 +14,21 @@ namespace INSPEC.BRC
 {
     public class PIP_T_WO : WAL.BR.BRInteractionBase
     {
+        private static SqlParameter[] CreateDispatcherParameters(string type, params string[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                data.Columns.Add("C" + i, typeof(string));
+            DataRow row = data.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            data.Rows.Add(row);
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
+
         #region " Main Functions "
 
         public DataTable SelectOneByKeyHD(SqlConnection conn = null, SqlTransaction Trans = null)
@@ -375,13 +390,10 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                         foreach (string filePath in physicalFiles)
                         {
                             string fileNameWithExt = System.IO.Path.GetFileName(filePath);
-                            DataTable dt = ocf.EQuery("SELECT * FROM PIP_T_DocumentAttachment " +
-                            "WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND DocNo=@DocNo " +
-                            "AND [FileName]+'.'+[FileType]=@FileNameType AND Type IN ('WO1','WO2','WO3')",
-                            "@CompanyID=" + item.CompanyID + GF.Str2 +
-                            "@LocationID=" + item.LocationID + GF.Str2 +
-                            "@DocNo=" + item.DocNo + GF.Str2 +
-                            "@FileNameType=" + fileNameWithExt, false, ref _mainConnection, ref _transaction);
+                            DataTable dt = ocf.EQueryP(
+                                "spPIP_WorkOrder_Query",
+                                CreateDispatcherParameters("012", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt),
+                                false, ref _mainConnection, ref _transaction);
                             if (dt.Rows.Count == 0)
                             {
                                 try
@@ -601,18 +613,12 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
                 {
                     using (WAL.BR.CF autoNumCommon = new WAL.BR.CF())
                     {
-                        SqlParameter[] autoNumParameters = new SqlParameter[]
-                        {
-                            new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId)
-                        };
-
                         // Use the same EQueryP gateway, connection and transaction as the
                         // inspection sync procedure. Do not let EQueryP create its own transaction.
-                        DataTable autoNumResult = autoNumCommon.EQueryP(@"
-DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
-INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
-SELECT ID FROM @AutoNumResult;",
-                            autoNumParameters, false, ref _mainConnection, ref _transaction);
+                        DataTable autoNumResult = autoNumCommon.EQueryP(
+                            "spPIP_Inspection_Query",
+                            CreateDispatcherParameters("086", "PIPINS" + companyId + locationId),
+                            false, ref _mainConnection, ref _transaction);
 
                         if (autoNumResult == null || autoNumResult.Rows.Count == 0 ||
                             autoNumResult.Rows[0]["ID"] == DBNull.Value)
