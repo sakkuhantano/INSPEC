@@ -1433,6 +1433,35 @@
         }
     }
 
+
+    /* Keep the status legend fully visible below the map on narrow screens. */
+    @media (max-width: 767.98px) {
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel {
+            min-height: 0;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas {
+            flex: 1 1 0 !important;
+            height: auto !important;
+            min-height: 180px !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-legend {
+            position: static !important;
+            inset: auto !important;
+            display: flex;
+            flex: 0 0 auto;
+            flex-wrap: wrap;
+            gap: .3rem .55rem;
+            max-width: 100%;
+            margin: .15rem 0 0;
+            padding: .35rem .45rem;
+            font-size: .62rem;
+            line-height: 1.25;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-panel > .inspection-map-hint {
+            display: none !important;
+        }
+    }
+
 </style>
 </asp:Content>
 
