@@ -129,6 +129,176 @@ BEGIN
         RETURN;
     END;
 
+    IF @p_Tipe = '008'
+    BEGIN
+        SELECT
+            a.IDTemplate,
+            a.TemplateNo,
+            a.TemplateName,
+            a.IsActive,
+            a.SectionID,
+            a.TemplateType,
+            a.InspectionTypeCode,
+            ISNULL(a.InspectionTypeDetailCode,'') InspectionTypeDetailCode,
+            a.CompanyScope,
+            HasActiveVersion = CAST(CASE WHEN EXISTS (
+                SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version aa
+                WHERE aa.IDTemplate=a.IDTemplate AND aa.Status='Active'
+            ) THEN 1 ELSE 0 END AS BIT),
+            CanDeleted = CAST(CASE WHEN NOT EXISTS (
+                SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version aa
+                WHERE aa.IDTemplate=a.IDTemplate AND aa.Status='Active'
+            ) THEN 1 ELSE 0 END AS BIT),
+            RuntimeTemplateID=a.IDTemplate
+        FROM dbo.PIP_M_CheckListWOPM a
+        WHERE a.SectionID=@p_SectionID
+          AND (
+              EXISTS (
+                  SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+                  WHERE perm.AppID='INSPEC' AND perm.UserID=@p_UserID
+                    AND perm.CompanyID=@p_CompanyID AND perm.LocationID=@p_LocationID
+              )
+              OR EXISTS (
+                  SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @p_EmployeeID, '') loginCompany
+                  WHERE loginCompany.CompanyID=@p_CompanyID AND loginCompany.LocationID=@p_LocationID
+              )
+          )
+          AND (
+              ISNULL(a.CompanyScope,'S')='A'
+              OR (';' + ISNULL(a.CompanyLocationList,'') + ';'
+                  LIKE '%;' + @p_CompanyID + @p_LocationID + ';%')
+          );
+        RETURN;
+    END;
+
+    IF @p_Tipe = '009'
+    BEGIN
+        SELECT
+            L.CompanyID, L.LocationID, L.CompanyName, L.LocationName,
+            IsAssigned=CAST(CASE
+                WHEN T.IDTemplate IS NOT NULL
+                 AND (';' + ISNULL(T.CompanyLocationList,'') + ';'
+                      LIKE '%;' + L.CompanyID + L.LocationID + ';%') THEN 1
+                WHEN @p_IDTemplate<=0
+                 AND L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID THEN 1
+                ELSE 0 END AS BIT)
+        FROM (
+            SELECT swc.CompanyID, swl.LocationID, swc.CompanyName, swl.LocationName
+            FROM dbo.SysWebLocation swl
+            JOIN dbo.SysWebCompany swc ON swc.CompanyID=swl.CompanyID
+            WHERE swc.IsActive=1 AND swl.IsActive=1
+              AND (
+                  EXISTS (
+                      SELECT 1 FROM dbo.SysWebUserCompanyLocation perm
+                      WHERE perm.CompanyID=swl.CompanyID AND perm.LocationID=swl.LocationID
+                        AND perm.UserID=@p_UserID AND perm.AppID='INSPEC'
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @p_EmployeeID, '') LoginCompany
+                      WHERE LoginCompany.CompanyID=swl.CompanyID
+                        AND LoginCompany.LocationID=swl.LocationID
+                  )
+              )
+        ) L
+        LEFT JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@p_IDTemplate
+        WHERE (
+            EXISTS (
+                SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                WHERE CurrentPermission.AppID='INSPEC' AND CurrentPermission.UserID=@p_UserID
+                  AND CurrentPermission.CompanyID=@p_CompanyID
+                  AND CurrentPermission.LocationID=@p_LocationID
+            )
+            OR EXISTS (
+                SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', @p_EmployeeID, '') LoginCompany
+                WHERE LoginCompany.CompanyID=@p_CompanyID AND LoginCompany.LocationID=@p_LocationID
+            )
+        )
+        AND (
+            @p_IDTemplate<=0
+            OR EXISTS (
+                SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+                WHERE T.IDTemplate=@p_IDTemplate
+                  AND (ISNULL(T.CompanyScope,'S')='A'
+                       OR (';' + ISNULL(T.CompanyLocationList,'') + ';'
+                           LIKE '%;' + @p_CompanyID + @p_LocationID + ';%'))
+            )
+        )
+        ORDER BY L.CompanyID, L.LocationID;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '010'
+    BEGIN
+        SELECT SectionID
+        FROM dbo.PIP_M_CheckListWOPM
+        WHERE IDTemplate=@p_IDTemplate;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '011'
+    BEGIN
+        SELECT
+            E.EmployeeID, E.Name, E.CompanyID, E.LocationID,
+            IsAssigned=CAST(CASE
+                WHEN ISNULL(T.EmployeeList,'')=''
+                  OR (';' + REPLACE(ISNULL(T.EmployeeList,''),':',';') + ';'
+                      LIKE '%;' + E.EmployeeID + ';%')
+                THEN 1 ELSE 0 END AS BIT),
+            swc.BuildingName
+        FROM dbo.M_HRD_Employee E
+        JOIN dbo.SysWebCompany swc ON swc.CompanyID=E.CompanyID
+        JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=@p_IDTemplate
+        WHERE E.SectionID=T.SectionID
+          AND E.SectionID=@p_SectionID
+          AND T.TemplateType='I'
+          AND ISNULL(E.TerminationDate,'')=''
+          AND (
+              EXISTS (
+                  SELECT 1 FROM dbo.SysWebUserCompanyLocation CurrentPermission
+                  WHERE CurrentPermission.AppID='INSPEC'
+                    AND CurrentPermission.UserID=(SELECT TOP 1 SU.UserID FROM dbo.SysWebUser SU WHERE SU.employeeid=E.EmployeeID)
+                    AND CurrentPermission.CompanyID=@p_CompanyID
+                    AND CurrentPermission.LocationID=@p_LocationID
+              )
+              OR EXISTS (
+                  SELECT 1 FROM dbo.F_SelectOneLogin('INSPEC', E.EmployeeID, '') LoginCompany
+                  WHERE LoginCompany.CompanyID=@p_CompanyID
+                    AND LoginCompany.LocationID=@p_LocationID
+              )
+          )
+          AND (
+              ISNULL(T.CompanyScope,'S')='A'
+              OR (';' + ISNULL(T.CompanyLocationList,'') + ';'
+                  LIKE '%;' + @p_CompanyID + @p_LocationID + ';%')
+          )
+        ORDER BY E.CompanyID, E.LocationID, E.EmployeeID;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '012'
+    BEGIN
+        SELECT GroupEquipment, Description
+        FROM dbo.PIP_M_GroupEquipment B
+        WHERE B.CompanyID=@p_CompanyID
+          AND B.LocationID=@p_LocationID
+          AND B.SectionID=@p_SectionID;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '013'
+    BEGIN
+        SELECT
+            B.SectionID,
+            A.ModelCode,
+            A.Remark
+        FROM dbo.PIP_M_GroupEquipment_Model A
+        JOIN dbo.PIP_M_GroupEquipment B ON A.ID=B.ID
+        WHERE B.CompanyID=@p_CompanyID
+          AND B.LocationID=@p_LocationID
+          AND B.GroupEquipment=@p_InspectionTypeCode;
+        RETURN;
+    END;
+
     IF @p_Tipe = '004'
     BEGIN
         SELECT
