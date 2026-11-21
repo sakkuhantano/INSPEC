@@ -624,6 +624,14 @@
             var options = Array.isArray(rawOptions)
                 ? rawOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
                 : String(rawOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
+            // Some templates inherit the OPTION values from the version-level StatusOption.
+            // Keep those choices visible even before the first point has a saved transaction.
+            if (!options.length) {
+                var defaultOptions = template && (template.StatusOption || template.statusOption);
+                options = Array.isArray(defaultOptions)
+                    ? defaultOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
+                    : String(defaultOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
+            }
             var counts = {};
             options.forEach(function (option) { counts[option] = 0; });
             var unanswered = 0;
