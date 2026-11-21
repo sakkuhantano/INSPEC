@@ -543,13 +543,22 @@ function wireInspectionEvents() {
         this.classList.remove("is-invalid");
         document.getElementById("inspectionFollowUpRemarkCounter").textContent = this.value.length + " / 300";
     });
+    // OPTION radios are toggle buttons in every inspection mode
+    // (STANDARD, BATCH and LIGHTNING): selected = blue, tap again = clear.
     document.getElementById("inspectionChecklistHost").addEventListener("click", function (event) {
         const label = event.target && event.target.closest(".inspection-option-choice");
         if (!label || currentInspectionReadOnly) return;
         const input = document.getElementById(label.getAttribute("for"));
-        if (!input || input.disabled || !input.checked) return;
+        if (!input || input.disabled || !input.matches('input[type="radio"][data-role="value"]') ||
+            !input.closest('.inspection-item[data-item-type="OPTION"]')) return;
         event.preventDefault();
-        input.checked = false;
+        event.stopPropagation();
+        const wasChecked = input.checked;
+        const groupName = input.name;
+        document.getElementById("inspectionChecklistHost")
+            .querySelectorAll('input[type="radio"][data-role="value"]')
+            .forEach(option => { if (option.name === groupName) option.checked = false; });
+        input.checked = !wasChecked;
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }, true);
     document.getElementById("inspectionChecklistHost").addEventListener("change", function (event) {
@@ -2721,7 +2730,8 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null,
     scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display",
-    statusFilter: "all", page: 1, pageSize: 20
+    statusFilter: "all", page: 1, pageSize: 20,
+    returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
 };
 let inspectionPointNavigatorLoadSequence = 0;
 
@@ -2952,7 +2962,7 @@ function renderInspectionPointNavigatorList() {
 
     const rowsHtml = pageRows.map(point => {
         const status = statusFor(point), map = maps.find(item => Number(item.MapID) === Number(point.MapID));
-        return '<div class="inspection-point-navigator-row"><div class="inspection-point-navigator-heading"><div class="inspection-point-navigator-main">' +
+        return '<div class="inspection-point-navigator-row" data-point-navigator-row="' + escInspection(point.InspectionPointID) + '"><div class="inspection-point-navigator-heading"><div class="inspection-point-navigator-main">' +
             '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
             '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
             '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") +
@@ -3112,6 +3122,21 @@ function wireInspectionPointNavigator() {
     const modal = document.getElementById("inspectionPointNavigatorModal");
     if (!modal || modal.dataset.wired === "1") return;
     modal.dataset.wired = "1";
+    modal.addEventListener("shown.bs.modal", function () {
+        const state = inspectionPointNavigatorState;
+        if (!state.restoreNavigatorPosition) return;
+        const body = modal.querySelector(".modal-body");
+        if (body) body.scrollTop = state.returnScrollTop || 0;
+        if (state.returnPointId) {
+            const row = modal.querySelector('[data-point-navigator-row="' + String(state.returnPointId).replace(/"/g, '\\"') + '"]');
+            if (row && body) {
+                const rowTop = row.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+                if (rowTop < body.scrollTop || rowTop + row.offsetHeight > body.scrollTop + body.clientHeight)
+                    body.scrollTop = Math.max(0, rowTop - Math.max(12, (body.clientHeight - row.offsetHeight) / 2));
+            }
+        }
+        state.restoreNavigatorPosition = false;
+    });
     document.getElementById("inspectionPointNavigatorDetail").addEventListener("change", function () {
         loadInspectionPointNavigatorDetail(this.value);
     });
@@ -3275,6 +3300,14 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
     const modal = document.getElementById("inspectionPointNavigatorModal");
     const instance = window.bootstrap && bootstrap.Modal ? bootstrap.Modal.getInstance(modal) : null;
     if (instance) {
+        if (openChecklist) {
+            const modalBody = modal.querySelector(".modal-body");
+            state.returnScrollTop = modalBody ? modalBody.scrollTop : 0;
+            state.returnPointId = Number(pointId) || 0;
+            state.restoreNavigatorPosition = true;
+        } else {
+            state.restoreNavigatorPosition = false;
+        }
         const hidden = new Promise(resolve => modal.addEventListener("hidden.bs.modal", resolve, { once: true }));
         instance.hide();
         await hidden;
@@ -4848,6 +4881,10 @@ async function closeInspectionForm() {
 function returnFromInspectionPage(){if(!document.getElementById("inspectionInputPanel").classList.contains("d-none")){closeInspectionForm();return;}window.location.href="dashboard.aspx";}
 function showInspectionEditorTab(tab) {
     const p = tab === "param";
+    const isBatchMode = !!(currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode));
+    const checklistTabButton = document.getElementById("btnInspectionChecklistTab");
+    if (checklistTabButton && checklistTabButton.closest("li"))
+        checklistTabButton.closest("li").classList.toggle("d-none", isBatchMode);
     document.body.classList.toggle("inspection-map-mobile-active", !p && !!(currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode) && !Number(currentInspectionRecord.ActiveInspectionPointID || 0)));
     if (p) {
         const mapWorkspace = document.getElementById("inspectionMapWorkspace");
