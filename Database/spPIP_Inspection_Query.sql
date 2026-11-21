@@ -3552,6 +3552,31 @@ BEGIN
         RETURN;
     END;
 
+    -- 218: C1=comma-separated InspectionIDs (repeat-field report details)
+    IF @p_Tipe = '218'
+    BEGIN
+        SELECT I.InspectionNo,I.InspectionDate,I.InspectionTypeDetailName,
+               P.PointCode,P.PointName,R.ItemLabel,V.ObjectIndex,
+               F.FieldKey,F.FieldLabel,F.FieldType,V.Value,F.Unit,
+               R.DisplayOrder,F.DisplayOrder AS FieldDisplayOrder
+        FROM dbo.PIP_T_Inspection I
+        JOIN dbo.PIP_T_InspectionResult R ON R.InspectionID=I.InspectionID
+        JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+          ON F.IDItem=R.IDItem AND F.FieldKey=V.FieldName
+        LEFT JOIN dbo.PIP_T_InspectionPoint TP
+          ON TP.InspectionPointTransactionID=R.InspectionPointTransactionID
+        LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+        WHERE EXISTS
+        (
+            SELECT 1
+            FROM dbo.SplitStringConvertToTable(@C1,',') X
+            WHERE CONVERT(BIGINT,LTRIM(RTRIM(X.val)))=I.InspectionID
+        )
+        ORDER BY I.InspectionNo,P.PointCode,R.DisplayOrder,V.ObjectIndex,F.DisplayOrder,F.FieldKey;
+        RETURN;
+    END;
+
     -- 213: C1=KeyHD, C2=CompanyID, C3=LocationID, C4=WONo (WO checklist/subvalues/photos)
     IF @p_Tipe = '213'
     BEGIN
