@@ -883,6 +883,7 @@
             pane.appendChild(formPanel);
             formPanel.classList.add("d-none");
             formPanel.removeAttribute("data-map-point-id");
+            window.inspectionReturnToPointNavigator = false;
         }
         if (sheet) {
             sheet.classList.remove("checklist-mode");
@@ -1826,7 +1827,12 @@
         var close = document.getElementById("btnCloseInspectionMapPoint");
         if (close) close.addEventListener("click", function () {
             if (document.getElementById("inspectionMapPointSheet")?.classList.contains("checklist-mode")) {
-                hideQuickPointSheet();
+                window.closeInspectionMapPointChecklistSheet(false);
+                if (window.inspectionReturnToPointNavigator) {
+                    var navigatorModal = document.getElementById("inspectionPointNavigatorModal");
+                    if (navigatorModal && window.bootstrap && bootstrap.Modal)
+                        bootstrap.Modal.getOrCreateInstance(navigatorModal).show();
+                }
                 return;
             }
             closePoint();
@@ -1836,19 +1842,38 @@
         var applyQuick = document.getElementById("btnApplyInspectionMapPoint");
         if (applyQuick) applyQuick.addEventListener("click", applyQuickPointSheet);
         var quickBackdrop = document.getElementById("inspectionMapPointSheetBackdrop");
-        if (quickBackdrop) quickBackdrop.addEventListener("click", closePoint);
+        if (quickBackdrop) quickBackdrop.addEventListener("click", function () {
+            if (document.getElementById("inspectionMapPointSheet")?.classList.contains("checklist-mode")) {
+                window.closeInspectionMapPointChecklistSheet(false);
+                if (window.inspectionReturnToPointNavigator) {
+                    var navigatorModal = document.getElementById("inspectionPointNavigatorModal");
+                    if (navigatorModal && window.bootstrap && bootstrap.Modal)
+                        bootstrap.Modal.getOrCreateInstance(navigatorModal).show();
+                }
+                return;
+            }
+            closePoint();
+        });
         var pointSheet = document.getElementById("inspectionMapPointSheet");
         if (pointSheet && !pointSheet.dataset.optionToggleWired) {
             pointSheet.dataset.optionToggleWired = "1";
             pointSheet.addEventListener("click", function (event) {
-                var input = event.target.matches && event.target.matches('input[type="radio"][data-role="value"]')
-                    ? event.target : null;
+                // The checklist uses Bootstrap's hidden .btn-check radio with
+                // a visible label. Handle the label click once, before the
+                // browser performs its native radio activation.
                 var label = event.target.closest ? event.target.closest("label.inspection-option-choice") : null;
-                if (!input && label) input = document.getElementById(label.htmlFor);
-                if (!input || !input.checked || !input.closest('.inspection-item[data-item-type="OPTION"]')) return;
+                if (!label || !pointSheet.contains(label)) return;
+                var input = document.getElementById(label.htmlFor);
+                if (!input || input.disabled || !input.matches('input[type="radio"][data-role="value"]') ||
+                    !input.closest('.inspection-item[data-item-type="OPTION"]')) return;
                 event.preventDefault();
                 event.stopPropagation();
-                input.checked = false;
+                var wasChecked = input.checked;
+                var groupName = input.name;
+                pointSheet.querySelectorAll('input[type="radio"][data-role="value"]').forEach(function (option) {
+                    if (option.name === groupName) option.checked = false;
+                });
+                input.checked = !wasChecked;
                 input.dispatchEvent(new Event("change", { bubbles: true }));
             }, true);
         }
