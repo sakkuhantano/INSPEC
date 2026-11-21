@@ -3450,6 +3450,42 @@ BEGIN
     END;
 
 
+    -- 213: C1=KeyHD (WO checklist values, group/repeat subvalues, and photo metadata)
+    IF @p_Tipe = '213'
+    BEGIN
+        SELECT A.IDItem, A.Value, A.Remark1, A.Remark2,
+               B.ItemType, A.IDResult, A.IsAnomali
+        FROM dbo.PIP_T_WO_CheckList A
+        JOIN dbo.PIP_M_CheckListWOPM_Item B ON B.IDItem=A.IDItem
+        WHERE A.KeyHD=CONVERT(INT,@C1);
+
+        SELECT SV.IDResult, SV.ObjectIndex, SV.FieldName, SV.Value
+        FROM dbo.PIP_T_WO_CheckList_SubValue SV
+        JOIN dbo.PIP_T_WO_CheckList WC ON WC.IDResult=SV.IDResult
+        WHERE WC.KeyHD=CONVERT(INT,@C1)
+        ORDER BY SV.IDResult, SV.ObjectIndex, SV.FieldName;
+
+        SELECT *
+        FROM dbo.PIP_T_DocumentAttachment
+        WHERE [Type] IN ('WO1','WO2')
+          AND CompanyID=@C2 AND LocationID=@C3 AND DocNo=@C4;
+        RETURN;
+    END;
+
+    -- 214: C1=CompanyLocation (CompanyID;LocationID), C2=WONo
+    IF @p_Tipe = '214'
+    BEGIN
+        SELECT M.EmployeeID, M.Name, ISNULL(S.[Description],'') SectionName
+        FROM dbo.PIP_T_WO H
+        CROSS APPLY dbo.SplitStringConvertToTable(H.EmployeeAssigned,';') X
+        JOIN dbo.M_HRD_Employee M ON M.EmployeeID=X.val
+        LEFT JOIN dbo.PIP_M_Section S ON S.SectionID=M.SectionID
+        WHERE H.CompanyID+';'+H.LocationID=@C1
+          AND H.WONo=@C2;
+        RETURN;
+    END;
+
+
 END;
 GO
 
