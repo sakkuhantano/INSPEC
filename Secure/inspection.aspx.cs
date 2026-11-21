@@ -21,8 +21,7 @@ namespace INSPEC.Secure
             if (String.IsNullOrWhiteSpace(employeeId)) return false;
             using (var br = new WAL.BR.CF())
             {
-                DataTable admin = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "023"),
-                    new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
+                DataTable admin = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "023"), new SqlParameter("@UserID", employeeId) });
                 return admin != null && admin.Rows.Count > 0;
             }
         }
@@ -374,7 +373,6 @@ namespace INSPEC.Secure
                     {
                         syncStage = "validate inspection template detail";
                         DataTable templateDetailCheck = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "014"),
-                            new SqlParameter[] {
                                 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                 new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")),
                                 new SqlParameter("@TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
@@ -393,7 +391,6 @@ namespace INSPEC.Secure
                         {
                             syncStage = "validate batch checklist version rules";
                             DataTable versionRules = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "015"),
-                                new SqlParameter[] {
                                     new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
@@ -417,20 +414,16 @@ namespace INSPEC.Secure
                                 throw new Exception("Responsible Section dan Follow Up Remark wajib diisi sesuai Master Checklist Version.");
 
                             DataTable versionItems = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "016"),
-                                new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
                             if (versionItems == null || versionItems.Rows.Count == 0)
                                 throw new Exception("Master Checklist Version tidak memiliki item checklist.");
 
                             DataTable versionGroups = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "017"),
-                                new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
                                 });
-                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "018"),
-                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
-                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "019"),
-                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
+                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "018"), new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
+                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "019"), new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
 
                             string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
                             JArray versionPointArray = record["Points"] as JArray ?? new JArray();
@@ -686,7 +679,6 @@ namespace INSPEC.Secure
                                 submittedPointIDs.Add(TokenLong(submittedPoint, "InspectionPointID"));
 
                             DataTable coveragePoints = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "020"),
-                                new SqlParameter[] {
                                     new SqlParameter("@CompanyID", companyId),
                                     new SqlParameter("@LocationID", locationId),
                                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
@@ -722,8 +714,7 @@ namespace INSPEC.Secure
                         }
 
                         syncStage = "preflight existing inspection";
-                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "021"),
-                            new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
+                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "021"), new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
                         if (existingRows != null && existingRows.Rows.Count > 0)
                         {
                             DataRow existing = existingRows.Rows[0];
@@ -752,8 +743,7 @@ namespace INSPEC.Secure
                                 else
                                     record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
                             }
-                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "022"),
-                                new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) });
+                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", new SqlParameter[] { new SqlParameter("@p_Tipe", "022"), new SqlParameter("@InspectionID", existingInspectionId) });
                             if (oldPhotoRows == null)
                                 throw new Exception("Could not load existing Inspection photo records before sync.");
                         }
