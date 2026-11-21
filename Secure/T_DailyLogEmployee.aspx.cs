@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
 using System.Web;
@@ -14,6 +15,21 @@ namespace INSPEC.Secure
     public partial class T_DailyLogEmployee : System.Web.UI.Page
     {
         private const string _MenuID = "20031";
+
+        private static SqlParameter[] DailyLogQueryParameters(string type, params string[] values)
+        {
+            DataTable data = new DataTable();
+            for (int i = 1; i <= 13; i++)
+                data.Columns.Add("C" + i, typeof(string));
+            DataRow row = data.NewRow();
+            for (int i = 0; i < values.Length && i < 13; i++)
+                row[i] = values[i] ?? String.Empty;
+            data.Rows.Add(row);
+            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
+            tvp.TypeName = "dbo.Type_N_Tbl_C13";
+            tvp.Value = data;
+            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
+        }
 
         private string _loginEmployeeID;
         private string LoginEmployeeID
@@ -405,15 +421,7 @@ namespace INSPEC.Secure
             int start = (SummaryPage - 1) * SummaryPageSize + 1;
             int end = Math.Min(total, SummaryPage * SummaryPageSize);
 
-            // Pagination di SQL: hanya mengambil baris untuk halaman modal saat ini.
-            string sql =
-               "WITH Numbered AS ( " +
-               " SELECT d.StartDateTime, d.EndDateTime, ISNULL(m.Name, d.EmployeeID) AS FullName, " +
-               " d.Activity, d.Status, ROW_NUMBER() OVER (ORDER BY d.StartDateTime, d.Id) AS RowNum " +
-               criteria +
-               ") SELECT StartDateTime, EndDateTime, FullName, Activity, Status " +
-               " FROM Numbered WHERE RowNum BETWEEN " + start + " AND " + end +
-               " ORDER BY RowNum;";
+            // Pagination SQL is centralized in dispatcher branch 215.
             DataTable rows;
             if (total == 0)
             {
@@ -426,7 +434,11 @@ namespace INSPEC.Secure
             }
             else
             {
-                using (WAL.BR.CF br = new WAL.BR.CF()) rows = br.EQuery(sql);
+                using (WAL.BR.CF br = new WAL.BR.CF())
+                    rows = br.EQueryP("spPIP_Inspection_Query",
+                        DailyLogQueryParameters("215", LoginEmployeeID, period, selectedTypeSql, keyword,
+                            start.ToString(CultureInfo.InvariantCulture), end.ToString(CultureInfo.InvariantCulture)),
+                        true);
             }
             if (rows == null)
                 throw new InvalidOperationException("Tidak dapat memuat ringkasan aktivitas.");
@@ -522,40 +534,8 @@ namespace INSPEC.Secure
                     throw new InvalidOperationException("Tanggal aktivitas maksimal besok.");
                 string periodSql = date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
                 string typeSql = SafeSqlLiteral(NormalizeLogType(SelectedLogType), 10, "Jenis log");
-                DataTable V_dt = br.EQuery(
-                    "SELECT member.EmployeeID AS MemberId, member.EmployeeID AS StaffCode, " +
-                    "       member.Name AS FullName, " +
-                    "       ISNULL(t.ActivityCount, 0) AS ActivityCount, " +
-                    "       ISNULL(CONVERT(varchar(5), f.StartDateTime, 108), '') AS FirstStart, " +
-                    "       ISNULL(CONVERT(varchar(5), f.EndDateTime, 108), '') AS FirstEnd, " +
-                    "       CAST(1 AS bit) AS IsCurrentMember, " +
-                    "       CAST(CASE WHEN f.StartDateTime IS NOT NULL " +
-                    "                 AND CONVERT(date, f.StartDateTime) <> CONVERT(date, f.EndDateTime) " +
-                    "                 THEN 1 ELSE 0 END AS bit) AS CrossDay " +
-                    "FROM m_hrd_employee AS loginEmp " +
-                    "INNER JOIN m_hrd_employee AS member " +
-                    "    ON (member.EmployeeID = loginEmp.EmployeeID OR ( " +
-                    "         member.CompanyID = loginEmp.CompanyID " +
-                    "         AND member.LocationID = loginEmp.LocationID " +
-                    "         AND member.ProfitCenterNo = loginEmp.ProfitCenterNo " +
-                    "         AND member.SectionID = loginEmp.SectionID)) " +
-                    "OUTER APPLY ( " +
-                    "    SELECT COUNT(1) AS ActivityCount " +
-                    "    FROM dbo.Inspec_T_DailyLog_Hd h " +
-                    "    INNER JOIN dbo.Inspec_T_DailyLog_Dt d ON d.Idhd = h.Id AND d.EmployeeID = member.EmployeeID AND d.IsActive = 1 AND d.LogType = '" + typeSql + "' " +
-                    "    WHERE h.EmployeeID = loginEmp.EmployeeID " +
-                    "      AND h.PeriodDate = CONVERT(date, '" + periodSql + "', 112) " +
-                    ") t " +
-                    "OUTER APPLY ( " +
-                    "    SELECT TOP (1) d.StartDateTime, d.EndDateTime " +
-                    "    FROM dbo.Inspec_T_DailyLog_Hd h " +
-                    "    INNER JOIN dbo.Inspec_T_DailyLog_Dt d ON d.Idhd = h.Id AND d.EmployeeID = member.EmployeeID AND d.IsActive = 1 AND d.LogType = '" + typeSql + "' " +
-                    "    WHERE h.EmployeeID = loginEmp.EmployeeID " +
-                    "      AND h.PeriodDate = CONVERT(date, '" + periodSql + "', 112) " +
-                    "    ORDER BY d.StartDateTime, d.Id " +
-                    ") f " +
-                    "WHERE loginEmp.EmployeeID = '" + LoginEmployeeID + "' AND member.TerminationDate = '' " +
-                    "ORDER BY member.Name, member.EmployeeID;");
+                DataTable V_dt = br.EQueryP("spPIP_Inspection_Query",
+                    DailyLogQueryParameters("216", LoginEmployeeID, periodSql, typeSql), true);
 
                 totalMembers = 0;
                 completedMembers = 0;
@@ -718,31 +698,11 @@ namespace INSPEC.Secure
             string periodSql = date.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
             string memberSql = SafeSqlLiteral(memberId, 10, "EmployeeID");
             string typeSql = SafeSqlLiteral(NormalizeLogType(SelectedLogType), 10, "Jenis log");
-            string sql =
-                "SELECT d.Id AS ActivityId, d.StartDateTime, d.EndDateTime, d.Activity, " +
-                "       CAST(CASE WHEN EXISTS ( " +
-                "          SELECT 1 FROM m_hrd_Employee AS loginEmp " +
-                "          INNER JOIN m_hrd_Employee AS member " +
-                "            ON member.EmployeeID = d.EmployeeID " +
-                "          WHERE loginEmp.EmployeeID = '" + LoginEmployeeID + "' " +
-                "            AND (member.EmployeeID = loginEmp.EmployeeID OR ( " +
-                "                 member.CompanyID = loginEmp.CompanyID " +
-                "                 AND member.LocationID = loginEmp.LocationID " +
-                "                 AND member.ProfitCenterNo = loginEmp.ProfitCenterNo " +
-                "                 AND member.SectionID = loginEmp.SectionID)) " +
-                "       ) THEN 1 ELSE 0 END AS bit) AS IsCurrentMember " +
-                "FROM dbo.Inspec_T_DailyLog_Hd h " +
-                "INNER JOIN dbo.Inspec_T_DailyLog_Dt d ON d.Idhd = h.Id AND d.IsActive = 1 " +
-                "WHERE h.EmployeeID = '" + LoginEmployeeID + "' " +
-                "AND d.EmployeeID = '" + memberSql + "' " +
-                "AND d.LogType = '" + typeSql + "' " +
-                "AND h.PeriodDate = CONVERT(date, '" + periodSql + "', 112) " +
-                "ORDER BY d.StartDateTime, d.Id;";
-
             DataTable raw;
             using (WAL.BR.CF br = new WAL.BR.CF())
             {
-                raw = br.EQuery(sql);
+                raw = br.EQueryP("spPIP_Inspection_Query",
+                    DailyLogQueryParameters("217", LoginEmployeeID, memberSql, typeSql, periodSql), true);
             }
             if (raw == null)
                 throw new InvalidOperationException("Query aktivitas tidak mengembalikan DataTable.");
