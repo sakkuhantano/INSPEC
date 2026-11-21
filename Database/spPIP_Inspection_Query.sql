@@ -3509,6 +3509,189 @@ BEGIN
     END;
 
 
+    -- INSPEC Login/session operations use the same @p_Tipe + Type_N_Tbl_C13 contract.
+    -- 220: C1=BrowserGuid, C2=ServerGuid, C3=Token (logout current browser session)
+    IF @p_Tipe = '220'
+    BEGIN
+        UPDATE dbo.UserSession
+        SET IsActive=0
+        WHERE BrowserGuid=@C1 AND ServerGuid=@C2 AND Token=@C3 AND IsActive=1;
+        RETURN;
+    END;
+
+    -- 221: C1=InfoID (atomically consume a one-time portal login ticket)
+    IF @p_Tipe = '221'
+    BEGIN
+        UPDATE dbo.SysWebInfo
+        SET ExpiredDate=GETDATE(), UpdateDate=GETDATE()
+        OUTPUT deleted.Description1 AS EmployeeID,
+               deleted.Description2 AS PasswordHash
+        WHERE ID=@C1
+          AND Type='LinkApp'
+          AND AppID='WebApp'
+          AND ExpiredDate>GETDATE();
+        RETURN;
+    END;
+
+    -- 222: C1=EmployeeID, C2=BrowserGuid (load login profile)
+    IF @p_Tipe = '222'
+    BEGIN
+        SELECT U.UserID,U.UserName,U.employeeid AS EmployeeID,U.Password,
+               ISNULL(L.SectionList,'') AS Section,
+               ISNULL(NULLIF(L.Theme,''),'L') AS Theme,
+               A.JobTitleName,A.EmailAddress,A.ProfitCenterNo,
+               ISNULL(US.LastSyncMaster,CAST('' AS SMALLDATETIME)) AS LastSyncMaster,
+               A.UserName AS UserName1,
+               ISNULL(US.LastSyncWO,CAST('' AS SMALLDATETIME)) AS LastSyncWO
+        FROM dbo.SysWebUser U
+        LEFT JOIN dbo.INSPEC_User L ON L.UserID=U.employeeid
+        OUTER APPLY
+        (
+            SELECT TOP 1 LastSyncMaster,LastSyncWO
+            FROM dbo.UserSession
+            WHERE UserID=U.EmployeeID AND BrowserGuid=@C2
+            ORDER BY LoginTime DESC,ID DESC
+        ) US
+        CROSS APPLY dbo.F_SelectOneLogin('pip',U.employeeid,'') A
+        WHERE U.employeeid=@C1 AND U.IsActive=1;
+        RETURN;
+    END;
+
+    -- 223: C1=EmployeeID (authorized company/location choices)
+    IF @p_Tipe = '223'
+    BEGIN
+        SELECT CompanyLocation,CompanyName
+        FROM
+        (
+            SELECT CompanyLocation,CompanyName,SourcePriority,
+                   ROW_NUMBER() OVER (PARTITION BY CompanyLocation ORDER BY SourcePriority) RN
+            FROM
+            (
+                SELECT A.companyid+';'+A.locationid AS CompanyLocation,
+                       A.alias AS CompanyName,0 AS SourcePriority
+                FROM dbo.F_SelectOneLogin('pip',@C1,'') A
+                UNION ALL
+                SELECT A.companyid+';'+A.locationid AS CompanyLocation,
+                       B.alias AS CompanyName,1 AS SourcePriority
+                FROM dbo.syswebusercompanylocation A
+                JOIN dbo.syswebcompany B ON B.companyid=A.companyid
+                WHERE A.userid=@C1 AND A.appid='pip'
+            ) Sources
+        ) Ranked
+        WHERE RN=1
+        ORDER BY SourcePriority,CompanyLocation;
+        RETURN;
+    END;
+
+    -- 224: C1=EmployeeID, C2=BrowserGuid, C3=ServerGuid, C4=Token, C5=DeviceName.
+    -- The procedure owns this transaction; caller must not open another transaction.
+    IF @p_Tipe = '224'
+    BEGIN
+        SET XACT_ABORT ON;
+        BEGIN TRY
+            BEGIN TRANSACTION;
+
+            DECLARE @LoginNewID INT;
+            DECLARE @LoginSessionID INT;
+
+            SELECT @LoginNewID=ISNULL(MAX(ID),0)
+            FROM dbo.UserSession WITH (TABLOCKX,HOLDLOCK);
+
+            SELECT TOP 1 @LoginSessionID=ID
+            FROM dbo.UserSession
+            WHERE UserID=@C1 AND BrowserGuid=@C2
+            ORDER BY LoginTime DESC,ID DESC;
+
+            UPDATE dbo.UserSession
+            SET IsActive=0
+            WHERE UserID=@C1 AND BrowserGuid=@C2 AND IsActive=1;
+
+            IF @LoginSessionID IS NULL
+            BEGIN
+                DELETE FROM dbo.UserSession
+                WHERE ISNULL(IsActive,0)=0 OR ExpireTime<=GETDATE();
+
+                SELECT @LoginNewID=ISNULL(MAX(ID),0)+1 FROM dbo.UserSession;
+
+                INSERT dbo.UserSession
+                    (ID,UserID,BrowserGuid,ServerGuid,Token,LoginTime,ExpireTime,IsActive,DeviceName,LastSyncMaster,LastSyncWO)
+                VALUES
+                    (@LoginNewID,@C1,@C2,@C3,@C4,GETDATE(),DATEADD(DAY,2,GETDATE()),1,@C5,'','');
+            END
+            ELSE
+            BEGIN
+                UPDATE dbo.UserSession
+                SET ServerGuid=@C3,
+                    Token=@C4,
+                    LoginTime=GETDATE(),
+                    ExpireTime=DATEADD(DAY,2,GETDATE()),
+                    IsActive=1,
+                    DeviceName=@C5
+                WHERE ID=@LoginSessionID;
+            END;
+
+            COMMIT TRANSACTION;
+            RETURN;
+        END TRY
+        BEGIN CATCH
+            IF @@TRANCOUNT>0 ROLLBACK TRANSACTION;
+            DECLARE @LoginError NVARCHAR(4000);
+            SET @LoginError=ERROR_MESSAGE();
+            RAISERROR('%s',16,1,@LoginError);
+            RETURN;
+        END CATCH;
+    END;
+
+    -- 225: C1=BrowserGuid, C2=ServerGuid, C3=Token (validate browser session)
+    IF @p_Tipe = '225'
+    BEGIN
+        SELECT TOP 1 S.UserID
+        FROM dbo.UserSession S
+        INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
+        WHERE S.BrowserGuid=@C1
+          AND S.ServerGuid=@C2
+          AND S.Token=@C3
+          AND S.IsActive=1
+          AND S.ExpireTime>GETDATE()
+          AND U.IsActive=1;
+        RETURN;
+    END;
+
+    -- 226: C1=Token (confirm active server-side cookie session)
+    IF @p_Tipe = '226'
+    BEGIN
+        SELECT TOP 1 S.UserID
+        FROM dbo.UserSession S
+        INNER JOIN dbo.SysWebUser U ON U.EmployeeID=S.UserID
+        WHERE S.Token=@C1
+          AND S.IsActive=1
+          AND S.ExpireTime>GETDATE()
+          AND U.IsActive=1;
+        RETURN;
+    END;
+
+    -- 227: C1=EmployeeID (load SysWeb2-authorized INSPEC front-end menu)
+    IF @p_Tipe = '227'
+    BEGIN
+        SELECT MenuID,ParentMenuID,Caption,URL,AppID,IsReport,
+               [COUNTER],Line,ImageUrl,[DESCRIPTION],isActive,HeaderDetail
+        FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@C1,'')
+        ORDER BY [COUNTER],MenuID;
+        RETURN;
+    END;
+
+    -- 228: C1=EmployeeID, C2=PasswordHash (validate portal INSPEC account)
+    IF @p_Tipe = '228'
+    BEGIN
+        SELECT TOP 2 UserID
+        FROM dbo.SysWebUser
+        WHERE employeeid=@C1
+          AND [Password]=@C2
+          AND IsActive=1;
+        RETURN;
+    END;
+
+
 END;
 GO
 
