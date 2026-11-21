@@ -3048,6 +3048,77 @@ BEGIN
     END;
 
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
+
+    IF @p_Tipe = '081'
+    BEGIN
+        SELECT @C1 Section,
+               CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @C2, '') AM
+                                 WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@C2 AND SU.IsActive=1
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                       WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=@C3 AND C.LocationID=@C4)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                          WHERE L.CompanyID=@C3 AND L.LocationID=@C4));
+        RETURN;
+    END;
+
+    IF @p_Tipe = '082'
+    BEGIN
+        SELECT @C1 Section,
+               CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @C2, '') AM
+                                 WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@C2 AND SU.IsActive=1;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '083'
+    BEGIN
+        SELECT SU.UserID
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@C1 AND SU.IsActive=1
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                       WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=@C2 AND C.LocationID=@C3)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                          WHERE L.CompanyID=@C2 AND L.LocationID=@C3));
+        RETURN;
+    END;
+
+    IF @p_Tipe = '084'
+    BEGIN
+        SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
+               ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode
+        FROM dbo.PIP_M_InspectionType T
+        WHERE T.IsActive=1
+          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@C1,';') S WHERE S.val=T.SectionID)
+          AND EXISTS (
+              SELECT 1 FROM dbo.PIP_M_CheckListWOPM C
+              WHERE C.InspectionTypeCode=T.InspectionTypeCode AND C.SectionID=T.SectionID
+                AND C.IsActive=1 AND ISNULL(C.TemplateType,'W')='I'
+                AND (ISNULL(C.CompanyScope,'S')='A'
+                     OR (';' + ISNULL(C.CompanyLocationList,'') + ';' LIKE '%;' + @C2 + @C3 + ';%'))
+                AND (ISNULL(C.EmployeeList,'')='' OR (';' + ISNULL(C.EmployeeList,'') + ';' LIKE '%;' + @C4 + ';%'))
+                AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+                            WHERE V.IDTemplate=C.IDTemplate AND V.Status='Active')
+          )
+        ORDER BY T.SectionID,T.InspectionTypeName;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '085'
+    BEGIN
+        SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
+               D.InspectionTypeDetailName, D.ScheduleTime
+        FROM dbo.PIP_M_InspectionType T
+        JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
+        WHERE T.IsActive=1 AND D.IsActive=1
+          AND D.CompanyID=@C2 AND D.LocationID=@C3
+          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@C1,';') S WHERE S.val=T.SectionID)
+        ORDER BY D.InspectionTypeCode,D.ScheduleTime,D.InspectionTypeDetailCode;
+        RETURN;
+    END;
+
 END;
 GO
 
