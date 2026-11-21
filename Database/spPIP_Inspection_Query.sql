@@ -3692,6 +3692,18 @@ BEGIN
     END;
 
 
+    -- 229: C1=Request host (Login.aspx domain canonicalization setting)
+    IF @p_Tipe = '229'
+    BEGIN
+        SELECT *
+        FROM dbo.SysWebCommonValue V
+        WHERE V.AppID='ALL'
+          AND V.ID=@C1
+          AND V.CommonGroup='DomainNonWWW';
+        RETURN;
+    END;
+
+
 END;
 GO
 
