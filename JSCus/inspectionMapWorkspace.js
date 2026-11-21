@@ -594,9 +594,11 @@
 
         var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
         var optionItems = [];
-        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
-            (section.items || []).forEach(function (item) {
-                if (String(item.type || item.ItemType || "").toUpperCase() === "OPTION")
+        var sections = template && (template.sections || template.Sections);
+        (Array.isArray(sections) ? sections : []).forEach(function (section) {
+            var items = section && (section.items || section.Items);
+            (Array.isArray(items) ? items : []).forEach(function (item) {
+                if (String(item.type || item.Type || item.ItemType || "").toUpperCase() === "OPTION")
                     optionItems.push(item);
             });
         });
@@ -623,7 +625,7 @@
                 var answer = transaction && Array.isArray(transaction.Items)
                     ? transaction.Items.find(function (result) { return Number(result.IDItem) === itemId; })
                     : null;
-                var value = String(answer && answer.Value || "").trim();
+                var value = String(answer && (answer.Value != null ? answer.Value : answer.value) || "").trim();
                 if (!value) {
                     unanswered++;
                     return;
@@ -1674,15 +1676,26 @@
                 showToast("Point Navigator belum siap. Refresh aplikasi setelah update.", "warning");
         });
         var pointListButton = document.getElementById("btnInspectionMapPointList");
-        if (pointListButton) pointListButton.addEventListener("click", function () {
-            var workspace = document.getElementById("inspectionMapWorkspace");
-            if (!workspace) return;
-            var isOpen = workspace.classList.toggle("map-point-list-open");
-            pointListButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
-            pointListButton.innerHTML = isOpen
-                ? '<i class="bi bi-map me-1"></i><span>Denah</span>'
-                : '<i class="bi bi-card-list me-1"></i><span>Point List</span>';
-        });
+        var pointListModalElement = document.getElementById("inspectionPointListModal");
+        var pointListModalBody = document.getElementById("inspectionPointListModalBody");
+        var pointListHost = document.getElementById("inspectionPointList");
+        var mapContentHost = document.getElementById("inspectionMapContent");
+        if (pointListButton && pointListModalElement && pointListModalBody && pointListHost && window.bootstrap && bootstrap.Modal) {
+            var pointListModal = bootstrap.Modal.getOrCreateInstance(pointListModalElement);
+            pointListButton.addEventListener("click", function () {
+                pointListModalBody.appendChild(pointListHost);
+                pointListButton.setAttribute("aria-expanded", "true");
+                pointListModal.show();
+            });
+            pointListModalElement.addEventListener("hidden.bs.modal", function () {
+                if (mapContentHost) mapContentHost.appendChild(pointListHost);
+                pointListButton.setAttribute("aria-expanded", "false");
+            });
+            pointListModalElement.addEventListener("shown.bs.modal", function () {
+                var search = pointListHost.querySelector("#inspectionPointSearch");
+                if (search) search.focus();
+            });
+        }
         var zoomIn = document.getElementById("btnInspectionMapZoomIn");
         var zoomOut = document.getElementById("btnInspectionMapZoomOut");
         var zoomReset = document.getElementById("btnInspectionMapZoomReset");
