@@ -659,6 +659,556 @@ BEGIN
         ORDER BY InspectionPointTransactionID,PhotoType,SeqNo
         RETURN;
     END;
+    IF @p_Tipe = '030'
+    BEGIN
+        SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+        FROM dbo.SysWebUser SU
+        
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+          AND (
+              EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                      WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                        AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+              OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                         WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+          )
+        RETURN;
+    END;
+
+    IF @p_Tipe = '031'
+    BEGIN
+        SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
+        FROM dbo.PIP_T_Inspection
+        WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+          AND InspectionTypeCode=@InspectionTypeCode
+          AND InspectionTypeDetailCode=@InspectionTypeDetailCode
+          AND ISNULL(ScheduledTime,'')=ISNULL(@ScheduledTime,'')
+          AND IDTemplate=@IDTemplate
+          AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120)
+          AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
+        ORDER BY InspectionID DESC
+        RETURN;
+    END;
+
+    IF @p_Tipe = '032'
+    BEGIN
+        SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+        FROM dbo.SysWebUser SU
+        
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                       WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                         AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                          WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))
+        RETURN;
+    END;
+
+    IF @p_Tipe = '033'
+    BEGIN
+        SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+        FROM dbo.SysWebUser SU
+        
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+          AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                       WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                         AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+               OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                          WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))
+        RETURN;
+    END;
+
+    IF @p_Tipe = '034'
+    BEGIN
+        SET XACT_ABORT ON;
+        BEGIN TRANSACTION;
+        IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
+        BEGIN
+            DECLARE @NextDeleteArchiveID BIGINT;
+            SELECT @NextDeleteArchiveID=ISNULL(MAX(DeleteArchiveID),0)+1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK);
+            INSERT dbo.PIP_T_Inspection_Delete
+            (DeleteArchiveID, ClientInspectionID, CompanyID, LocationID, SectionID,
+             InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate,
+             OriginalStatus, OriginalSyncStatus, ReasonCancel, DeletedBy, OriginalTransactionJson)
+            VALUES
+            (@NextDeleteArchiveID, @ClientInspectionID, @CompanyID, @LocationID, @SectionID,
+             @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate,
+             @OriginalStatus, @OriginalSyncStatus, @ReasonCancel, @DeletedBy, @OriginalTransactionJson);
+        END;
+        COMMIT TRANSACTION;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '035'
+    BEGIN
+        SET XACT_ABORT ON;
+        BEGIN TRANSACTION;
+        IF EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+            WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+              AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+              AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=0
+        )
+        BEGIN
+            UPDATE dbo.PIP_T_Inspection SET ReasonCancel=CASE WHEN ISNULL(ReasonCancel,'')='' THEN @ReasonCancel ELSE ReasonCancel END
+            WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+              AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID;
+        END
+        ELSE
+        BEGIN
+            UPDATE dbo.PIP_T_Inspection
+            SET IsActive=0, ReasonCancel=@ReasonCancel, UpdateUser=@EmployeeID, UpdateDate=GETDATE(), SyncDate=GETDATE()
+            WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+              AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+              AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
+              AND Status='DRAFT' AND ISNULL(IsSubmitted,0)=0
+              AND ISNULL(ReasonVoid,'')<>'';
+            IF @@ROWCOUNT=0
+            BEGIN
+                ROLLBACK TRANSACTION;
+                RAISERROR('The server inspection is not eligible for technician deletion.',16,1);
+                RETURN;
+            END;
+        END;
+        COMMIT TRANSACTION;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '036'
+    BEGIN
+        SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
+        WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+          AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID AND IsActive=0
+        RETURN;
+    END;
+
+    IF @p_Tipe = '037'
+    BEGIN
+        SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID
+        FROM dbo.PIP_M_InspectionType IT
+        WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
+          AND ISNULL(IT.InspectionMode,'STANDARD') IN ('BATCH','LIGHTNING')
+          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)
+        RETURN;
+    END;
+
+    IF @p_Tipe = '038'
+    BEGIN
+        SELECT InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime
+        FROM dbo.PIP_M_InspectionTypeDetail
+        WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
+          AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1
+        RETURN;
+    END;
+
+    IF @p_Tipe = '039'
+    BEGIN
+        SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
+               P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
+               P.ObjectReferenceCode, M.MapID AS MapID, P.MapX, P.MapY,
+               ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,P.DisplayOrder,
+               M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl, M.MapVersion,
+               M.MapGroupID, ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+               ISNULL(G.Description,'') AS GroupDescription,
+               ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+               ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
+        FROM dbo.PIP_M_InspectionMap M
+        LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.MapID=M.MapID AND P.IsActive=1
+        LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
+        WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+          AND M.InspectionTypeCode=@TypeCode
+          AND M.InspectionTypeDetailCode=@DetailCode
+          AND M.IsCurrentVersion=1 AND M.IsActive=1
+        ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode
+        RETURN;
+    END;
+
+    IF @p_Tipe = '040'
+    BEGIN
+        SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
+               ISNULL(E.Name, SU.EmployeeID) TechnicianName
+        FROM dbo.SysWebUser SU
+        
+        LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=SU.EmployeeID
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+          AND (
+              EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                      WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                        AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+              OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                         WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+          )
+        RETURN;
+    END;
+
+    IF @p_Tipe = '041'
+    BEGIN
+        SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, TP.ClientPointID,
+               I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.InspectionDate
+        FROM dbo.PIP_T_InspectionPhoto P
+        JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
+        LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=P.InspectionPointTransactionID
+        WHERE I.ClientInspectionID=@ClientInspectionID
+          AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND I.Status='DRAFT' AND I.IsApproved=0
+          AND EXISTS (
+              SELECT 1 FROM dbo.SysWebUser SU
+        
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+                AND EXISTS (
+              SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S
+              WHERE S.val=I.SectionID
+          )
+                AND (
+                    EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                            WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                              AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                    OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                               WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+                )
+          )
+        ORDER BY P.SeqNo
+        RETURN;
+    END;
+
+    IF @p_Tipe = '042'
+    BEGIN
+        SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali,
+               V.ObjectIndex, V.FieldName, V.Value AS FieldValue, R.DisplayOrder
+        FROM dbo.PIP_T_InspectionResult R
+        JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
+        LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        WHERE I.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NULL
+        ORDER BY R.DisplayOrder, V.FieldName
+        RETURN;
+    END;
+
+    IF @p_Tipe = '043'
+    BEGIN
+        SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
+               TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
+               P.PointCode, P.PointName, P.PointObjectType,
+               P.PointDescription, P.MapID, P.MapX, P.MapY,
+               P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
+               M.MapCode,M.MapName,M.ImagePath AS MapUrl,M.MapVersion,M.MapGroupID,
+               MG.GroupCode,MG.GroupName,MG.Sequence MapGroupSequence
+        FROM dbo.PIP_T_InspectionPoint TP
+        JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+        LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+        LEFT JOIN dbo.PIP_M_InspectionMapGroup MG ON MG.MapGroupID=M.MapGroupID
+        WHERE TP.InspectionID=@InspectionID
+        ORDER BY P.DisplayOrder,P.PointCode
+        RETURN;
+    END;
+
+    IF @p_Tipe = '044'
+    BEGIN
+        SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+               R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
+        FROM dbo.PIP_T_InspectionResult R
+        LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        WHERE R.InspectionID=@InspectionID
+        ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName
+        RETURN;
+    END;
+
+    IF @p_Tipe = '045'
+    BEGIN
+        SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+        FROM dbo.PIP_T_Inspection I
+        JOIN dbo.PIP_M_InspectionTypeDetail D
+          ON D.InspectionTypeCode=I.InspectionTypeCode
+         AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+        WHERE I.InspectionID=@InspectionID
+        ORDER BY D.ScheduleTime
+        RETURN;
+    END;
+
+    IF @p_Tipe = '046'
+    BEGIN
+        SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+           V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+        FROM dbo.PIP_M_CheckListWOPM T
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+        WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'
+        RETURN;
+    END;
+
+    IF @p_Tipe = '047'
+    BEGIN
+        SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+           I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+           ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+           I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+           I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
+           I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+           I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+        FROM dbo.PIP_M_CheckListWOPM_Section S
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+        LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+        WHERE V.IDVersion=@IDVersion
+        ORDER BY S.DisplayOrder,
+             CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+             I.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '048'
+    BEGIN
+        SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+        FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY G.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '049'
+    BEGIN
+        SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        RETURN;
+    END;
+
+    IF @p_Tipe = '050'
+    BEGIN
+        SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+               F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat
+        RETURN;
+    END;
+
+    IF @p_Tipe = '051'
+    BEGIN
+        SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, P.InspectionPointTransactionID
+        FROM dbo.PIP_T_InspectionPhoto P
+        WHERE P.InspectionID=@InspectionID
+        ORDER BY P.SeqNo
+        RETURN;
+    END;
+
+    IF @p_Tipe = '052'
+    BEGIN
+        SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
+               I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+               I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
+               I.TemplateNo, I.TemplateName, I.TemplateVersion,
+               CONVERT(VARCHAR(10),I.InspectionDate,120) InspectionDate,
+               CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
+               CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,
+               I.Status, I.Summary, I.OwnerEmployeeID,
+               I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
+               I.ReasonVoid, I.UpdateDate,
+               ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
+        FROM dbo.PIP_T_Inspection I
+        LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+        WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+          AND ISNULL(I.IsActive,1)=1
+          AND I.Status='DRAFT' AND I.IsApproved=0
+          AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
+          AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+        
+        WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+                      AND (
+                          EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                  WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                                    AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                          OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                                     WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+                      ))
+        ORDER BY I.UpdateDate DESC
+        RETURN;
+    END;
+
+    IF @p_Tipe = '053'
+    BEGIN
+        SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali, R.DisplayOrder,
+               V.ObjectIndex,V.FieldName, V.Value AS FieldValue
+        FROM dbo.PIP_T_InspectionResult R
+        LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        WHERE R.InspectionID=@InspectionID
+        ORDER BY R.DisplayOrder, V.FieldName
+        RETURN;
+    END;
+
+    IF @p_Tipe = '054'
+    BEGIN
+        SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
+               TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
+               P.PointCode,P.PointName,P.PointObjectType,
+               P.PointDescription,P.MapID,P.MapX,P.MapY,
+               P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
+        FROM dbo.PIP_T_InspectionPoint TP
+        JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+        WHERE TP.InspectionID=@InspectionID
+        ORDER BY P.DisplayOrder,P.PointCode
+        RETURN;
+    END;
+
+    IF @p_Tipe = '055'
+    BEGIN
+        SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+               R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
+        FROM dbo.PIP_T_InspectionResult R
+        LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+        WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+        ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName
+        RETURN;
+    END;
+
+    IF @p_Tipe = '056'
+    BEGIN
+        SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+        FROM dbo.PIP_T_Inspection I
+        JOIN dbo.PIP_M_InspectionTypeDetail D
+          ON D.InspectionTypeCode=I.InspectionTypeCode
+         AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+        WHERE I.InspectionID=@InspectionID
+        ORDER BY D.ScheduleTime
+        RETURN;
+    END;
+
+    IF @p_Tipe = '057'
+    BEGIN
+        SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+               V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+        FROM dbo.PIP_M_CheckListWOPM T
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+        WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'
+        RETURN;
+    END;
+
+    IF @p_Tipe = '058'
+    BEGIN
+        SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+               I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+               ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+               I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+               I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
+               I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+               I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+        FROM dbo.PIP_M_CheckListWOPM_Section S
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+        LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+        JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+        WHERE V.IDVersion=@IDVersion
+        ORDER BY S.DisplayOrder,
+                 CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+                 I.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '059'
+    BEGIN
+        SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+        FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY G.DisplayOrder
+        RETURN;
+    END;
+
+    IF @p_Tipe = '060'
+    BEGIN
+        SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        RETURN;
+    END;
+
+    IF @p_Tipe = '061'
+    BEGIN
+        SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+               F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+        FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+        JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+        JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+        WHERE S.IDVersion=@IDVersion
+        ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat
+        RETURN;
+    END;
+
+    IF @p_Tipe = '062'
+    BEGIN
+        SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') AS EmailAddress, ISNULL(LTRIM(RTRIM(Name)),'') AS EmployeeName
+        FROM dbo.M_HRD_Employee
+        WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
+          AND ISNULL(LTRIM(RTRIM(emailaddress)),'')<>''
+        RETURN;
+    END;
+
+    IF @p_Tipe = '063'
+    BEGIN
+        ;WITH EmailQueue AS
+        (
+            SELECT TOP (@BatchSize) *
+            FROM dbo.PIP_T_InspectionEmailOutbox O WITH (UPDLOCK,READPAST,ROWLOCK)
+            WHERE O.DeliveryStatus IN ('PENDING','FAILED')
+              AND O.NextAttemptDate<=GETDATE()
+              AND O.AttemptCount<5
+              /* Fail closed: never dispatch queued mail unless the matching
+                 inspection email switch is explicitly enabled for its scope. */
+              AND EXISTS
+              (
+                  SELECT 1
+                  FROM dbo.PIP_T_Inspection I
+                  JOIN dbo.SysWebCommonValue C
+                    ON C.AppID='INSPEC'
+                   AND C.CommonGroup='EmailApproval'
+                   AND C.IsDelete=0
+                   AND C.Description='1'
+                   AND
+                   (
+                       (O.EntityType='LIGHTNING'
+                        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+                       OR
+                       (O.EntityType='INSPECTION'
+                        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
+                   )
+                  WHERE I.InspectionID=O.EntityID
+              )
+            ORDER BY EmailOutboxID
+        )
+        UPDATE EmailQueue
+        SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1,LastAttemptDate=GETDATE()
+        OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
+               inserted.RecipientEmail,inserted.EmailSubject,inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;
+        RETURN;
+    END;
+
+    IF @p_Tipe = '064'
+    BEGIN
+        UPDATE dbo.PIP_T_InspectionEmailOutbox
+        SET DeliveryStatus='SENT',SentDate=GETDATE(),LastError=NULL
+        WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'
+        RETURN;
+    END;
+
+    IF @p_Tipe = '065'
+    BEGIN
+        UPDATE dbo.PIP_T_InspectionEmailOutbox
+        SET DeliveryStatus='FAILED',LastError=@Error,
+            NextAttemptDate=DATEADD(MINUTE,
+                CASE WHEN AttemptCount=1 THEN 5 WHEN AttemptCount=2 THEN 10
+                     WHEN AttemptCount=3 THEN 20 WHEN AttemptCount=4 THEN 40 ELSE 60 END,GETDATE())
+        WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'
+        RETURN;
+    END;
+
     RAISERROR('Invalid @p_Tipe for spPIP_Inspection_Query.', 16, 1);
 END;
 GO
