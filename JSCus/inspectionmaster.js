@@ -132,12 +132,9 @@
             window.requestAnimationFrame(renderMapPreviewPdf);
         }
 
-        var zoomOut = document.getElementById('btnMapPreviewZoomOut');
-        var zoomIn = document.getElementById('btnMapPreviewZoomIn');
-        var zoomFit = document.getElementById('btnMapPreviewZoomFit');
-        if (zoomOut) zoomOut.onclick = function () { setMapPreviewZoom(inspectionMapPreviewZoom - 0.25); };
-        if (zoomIn) zoomIn.onclick = function () { setMapPreviewZoom(inspectionMapPreviewZoom + 0.25); };
-        if (zoomFit) zoomFit.onclick = function () { inspectionMapPreviewZoom = 1; renderMapPreviewCanvasAtZoom(); };
+        // Reuse the existing map-preview interaction wiring for the
+        // dynamically-created draft preview (zoom/pan/fit).
+        initMapPreviewInteraction();
     }
 
     function inspectionShowDraftPreview(blob, fileName) {
