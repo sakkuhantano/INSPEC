@@ -706,8 +706,31 @@
             return isNormalAbnormalRequired(point) && getPointVisualStatus(point) === "ABNORMAL";
         }).length : 0;
 
-        var optionCounts = { ON: 0, OFF: 0 };
-        if (optionItems.length) {
+        // Build the summary labels from each OPTION item's own configured
+        // optionList. This supports arbitrary values such as ON/OFF, GOOD/BAD,
+        // OPEN/CLOSED, etc.; no option values are hardcoded here.
+        var optionCounts = [];
+        function getOptionCountEntry(optionValue) {
+            var label = String(optionValue == null ? "" : optionValue).trim();
+            if (!label) return null;
+            var key = label.toUpperCase();
+            var entry = optionCounts.find(function (item) { return item.key === key; });
+            if (!entry) {
+                entry = { key: key, label: label, count: 0 };
+                optionCounts.push(entry);
+            }
+            return entry;
+        }
+
+        optionItems.forEach(function (optionItem) {
+            var rawOptions = optionItem.optionList != null ? optionItem.optionList :
+                (optionItem.OptionList != null ? optionItem.OptionList : []);
+            var configuredOptions = Array.isArray(rawOptions) ? rawOptions :
+                String(rawOptions || "").split(";");
+            configuredOptions.forEach(getOptionCountEntry);
+        });
+
+        if (optionCounts.length) {
             allPoints.forEach(function (point) {
                 var transaction = getPointTransaction(point);
                 var transactionItems = transaction && (transaction.Items || transaction.items);
@@ -724,9 +747,13 @@
                     });
                     var rawValue = answer && (answer.Value != null ? answer.Value :
                         (answer.value != null ? answer.value : answer.Result));
-                    var value = String(rawValue == null ? "" : rawValue).trim().toUpperCase();
-                    if (value === "ON") optionCounts.ON++;
-                    else if (value === "OFF") optionCounts.OFF++;
+                    var selectedValue = String(rawValue == null ? "" : rawValue).trim().toUpperCase();
+                    if (!selectedValue) return;
+
+                    var countEntry = optionCounts.find(function (item) {
+                        return item.key === selectedValue;
+                    });
+                    if (countEntry) countEntry.count++;
                 });
             });
         }
@@ -750,13 +777,17 @@
         }
 
         html += '</div>';
-        if (optionItems.length) {
+        if (optionCounts.length) {
             html +=
                 '<div class="inspection-map-option-summary">' +
                     '<div class="inspection-map-option-summary-card">' +
                         '<div class="inspection-map-option-chip-row">' +
-                            '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OPTION ON</span><strong>' + optionCounts.ON + '</strong></span>' +
-                            '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OPTION OFF</span><strong>' + optionCounts.OFF + '</strong></span>' +
+                            optionCounts.map(function (item) {
+                                return '<span class="inspection-map-option-chip">' +
+                                    '<span class="inspection-map-option-chip-label">' + esc(item.label) + '</span>' +
+                                    '<strong>' + item.count + '</strong>' +
+                                    '</span>';
+                            }).join("") +
                         '</div>' +
                     '</div>' +
                 '</div>';
