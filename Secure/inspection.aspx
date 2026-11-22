@@ -1637,6 +1637,33 @@
 
     /* Desktop keeps the two-column map + Point List layout. Mobile-only hiding
        is handled by the max-width media rules above. */
+
+    /* Compact map toolbar: template option counts are shown on demand, not in the map layout. */
+    .inspection-map-option-info{position:relative;display:flex;align-items:center}
+    .inspection-map-option-info>#btnInspectionMapOptionInfo{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+    .inspection-map-option-summary-host{
+        position:absolute;top:calc(100% + .45rem);right:0;z-index:1080;
+        width:min( min(86vw, 360px), 360px );max-height:min(48vh,360px);
+        overflow:auto;padding:.65rem;border:1px solid var(--bs-border-color);
+        border-radius:.7rem;background:var(--bs-body-bg);
+        box-shadow:0 10px 28px rgba(0,0,0,.2)
+    }
+    .inspection-map-option-summary-host:not(.d-none){display:block!important}
+    .inspection-map-option-summary-host .inspection-map-option-summary{display:flex;flex-direction:column;gap:.4rem}
+    .inspection-map-option-summary-host .inspection-map-option-summary-card{min-width:0;max-width:none;width:100%}
+    @media(max-width:767.98px){
+        #inspectionMapWorkspace>.inspection-map-toolbar{min-height:36px!important;padding:.2rem .35rem!important}
+        #inspectionMapWorkspace .inspection-map-actions{width:100%;justify-content:flex-end}
+        #inspectionMapWorkspace .inspection-map-actions>.btn,
+        #inspectionMapWorkspace .inspection-map-actions>.inspection-map-option-info>.btn{
+            min-width:30px!important;width:30px!important;height:30px!important;padding:0!important;
+            display:inline-flex;align-items:center;justify-content:center;font-size:0!important
+        }
+        #inspectionMapWorkspace .inspection-map-actions .bi{font-size:.9rem!important;margin:0!important}
+        #inspectionMapWorkspace .inspection-map-actions .inspection-map-action-label{display:none!important}
+        #inspectionMapWorkspace .inspection-map-option-summary-host{right:0;top:calc(100% + .35rem);width:min(88vw,340px);max-height:42dvh}
+    }
+
 </style>
 </asp:Content>
 
@@ -1908,19 +1935,23 @@
     <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
         <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div class="inspection-map-toolbar">
-            <div class="inspection-map-title-wrap">
-                <div class="inspection-map-eyebrow"><i class="bi bi-geo-alt-fill me-1"></i>INSPECTION LOCATION MAP</div>
-                <div id="inspectionMapTitle" class="inspection-map-title">Inspection Map</div>
-                <div id="inspectionMapSubtitle" class="inspection-map-subtitle">Warna titik menunjukkan status inspeksi</div>
-            </div>
             <div class="inspection-map-actions">
 
                 <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
-                <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya"><i class="bi bi-arrow-right-circle me-1"></i>Next Wajib</button>
+                <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya" aria-label="Next Wajib"><i class="bi bi-arrow-right-circle"></i><span class="inspection-map-action-label">Next Wajib</span></button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
-                <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat">
-                    <i class="bi bi-trash me-1"></i>Delete Draft Batch
+                <button type="button" id="btnDeleteInspectionBatchDraft" class="btn btn-sm btn-outline-danger d-none" title="Hapus draft batch dari perangkat" aria-label="Delete Draft Batch">
+                    <i class="bi bi-trash"></i><span class="inspection-map-action-label">Delete Draft Batch</span>
                 </button>
+                <div class="inspection-map-option-info">
+                    <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan jawaban template" aria-label="Info status option" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                    <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan jawaban template">
+                        <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
+                        <div class="inspection-map-option-summary"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="inspection-map-summary d-none" id="inspectionMapSummary" aria-label="Ringkasan status semua titik">
@@ -1929,10 +1960,6 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span class="inspection-map-stat-label">Abnormal</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
-        </div>
-        <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none px-3">
-            <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
-            <div class="inspection-map-option-summary"></div>
         </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none">
             <div id="inspectionLightningWorkflowCards"></div>
