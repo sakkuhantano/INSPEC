@@ -1552,18 +1552,14 @@ function renderInspectionApprovalWorkflowCards(record) {
     const host = document.getElementById("inspectionApprovalWorkflowCards");
     if (!panel || !host) return;
 
-    const hasBeenSubmitted = !!record && (
-        isInspectionFlagEnabled(record.IsSubmitted, false) ||
-        isInspectionFlagEnabled(record.IsApproved, false) ||
-        isInspectionFlagEnabled(record.IsApproved1, false) ||
-        isInspectionFlagEnabled(record.IsApproved2, false)
-    );
-    if (!hasBeenSubmitted) {
+    if (!record) {
         host.innerHTML = "";
         panel.classList.add("d-none");
         return;
     }
 
+    // Show the workflow area as soon as an inspection record is opened.
+    // Each stage remains "Data belum tersedia" until its server flag is completed.
     panel.classList.remove("d-none");
 
     const stages = [
@@ -4671,6 +4667,7 @@ async function openServerSubmittedInspection(inspectionId) {
         inspectionLatestGps = null;
         currentInspectionRecord = null;
         currentInspectionReadOnly = true;
+        renderInspectionApprovalWorkflowCards(null);
         inspectionPhotoBaseline = null;
         showInspectionInputScreen();
         document.getElementById("inspectionEditorTabs").classList.remove("d-none");
@@ -4852,6 +4849,7 @@ async function resetInspectionSelection() {
     inspectionLatestGps = null;
     currentInspectionRecord = null;
     currentInspectionReadOnly = false;
+    renderInspectionApprovalWorkflowCards(null);
     document.getElementById("inspectionEditorTabs").classList.add("d-none");
     document.getElementById("inspectionFormPanel").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
