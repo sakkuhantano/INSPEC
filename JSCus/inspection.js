@@ -2728,7 +2728,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
 window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 let inspectionPointNavigatorState = {
-    baseRecord: null, detail: null, setup: null, record: null,
+    baseRecord: null, detail: null, setup: null, record: null, selectedMapId: "",
     scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display",
     statusFilter: "all", page: 1, pageSize: 20,
     returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
@@ -2908,6 +2908,7 @@ function renderInspectionPointNavigatorList() {
     const keyword = String(state.keyword || "").trim().toLowerCase();
     const statusFor = point => getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime);
     let points = (state.setup.points || []).filter(point => {
+        const matchesMap = !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId);
         const matchesKeyword = !keyword ||
             String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
             String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0;
@@ -2917,7 +2918,7 @@ function renderInspectionPointNavigatorList() {
             (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
             (state.statusFilter === "done" && status === "DONE") ||
             (state.statusFilter === "abnormal" && status === "ABNORMAL");
-        return matchesKeyword && matchesStatus;
+        return matchesMap && matchesKeyword && matchesStatus;
     });
 
     const compareText = (a, b, key) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { numeric: true, sensitivity: "base" });
@@ -2937,7 +2938,8 @@ function renderInspectionPointNavigatorList() {
             String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
     }
 
-    const all = state.setup.points || [];
+    const all = (state.setup.points || []).filter(point =>
+        !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId));
     const counts = { DONE: 0, ABNORMAL: 0, INCOMPLETE: 0, PENDING: 0 };
     all.forEach(point => { counts[statusFor(point).key]++; });
     summary.innerHTML =
@@ -3054,6 +3056,18 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         if (state.record) state.record.BatchMapSetup = state.setup;
         if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
             scheduleSelect.value = state.scheduleTime;
+        const mapSelect = document.getElementById("inspectionPointNavigatorMap");
+        const maps = Array.isArray(state.setup.maps) ? state.setup.maps : [];
+        const preferredMapId = String(state.baseRecord.ActiveMapID || state.baseRecord.MapID || "");
+        state.selectedMapId = maps.some(map => String(map.MapID) === preferredMapId)
+            ? preferredMapId
+            : String((maps.find(map => (state.setup.points || []).some(point => String(point.MapID) === String(map.MapID))) || maps[0] || {}).MapID || "");
+        mapSelect.innerHTML = maps.map(map =>
+            '<option value="' + escInspection(map.MapID) + '">' +
+            escInspection((map.MapCode ? map.MapCode + " · " : "") + (map.MapName || "Inspection Map")) + '</option>'
+        ).join("");
+        mapSelect.value = state.selectedMapId;
+        mapSelect.disabled = !maps.length;
         renderInspectionPointNavigatorList();
     } catch (error) {
         if (sequence !== inspectionPointNavigatorLoadSequence) return;
@@ -3138,8 +3152,10 @@ function wireInspectionPointNavigator() {
         }
         state.restoreNavigatorPosition = false;
     });
-    document.getElementById("inspectionPointNavigatorDetail").addEventListener("change", function () {
-        loadInspectionPointNavigatorDetail(this.value);
+    document.getElementById("inspectionPointNavigatorMap").addEventListener("change", function () {
+        inspectionPointNavigatorState.selectedMapId = this.value || "";
+        inspectionPointNavigatorState.page = 1;
+        renderInspectionPointNavigatorList();
     });
     document.getElementById("inspectionPointNavigatorSchedule").addEventListener("change", function () {
         inspectionPointNavigatorState.scheduleTime = this.value || "";
@@ -3256,6 +3272,7 @@ window.openInspectionPointNavigator = async function () {
     state.detail = null;
     state.setup = null;
     state.record = null;
+    state.selectedMapId = "";
     state.restoreNavigatorPosition = false;
     state.returnScrollTop = 0;
     state.returnPointId = 0;
@@ -3268,30 +3285,17 @@ window.openInspectionPointNavigator = async function () {
     document.getElementById("inspectionPointNavigatorSort").value = "display";
     document.getElementById("inspectionPointNavigatorStatusFilter").value = "all";
     document.getElementById("inspectionPointNavigatorPageSize").value = "20";
-    const details = getInspectionPointNavigatorDetails(record);
-    if (!details.some(detail => String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
-        String(record.InspectionTypeDetailCode || "").toUpperCase())) {
-        details.unshift({
+    const detail = getInspectionPointNavigatorDetails(record).find(item =>
+        String(item.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(record.InspectionTypeDetailCode || "").toUpperCase()) || {
             InspectionTypeCode: record.InspectionTypeCode,
             InspectionTypeDetailCode: record.InspectionTypeDetailCode,
             InspectionTypeDetailName: record.InspectionTypeDetailName || record.InspectionTypeDetailCode,
             CompanyID: record.CompanyID,
             LocationID: record.LocationID
-        });
-    }
-    const detailSelect = document.getElementById("inspectionPointNavigatorDetail");
-    detailSelect.innerHTML = details.map(detail =>
-        '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
-        escInspection(detail.InspectionTypeDetailCode + " · " + detail.InspectionTypeDetailName) + '</option>'
-    ).join("");
-    if (!details.length) {
-        document.getElementById("inspectionPointNavigatorList").innerHTML =
-            '<div class="alert alert-warning small mb-0">Tidak ada Inspection Detail yang sesuai dengan template ini.</div>';
-    } else {
-        detailSelect.value = record.InspectionTypeDetailCode || details[0].InspectionTypeDetailCode;
-    }
+        };
     bootstrap.Modal.getOrCreateInstance(modal).show();
-    if (details.length) await loadInspectionPointNavigatorDetail(detailSelect.value);
+    await loadInspectionPointNavigatorDetail(detail.InspectionTypeDetailCode);
 };
 
 async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
