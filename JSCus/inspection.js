@@ -1552,8 +1552,6 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     const host = document.getElementById("inspectionApprovalWorkflowCards");
     if (!panel || !host) return;
 
-    // Prefer the mode resolved by the new-inspection flow; for saved drafts,
-    // fall back to the mode stored on the record, then its Inspection Type master.
     const recordMode = String(modeOverride || (record && record.InspectionMode) || "").trim().toUpperCase();
     const typeMaster = record && inspectionTypes.find(type =>
         String(type.InspectionTypeCode || "") === String(record.InspectionTypeCode || "")
@@ -1561,7 +1559,6 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     const inspectionMode = recordMode || String(typeMaster && typeMaster.InspectionMode || "").trim().toUpperCase();
 
     // Approval Workflow is exclusive to LIGHTNING inspections.
-    // STANDARD and BATCH must never display this panel.
     if (!record || inspectionMode !== "LIGHTNING") {
         host.innerHTML = "";
         panel.classList.add("d-none");
@@ -1571,8 +1568,8 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
         return;
     }
 
-    // Force the panel to remain a visible flex item in the full-height MAP layout.
-    // All four cards are shown immediately, before any submit/approval flag is set.
+    // Keep the workflow visible before submit, but render it as one compact strip
+    // so it does not consume the vertical space needed by the floor plan.
     panel.classList.remove("d-none");
     panel.hidden = false;
     panel.setAttribute("aria-hidden", "false");
@@ -1614,7 +1611,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
         }
     ];
 
-    host.innerHTML = '<div class="row g-2 mb-0 inspection-approval-workflow">' +
+    host.innerHTML = '<div class="inspection-approval-workflow-strip">' +
         stages.map(function (stage) {
             const done = isInspectionFlagEnabled(record[stage.flag], false);
             const person = String(stage.by || "").trim();
@@ -1626,17 +1623,17 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
                 : "border-secondary-subtle bg-body-secondary";
             const titleClass = done ? "text-" + stage.color + "-emphasis" : "text-secondary";
             const details = done
-                ? '<div class="small fw-semibold text-body mt-2 inspection-approval-person">' +
+                ? '<div class="inspection-approval-workflow-person text-body">' +
                     escInspection(person || "Nama belum tersedia") + '</div>' +
-                    '<div class="small text-muted mt-1"><i class="bi bi-calendar-event me-1"></i>' +
+                    '<div class="inspection-approval-workflow-date"><i class="bi bi-calendar-event me-1"></i>' +
                     escInspection(timestamp || "Waktu belum tersedia") + '</div>'
-                : '<div class="small text-secondary mt-2">Data belum tersedia</div>';
+                : '<div class="inspection-approval-workflow-status text-secondary">Data belum tersedia</div>';
 
-            return '<div class="col-6 col-sm-6 col-xl-3">' +
-                '<div class="card h-100 ' + cardClass + '">' +
-                    '<div class="card-body p-2 p-md-3">' +
-                        '<div class="small fw-bold ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
-                        '<div class="small text-muted">' + escInspection(stage.role) + '</div>' +
+            return '<div class="inspection-approval-workflow-card">' +
+                '<div class="card ' + cardClass + '">' +
+                    '<div class="card-body">' +
+                        '<div class="inspection-approval-workflow-title ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
+                        '<div class="inspection-approval-workflow-role">' + escInspection(stage.role) + '</div>' +
                         details +
                     '</div>' +
                 '</div>' +
@@ -2789,7 +2786,7 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null, selectedMapId: "",
-    scheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "",
+    scheduleTime: "", activeScheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "",
     statusFilter: "all", page: 1, pageSize: 20,
     returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
 };
@@ -2905,9 +2902,9 @@ function selectInspectionPointNavigatorRecord(detail) {
             String(record.LocalInspectionID || "") === String(base.LocalInspectionID || "")) ||
             candidates[0] || (sameDetail ? base : null);
 
-        const preferred = sameDetail
-            ? String(base.ActiveScheduleTime || base.ScheduledTime || "")
-            : String(base.ActiveScheduleTime || state.record && state.record.ActiveScheduleTime || "");
+        const preferred = String(state.activeScheduleTime ||
+            (sameDetail ? (base.ActiveScheduleTime || base.ScheduledTime || "") :
+                (base.ActiveScheduleTime || state.record && state.record.ActiveScheduleTime || "")));
         const availableSchedules = (state.record && Array.isArray(state.record.Schedules)
             ? state.record.Schedules : []).map(item => String(item.ScheduleTime || item));
         const pointSchedules = (state.record && Array.isArray(state.record.Points)
@@ -2983,6 +2980,9 @@ function renderInspectionPointNavigatorList() {
     const statusFor = point => getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime);
     let points = (state.setup.points || []).filter(point => {
         const matchesMap = !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId);
+        const activeSchedule = String(state.scheduleTime || "");
+        const pointSchedule = String(point.ScheduleTime || "");
+        const matchesSchedule = !activeSchedule || !pointSchedule || pointSchedule === activeSchedule;
         const matchesKeyword = !keyword ||
             String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
             String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0;
@@ -2993,18 +2993,26 @@ function renderInspectionPointNavigatorList() {
             (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
             (state.statusFilter === "done" && status === "DONE") ||
             (state.statusFilter === "abnormal" && status === "ABNORMAL");
-        return matchesMap && matchesKeyword && matchesStatus;
+        return matchesMap && matchesSchedule && matchesKeyword && matchesStatus;
     });
 
     // Keep the Inspection Point master order; the optional Sort By control is removed.
     points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
         String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
 
-    const all = (state.setup.points || []).filter(point =>
-        !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId));
+    const all = (state.setup.points || []).filter(point => {
+        const matchesMap = !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId);
+        const activeSchedule = String(state.scheduleTime || "");
+        const pointSchedule = String(point.ScheduleTime || "");
+        return matchesMap && (!activeSchedule || !pointSchedule || pointSchedule === activeSchedule);
+    });
     const counts = { DONE: 0, ABNORMAL: 0, INCOMPLETE: 0, PENDING: 0 };
     all.forEach(point => { counts[statusFor(point).key]++; });
-    summary.innerHTML =
+    const activeScheduleBadge = String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+        ? '<span class="badge text-bg-primary-subtle border border-primary-subtle text-primary-emphasis">Jadwal aktif ' +
+            escInspection(state.scheduleTime || "-") + '</span>'
+        : "";
+    summary.innerHTML = activeScheduleBadge +
         '<span class="badge text-bg-light border text-dark">Total ' + all.length + '</span>' +
         '<span class="badge text-bg-success">Selesai ' + (counts.DONE + counts.ABNORMAL) + '</span>' +
         '<span class="badge text-bg-warning">Belum lengkap ' + counts.INCOMPLETE + '</span>' +
@@ -3031,7 +3039,7 @@ function renderInspectionPointNavigatorList() {
             '<div class="inspection-point-navigator-code">' + escInspection(point.PointCode || "—") + '</div>' +
             '<div class="inspection-point-navigator-name">' + escInspection(point.PointName || "Inspection Point") + '</div>' +
             '<div class="inspection-point-navigator-map">' + escInspection(map && map.MapName || point.MapCode || "Map tidak diketahui") +
-            (point.ScheduleTime ? ' · ' + escInspection(point.ScheduleTime) : '') + '</div></div><span class="badge ' + status.badge + '">' +
+            '</div></div><span class="badge ' + status.badge + '">' +
             escInspection(status.label) + '</span></div>' + renderInspectionPointNavigatorPointControls(point) +
             '<div class="inspection-point-navigator-actions"><button type="button" class="btn btn-sm btn-outline-primary" data-point-navigator-checklist="' +
             escInspection(point.InspectionPointID) + '"><i class="bi bi-list-check me-1"></i>Checklist</button>' +
@@ -3085,8 +3093,8 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
 
     const sameDetail = String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
         String(detail.InspectionTypeDetailCode || "").toUpperCase();
-    const preferredSchedule = String(state.baseRecord.ActiveScheduleTime ||
-        state.baseRecord.ScheduledTime || "");
+    const preferredSchedule = String(state.activeScheduleTime ||
+        state.baseRecord.ActiveScheduleTime || state.baseRecord.ScheduledTime || "");
     state.scheduleTime = state.scheduleTimes.indexOf(preferredSchedule) >= 0
         ? preferredSchedule : (state.scheduleTimes[0] || preferredSchedule);
 
@@ -3314,6 +3322,10 @@ window.openInspectionPointNavigator = async function (options) {
     state.record = null;
     state.selectedMapId = "";
     state.allMapsRequested = String(options.mapId || "").toLowerCase() === "all";
+    state.activeScheduleTime = String(
+        (typeof window.getActiveInspectionScheduleTime === "function" && window.getActiveInspectionScheduleTime()) ||
+        record.ActiveScheduleTime || record.ScheduledTime || ""
+    ).trim();
     state.restoreNavigatorPosition = false;
     state.returnScrollTop = 0;
     state.returnPointId = 0;
