@@ -1554,31 +1554,68 @@ function renderInspectionLightningWorkflowCards(record) {
         return;
     }
 
-    const workflow = getInspectionLightningWorkflowStatus(record);
-    const completed = workflow === "ACKNOWLEDGE" ? 3 :
-        workflow === "ACKNOWLEDGE 1" ? 2 :
-        workflow === "CHECKED" ? 1 : 0;
-
     const stages = [
-        { label: "CHECKED", description: "Technician submitted", color: "primary" },
-        { label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", color: "warning" },
-        { label: "ACKNOWLEDGE", description: "Chief Security approved", color: "success" }
+        {
+            label: "CHECKED BY",
+            role: "Technician / Submit",
+            flag: "IsSubmitted",
+            by: record.SubmittedByName || record.TechnicianName || record.SubmittedBy || record.OwnerEmployeeID,
+            date: record.SubmittedDate,
+            color: "primary"
+        },
+        {
+            label: "VERIFIED BY",
+            role: "Supervisor (SPV)",
+            flag: "IsApproved",
+            by: record.ApprovedByName || record.ApprovedBy,
+            date: record.ApprovedDate,
+            color: "warning"
+        },
+        {
+            label: "ACKNOWLEDGED BY 1",
+            role: "Chief Engineering",
+            flag: "IsApproved1",
+            by: record.Approved1ByName || record.Approved1By,
+            date: record.Approved1Date,
+            color: "info"
+        },
+        {
+            label: "ACKNOWLEDGED BY 2",
+            role: "Chief Security",
+            flag: "IsApproved2",
+            by: record.Approved2ByName || record.Approved2By,
+            date: record.Approved2Date,
+            color: "success"
+        }
     ];
 
-    host.innerHTML = '<div class="row g-2 mb-3">' + stages.map(function (stage, index) {
-        const done = index < completed;
-        const bgClass = done ? "bg-" + stage.color + "-subtle" : "bg-body-secondary";
-        const borderClass = done ? "border-" + stage.color : "border-secondary-subtle";
-        const textClass = done ? "text-" + stage.color + "-emphasis" : "text-secondary";
-        return '<div class="col-12 col-md-4">' +
-            '<div class="border rounded-3 p-2 h-100 ' + bgClass + ' ' + borderClass + '">' +
-            '<div class="small fw-bold ' + textClass + '">' + escInspection(stage.label) + '</div>' +
-            '<div class="small ' + (done ? textClass : "text-secondary") + '">' +
-            escInspection(done ? "Completed" : (workflow === "DRAFT" ? "Waiting for technician submit" : stage.description)) +
-            '</div></div></div>';
-    }).join("") + '</div>';
-}
+    host.innerHTML = '<div class="row g-2 mb-3 inspection-lightning-workflow">' +
+        stages.map(function (stage) {
+            const done = isInspectionFlagEnabled(record[stage.flag], false);
+            const person = String(stage.by || "").trim();
+            const timestamp = stage.date
+                ? formatInspectionDateDMY(stage.date) + " " + formatInspectionClockTime(stage.date)
+                : "";
+            const cardClass = done ? "border-" + stage.color + " bg-" + stage.color + "-subtle" : "border-secondary-subtle bg-body-secondary";
+            const titleClass = done ? "text-" + stage.color + "-emphasis" : "text-secondary";
+            const details = done
+                ? '<div class="small fw-semibold text-body mt-2">' + escInspection(person || "Nama belum tersedia") + '</div>' +
+                    '<div class="small text-muted mt-1"><i class="bi bi-calendar-event me-1"></i>' +
+                    escInspection(timestamp || "Waktu belum tersedia") + '</div>'
+                : '<div class="small text-secondary mt-2">Data belum tersedia</div>';
 
+            return '<div class="col-6 col-xl-3">' +
+                '<div class="card h-100 ' + cardClass + '">' +
+                    '<div class="card-body p-2 p-md-3">' +
+                        '<div class="small fw-bold ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
+                        '<div class="small text-muted">' + escInspection(stage.role) + '</div>' +
+                        details +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        }).join("") +
+    '</div>';
+}
 window.mountInspectionBatchSummary = function (record) {
     const host = document.getElementById("inspectionMapSummaryHost");
     const checklistPane = document.getElementById("inspectionChecklistPane");
@@ -2726,7 +2763,7 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null, selectedMapId: "",
-    scheduleTime: "", scheduleTimes: [], keyword: "", sort: "display",
+    scheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "", sort: "display",
     statusFilter: "all", page: 1, pageSize: 20,
     returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
 };
@@ -2836,21 +2873,35 @@ function selectInspectionPointNavigatorRecord(detail) {
     const lightning = String(base.InspectionMode || "").toUpperCase() === "LIGHTNING";
     const sameDetail = String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
         String(base.InspectionTypeDetailCode || "").toUpperCase();
+
     if (lightning) {
-        state.record = candidates[0] || null;
-        const active = sameDetail
-            ? String(base.ActiveScheduleTime || base.Schedules && base.Schedules[0] && (base.Schedules[0].ScheduleTime || base.Schedules[0]) || "")
-            : String(state.record && state.record.ActiveScheduleTime || "");
-        state.scheduleTime = state.scheduleTimes.indexOf(active) >= 0 ? active : (state.scheduleTimes[0] || "");
+        state.record = candidates.find(record =>
+            String(record.LocalInspectionID || "") === String(base.LocalInspectionID || "")) ||
+            candidates[0] || (sameDetail ? base : null);
+
+        const preferred = sameDetail
+            ? String(base.ActiveScheduleTime || base.ScheduledTime || "")
+            : String(base.ActiveScheduleTime || state.record && state.record.ActiveScheduleTime || "");
+        const availableSchedules = (state.record && Array.isArray(state.record.Schedules)
+            ? state.record.Schedules : []).map(item => String(item.ScheduleTime || item));
+        const pointSchedules = (state.record && Array.isArray(state.record.Points)
+            ? state.record.Points : []).map(item => String(item.ScheduleTime || "")).filter(Boolean);
+        const scheduleOptions = availableSchedules.concat(pointSchedules)
+            .filter((value, index, all) => value && all.indexOf(value) === index);
+        state.scheduleTime = scheduleOptions.indexOf(preferred) >= 0
+            ? preferred
+            : (String(state.record && state.record.ActiveScheduleTime || "") ||
+                scheduleOptions[0] || preferred);
         return;
     }
 
-    const wanted = state.scheduleTime || (sameDetail ? String(base.ScheduledTime || "") : "") ||
-        state.scheduleTimes[0] || "";
-    state.record = candidates.find(record => String(record.ScheduledTime || "") === wanted) || null;
-    state.scheduleTime = wanted;
+    const wanted = sameDetail
+        ? String(base.ScheduledTime || "")
+        : String(state.scheduleTime || "");
+    state.record = candidates.find(record => String(record.ScheduledTime || "") === wanted) ||
+        candidates[0] || (sameDetail ? base : null);
+    state.scheduleTime = String(state.record && state.record.ScheduledTime || wanted || "");
 }
-
 function renderInspectionPointNavigatorPointControls(point) {
     const state = inspectionPointNavigatorState, record = state.record;
     if (!record) return '<div class="inspection-point-navigator-unavailable small text-muted">Belum ada transaksi untuk detail ini. Pilih Lihat Denah untuk memulai inspeksi.</div>';
@@ -2911,6 +2962,7 @@ function renderInspectionPointNavigatorList() {
             String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0;
         const status = statusFor(point).key;
         const matchesStatus = state.statusFilter === "all" ||
+            (state.statusFilter === "unfilled" && (status === "PENDING" || status === "INCOMPLETE")) ||
             (state.statusFilter === "pending" && status === "PENDING") ||
             (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
             (state.statusFilter === "done" && status === "DONE") ||
@@ -2926,9 +2978,6 @@ function renderInspectionPointNavigatorList() {
     else if (state.sort === "status") {
         const rank = { PENDING: 0, INCOMPLETE: 1, ABNORMAL: 2, DONE: 3 };
         points.sort((a, b) => rank[statusFor(a).key] - rank[statusFor(b).key] ||
-            Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
-    } else if (state.sort === "schedule") {
-        points.sort((a, b) => String(a.ScheduleTime || "").localeCompare(String(b.ScheduleTime || "")) ||
             Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
     } else {
         points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
@@ -3008,6 +3057,7 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
     const detail = getInspectionPointNavigatorDetails(state.baseRecord)
         .find(item => String(item.InspectionTypeDetailCode || "").toUpperCase() === String(detailCode || "").toUpperCase());
     if (!detail) return;
+
     state.detail = detail;
     state.setup = null;
     state.record = null;
@@ -3017,49 +3067,30 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
     host.innerHTML = '<div class="text-muted small text-center py-4"><span class="spinner-border spinner-border-sm me-2"></span>Memuat Inspection Point...</div>';
     summary.innerHTML = "";
 
-    const scheduleWrap = document.getElementById("inspectionPointNavigatorScheduleWrap");
-    const scheduleSelect = document.getElementById("inspectionPointNavigatorSchedule");
-    scheduleWrap.classList.toggle("d-none", !state.scheduleTimes.length);
-    scheduleSelect.innerHTML = state.scheduleTimes.map(time =>
-        '<option value="' + escInspection(time) + '">' + escInspection(time) + '</option>').join("");
-    if (state.scheduleTimes.length) {
-        const baseIsSame = String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
-            String(detail.InspectionTypeDetailCode || "").toUpperCase();
-        const preferred = baseIsSame
-            ? (state.baseRecord.ActiveScheduleTime || state.baseRecord.ScheduledTime || "")
-            : "";
-        state.scheduleTime = state.scheduleTimes.indexOf(String(preferred)) >= 0
-            ? String(preferred) : state.scheduleTimes[0];
-        scheduleSelect.value = state.scheduleTime;
-    } else state.scheduleTime = "";
+    const sameDetail = String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
+        String(detail.InspectionTypeDetailCode || "").toUpperCase();
+    const preferredSchedule = String(state.baseRecord.ActiveScheduleTime ||
+        state.baseRecord.ScheduledTime || "");
+    state.scheduleTime = state.scheduleTimes.indexOf(preferredSchedule) >= 0
+        ? preferredSchedule : (state.scheduleTimes[0] || preferredSchedule);
 
     try {
         const setup = await getInspectionPointNavigatorSetup(state.baseRecord, detail);
         if (sequence !== inspectionPointNavigatorLoadSequence) return;
         state.setup = setup;
-        if (String(state.baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" &&
-            String(state.baseRecord.InspectionTypeDetailCode || "").toUpperCase() !==
-                String(detail.InspectionTypeDetailCode || "").toUpperCase() && state.scheduleTimes.length) {
-            const existing = getInspectionPointNavigatorRecords(state.baseRecord, detail)
-                .find(record => state.scheduleTimes.indexOf(String(record.ScheduledTime || "")) >= 0);
-            if (existing) {
-                state.scheduleTime = String(existing.ScheduledTime || "");
-                scheduleSelect.value = state.scheduleTime;
-            }
-        }
         selectInspectionPointNavigatorRecord(detail);
         if (state.record && state.record.BatchMapSetup && Array.isArray(state.record.BatchMapSetup.points))
             state.setup = state.record.BatchMapSetup;
         if (state.record) state.record.BatchMapSetup = state.setup;
-        if (state.scheduleTimes.length && scheduleSelect.value !== state.scheduleTime)
-            scheduleSelect.value = state.scheduleTime;
+
         const mapSelect = document.getElementById("inspectionPointNavigatorMap");
         const maps = Array.isArray(state.setup.maps) ? state.setup.maps : [];
         const preferredMapId = String(state.baseRecord.ActiveMapID || state.baseRecord.MapID || "");
-        state.selectedMapId = maps.some(map => String(map.MapID) === preferredMapId)
-            ? preferredMapId
-            : String((maps.find(map => (state.setup.points || []).some(point => String(point.MapID) === String(map.MapID))) || maps[0] || {}).MapID || "");
-        mapSelect.innerHTML = maps.map(map =>
+        const firstMappedMapId = String((maps.find(map =>
+            (state.setup.points || []).some(point => String(point.MapID) === String(map.MapID))) || maps[0] || {}).MapID || "");
+        state.selectedMapId = state.allMapsRequested ? "" :
+            (maps.some(map => String(map.MapID) === preferredMapId) ? preferredMapId : firstMappedMapId);
+        mapSelect.innerHTML = '<option value="">All Maps</option>' + maps.map(map =>
             '<option value="' + escInspection(map.MapID) + '">' +
             escInspection((map.MapCode ? map.MapCode + " · " : "") + (map.MapName || "Inspection Map")) + '</option>'
         ).join("");
@@ -3071,7 +3102,6 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         host.innerHTML = '<div class="alert alert-warning small mb-0">' + escInspection(error.message || error) + '</div>';
     }
 }
-
 async function persistInspectionBeforePointNavigatorSwitch() {
     const record = currentInspectionRecord;
     if (!record || currentInspectionReadOnly) return true;
@@ -3162,15 +3192,6 @@ function wireInspectionPointNavigator() {
         inspectionPointNavigatorState.page = 1;
         renderInspectionPointNavigatorList();
     });
-    document.getElementById("inspectionPointNavigatorSchedule").addEventListener("change", function () {
-        inspectionPointNavigatorState.scheduleTime = this.value || "";
-        inspectionPointNavigatorState.page = 1;
-        if (inspectionPointNavigatorState.detail) {
-            if (String(inspectionPointNavigatorState.baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING")
-                selectInspectionPointNavigatorRecord(inspectionPointNavigatorState.detail);
-            renderInspectionPointNavigatorList();
-        }
-    });
     document.getElementById("inspectionPointNavigatorSearch").addEventListener("input", function () {
         inspectionPointNavigatorState.keyword = this.value || "";
         inspectionPointNavigatorState.page = 1;
@@ -3220,6 +3241,7 @@ function wireInspectionPointNavigator() {
                     String(point.PointName || "").toLowerCase().includes(keyword);
                 const status = getInspectionPointNavigatorStatus(point, state.record, state.scheduleTime).key;
                 const matchStatus = state.statusFilter === "all" ||
+                    (state.statusFilter === "unfilled" && (status === "PENDING" || status === "INCOMPLETE")) ||
                     (state.statusFilter === "pending" && status === "PENDING") ||
                     (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
                     (state.statusFilter === "done" && status === "DONE") ||
@@ -3253,7 +3275,8 @@ function wireInspectionPointNavigator() {
     });
 }
 
-window.openInspectionPointNavigator = async function () {
+window.openInspectionPointNavigator = async function (options) {
+    options = options || {};
     const record = currentInspectionRecord;
     if (!record || !isInspectionMapMode(record.InspectionMode)) return;
     const modal = document.getElementById("inspectionPointNavigatorModal");
@@ -3279,17 +3302,19 @@ window.openInspectionPointNavigator = async function () {
     state.setup = null;
     state.record = null;
     state.selectedMapId = "";
+    state.allMapsRequested = String(options.mapId || "").toLowerCase() === "all";
     state.restoreNavigatorPosition = false;
     state.returnScrollTop = 0;
     state.returnPointId = 0;
     state.keyword = "";
     state.sort = "display";
-    state.statusFilter = "all";
+    state.statusFilter = ["all", "pending", "incomplete", "unfilled", "done", "abnormal"].includes(String(options.statusFilter || "all"))
+        ? String(options.statusFilter || "all") : "all";
     state.page = 1;
     state.pageSize = 20;
     document.getElementById("inspectionPointNavigatorSearch").value = "";
     document.getElementById("inspectionPointNavigatorSort").value = "display";
-    document.getElementById("inspectionPointNavigatorStatusFilter").value = "all";
+    document.getElementById("inspectionPointNavigatorStatusFilter").value = state.statusFilter;
     document.getElementById("inspectionPointNavigatorPageSize").value = "20";
     const detail = getInspectionPointNavigatorDetails(record).find(item =>
         String(item.InspectionTypeDetailCode || "").toUpperCase() ===
@@ -3302,8 +3327,7 @@ window.openInspectionPointNavigator = async function () {
         };
     bootstrap.Modal.getOrCreateInstance(modal).show();
     await loadInspectionPointNavigatorDetail(detail.InspectionTypeDetailCode);
-};
-
+}
 async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
     const state = inspectionPointNavigatorState;
     const baseRecord = state.baseRecord;
@@ -4764,6 +4788,10 @@ async function openSavedInspection(localId) {
             if (serverRecord.IsApproved2 != null) record.IsApproved2 = serverRecord.IsApproved2;
             if (serverRecord.Approved2By != null) record.Approved2By = serverRecord.Approved2By;
             if (serverRecord.Approved2Date != null) record.Approved2Date = serverRecord.Approved2Date;
+            ["TechnicianName", "SubmittedByName", "ApprovedByName", "Approved1ByName", "Approved2ByName"].forEach(function (field) {
+                if (serverRecord[field] != null && String(serverRecord[field]).trim() !== "")
+                    record[field] = serverRecord[field];
+            });
         }
     }
 
@@ -4982,8 +5010,6 @@ function setInspectionFormInfoPopover(infoLines) {
     const infoButton = document.getElementById("btnInspectionFormInfo");
     if (!infoButton) return;
 
-    // Keep the original information content intact, but expose it from a
-    // click-only Popover (no Bootstrap Tooltip or native title tooltip).
     if (window.bootstrap && bootstrap.Tooltip) {
         const tooltip = bootstrap.Tooltip.getInstance(infoButton);
         if (tooltip) tooltip.dispose();
@@ -4994,17 +5020,35 @@ function setInspectionFormInfoPopover(infoLines) {
     }
     infoButton.removeAttribute("title");
 
-    // Bootstrap's click trigger toggles the popover only when the info button
-    // itself is clicked. Explicitly dismiss it when the user clicks anywhere else.
+    // Match the map-option popover's root-close behavior. Pointerdown makes
+    // dismissal immediate on both mouse and touch; click covers keyboard/
+    // programmatic click activation. Keep clicks inside the trigger/popover.
     if (!document.documentElement.dataset.inspectionInfoPopoverOutsideClickWired) {
         document.documentElement.dataset.inspectionInfoPopoverOutsideClickWired = "1";
-        document.addEventListener("click", function (event) {
+        const closeOnOutside = function (event) {
             const button = document.getElementById("btnInspectionFormInfo");
             if (!button || !window.bootstrap || !bootstrap.Popover) return;
-            if (event.target.closest && event.target.closest("#btnInspectionFormInfo")) return;
+            const target = event.target && event.target.nodeType === 1
+                ? event.target : (event.target && event.target.parentElement);
+            if (!target) return;
             const popover = bootstrap.Popover.getInstance(button);
-            if (popover) popover.hide();
-        }, true);
+            if (!popover) return;
+            const tip = typeof popover.getTipElement === "function" ? popover.getTipElement() : null;
+            if (button.contains(target) || (tip && tip.contains(target))) return;
+            popover.hide();
+        };
+        document.addEventListener("pointerdown", closeOnOutside, true);
+        document.addEventListener("click", closeOnOutside, true);
+        document.addEventListener("keydown", function (event) {
+            if (event.key !== "Escape") return;
+            const button = document.getElementById("btnInspectionFormInfo");
+            const popover = button && window.bootstrap && bootstrap.Popover
+                ? bootstrap.Popover.getInstance(button) : null;
+            if (popover) {
+                popover.hide();
+                button.focus();
+            }
+        });
     }
 
     const content = (infoLines || []).filter(Boolean).map(line =>
@@ -5023,7 +5067,6 @@ function setInspectionFormInfoPopover(infoLines) {
         content: content
     });
 }
-
 function setInspectionFormHeader(transactionNo, infoLines) {
     const title = document.getElementById("inspectionFormTitle");
     if (title) title.textContent = transactionNo || "Inspection";
