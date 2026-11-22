@@ -730,6 +730,16 @@
         // OPTION statistics are derived entirely from the active Template Snapshot.
         // No option name such as ON/OFF, GOOD/BROKEN, etc. is hard-coded here.
         renderTemplateOptionSummary(points);
+        var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
+        var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
+        var hasOptionSummary = !!(optionSummaryHost && !optionSummaryHost.classList.contains("d-none"));
+        if (optionInfoButton) {
+            optionInfoButton.classList.toggle("d-none", !hasOptionSummary);
+            if (!hasOptionSummary) {
+                optionInfoButton.setAttribute("aria-expanded", "false");
+                if (optionSummaryHost) optionSummaryHost.classList.add("d-none");
+            }
+        }
     }
 
     function scrollPointListToRow(pointId) {
@@ -1771,6 +1781,28 @@
         wired = true;
 
         wireMapGestures();
+        var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
+        var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
+        if (optionInfoButton && optionSummaryHost) {
+            optionInfoButton.addEventListener("click", function (event) {
+                event.stopPropagation();
+                var opening = optionSummaryHost.classList.contains("d-none");
+                optionSummaryHost.classList.toggle("d-none", !opening);
+                optionInfoButton.setAttribute("aria-expanded", opening ? "true" : "false");
+            });
+            document.addEventListener("click", function (event) {
+                if (optionSummaryHost.classList.contains("d-none")) return;
+                if (event.target.closest("#inspectionMapOptionSummaryHost, #btnInspectionMapOptionInfo")) return;
+                optionSummaryHost.classList.add("d-none");
+                optionInfoButton.setAttribute("aria-expanded", "false");
+            });
+            document.addEventListener("keydown", function (event) {
+                if (event.key !== "Escape" || optionSummaryHost.classList.contains("d-none")) return;
+                optionSummaryHost.classList.add("d-none");
+                optionInfoButton.setAttribute("aria-expanded", "false");
+                optionInfoButton.focus();
+            });
+        }
         var pointNavigatorButton = document.getElementById("btnInspectionPointNavigator");
         if (pointNavigatorButton) pointNavigatorButton.addEventListener("click", function () {
             if (typeof window.openInspectionPointNavigator === "function")
