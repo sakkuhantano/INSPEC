@@ -1753,12 +1753,13 @@
     }
 
 
-    /* Map mode: the workspace must grow with its contents. A viewport-fixed
-       workspace (height:100vh + overflow:hidden) becomes the sticky elements'
-       containing block, so they stop sticking as soon as that short box ends. */
+    /* Sticky map controls must stick to the document scroll, not to the
+       compact mobile app shell. The mobile shell normally clips its ancestors
+       for the full-screen map; that defeats position:sticky entirely. */
     body.inspection-map-tab-active #inspectionMapWorkspace{
         height:auto!important;
         min-height:calc(100dvh - 148px)!important;
+        max-height:none!important;
         overflow:visible!important;
         flex:0 0 auto!important;
     }
@@ -1770,12 +1771,8 @@
         flex:0 0 auto!important;
         z-index:30!important;
     }
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{
-        top:0!important;
-    }
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
-        top:48px!important;
-    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{top:0!important}
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{top:48px!important}
     body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
         top:100px!important;
         background:var(--bs-body-bg);
@@ -1785,21 +1782,44 @@
         min-height:min(72vh,760px)!important;
     }
     @media(max-width:767.98px){
+        /* Override the more-specific full-screen mobile rules above. */
+        body.inspection-map-tab-active.inspection-map-mobile-active{
+            height:auto!important;
+            min-height:100dvh!important;
+            overflow-x:hidden!important;
+            overflow-y:auto!important;
+        }
+        body.inspection-map-tab-active.inspection-map-mobile-active #contentbody{
+            height:auto!important;
+            max-height:none!important;
+            min-height:calc(100dvh - 44px)!important;
+            overflow:visible!important;
+            flex:0 0 auto!important;
+        }
+        body.inspection-map-tab-active.inspection-map-mobile-active #contentbody > .container-fluid.px-2.px-md-3.pb-4{
+            height:auto!important;
+            max-height:none!important;
+            min-height:0!important;
+            overflow:visible!important;
+            flex:0 0 auto!important;
+        }
+        body.inspection-map-tab-active.inspection-map-mobile-active #contentbody #inspectionInputPanel{
+            height:auto!important;
+            min-height:0!important;
+            overflow:visible!important;
+            flex:0 0 auto!important;
+        }
         body.inspection-map-tab-active #inspectionMapWorkspace{
+            height:auto!important;
             min-height:calc(100dvh - 142px)!important;
+            max-height:none!important;
+            overflow:visible!important;
+            flex:0 0 auto!important;
         }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{
-            top:0!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
-            top:44px!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
-            top:90px!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{
-            min-height:44dvh!important;
-        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{top:0!important}
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{top:44px!important}
+        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{top:90px!important}
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{min-height:44dvh!important}
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel,
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas{
             min-height:44dvh!important;
