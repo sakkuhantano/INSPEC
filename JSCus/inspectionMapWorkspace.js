@@ -369,7 +369,7 @@
             }
             var cx = isFinite(Number(shape.cx)) ? Math.max(0, Math.min(100, Number(shape.cx))) : x;
             var cy = isFinite(Number(shape.cy)) ? Math.max(0, Math.min(100, Number(shape.cy))) : y;
-            // Honor the saved radius so drawn circles retain their geometry in inspection.
+            // CIRCLE is a point dot; use PATH for larger vector areas.
             var radius = Math.max(0.15, Math.min(50, Number(shape.r) || 0.45));
             var circleAspect = host.clientWidth && host.clientHeight ? host.clientWidth / host.clientHeight : 1;
             var circleTransform = 'translate(' + cx + ' ' + cy + ') scale(1 ' + circleAspect + ') translate(' + (-cx) + ' ' + (-cy) + ')';
