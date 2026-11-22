@@ -138,12 +138,17 @@
     }
 
     function inspectionShowDraftPreview(blob, fileName) {
+        // The shared object URL belongs to the selected draft file, not to the
+        // Point Editor. The lower Map Preview must work while Point Editor is
+        // still hidden and its coordinate board is not rendered in the DOM.
+        if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
+        inspectionDraftObjectUrl = URL.createObjectURL(blob);
+
         var board = document.getElementById('inspectionCoordinateBoard');
         var content = document.getElementById('inspectionCoordinateContent');
         if (!board || !content) return;
+
         var extension = (fileName || '').toLowerCase().split('.').pop();
-        if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
-        inspectionDraftObjectUrl = URL.createObjectURL(blob);
         var old = document.getElementById('inspectionPdfCanvas');
         if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' || (blob.type || '').toLowerCase().indexOf('image/') === 0) {
             var img = old && old.tagName === 'IMG' ? old : document.createElement('img');
