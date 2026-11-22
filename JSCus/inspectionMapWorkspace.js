@@ -20,6 +20,7 @@
     var listKeyword = "";
     var navigatorFocusDismissedPointId = "";
     var navigatorFocusPendingPointId = "";
+    var navigatorFocusRequestSequence = 0;
     var mapZoom = 1;
     var mapPanX = 0;
     var mapPanY = 0;
@@ -304,17 +305,18 @@
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
-        if (!host.getAttribute("data-navigator-dismiss-wired")) {
-            // Capture the map click before any marker-specific handler. This also
-            // covers SVG PATH/RECT/CIRCLE and the HTML circle-marker buttons.
-            host.addEventListener("click", function (event) {
-                var marker = event.target && event.target.closest
-                    ? event.target.closest("[data-point-id]") : null;
-                if (marker) removeNavigatorFocusRing(
-                    navigatorFocusPendingPointId || marker.getAttribute("data-point-id")
-                );
+        var mapViewport = document.getElementById("inspectionMapCanvas");
+        if (mapViewport && mapViewport.getAttribute("data-navigator-dismiss-wired") !== "1") {
+            // Any deliberate click on the floor-plan viewport dismisses the
+            // Navigator pulse. Marker clicks continue to their own handlers.
+            mapViewport.addEventListener("click", function (event) {
+                if (event.target && event.target.closest &&
+                    event.target.closest(".inspection-map-zoom-tools")) return;
+                navigatorFocusRequestSequence++;
+                navigatorFocusPendingPointId = "";
+                removeNavigatorFocusRing();
             }, true);
-            host.setAttribute("data-navigator-dismiss-wired", "1");
+            mapViewport.setAttribute("data-navigator-dismiss-wired", "1");
         }
         var mapId = Number(currentMapId || 0);
         var points = currentPoints.filter(function (point) {
@@ -1003,6 +1005,9 @@
             return String(point.InspectionPointID) === String(id);
         }) || null;
         if (!selectedPoint) return;
+        navigatorFocusRequestSequence++;
+        navigatorFocusPendingPointId = "";
+        removeNavigatorFocusRing();
 
         document.querySelectorAll(".inspection-map-point, .inspection-map-svg-path, .inspection-map-svg-rect, .inspection-map-svg-circle").forEach(function (element) {
             element.classList.toggle("selected", element.getAttribute("data-point-id") === String(id));
@@ -1515,7 +1520,7 @@
         if (currentMaps.length) showSelectedInspectionMap(currentMaps[0].MapID);
     }
 
-    function showSelectedInspectionMap(mapId) {
+    function showSelectedInspectionMap(mapId, preserveView) {
         var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(mapId); });
         if (!map) return;
         closeOptionSummaryPopover();
@@ -1551,11 +1556,17 @@
                 return Number(point.MapID) === Number(map.MapID);
             }).length + " inspection points";
         updateSelectedMapCard();
+        var listHost = document.getElementById("inspectionPointList");
+        var previousListScrollTop = preserveView && listHost ? listHost.scrollTop : 0;
         closePoint();
         switchMapList();
-        resetMapView();
-        listPage = 1;
+        if (!preserveView) {
+            resetMapView();
+            listPage = 1;
+            listKeyword = "";
+        }
         renderList();
+        if (preserveView && listHost) listHost.scrollTop = previousListScrollTop;
         updateSummary();
         renderPoints();
         window.requestAnimationFrame(function () { renderPdf(map); });
@@ -1684,7 +1695,11 @@
             setInspectionSectionNavForTab("map");
             closePoint();
             switchMapList();
-            showMapPicker();
+            if (!isDifferentRecord && selectedMap) {
+                showSelectedInspectionMap(selectedMap.MapID, true);
+            } else {
+                showMapPicker();
+            }
             if (typeof window.updateInspectionParameterTabGate === "function")
                 window.updateInspectionParameterTabGate();
         } else if (!workspace.classList.contains("d-none") && selectedMap) {
@@ -1715,6 +1730,7 @@
     }
 
     window.focusInspectionMapPoint = async function (pointId) {
+        var focusSequence = ++navigatorFocusRequestSequence;
         navigatorFocusDismissedPointId = "";
         navigatorFocusPendingPointId = String(pointId);
         var point = currentPoints.find(function (item) {
@@ -1728,6 +1744,7 @@
 
         showSelectedInspectionMap(map.MapID);
         var ready = await waitForInspectionMapStage();
+        if (focusSequence !== navigatorFocusRequestSequence) return false;
         renderPoints();
         if (!ready) {
             var listHost = document.getElementById("inspectionPointList");
@@ -1763,6 +1780,7 @@
         applyMapTransform();
         schedulePdfCanvasRender();
 
+        if (focusSequence !== navigatorFocusRequestSequence) return false;
         var pointHost = document.getElementById("inspectionMapPoints");
         if (pointHost) {
             pointHost.querySelectorAll("[data-point-id]").forEach(function (element) {
