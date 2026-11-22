@@ -2107,7 +2107,7 @@
 
     /* Schedule tabs and map actions share one row; toolbar remains present for BATCH too. */
     #inspectionMapStickyStack > #inspectionMapScheduleToolbarRow{
-        display:flex;align-items:center;justify-content:space-between;gap:.55rem;
+        display:flex;align-items:center;justify-content:flex-end;gap:.55rem;
         flex:0 0 auto;min-width:0;padding:.3rem .5rem;
         border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg);
     }
