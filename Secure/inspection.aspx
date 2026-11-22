@@ -376,6 +376,19 @@
     .modal-backdrop { z-index: 1090 !important; }
     .modal { z-index: 1100 !important; }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
+    .approval-sort-indicator, .inspection-sort-indicator {
+        display: inline-block; width: 0; height: 0; margin-left: .3rem; vertical-align: middle;
+        border-left: 4px solid transparent; border-right: 4px solid transparent;
+    }
+    .approval-sort-indicator.is-asc, .inspection-sort-indicator.is-asc {
+        border-bottom: 5px solid currentColor;
+    }
+    .approval-sort-indicator.is-desc, .inspection-sort-indicator.is-desc {
+        border-top: 5px solid currentColor;
+    }
+    #inspectionApprovalTable [data-approval-sort]:focus-visible, .inspection-record-table [data-inspection-sort]:focus-visible {
+        outline: 2px solid var(--bs-primary); outline-offset: 2px;
+    }
     /* Compact SPV approval grid; keep each column label/value on one line. */
     #inspectionApprovalTable { font-size: .78rem; white-space: nowrap; }
     #inspectionApprovalTable > :not(caption) > * > * { padding: .35rem .45rem; }
