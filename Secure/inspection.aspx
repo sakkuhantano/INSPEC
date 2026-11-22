@@ -2561,7 +2561,7 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title mb-1" id="inspectionPointNavigatorTitle"><i class="bi bi-signpost-split me-2 text-primary"></i>Point Navigator</h5>
-                        <div class="small text-muted">Semua titik tetap ditampilkan, termasuk yang sudah diinspeksi.</div>
+                        <div class="small text-muted" id="inspectionPointNavigatorSubtitle">Semua titik tetap ditampilkan, termasuk yang sudah diinspeksi.</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
