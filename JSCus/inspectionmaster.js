@@ -806,7 +806,7 @@
             var drawMode = false, drawingPath = false, suppressNextClick = false;
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
-            var circleDrawing = false, circleStart = null, circlePreview = null;
+            var circleDrawing = false, circleDrawArmed = false, circleStart = null, circlePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
@@ -822,6 +822,7 @@
             }
             function finishCircleDrawing(point) {
                 if (!circleStart || !point) return;
+                circleDrawArmed = false;
                 updateCirclePreview(point);
                 var aspect = content.clientWidth && content.clientHeight ? content.clientWidth / content.clientHeight : 1;
                 var dx = point.x - circleStart.x, dy = point.y - circleStart.y;
@@ -1075,7 +1076,7 @@
                     recordPathEditorAction();
                     drawMode = false; drawingPath = false; rectangleDrawing = false;
                     rectangleStart = null; removeRectangleEditorShape();
-                    circleDrawing = false; circleStart = null;
+                    circleDrawing = false; circleDrawArmed = false; circleStart = null;
                     if (pathField) pathField.value = '';
                     if (shapeAttributesField) shapeAttributesField.value = '{}';
                     var oldCircle = content.querySelector('#inspectionCoordinateCirclePreview');
@@ -1086,7 +1087,8 @@
                     content.style.setProperty('cursor', 'crosshair', 'important');
                     board.style.setProperty('touch-action', 'none', 'important');
                     content.style.setProperty('touch-action', 'none', 'important');
-                    pathStatusText('Circle: drag dari titik pusat ke tepi untuk menggambar lingkaran.');
+                    circleDrawArmed = true;
+                    pathStatusText('Circle aktif: drag dari titik pusat ke tepi untuk menggambar lingkaran. Map tetap bisa digeser sebelum mode gambar diaktifkan.');
                     return;
                 }
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE') {
@@ -1167,7 +1169,7 @@
                     orthogonalPreviewPoint = null;
                 }
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; circleDrawing = false; circleStart = null;
+                    drawMode = false; drawingPath = false; circleDrawing = false; circleDrawArmed = false; circleStart = null;
                     board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
@@ -1203,7 +1205,7 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
-                if (shapeSelect && shapeSelect.value === 'CIRCLE' && event.button === 0 &&
+                if (circleDrawArmed && shapeSelect && shapeSelect.value === 'CIRCLE' && event.button === 0 &&
                     !(event.target.closest && event.target.closest('button, input, select, textarea, .inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
