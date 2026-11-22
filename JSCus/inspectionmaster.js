@@ -624,8 +624,6 @@
         window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
         initMapPreviewInteraction();
-        var pointModal = document.getElementById('pnlPointEditor');
-        if (pointModal) pointModal.addEventListener('shown.bs.modal', function () { window.requestAnimationFrame(renderInspectionPdf); });
         var board = document.getElementById('inspectionCoordinateBoard');
         var content = document.getElementById('inspectionCoordinateContent');
         var markerX = document.getElementById('txtMarkerX');
@@ -1356,6 +1354,18 @@
                 updateMarkerScale();
             });
             applyView();
+            var pointModal = document.getElementById('pnlPointEditor');
+            if (pointModal) pointModal.addEventListener('shown.bs.modal', function () {
+                // Every fresh opening starts from the fitted floor-plan view.
+                // Keep the zoom state and rendered transform in sync; otherwise
+                // a previous 200% zoom can make the fitted image appear oversized.
+                zoom = 1;
+                inspectionCoordinateZoom = 1;
+                panX = 0;
+                panY = 0;
+                applyView();
+                window.requestAnimationFrame(renderInspectionPdf);
+            });
         }
         document.querySelectorAll('#inspectionMasterTabs [data-bs-toggle="tab"]').forEach(function (tab) {
             tab.addEventListener('shown.bs.tab', function (event) {
