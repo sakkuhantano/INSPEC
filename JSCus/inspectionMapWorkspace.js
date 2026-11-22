@@ -797,27 +797,31 @@
             row.classList.add("active", "selected");
             row.setAttribute("aria-current", "true");
 
-            // First use the browser's native scroll-into-view for the actual
-            // row, then clamp the list's own scrollTop. This handles both
-            // normal desktop overflow and a list that has been moved into the
-            // Point List modal.
-            try {
-                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-            } catch (_) {
-                row.scrollIntoView(false);
-            }
+            // The Point List host is the intended scroll container. Move its
+            // scrollTop directly instead of relying only on scrollIntoView(),
+            // which can choose the page/map as the scroll container.
+            var targetTop = row.offsetTop - Math.max(0, (listHost.clientHeight - row.offsetHeight) / 2);
+            var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
+            targetTop = Math.max(0, Math.min(maxScroll, targetTop));
+            if (typeof listHost.scrollTo === "function")
+                listHost.scrollTo({ top: targetTop, behavior: "smooth" });
+            else
+                listHost.scrollTop = targetTop;
 
+            // Keep a native fallback for layouts where offsetTop is not relative
+            // to the scrolling host (e.g. a temporarily reparented list).
             window.requestAnimationFrame(function () {
                 if (!document.documentElement.contains(row)) return;
                 var hostRect = listHost.getBoundingClientRect();
                 var rowRect = row.getBoundingClientRect();
-                var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
-                var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
-                var targetScroll = Math.max(0, Math.min(maxScroll, listHost.scrollTop + delta));
-                if (Math.abs(targetScroll - listHost.scrollTop) > 1) {
-                    if (typeof listHost.scrollTo === "function")
-                        listHost.scrollTo({ top: targetScroll, behavior: "smooth" });
-                    else listHost.scrollTop = targetScroll;
+                var hostTop = hostRect.top;
+                var hostBottom = hostRect.bottom;
+                if (rowRect.top < hostTop || rowRect.bottom > hostBottom) {
+                    try {
+                        row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+                    } catch (_) {
+                        row.scrollIntoView(false);
+                    }
                 }
             });
         }
@@ -1060,23 +1064,20 @@
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
 
-        // On phones, a map tap is the primary navigation: open the point checklist
-        // immediately instead of exposing/focusing the desktop Point List below the map.
-        // Desktop keeps the existing list-selection workflow.
-        // Phone UX follows the field-app pattern: tapping a point opens a
-        // bottom-sheet quick result editor while the floor plan remains visible.
-        // The full checklist remains one tap away and all existing checklist/save
-        // logic is preserved.
+        // A map point selection must always synchronize with the Point List.
+        // Do this before the mobile quick-sheet branch as well, so the selected
+        // row is highlighted and moved into view regardless of viewport size.
+        removeNavigatorFocusRing();
+        scrollPointListToRow(id);
+
+        // On phones, keep the quick-result sheet as the primary interaction,
+        // but do not skip Point List synchronization above.
         if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches) {
             removeNavigatorFocusRing();
             ensureQuickPointRing(selectedPoint);
             showQuickPointSheet(selectedPoint);
             return;
         }
-
-        // Desktop keeps the existing list-selection workflow.
-        removeNavigatorFocusRing();
-        scrollPointListToRow(id);
     }
 
     function closePoint() {
