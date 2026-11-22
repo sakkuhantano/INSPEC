@@ -924,6 +924,15 @@
                     if (rect.parentNode) rect.parentNode.removeChild(rect);
                 });
             }
+            function clearActivePointShapeFromOverlay() {
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                var activeId = document.getElementById('hidPointID');
+                if (!svg || !activeId || !activeId.value) return;
+                svg.querySelectorAll('[data-point-id]').forEach(function (element) {
+                    if (element.getAttribute('data-point-id') === activeId.value &&
+                        element.parentNode) element.parentNode.removeChild(element);
+                });
+            }
             function hasRectangleGeometry() {
                 if (!shapeAttributesField) return false;
                 try {
@@ -1283,6 +1292,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
+                    clearActivePointShapeFromOverlay();
                     rectangleDrawing = true;
                     rectangleStart = mapPointFromEvent(event);
                     suppressNextClick = true;
@@ -1298,6 +1308,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 event.preventDefault(); event.stopImmediatePropagation();
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
                     if (!drawingPath) {
+                        clearActivePointShapeFromOverlay();
                         drawingPath = true;
                         pathPoints = [mapPointFromEvent(event)];
                         orthogonalDrawing = true;
