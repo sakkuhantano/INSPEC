@@ -3008,11 +3008,7 @@ function renderInspectionPointNavigatorList() {
     });
     const counts = { DONE: 0, ABNORMAL: 0, INCOMPLETE: 0, PENDING: 0 };
     all.forEach(point => { counts[statusFor(point).key]++; });
-    const activeScheduleBadge = String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
-        ? '<span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">Jadwal aktif ' +
-            escInspection(state.scheduleTime || "-") + '</span>'
-        : "";
-    summary.innerHTML = activeScheduleBadge +
+    summary.innerHTML =
         '<span class="badge text-bg-light border text-dark">Total ' + all.length + '</span>' +
         '<span class="badge text-bg-success">Selesai ' + (counts.DONE + counts.ABNORMAL) + '</span>' +
         '<span class="badge text-bg-warning">Belum lengkap ' + counts.INCOMPLETE + '</span>' +
@@ -3106,6 +3102,14 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         if (state.record && state.record.BatchMapSetup && Array.isArray(state.record.BatchMapSetup.points))
             state.setup = state.record.BatchMapSetup;
         if (state.record) state.record.BatchMapSetup = state.setup;
+
+        const navigatorSubtitle = document.getElementById("inspectionPointNavigatorSubtitle");
+        if (navigatorSubtitle) {
+            navigatorSubtitle.textContent =
+                String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+                    ? "Jadwal aktif: " + (state.scheduleTime || "-") + " · Status dan input mengikuti jadwal ini."
+                    : "Semua titik tetap ditampilkan, termasuk yang sudah diinspeksi.";
+        }
 
         const mapSelect = document.getElementById("inspectionPointNavigatorMap");
         const maps = Array.isArray(state.setup.maps) ? state.setup.maps : [];
