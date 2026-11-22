@@ -2789,7 +2789,7 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null, selectedMapId: "",
-    scheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "", sort: "display",
+    scheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "",
     statusFilter: "all", page: 1, pageSize: 20,
     returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
 };
@@ -2996,19 +2996,9 @@ function renderInspectionPointNavigatorList() {
         return matchesMap && matchesKeyword && matchesStatus;
     });
 
-    const compareText = (a, b, key) => String(a[key] || "").localeCompare(String(b[key] || ""), undefined, { numeric: true, sensitivity: "base" });
-    if (state.sort === "code") points.sort((a, b) => compareText(a, b, "PointCode"));
-    else if (state.sort === "code-desc") points.sort((a, b) => compareText(b, a, "PointCode"));
-    else if (state.sort === "name") points.sort((a, b) => compareText(a, b, "PointName"));
-    else if (state.sort === "name-desc") points.sort((a, b) => compareText(b, a, "PointName"));
-    else if (state.sort === "status") {
-        const rank = { PENDING: 0, INCOMPLETE: 1, ABNORMAL: 2, DONE: 3 };
-        points.sort((a, b) => rank[statusFor(a).key] - rank[statusFor(b).key] ||
-            Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
-    } else {
-        points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
-            String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
-    }
+    // Keep the Inspection Point master order; the optional Sort By control is removed.
+    points.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0) ||
+        String(a.PointCode || "").localeCompare(String(b.PointCode || "")));
 
     const all = (state.setup.points || []).filter(point =>
         !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId));
@@ -3233,11 +3223,6 @@ function wireInspectionPointNavigator() {
         inspectionPointNavigatorState.page = 1;
         renderInspectionPointNavigatorList();
     });
-    document.getElementById("inspectionPointNavigatorSort").addEventListener("change", function () {
-        inspectionPointNavigatorState.sort = this.value || "display";
-        inspectionPointNavigatorState.page = 1;
-        renderInspectionPointNavigatorList();
-    });
     document.getElementById("inspectionPointNavigatorList").addEventListener("click", async function (event) {
         const state = inspectionPointNavigatorState;
         const optionButton = event.target.closest("[data-nav-point-option]");
@@ -3333,13 +3318,11 @@ window.openInspectionPointNavigator = async function (options) {
     state.returnScrollTop = 0;
     state.returnPointId = 0;
     state.keyword = "";
-    state.sort = "display";
     state.statusFilter = ["all", "pending", "incomplete", "unfilled", "done", "abnormal"].includes(String(options.statusFilter || "all"))
         ? String(options.statusFilter || "all") : "all";
     state.page = 1;
     state.pageSize = 20;
     document.getElementById("inspectionPointNavigatorSearch").value = "";
-    document.getElementById("inspectionPointNavigatorSort").value = "display";
     document.getElementById("inspectionPointNavigatorStatusFilter").value = state.statusFilter;
     document.getElementById("inspectionPointNavigatorPageSize").value = "20";
     const detail = getInspectionPointNavigatorDetails(record).find(item =>
