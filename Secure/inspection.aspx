@@ -1753,45 +1753,56 @@
     }
 
 
-    /* Map mode chrome: keep the three navigation layers visible while the
-       page itself is scrolled. These rules only target the map workspace;
-       checklist mode hides the workspace, so its checklist layout is untouched. */
-    @media(min-width:768px){
-        body.inspection-map-tab-active #inspectionMapWorkspace{
-            overflow:visible!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
-        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
-            position:sticky!important;
-            top:0!important;
-            z-index:30!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
-            top:48px!important;
-        }
-        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
-            top:100px!important;
-            background:var(--bs-body-bg);
-        }
+    /* Map mode: the workspace must grow with its contents. A viewport-fixed
+       workspace (height:100vh + overflow:hidden) becomes the sticky elements'
+       containing block, so they stop sticking as soon as that short box ends. */
+    body.inspection-map-tab-active #inspectionMapWorkspace{
+        height:auto!important;
+        min-height:calc(100dvh - 148px)!important;
+        overflow:visible!important;
+        flex:0 0 auto!important;
+    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
+    body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+        position:sticky!important;
+        align-self:stretch!important;
+        flex:0 0 auto!important;
+        z-index:30!important;
+    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{
+        top:0!important;
+    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
+        top:48px!important;
+    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+        top:100px!important;
+        background:var(--bs-body-bg);
+    }
+    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{
+        flex:0 0 auto!important;
+        min-height:min(72vh,760px)!important;
     }
     @media(max-width:767.98px){
         body.inspection-map-tab-active #inspectionMapWorkspace{
-            overflow:visible!important;
+            min-height:calc(100dvh - 142px)!important;
         }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
-        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
-            position:sticky!important;
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{
             top:0!important;
-            z-index:30!important;
         }
         body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
             top:44px!important;
         }
         body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
             top:90px!important;
-            background:var(--bs-body-bg);
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{
+            min-height:44dvh!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel,
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas{
+            min-height:44dvh!important;
         }
     }
 </style>
