@@ -2251,3 +2251,45 @@
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js"></script>
 </asp:Content>
+
+    /* Map mode chrome: keep the three navigation layers visible while the
+       page itself is scrolled. These rules only target the map workspace;
+       checklist mode hides the workspace, so its checklist layout is untouched. */
+    @media(min-width:768px){
+        body.inspection-map-tab-active #inspectionMapWorkspace{
+            overflow:visible!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
+        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+            position:sticky!important;
+            top:0!important;
+            z-index:30!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
+            top:48px!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+            top:100px!important;
+            background:var(--bs-body-bg);
+        }
+    }
+    @media(max-width:767.98px){
+        body.inspection-map-tab-active #inspectionMapWorkspace{
+            overflow:visible!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
+        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+            position:sticky!important;
+            top:0!important;
+            z-index:30!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{
+            top:44px!important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+            top:90px!important;
+            background:var(--bs-body-bg);
+        }
+    }
