@@ -1247,6 +1247,12 @@
         }, { passive: false });
 
         viewport.addEventListener("pointerdown", function (event) {
+            /* Mobile Chrome can deliver the floor-plan pinch as Touch Events
+               even though the rest of the editor uses Pointer Events. Keep
+               touch handling in one path below so a two-finger gesture is
+               never mistaken for a one-finger pan. */
+            if (event.pointerType === "touch") return;
+
             /* Do not capture a pointer that started on ANY map marker. SVG
                PATH/RECT/CIRCLE targets are not .inspection-map-point buttons;
                capturing them here retargets pointerup/click to the canvas. */
@@ -1300,6 +1306,78 @@
         viewport.addEventListener("pointerup", finishPointer);
         viewport.addEventListener("pointercancel", finishPointer);
         viewport.addEventListener("lostpointercapture", finishPointer);
+
+        /* Explicit Touch Event fallback for mobile floor-plan gestures.
+           Pointer Events remain responsible for mouse/pen interaction; touch
+           gestures use the browser's native multi-touch coordinates directly. */
+        viewport.addEventListener("touchstart", function (event) {
+            if ((!currentPdfDocument && !document.querySelector("#inspectionMapPdfStage img.inspection-map-image")) ||
+                (event.target.closest && (event.target.closest("[data-point-id]") || event.target.closest(".inspection-map-zoom-tools")))) return;
+
+            if (event.touches.length >= 2) {
+                event.preventDefault();
+                var first = event.touches[0];
+                var second = event.touches[1];
+                var dx = second.clientX - first.clientX;
+                var dy = second.clientY - first.clientY;
+                mapGesture = {
+                    type: "pinch",
+                    distance: Math.sqrt(dx * dx + dy * dy),
+                    zoom: mapZoom
+                };
+            } else if (event.touches.length === 1) {
+                var touch = event.touches[0];
+                mapGesture = {
+                    type: "pan",
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    panX: mapPanX,
+                    panY: mapPanY
+                };
+            }
+        }, { passive: false });
+
+        viewport.addEventListener("touchmove", function (event) {
+            if (!mapGesture || !event.touches.length) return;
+
+            if (event.touches.length >= 2) {
+                event.preventDefault();
+                var first = event.touches[0];
+                var second = event.touches[1];
+                var dx = second.clientX - first.clientX;
+                var dy = second.clientY - first.clientY;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (mapGesture.type === "pinch" && mapGesture.distance > 0) {
+                    var midpointX = (first.clientX + second.clientX) / 2;
+                    var midpointY = (first.clientY + second.clientY) / 2;
+                    zoomMapTo(
+                        mapGesture.zoom * (distance / mapGesture.distance),
+                        midpointX,
+                        midpointY
+                    );
+                } else {
+                    mapGesture = {
+                        type: "pinch",
+                        distance: distance,
+                        zoom: mapZoom
+                    };
+                }
+            } else if (event.touches.length === 1 && mapGesture.type === "pan") {
+                event.preventDefault();
+                var touch = event.touches[0];
+                mapPanX = mapGesture.panX + touch.clientX - mapGesture.x;
+                mapPanY = mapGesture.panY + touch.clientY - mapGesture.y;
+                applyMapTransform();
+            }
+        }, { passive: false });
+
+        function finishTouch() {
+            mapGesture = null;
+        }
+
+        viewport.addEventListener("touchend", finishTouch, { passive: false });
+        viewport.addEventListener("touchcancel", finishTouch, { passive: false });
     }
 
     function schedulePdfCanvasRender() {
