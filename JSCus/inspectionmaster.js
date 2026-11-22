@@ -1162,6 +1162,7 @@
                 pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
+                circleDrawArmed = false;
                 recordPathEditorAction();
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
                 if (this.value !== 'ORTHOGONAL') {
