@@ -744,19 +744,29 @@
         renderList();
 
         var listHost = document.getElementById("inspectionPointList");
-        var row = listHost && listHost.querySelector(
-            '.inspection-point-list-row[data-point-id="' + String(pointId) + '"]'
+        if (!listHost) return;
+        var row = Array.prototype.find.call(
+            listHost.querySelectorAll(".inspection-point-list-row[data-point-id]"),
+            function (item) { return String(item.getAttribute("data-point-id")) === String(pointId); }
         );
-        if (!listHost || !row) return;
+        if (!row) return;
 
+        listHost.querySelectorAll(".inspection-point-list-row.active, .inspection-point-list-row.selected")
+            .forEach(function (item) { item.classList.remove("active", "selected"); });
         row.classList.add("active", "selected");
+        row.setAttribute("aria-current", "true");
+
         function scrollSelectedRow() {
-            if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
+            if (!document.documentElement.contains(row)) return;
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
+            if (hostRect.height <= 0 || rowRect.height <= 0) return;
             var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
                 Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
-            listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+            if (typeof listHost.scrollTo === "function")
+                listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+            else
+                listHost.scrollTop = Math.max(0, targetTop);
         }
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
