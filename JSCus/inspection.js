@@ -3137,6 +3137,14 @@ function wireInspectionPointNavigator() {
     const modal = document.getElementById("inspectionPointNavigatorModal");
     if (!modal || modal.dataset.wired === "1") return;
     modal.dataset.wired = "1";
+    // Bootstrap applies aria-hidden during modal teardown. If a Navigator
+    // button still owns focus at that moment, Chrome warns and blocks the
+    // accessibility state change. Move focus out before Bootstrap hides it.
+    modal.addEventListener("hide.bs.modal", function () {
+        if (modal.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (_) { }
+        }
+    });
     modal.addEventListener("shown.bs.modal", function () {
         const state = inspectionPointNavigatorState;
         if (!state.restoreNavigatorPosition) return;
