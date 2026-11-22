@@ -1791,6 +1791,12 @@
         } else if (!workspace.classList.contains("d-none") && selectedMap) {
             renderPdf(selectedMap);
         }
+
+        // MAP activation changes the editor into a full-height flex layout.
+        // Refresh Approval Workflow after that transition so new LIGHTNING drafts
+        // are visible even though none of the workflow stages has been submitted.
+        if (typeof window.renderInspectionApprovalWorkflowCards === "function")
+            window.renderInspectionApprovalWorkflowCards(record, record.InspectionMode);
     };
 
     async function waitForInspectionMapStage() {
