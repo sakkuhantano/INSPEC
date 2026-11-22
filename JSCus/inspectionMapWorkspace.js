@@ -1090,21 +1090,28 @@
         var sheet = document.getElementById("inspectionMapPointSheet");
         if (sheet) sheet.classList.add("d-none");
 
-        // A map point selection must always synchronize with the Point List.
-        // Do this before the mobile quick-sheet branch as well, so the selected
-        // row is highlighted and moved into view regardless of viewport size.
         removeNavigatorFocusRing();
-        var pointListOpened = scrollPointListToRow(id);
+        var isMobileMapViewport = window.matchMedia &&
+            window.matchMedia("(max-width: 767.98px)").matches;
 
-        // On phones the list is mounted in its own full-screen modal. Do not
-        // open the quick-result sheet over that modal after selecting a marker.
-        if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches) {
-            if (pointListOpened) return;
-            removeNavigatorFocusRing();
-            ensureQuickPointRing(selectedPoint);
-            showQuickPointSheet(selectedPoint);
+        if (isMobileMapViewport) {
+            // On mobile, map selection opens the actual checklist in the
+            // bottom sheet. Do not open/scroll the obsolete Point List modal.
+            if (typeof window.openBatchInspectionPointChecklist === "function") {
+                Promise.resolve(window.openBatchInspectionPointChecklist(selectedPoint)).catch(function (error) {
+                    console.error("Unable to open mobile inspection checklist:", error);
+                    if (typeof showToast === "function")
+                        showToast(error && error.message ? error.message : "Checklist point gagal dibuka.", "warning");
+                });
+            } else {
+                ensureQuickPointRing(selectedPoint);
+                showQuickPointSheet(selectedPoint);
+            }
             return;
         }
+
+        // Desktop keeps its existing Point List synchronization behavior.
+        scrollPointListToRow(id);
     }
 
     function closePoint() {
@@ -1807,7 +1814,11 @@
         if (focusSequence !== navigatorFocusRequestSequence) return false;
         renderPoints();
         if (!ready) {
-            var listHost = document.getElementById("inspectionPointList");
+            // The Point List is a desktop fallback only. Mobile Navigator
+            // remains map-first and must never open the obsolete list modal.
+            var isMobileMapViewport = window.matchMedia &&
+                window.matchMedia("(max-width: 767.98px)").matches;
+            var listHost = !isMobileMapViewport ? document.getElementById("inspectionPointList") : null;
             if (listHost) {
                 var fallbackRow = Array.from(listHost.querySelectorAll("[data-point-id]")).find(function (item) {
                     return Number(item.getAttribute("data-point-id")) === Number(pointId);
@@ -1865,10 +1876,13 @@
                 pointHost.appendChild(ring);
             }
         }
-        // Navigator selection must also move to the target's actual page in
-        // the paged Point List, then scroll its own overflow container.
         selectedPoint = point;
-        scrollPointListToRow(pointId);
+        // Desktop retains the Point List page/highlight synchronization.
+        // On phones the requested interaction is map-first: keep the focus
+        // pulse on the marker and wait for the user to tap it to open checklist.
+        var isMobileMapViewport = window.matchMedia &&
+            window.matchMedia("(max-width: 767.98px)").matches;
+        if (!isMobileMapViewport) scrollPointListToRow(pointId);
         return true;
     };
 
