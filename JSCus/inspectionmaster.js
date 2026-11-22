@@ -858,6 +858,21 @@
                 rect.setAttribute('vector-effect', 'non-scaling-stroke');
                 rect.setAttribute('pointer-events', 'none');
                 svg.appendChild(rect);
+                [
+                    {n:'nw',x:left,y:top,c:'nwse-resize'},{n:'n',x:left+width/2,y:top,c:'ns-resize'},
+                    {n:'ne',x:left+width,y:top,c:'nesw-resize'},{n:'e',x:left+width,y:top+height/2,c:'ew-resize'},
+                    {n:'se',x:left+width,y:top+height,c:'nwse-resize'},{n:'s',x:left+width/2,y:top+height,c:'ns-resize'},
+                    {n:'sw',x:left,y:top+height,c:'nesw-resize'},{n:'w',x:left,y:top+height/2,c:'ew-resize'}
+                ].forEach(function(item){
+                    var h=document.createElementNS('http://www.w3.org/2000/svg','rect');
+                    h.setAttribute('class','inspection-coordinate-rectangle-resize-handle');
+                    h.setAttribute('data-resize-handle',item.n);
+                    h.setAttribute('x',Number((item.x-1).toFixed(3))); h.setAttribute('y',Number((item.y-1).toFixed(3)));
+                    h.setAttribute('width','2'); h.setAttribute('height','2'); h.setAttribute('rx','.35');
+                    h.setAttribute('fill','#fff'); h.setAttribute('stroke','#0d6efd'); h.setAttribute('stroke-width','.6');
+                    h.setAttribute('vector-effect','non-scaling-stroke'); h.setAttribute('pointer-events','all'); h.style.cursor=item.c;
+                    svg.appendChild(h);
+                });
             }
             function removeRectangleEditorShape() {
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
@@ -893,6 +908,33 @@
                 if (markerY) markerY.value = Number((top + height / 2).toFixed(3)).toFixed(2);
                 renderRectangleEditorShape(left, top, width, height);
                 pathStatusText('Rectangle area siap disimpan. Save Inspection Point untuk menyimpan blok ini.');
+            }
+            var rectangleResize = null;
+            function beginRectangleResize(event, handleName) {
+                if (!shapeSelect || shapeSelect.value !== 'RECTANGLE' || !shapeAttributesField) return false;
+                var a={}; try{a=JSON.parse(shapeAttributesField.value||'{}')||{};}catch(_){return false;}
+                var left=Number(a.x),top=Number(a.y),width=Number(a.width),height=Number(a.height);
+                if(![left,top,width,height].every(isFinite)||width<=0||height<=0)return false;
+                event.preventDefault();event.stopImmediatePropagation();
+                rectangleResize={handle:handleName,start:{left:left,top:top,width:width,height:height},pointerId:event.pointerId};
+                try{board.setPointerCapture(event.pointerId);}catch(_){}
+                return true;
+            }
+            function resizeRectangleFromHandle(handleName,b,p) {
+                var l=b.left,t=b.top,r=b.left+b.width,bt=b.top+b.height;
+                if(handleName.indexOf('w')>=0)l=p.x;if(handleName.indexOf('e')>=0)r=p.x;
+                if(handleName.indexOf('n')>=0)t=p.y;if(handleName.indexOf('s')>=0)bt=p.y;
+                l=Math.max(0,Math.min(100,l));t=Math.max(0,Math.min(100,t));
+                r=Math.max(0,Math.min(100,r));bt=Math.max(0,Math.min(100,bt));
+                if(r<l){var sx=l;l=r;r=sx;} if(bt<t){var sy=t;t=bt;bt=sy;}
+                var w=Math.max(.35,r-l),h=Math.max(.35,bt-t);
+                if(l+w>100)w=100-l;if(t+h>100)h=100-t;
+                shapeAttributesField.value=JSON.stringify({coordinateSpace:'PERCENT_100',
+                    x:Number(l.toFixed(3)),y:Number(t.toFixed(3)),width:Number(w.toFixed(3)),height:Number(h.toFixed(3))});
+                if(markerX)markerX.value=Number((l+w/2).toFixed(3)).toFixed(2);
+                if(markerY)markerY.value=Number((t+h/2).toFixed(3)).toFixed(2);
+                renderRectangleEditorShape(l,t,w,h);
+                pathStatusText('Rectangle di-resize. Save Inspection Point untuk menyimpan ukuran baru.');
             }
             function mapPointFromEvent(event) {
                 // Measure the actual image content, not the outer 16:10 board.
@@ -1161,8 +1203,10 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
+                var resizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-rectangle-resize-handle');
+                if(resizeHandle&&event.button===0){beginRectangleResize(event,resizeHandle.getAttribute('data-resize-handle'));return;}
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
-                    !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
+                    !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
                     rectangleDrawing = true;
@@ -1191,6 +1235,7 @@
                 }
             }, true);
             board.addEventListener('pointermove', function (event) {
+                if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();resizeRectangleFromHandle(rectangleResize.handle,rectangleResize.start,mapPointFromEvent(event));return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     updateRectanglePreview(mapPointFromEvent(event));
@@ -1214,6 +1259,7 @@
                 }
             }, true);
             board.addEventListener('pointerup', function (event) {
+                if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();try{board.releasePointerCapture(rectangleResize.pointerId);}catch(_){} rectangleResize=null;suppressNextClick=true;return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     finishRectangleDrawing(event);
@@ -1247,6 +1293,7 @@
                 }
             }, true);
             board.addEventListener('pointercancel', function (event) {
+                if(rectangleResize){rectangleResize=null;suppressNextClick=false;return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     rectangleDrawing = false; rectangleStart = null; suppressNextClick = false;
@@ -1353,6 +1400,12 @@
                 // current inverse scale immediately so its visible size stays fixed.
                 updateMarkerScale();
             });
+            if(shapeSelect&&shapeSelect.value==='RECTANGLE'&&shapeAttributesField){
+                try{var sr=JSON.parse(shapeAttributesField.value||'{}')||{};
+                    if(isFinite(Number(sr.x))&&isFinite(Number(sr.y))&&isFinite(Number(sr.width))&&isFinite(Number(sr.height))&&Number(sr.width)>0&&Number(sr.height)>0)
+                        renderRectangleEditorShape(Number(sr.x),Number(sr.y),Number(sr.width),Number(sr.height));
+                }catch(_){}
+            }
             applyView();
             var pointModal = document.getElementById('pnlPointEditor');
             if (pointModal) pointModal.addEventListener('shown.bs.modal', function () {
