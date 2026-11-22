@@ -2365,7 +2365,7 @@
                             <label for="inspectionPointNavigatorMap" class="form-label small fw-semibold mb-1">Denah / Map</label>
                             <select id="inspectionPointNavigatorMap" class="form-select form-select-sm"></select>
                         </div>
-                        <div class="col-12 col-md-2">
+                        <div class="col-12 col-md-3">
                             <label for="inspectionPointNavigatorStatusFilter" class="form-label small fw-semibold mb-1">Status</label>
                             <select id="inspectionPointNavigatorStatusFilter" class="form-select form-select-sm">
                                 <option value="all">Semua</option>
@@ -2376,7 +2376,7 @@
                                 <option value="abnormal">Abnormal</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="col-12 col-md-5">
                             <label for="inspectionPointNavigatorSort" class="form-label small fw-semibold mb-1">Order By</label>
                             <select id="inspectionPointNavigatorSort" class="form-select form-select-sm">
                                 <option value="display">Urutan Master</option>
