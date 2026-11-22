@@ -450,24 +450,16 @@
         }
         waitForPrevious.then(function () {
             if (renderVersion !== inspectionPdfRenderVersion) return;
-            // Match inspectionMapWorkspace.js: keep a fitted CSS coordinate space,
-            // render a zoom-aware high-DPI backing canvas, and zoom the whole stage.
             var ratio = Math.min(window.devicePixelRatio || 1, 2);
-            var renderViewport = inspectionPdfPage.getViewport({
+            var viewport = inspectionPdfPage.getViewport({
                 scale: inspectionPdfFitScale * inspectionCoordinateZoom * ratio
             });
-            var displayViewport = inspectionPdfPage.getViewport({ scale: inspectionPdfFitScale });
-            media.width = Math.max(1, Math.floor(renderViewport.width));
-            media.height = Math.max(1, Math.floor(renderViewport.height));
-            media.style.width = Math.max(1, displayViewport.width) + 'px';
-            media.style.height = Math.max(1, displayViewport.height) + 'px';
-            var coordinateContent = document.getElementById('inspectionCoordinateContent');
-            if (coordinateContent) {
-                coordinateContent.style.width = media.style.width;
-                coordinateContent.style.height = media.style.height;
-            }
+            media.width = Math.max(1, Math.floor(viewport.width));
+            media.height = Math.max(1, Math.floor(viewport.height));
+            media.style.width = '100%';
+            media.style.height = '100%';
             var context = media.getContext('2d');
-            inspectionPdfRenderTask = inspectionPdfPage.render({ canvasContext: context, viewport: renderViewport });
+            inspectionPdfRenderTask = inspectionPdfPage.render({ canvasContext: context, viewport: viewport });
             return inspectionPdfRenderTask.promise;
         }).then(function () {
             if (renderVersion !== inspectionPdfRenderVersion) return;
@@ -712,8 +704,7 @@
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
-                // Keep a small default dot when the user only clicks once;
-                // drag-drawn circles store their actual radius separately.
+                // CIRCLE is a small point dot; area geometry belongs to PATH.
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
@@ -806,39 +797,9 @@
             var drawMode = false, drawingPath = false, suppressNextClick = false;
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
-            var circleDrawing = false, circleDrawArmed = false, circleStart = null, circlePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
             if (shapeSelect && shapeSelect.value === 'RECTANGLE') board.classList.add('rectangle-drawing');
             function pathStatusText(text) { if (pathStatus) pathStatus.textContent = text; }
-            function updateCirclePreview(point) {
-                if (!circleStart || !point || !circlePreview) return;
-                var aspect = content.clientWidth && content.clientHeight ? content.clientWidth / content.clientHeight : 1;
-                var dx = point.x - circleStart.x, dy = point.y - circleStart.y;
-                var radius = Math.max(0.15, Math.min(50, Math.sqrt(dx * dx + dy * dy * aspect * aspect)));
-                circlePreview.setAttribute('cx', circleStart.x);
-                circlePreview.setAttribute('cy', circleStart.y);
-                circlePreview.setAttribute('r', radius);
-                circlePreview.setAttribute('transform', 'translate(' + circleStart.x + ' ' + circleStart.y + ') scale(1 ' + aspect + ') translate(' + (-circleStart.x) + ' ' + (-circleStart.y) + ')');
-            }
-            function finishCircleDrawing(point) {
-                if (!circleStart || !point) return;
-                circleDrawArmed = false;
-                updateCirclePreview(point);
-                var aspect = content.clientWidth && content.clientHeight ? content.clientWidth / content.clientHeight : 1;
-                var dx = point.x - circleStart.x, dy = point.y - circleStart.y;
-                var radius = Math.max(0.15, Math.min(50, Math.sqrt(dx * dx + dy * dy * aspect * aspect)));
-                if (markerX) markerX.value = circleStart.x.toFixed(2);
-                if (markerY) markerY.value = circleStart.y.toFixed(2);
-                if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({
-                    cx: Number(circleStart.x.toFixed(2)), cy: Number(circleStart.y.toFixed(2)), r: Number(radius.toFixed(2))
-                });
-                if (pathField) pathField.value = '';
-                circleDrawing = false; circleStart = null;
-                board.style.removeProperty('cursor'); content.style.removeProperty('cursor');
-                board.style.removeProperty('touch-action'); content.style.removeProperty('touch-action');
-                board.classList.remove('path-drawing');
-                pathStatusText('Circle siap disimpan. Save Inspection Point untuk menyimpan lingkaran.');
-            }
             function updateRectanglePreview(point) {
                 if (!rectangleStart || !point) return;
                 var left = Math.min(rectangleStart.x, point.x);
@@ -1072,25 +1033,6 @@
                 pathStatusText('PATH / Polyline siap disimpan. Save Inspection Point untuk menyimpan garis ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
-                if (shapeSelect && shapeSelect.value === 'CIRCLE') {
-                    recordPathEditorAction();
-                    drawMode = false; drawingPath = false; rectangleDrawing = false;
-                    rectangleStart = null; removeRectangleEditorShape();
-                    circleDrawing = false; circleDrawArmed = false; circleStart = null;
-                    if (pathField) pathField.value = '';
-                    if (shapeAttributesField) shapeAttributesField.value = '{}';
-                    var oldCircle = content.querySelector('#inspectionCoordinateCirclePreview');
-                    if (oldCircle && oldCircle.parentNode) oldCircle.parentNode.removeChild(oldCircle);
-                    circlePreview = null;
-                    board.classList.remove('path-drawing', 'rectangle-drawing');
-                    board.style.setProperty('cursor', 'crosshair', 'important');
-                    content.style.setProperty('cursor', 'crosshair', 'important');
-                    board.style.setProperty('touch-action', 'none', 'important');
-                    content.style.setProperty('touch-action', 'none', 'important');
-                    circleDrawArmed = true;
-                    pathStatusText('Circle aktif: drag dari titik pusat ke tepi untuk menggambar lingkaran. Map tetap bisa digeser sebelum mode gambar diaktifkan.');
-                    return;
-                }
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE') {
                     recordPathEditorAction();
                     drawMode = false;
@@ -1162,7 +1104,6 @@
                 pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
-                circleDrawArmed = false;
                 recordPathEditorAction();
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
                 if (this.value !== 'ORTHOGONAL') {
@@ -1170,8 +1111,7 @@
                     orthogonalPreviewPoint = null;
                 }
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; circleDrawing = false; circleDrawArmed = false; circleStart = null;
-                    board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
+                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     var activeId = document.getElementById('hidPointID');
@@ -1206,37 +1146,6 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
-                if (circleDrawArmed && shapeSelect && shapeSelect.value === 'CIRCLE' && event.button === 0 &&
-                    !(event.target.closest && event.target.closest('button, input, select, textarea, .inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
-                    event.preventDefault(); event.stopImmediatePropagation();
-                    recordPathEditorAction();
-                    circleDrawing = true;
-                    circleStart = mapPointFromEvent(event);
-                    suppressNextClick = true;
-                    try { board.setPointerCapture(event.pointerId); } catch (_) { }
-                    var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                    if (!svg) {
-                        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                        svg.id = 'inspectionCoordinateSvgOverlay';
-                        svg.setAttribute('class', 'inspection-coordinate-svg-overlay');
-                        svg.setAttribute('viewBox', '0 0 100 100');
-                        svg.setAttribute('preserveAspectRatio', 'none');
-                        content.appendChild(svg);
-                    }
-                    var previousCirclePreview = content.querySelector('#inspectionCoordinateCirclePreview');
-                    if (previousCirclePreview && previousCirclePreview.parentNode)
-                        previousCirclePreview.parentNode.removeChild(previousCirclePreview);
-                    circlePreview = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    circlePreview.id = 'inspectionCoordinateCirclePreview';
-                    circlePreview.setAttribute('fill', 'rgba(13,110,253,.18)');
-                    circlePreview.setAttribute('stroke', '#0d6efd');
-                    circlePreview.setAttribute('stroke-width', '0.8');
-                    circlePreview.setAttribute('vector-effect', 'non-scaling-stroke');
-                    circlePreview.setAttribute('pointer-events', 'none');
-                    svg.appendChild(circlePreview);
-                    updateCirclePreview(mapPointFromEvent(event));
-                    return;
-                }
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1267,11 +1176,6 @@
                 }
             }, true);
             board.addEventListener('pointermove', function (event) {
-                if (circleDrawing) {
-                    event.preventDefault(); event.stopImmediatePropagation();
-                    updateCirclePreview(mapPointFromEvent(event));
-                    return;
-                }
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     updateRectanglePreview(mapPointFromEvent(event));
@@ -1295,11 +1199,6 @@
                 }
             }, true);
             board.addEventListener('pointerup', function (event) {
-                if (circleDrawing) {
-                    event.preventDefault(); event.stopImmediatePropagation();
-                    finishCircleDrawing(mapPointFromEvent(event));
-                    return;
-                }
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     finishRectangleDrawing(event);
@@ -1333,13 +1232,6 @@
                 }
             }, true);
             board.addEventListener('pointercancel', function (event) {
-                if (circleDrawing) {
-                    event.preventDefault(); event.stopImmediatePropagation();
-                    circleDrawing = false; circleStart = null; suppressNextClick = false;
-                    if (circlePreview && circlePreview.parentNode) circlePreview.parentNode.removeChild(circlePreview);
-                    circlePreview = null;
-                    return;
-                }
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     rectangleDrawing = false; rectangleStart = null; suppressNextClick = false;
