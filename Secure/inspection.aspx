@@ -1634,9 +1634,8 @@
         }
     }
 
-    #inspectionMapWorkspace .inspection-map-content{grid-template-columns:minmax(0,1fr)!important}
-    #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{display:none!important}
-    #inspectionMapWorkspace #btnInspectionMapPointList{display:none!important}
+    /* Desktop keeps the two-column map + Point List layout. Mobile-only hiding
+       is handled by the max-width media rules above. */
 </style>
 </asp:Content>
 
