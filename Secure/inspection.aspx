@@ -2292,4 +2292,4 @@
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
 <script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js"></script>
-
+</asp:Content>
