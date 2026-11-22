@@ -2104,6 +2104,114 @@
         }
     }
 
+
+    /* Schedule tabs and map actions share one row; toolbar remains present for BATCH too. */
+    #inspectionMapStickyStack > #inspectionMapScheduleToolbarRow{
+        display:flex;align-items:center;justify-content:space-between;gap:.55rem;
+        flex:0 0 auto;min-width:0;padding:.3rem .5rem;
+        border-bottom:1px solid var(--bs-border-color);background:var(--bs-tertiary-bg);
+    }
+    #inspectionMapScheduleToolbarRow > #inspectionLightningScheduleTabs{
+        display:flex;flex:1 1 auto;min-width:0;max-width:100%;
+        flex-wrap:nowrap;gap:.3rem;overflow-x:auto;overflow-y:hidden;
+        margin:0!important;padding:0;border:0;scrollbar-width:thin;
+    }
+    #inspectionMapScheduleToolbarRow > .inspection-map-toolbar{
+        display:flex;flex:0 0 auto;align-items:center;justify-content:flex-end;
+        min-width:0;min-height:0!important;padding:0!important;
+        border:0;background:transparent;
+    }
+    #inspectionMapScheduleToolbarRow .inspection-map-actions{
+        display:flex;flex:0 0 auto;flex-wrap:nowrap;align-items:center;
+        justify-content:flex-end;gap:.25rem;width:auto!important;
+    }
+    #inspectionMapScheduleToolbarRow .inspection-map-option-info{position:relative;flex:0 0 auto}
+    #inspectionMapScheduleToolbarRow .inspection-map-actions>.btn,
+    #inspectionMapScheduleToolbarRow .inspection-map-actions>.inspection-map-option-info>.btn{white-space:nowrap}
+
+    /* Map selector uses compact one-tap buttons, not checklist-style toggle tiles. */
+    #inspectionMapPicker{padding:.35rem .55rem!important}
+    #inspectionMapPicker .inspection-map-picker-heading{display:flex;align-items:baseline;gap:.4rem;margin:0 0 .3rem!important}
+    #inspectionMapPicker .inspection-map-picker-heading .inspection-map-eyebrow{font-size:.56rem;line-height:1}
+    #inspectionMapPicker .inspection-map-picker-heading .small{font-size:.64rem;line-height:1}
+    #inspectionMapPicker .inspection-map-choice-grid{
+        display:flex!important;flex-wrap:wrap;align-items:center;gap:.3rem;
+        min-width:0;overflow:visible;
+    }
+    #inspectionMapPicker .inspection-map-choice-card{
+        display:inline-flex!important;flex:0 0 auto;align-items:center;justify-content:center;
+        width:auto!important;min-width:0;height:30px;min-height:30px;
+        padding:.22rem .55rem!important;gap:.28rem;border:1px solid var(--bs-border-color);
+        border-radius:.45rem;background:var(--bs-body-bg);box-shadow:none!important;
+        color:var(--bs-body-color);font-size:.69rem;font-weight:600;line-height:1;
+        text-align:center;white-space:nowrap;transform:none!important;
+    }
+    #inspectionMapPicker .inspection-map-choice-card:hover,
+    #inspectionMapPicker .inspection-map-choice-card:focus-visible{
+        border-color:var(--bs-primary);background:var(--bs-primary-bg-subtle);outline:0;
+    }
+    #inspectionMapPicker .inspection-map-choice-card.selected{
+        border-color:var(--bs-primary);background:var(--bs-primary-bg-subtle);
+        color:var(--bs-primary);box-shadow:inset 0 0 0 1px var(--bs-primary)!important;
+    }
+    #inspectionMapPicker .inspection-map-choice-title{font-size:.69rem;font-weight:650;line-height:1}
+    #inspectionMapPicker .inspection-map-choice-card .bi{font-size:.72rem;line-height:1}
+
+    /* The info popover is the sole map-total summary. It covers every map,
+       while every status is resolved against the currently active schedule. */
+    .inspection-map-option-summary-host{width:min(360px,calc(100vw - 1.5rem));max-width:360px}
+    .inspection-map-global-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.3rem;margin:.35rem 0}
+    .inspection-map-global-stat{min-width:0;padding:.3rem .4rem;border:1px solid var(--bs-border-color);border-radius:.45rem;background:var(--bs-secondary-bg);text-align:center}
+    .inspection-map-global-stat strong{display:block;font-size:.86rem;line-height:1.05;color:var(--bs-body-color)}
+    .inspection-map-global-stat span{display:block;margin-top:.1rem;font-size:.61rem;line-height:1.1;color:var(--bs-secondary-color);white-space:nowrap}
+    .inspection-map-global-stat-action{display:block;width:100%;font:inherit;color:inherit;border:1px solid var(--bs-border-color);cursor:pointer}
+    .inspection-map-global-stat-action:hover,.inspection-map-global-stat-action:focus-visible{border-color:var(--bs-primary);background:var(--bs-primary-bg-subtle);outline:0}
+    .inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center;min-width:0}
+    .inspection-map-option-summary-card{width:100%;padding:.25rem .35rem;border:1px solid var(--bs-border-color);border-radius:.45rem;background:var(--bs-body-bg)}
+    .inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.25rem}
+    .inspection-map-option-chip{display:inline-flex;align-items:center;gap:.25rem;padding:.16rem .38rem;border-radius:999px;background:var(--bs-secondary-bg);font-size:.65rem;line-height:1.1;white-space:nowrap}
+    .inspection-map-option-chip strong{font-size:.7rem}
+
+    @media(max-width:767.98px){
+        #inspectionMapStickyStack > #inspectionMapScheduleToolbarRow{gap:.2rem;padding:.22rem .35rem}
+        #inspectionMapScheduleToolbarRow > #inspectionLightningScheduleTabs{
+            max-width:calc(100% - 126px);gap:.18rem;padding:.05rem 0;
+        }
+        #inspectionMapScheduleToolbarRow > #inspectionLightningScheduleTabs .nav-link{
+            display:inline-flex;align-items:center;gap:.2rem;flex:0 0 auto;
+            min-height:28px;padding:.22rem .4rem;border:1px solid var(--bs-border-color);
+            border-radius:.42rem;font-size:.64rem;line-height:1;white-space:nowrap;
+        }
+        #inspectionMapScheduleToolbarRow > .inspection-map-toolbar{min-height:0!important;padding:0!important}
+        #inspectionMapScheduleToolbarRow .inspection-map-actions{gap:.14rem;width:auto!important;flex:0 0 auto}
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.btn,
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.inspection-map-option-info>.btn{
+            display:inline-flex;align-items:center;justify-content:center;
+            width:28px!important;min-width:28px!important;height:28px!important;min-height:28px!important;
+            padding:0!important;font-size:0!important;line-height:1;
+        }
+        #inspectionMapScheduleToolbarRow .inspection-map-actions .bi{font-size:.82rem!important;margin:0!important}
+        #inspectionMapScheduleToolbarRow .inspection-map-action-label,
+        #inspectionMapScheduleToolbarRow .inspection-point-navigator-button-label{display:none!important}
+        #inspectionMapPicker{max-height:58px;min-height:0;overflow:hidden}
+        #inspectionMapPicker .inspection-map-choice-grid{
+            display:flex!important;flex-wrap:nowrap!important;gap:.25rem;
+            width:100%;max-width:100%;overflow-x:auto!important;overflow-y:hidden!important;
+            padding:0 0 .12rem;scrollbar-width:thin;
+        }
+        #inspectionMapPicker .inspection-map-choice-card{height:28px;min-height:28px;padding:.18rem .42rem!important}
+        #inspectionMapPicker .inspection-map-choice-title{font-size:.64rem}
+        .inspection-map-global-summary{gap:.25rem}
+        .inspection-map-global-stat{padding:.27rem .3rem}
+    }
+    @media(max-width:380px){
+        #inspectionMapScheduleToolbarRow > #inspectionLightningScheduleTabs{max-width:calc(100% - 116px)}
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.btn,
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.inspection-map-option-info>.btn{
+            width:26px!important;min-width:26px!important;height:26px!important;min-height:26px!important;
+        }
+    }
+
 </style>
 </asp:Content>
 
@@ -2382,8 +2490,9 @@
             </div>
             <div id="inspectionApprovalWorkflowCards"></div>
         </section>
-        <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div id="inspectionMapStickyStack" class="inspection-map-sticky-stack">
+        <div id="inspectionMapScheduleToolbarRow" class="inspection-map-schedule-toolbar-row">
+            <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div class="inspection-map-toolbar">
             <div class="inspection-map-actions">
                 <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
@@ -2393,28 +2502,22 @@
                     <i class="bi bi-trash"></i><span class="inspection-map-action-label">Delete Draft Batch</span>
                 </button>
                 <div class="inspection-map-option-info">
-                    <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan seluruh denah" aria-label="Ringkasan seluruh denah" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
+                    <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan semua denah untuk jadwal aktif" aria-label="Ringkasan jadwal aktif" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
                         <i class="bi bi-info-circle"></i>
                     </button>
-                    <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan seluruh denah">
-                        <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Seluruh Denah</div>
+                    <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan semua denah untuk jadwal aktif">
+                        <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Semua Denah</div>
                         <div class="inspection-map-option-summary"></div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="inspection-map-summary d-none" id="inspectionMapSummary" aria-label="Ringkasan status semua titik">
-            <div class="inspection-map-stat"><span class="inspection-map-stat-value" id="inspectionMapTotalCount">0</span><span class="inspection-map-stat-label">Total</span></div>
-            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-success" id="inspectionMapDoneCount">0</span><span class="inspection-map-stat-label">Selesai</span></div>
-            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-danger" id="inspectionMapAbnormalCount">0</span><span class="inspection-map-stat-label">Abnormal</span></div>
-            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
-            <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"></div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
-            <div class="inspection-map-picker-heading mb-2">
-                <div class="inspection-map-eyebrow">LOKASI INSPEKSI</div>
-                <div class="small text-muted">Pilih map yang akan diperiksa. Denah map pertama otomatis ditampilkan.</div>
+            <div class="inspection-map-picker-heading mb-1 d-flex align-items-baseline gap-2">
+                <span class="inspection-map-eyebrow">DENAH</span>
+                <span class="small text-muted">Pilih lokasi inspeksi</span>
             </div>
             <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
         </div>
