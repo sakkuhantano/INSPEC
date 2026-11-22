@@ -1674,8 +1674,8 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     const technicianName = record.TechnicianName ||
         (technicianId === inspectionLogin.employeeid ? inspectionTechnicianName : "");
     setInspectionFormHeader(transactionNo, [
-        "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
+        "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || ""),
         startTime + " - " + endTime,
@@ -2669,9 +2669,9 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
     setInspectionFormInfoPopover([
         "Inspection No: " + (currentInspectionRecord.InspectionNo || "TEMP-" +
             String(currentInspectionRecord.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase()),
-        "Teknisi: " + formatInspectionEmployeeLabel(pointInfoTechnicianName, pointInfoTechnicianId),
         (currentInspectionRecord.InspectionTypeName || "Inspection") + " — " +
             (currentInspectionRecord.InspectionTypeDetailName || ""),
+        "Teknisi: " + formatInspectionEmployeeLabel(pointInfoTechnicianName, pointInfoTechnicianId),
         (currentInspectionRecord.TemplateNo || "-") + " / v" + (currentInspectionRecord.TemplateVersion || "-"),
         "Jadwal " + (currentInspectionRecord.ScheduledTime || "-") + " • " +
             (formatInspectionDateDMY(currentInspectionRecord.InspectionDate) || "-"),
@@ -4673,8 +4673,8 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnSaveInspectionDraft").classList.add("d-none");
         document.getElementById("btnCompleteInspection").classList.add("d-none");
         setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
-            "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
+            "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
             formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime),
