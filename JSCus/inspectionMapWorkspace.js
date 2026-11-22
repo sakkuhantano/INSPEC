@@ -588,9 +588,22 @@
         });
     }
 
+    function closeOptionSummaryPopover() {
+        var host = document.getElementById("inspectionMapOptionSummaryHost");
+        var button = document.getElementById("btnInspectionMapOptionInfo");
+        if (host) host.classList.add("d-none");
+        if (button) button.setAttribute("aria-expanded", "false");
+    }
+
     function renderTemplateOptionSummary(points) {
         var host = document.getElementById("inspectionMapOptionSummaryHost");
         if (!host) return;
+
+        // Reset state before inspecting the next map/template. Without this,
+        // a map with no OPTION items can inherit the previous map's info state.
+        host.setAttribute("data-has-summary", "false");
+        host.classList.add("d-none");
+        closeOptionSummaryPopover();
 
         var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
         if (typeof template === "string") {
@@ -610,7 +623,6 @@
 
         if (!optionItems.length) {
             host.innerHTML = "";
-            host.classList.add("d-none");
             return;
         }
 
@@ -738,10 +750,7 @@
         var hasOptionSummary = !!(optionSummaryHost && optionSummaryHost.getAttribute("data-has-summary") === "true");
         if (optionInfoButton) {
             optionInfoButton.classList.toggle("d-none", !hasOptionSummary);
-            if (!hasOptionSummary) {
-                optionInfoButton.setAttribute("aria-expanded", "false");
-                if (optionSummaryHost) optionSummaryHost.classList.add("d-none");
-            }
+            if (!hasOptionSummary) closeOptionSummaryPopover();
         }
     }
 
@@ -775,13 +784,18 @@
 
         function scrollSelectedRow() {
             if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
-            // Scroll the Point List itself, not whichever ancestor the browser
-            // happens to choose (the workspace and Submit bar are separate flex items).
+            // The list itself is the only scroll container. Keep the selected
+            // row centered without moving the map or the Submit Batch bar.
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
             var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
-            if (Math.abs(delta) > 1)
-                listHost.scrollTo({ top: Math.max(0, listHost.scrollTop + delta), behavior: "smooth" });
+            var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
+            var targetScroll = Math.max(0, Math.min(maxScroll, listHost.scrollTop + delta));
+            if (Math.abs(targetScroll - listHost.scrollTop) > 1) {
+                if (typeof listHost.scrollTo === "function")
+                    listHost.scrollTo({ top: targetScroll, behavior: "smooth" });
+                else listHost.scrollTop = targetScroll;
+            }
             row.classList.add("active", "selected");
             row.setAttribute("aria-current", "true");
         }
@@ -1504,6 +1518,7 @@
     function showSelectedInspectionMap(mapId) {
         var map = currentMaps.find(function (item) { return Number(item.MapID) === Number(mapId); });
         if (!map) return;
+        closeOptionSummaryPopover();
         currentMapId = String(map.MapID);
         var summary = document.getElementById("inspectionMapSummary");
         var content = document.getElementById("inspectionMapContent");
@@ -1540,6 +1555,7 @@
     }
 
     window.resetInspectionMapWorkspace = async function () {
+        closeOptionSummaryPopover();
         document.body.classList.remove("inspection-map-mobile-active");
         document.body.classList.remove("inspection-map-tab-active");
         currentMapRecord = null;
@@ -1794,7 +1810,8 @@
             });
             document.addEventListener("click", function (event) {
                 if (optionSummaryHost.classList.contains("d-none")) return;
-                if (event.target.closest("#inspectionMapOptionSummaryHost, #btnInspectionMapOptionInfo")) return;
+                if (event.target && event.target.closest &&
+                    event.target.closest("#inspectionMapOptionSummaryHost, #btnInspectionMapOptionInfo")) return;
                 optionSummaryHost.classList.add("d-none");
                 optionInfoButton.setAttribute("aria-expanded", "false");
             });
