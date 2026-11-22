@@ -50,7 +50,7 @@
                             </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center"><asp:LinkButton ID="lBtnMapGroupCode" runat="server" Text="Map Group Code" OnPreRender="lbtn_PreRender" CssClass="CUS-lbtn-1" /></div>
-                                <div class="col-sm-8"><asp:TextBox ID="txtMapGroupCode" runat="server" MaxLength="50" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
+                                <div class="col-sm-8"><asp:TextBox ID="txtMapGroupCode" runat="server" MaxLength="50" AutoPostBack="true" OnTextChanged="txtMapGroupCode_TextChanged" CssClass="form-control form-control-sm rounded fz-custom1" /></div>
                             </div>
                             <div class="row mt-1">
                                 <div class="col-sm-4 d-flex align-items-center">Map Group Name</div>
