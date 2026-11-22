@@ -106,9 +106,18 @@
                 listPage = 1;
                 listKeyword = "";
                 renderLightningScheduleTabs();
-                renderList();
-                updateSummary();
-                renderPoints();
+
+                // Every schedule change returns the operator to the first map.
+                // Point status and checklist transactions still resolve against
+                // the newly selected schedule through getActiveScheduleTime().
+                if (currentMaps.length) {
+                    showSelectedInspectionMap(currentMaps[0].MapID, false);
+                } else {
+                    renderList();
+                    updateSummary();
+                    renderPoints();
+                }
+
                 var subtitle = document.getElementById("inspectionMapSubtitle");
                 if (subtitle) subtitle.textContent = "Jadwal " + next + " · " + currentPoints.length + " titik inspeksi";
             });
