@@ -1541,9 +1541,11 @@
             return;
         }
         host.innerHTML = currentMaps.map(function (map) {
-            return '<button type="button" class="inspection-map-choice-card" data-inspection-map-id="' + esc(map.MapID) + '">' +
+            var mapName = String(map.MapName || "Inspection Map");
+            return '<button type="button" class="inspection-map-choice-card" data-inspection-map-id="' + esc(map.MapID) +
+                '" title="' + esc(mapName) + '" aria-label="Pilih denah ' + esc(mapName) + '">' +
                 '<i class="bi bi-map" aria-hidden="true"></i>' +
-                '<span class="inspection-map-choice-title">' + esc(map.MapName || "Inspection Map") + '</span>' +
+                '<span class="inspection-map-choice-title">' + esc(mapName) + '</span>' +
                 '</button>';
         }).join("");
         host.querySelectorAll("[data-inspection-map-id]").forEach(function (button) {
