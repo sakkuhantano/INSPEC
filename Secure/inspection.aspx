@@ -376,6 +376,8 @@
     .modal-backdrop { z-index: 1090 !important; }
     .modal { z-index: 1100 !important; }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
+    .inspection-date-picker-trigger { position: relative; cursor: pointer; color: var(--bs-secondary-color); }
+    .inspection-native-date-overlay { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0; }
     .approval-sort-indicator, .inspection-sort-indicator {
         display: inline-block; width: 0; height: 0; margin-left: .3rem; vertical-align: middle;
         border-left: 4px solid transparent; border-right: 4px solid transparent;
@@ -2422,8 +2424,8 @@
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" aria-label="Approved date from" /></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date from" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateFrom" class="inspection-native-date-overlay" aria-label="Open approved date from calendar" /></span></div></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date thru" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateThru" class="inspection-native-date-overlay" aria-label="Open approved date thru calendar" /></span></div></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -2554,11 +2556,11 @@
             <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
                 <div class="inspection-date-control">
                     <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                    <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" aria-label="Submitted date from" />
+                    <div class="input-group input-group-sm"><input type="text" id="txtSubmittedFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Submitted date from" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerSubmittedFrom" class="inspection-native-date-overlay" aria-label="Open submitted date from calendar" /></span></div>
                 </div>
                 <div class="inspection-date-control">
                     <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                    <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" aria-label="Submitted date thru" />
+                    <div class="input-group input-group-sm"><input type="text" id="txtSubmittedThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Submitted date thru" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerSubmittedThru" class="inspection-native-date-overlay" aria-label="Open submitted date thru calendar" /></span></div>
                 </div>
                 <div class="inspection-filter-control"><label for="selSubmittedType" class="form-label small mb-1">Inspection Type</label><select id="selSubmittedType" class="form-select form-select-sm"><option value="">All types</option></select></div>
                 <div class="inspection-filter-control"><label for="selSubmittedDetail" class="form-label small mb-1">Detail Code</label><select id="selSubmittedDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
