@@ -711,7 +711,8 @@
             var shapeAttributesField = document.getElementById('hidShapeAttributes');
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
-                // CIRCLE is a small point dot; area geometry belongs to PATH.
+                // Keep a small default dot when the user only clicks once;
+                // drag-drawn circles store their actual radius separately.
                 var radius = 0.45;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
