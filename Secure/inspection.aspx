@@ -1863,7 +1863,11 @@
         #inspectionMapWorkspace #btnInspectionMapPointList {
             display: none !important;
         }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnInspectionPointNavigator,
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnInspectionNextPending,
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnInspectionMapReset,
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > .inspection-map-option-info,
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > .inspection-map-option-info > #btnInspectionMapOptionInfo,
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnDeleteInspectionBatchDraft {
             flex: 0 0 30px !important;
             width: 30px !important;
@@ -1875,6 +1879,25 @@
             padding: 0 !important;
             align-items: center !important;
             justify-content: center !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > .inspection-map-option-info {
+            display: flex !important;
+            align-self: center !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace #btnInspectionPointNavigator .bi,
+        body.inspection-map-tab-active #inspectionMapWorkspace #btnInspectionMapOptionInfo .bi {
+            margin: 0 !important;
+            font-size: .9rem !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-option-summary-host {
+            position: fixed !important;
+            left: 8px;
+            right: 8px;
+            top: 86px;
+            width: auto;
+            max-width: 340px;
+            max-height: 42dvh;
+            z-index: 1090;
         }
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions .inspection-map-action-label {
             display: none !important;
