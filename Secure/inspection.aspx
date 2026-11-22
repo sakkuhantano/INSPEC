@@ -2212,6 +2212,112 @@
         }
     }
 
+
+    /* Desktop map selector: a single compact chip row with readable labels. */
+    #inspectionMapPicker{
+        flex:0 0 auto!important;min-height:0!important;max-height:44px;
+        padding:.25rem .45rem!important;overflow:hidden!important;
+    }
+    #inspectionMapPicker .inspection-map-picker-heading{display:none!important}
+    #inspectionMapPicker .inspection-map-choice-grid{
+        display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+        align-items:center;justify-content:flex-start;gap:.32rem;
+        width:100%;min-width:0;max-width:100%;
+        overflow-x:auto!important;overflow-y:hidden!important;
+        padding:.05rem 0 .15rem;scrollbar-width:thin;
+    }
+    #inspectionMapPicker .inspection-map-choice-card{
+        display:inline-flex!important;flex:0 0 auto!important;flex-direction:row!important;
+        align-items:center!important;justify-content:flex-start!important;
+        width:auto!important;min-width:0!important;max-width:260px!important;
+        height:34px!important;min-height:34px!important;max-height:34px!important;
+        padding:.25rem .58rem!important;gap:.38rem!important;
+        border:1px solid var(--bs-border-color)!important;border-radius:.48rem!important;
+        background:var(--bs-body-bg)!important;color:var(--bs-body-color)!important;
+        box-shadow:none!important;text-align:left!important;
+        font-size:.72rem!important;line-height:1!important;white-space:nowrap!important;
+        transform:none!important;
+    }
+    #inspectionMapPicker .inspection-map-choice-card > .bi{
+        display:inline-block!important;flex:0 0 auto!important;
+        width:auto!important;height:auto!important;
+        font-size:.8rem!important;line-height:1!important;
+        color:var(--bs-secondary-color)!important;visibility:visible!important;opacity:1!important;
+    }
+    #inspectionMapPicker .inspection-map-choice-title{
+        display:inline-block!important;flex:0 1 auto!important;
+        grid-column:auto!important;grid-row:auto!important;
+        width:auto!important;max-width:220px!important;min-width:0!important;
+        margin:0!important;padding:0!important;
+        overflow:hidden!important;text-overflow:ellipsis!important;
+        white-space:nowrap!important;
+        font-size:.72rem!important;font-weight:650!important;line-height:1!important;
+        color:inherit!important;visibility:visible!important;opacity:1!important;
+    }
+    #inspectionMapPicker .inspection-map-choice-card.selected{
+        border-color:var(--bs-primary)!important;
+        background:var(--bs-primary-bg-subtle)!important;
+        color:var(--bs-primary)!important;
+        box-shadow:inset 0 0 0 1px var(--bs-primary)!important;
+    }
+
+    /* Mobile: schedule tabs get their own scroll row, actions get a separate
+       right-aligned row. They never compete for the same horizontal space. */
+    @media(max-width:767.98px){
+        #inspectionMapStickyStack > #inspectionMapScheduleToolbarRow{
+            display:flex!important;flex-direction:column!important;
+            align-items:stretch!important;justify-content:flex-start!important;
+            gap:.18rem!important;padding:.25rem .35rem!important;
+        }
+        #inspectionMapScheduleToolbarRow > #inspectionLightningScheduleTabs{
+            display:flex;flex:0 0 auto!important;align-self:stretch!important;
+            width:100%!important;max-width:100%!important;min-width:0!important;
+            gap:.2rem;overflow-x:auto!important;overflow-y:hidden!important;
+            padding:0 0 .08rem!important;
+        }
+        #inspectionMapScheduleToolbarRow > .inspection-map-toolbar{
+            display:flex!important;flex:0 0 auto!important;align-self:stretch!important;
+            width:100%!important;min-height:28px!important;
+            justify-content:flex-end!important;padding:0!important;
+        }
+        #inspectionMapScheduleToolbarRow .inspection-map-actions{
+            display:flex!important;flex:0 0 auto!important;flex-wrap:nowrap!important;
+            width:auto!important;margin-left:auto!important;justify-content:flex-end!important;
+            gap:.18rem!important;
+        }
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.btn,
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.inspection-map-option-info>.btn{
+            display:inline-flex!important;align-items:center!important;justify-content:center!important;
+            width:28px!important;min-width:28px!important;height:28px!important;min-height:28px!important;
+            padding:0!important;font-size:0!important;line-height:1!important;
+        }
+        #inspectionMapScheduleToolbarRow .inspection-map-actions .bi{
+            display:inline-block!important;font-size:.82rem!important;margin:0!important;
+        }
+        #inspectionMapScheduleToolbarRow .inspection-map-action-label,
+        #inspectionMapScheduleToolbarRow .inspection-point-navigator-button-label{display:none!important}
+        #inspectionMapPicker{
+            max-height:38px!important;height:38px!important;
+            padding:.16rem .35rem!important;overflow:hidden!important;
+        }
+        #inspectionMapPicker .inspection-map-choice-grid{
+            display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+            width:100%;max-width:100%;min-width:0;gap:.24rem;
+            overflow-x:auto!important;overflow-y:hidden!important;
+            padding:0 0 .1rem;scrollbar-width:thin;
+        }
+        #inspectionMapPicker .inspection-map-choice-card{
+            max-width:220px!important;height:28px!important;min-height:28px!important;max-height:28px!important;
+            padding:.16rem .4rem!important;gap:.24rem!important;font-size:.65rem!important;
+        }
+        #inspectionMapPicker .inspection-map-choice-title{max-width:180px!important;font-size:.65rem!important}
+    }
+    @media(max-width:380px){
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.btn,
+        #inspectionMapScheduleToolbarRow .inspection-map-actions>.inspection-map-option-info>.btn{
+            width:26px!important;min-width:26px!important;height:26px!important;min-height:26px!important;
+        }
+    }
 </style>
 </asp:Content>
 
