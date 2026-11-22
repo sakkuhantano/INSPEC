@@ -758,15 +758,21 @@
 
         function scrollSelectedRow() {
             if (!document.documentElement.contains(row)) return;
+            // Let the browser scroll the actual overflow ancestor. The list can
+            // be hosted in the workspace or temporarily moved into its modal.
+            try {
+                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+            } catch (_) {
+                row.scrollIntoView(false);
+            }
+            // Explicitly keep the Point List itself aligned when it is the
+            // scroll container (desktop two-column workspace).
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
-            if (hostRect.height <= 0 || rowRect.height <= 0) return;
-            var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
-                Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
-            if (typeof listHost.scrollTo === "function")
-                listHost.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-            else
-                listHost.scrollTop = Math.max(0, targetTop);
+            if (listHost.scrollHeight > listHost.clientHeight && hostRect.height > 0 && rowRect.height > 0) {
+                var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
+                listHost.scrollTop = Math.max(0, listHost.scrollTop + delta);
+            }
         }
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
