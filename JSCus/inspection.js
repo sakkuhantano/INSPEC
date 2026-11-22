@@ -3009,7 +3009,7 @@ function renderInspectionPointNavigatorList() {
     const counts = { DONE: 0, ABNORMAL: 0, INCOMPLETE: 0, PENDING: 0 };
     all.forEach(point => { counts[statusFor(point).key]++; });
     const activeScheduleBadge = String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
-        ? '<span class="badge text-bg-primary-subtle border border-primary-subtle text-primary-emphasis">Jadwal aktif ' +
+        ? '<span class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle">Jadwal aktif ' +
             escInspection(state.scheduleTime || "-") + '</span>'
         : "";
     summary.innerHTML = activeScheduleBadge +
