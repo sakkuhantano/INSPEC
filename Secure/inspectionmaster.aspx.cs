@@ -1974,8 +1974,8 @@ SELECT P.InspectionPointID,
        ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
- INNER JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
-INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
+LEFT JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1 AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
 ORDER BY P.DisplayOrder,P.PointCode",
@@ -1993,7 +1993,11 @@ ORDER BY P.DisplayOrder,P.PointCode",
             foreach (DataRow point in points.Rows)
             {
                 string shapeType = Convert.ToString(point["ShapeType"]);
-                if (String.Equals(shapeType, "CIRCLE", StringComparison.OrdinalIgnoreCase))
+                // Keep editor rendering consistent with Map Preview: legacy or
+                // blank shape values fall back to the default point circle.
+                if (String.IsNullOrWhiteSpace(shapeType)) shapeType = "CIRCLE";
+                if (!String.Equals(shapeType, "RECTANGLE", StringComparison.OrdinalIgnoreCase) &&
+                    !String.Equals(shapeType, "PATH", StringComparison.OrdinalIgnoreCase))
                 {
                     decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
                     decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
