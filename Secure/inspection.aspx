@@ -1949,6 +1949,15 @@
         overscroll-behavior: contain;
         scrollbar-gutter: stable;
     }
+    #inspectionMapWorkspace > #inspectionApprovalWorkflowPanel {
+        position: relative;
+        z-index: 1;
+        flex: 0 0 auto;
+        margin: .4rem .5rem .55rem !important;
+    }
+    #inspectionMapWorkspace > #inspectionApprovalWorkflowPanel .inspection-approval-workflow {
+        margin-bottom: 0;
+    }
     .inspection-approval-workflow .card,
     .inspection-approval-workflow .card-body {
         min-width: 0;
@@ -2198,13 +2207,7 @@
             <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
         </div>
     </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
-    <section id="inspectionApprovalWorkflowPanel" class="inspection-card p-2 p-md-3 mb-3 d-none" aria-label="Approval Workflow">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <i class="bi bi-diagram-3-fill text-primary"></i>
-            <div><div class="fw-bold small">APPROVAL WORKFLOW</div><div class="small text-muted">Riwayat submit dan persetujuan inspeksi ini.</div></div>
-        </div>
-        <div id="inspectionApprovalWorkflowCards"></div>
-    </section>
+    
     <div id="inspectionParamsPane">
     <div id="inspectionParameterNotice" class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-2 small" role="note">
         <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
@@ -2265,6 +2268,13 @@
     </div>
     </div>
     <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
+        <section id="inspectionApprovalWorkflowPanel" class="inspection-card p-2 p-md-3 mb-3 d-none" aria-label="Approval Workflow">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-diagram-3-fill text-primary"></i>
+            <div><div class="fw-bold small">APPROVAL WORKFLOW</div><div class="small text-muted">Riwayat submit dan persetujuan inspeksi ini.</div></div>
+        </div>
+        <div id="inspectionApprovalWorkflowCards"></div>
+    </section>
         <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div id="inspectionMapStickyStack" class="inspection-map-sticky-stack">
         <div class="inspection-map-toolbar">
@@ -2449,12 +2459,12 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-md-4">
+                    <div class="row g-2 mb-2 inspection-point-navigator-filters">
+                        <div class="col-6 col-md-3">
                             <label for="inspectionPointNavigatorMap" class="form-label small fw-semibold mb-1">Denah / Map</label>
                             <select id="inspectionPointNavigatorMap" class="form-select form-select-sm"></select>
                         </div>
-                        <div class="col-12 col-md-3">
+                        <div class="col-6 col-md-3">
                             <label for="inspectionPointNavigatorStatusFilter" class="form-label small fw-semibold mb-1">Status</label>
                             <select id="inspectionPointNavigatorStatusFilter" class="form-select form-select-sm">
                                 <option value="all">Semua</option>
@@ -2465,23 +2475,12 @@
                                 <option value="abnormal">Abnormal</option>
                             </select>
                         </div>
-                        <div class="col-12 col-md-5">
-                            <label for="inspectionPointNavigatorSort" class="form-label small fw-semibold mb-1">Order By</label>
-                            <select id="inspectionPointNavigatorSort" class="form-select form-select-sm">
-                                <option value="display">Urutan Master</option>
-                                <option value="code">Point Code A-Z</option>
-                                <option value="code-desc">Point Code Z-A</option>
-                                <option value="name">Point Name A-Z</option>
-                                <option value="name-desc">Point Name Z-A</option>
-                                <option value="status">Status Inspeksi</option>
-                            </select>
-                        </div>
-                        <div class="col-12 col-md-9">
+                        <div class="col-8 col-md-4">
                             <label for="inspectionPointNavigatorSearch" class="form-label small fw-semibold mb-1">Search Point</label>
                             <input type="search" id="inspectionPointNavigatorSearch" class="form-control form-control-sm" placeholder="Ketik Point Code / Point Name..." autocomplete="off" />
                         </div>
-                        <div class="col-12 col-md-3">
-                            <label for="inspectionPointNavigatorPageSize" class="form-label small fw-semibold mb-1">Rows per Page</label>
+                        <div class="col-4 col-md-2">
+                            <label for="inspectionPointNavigatorPageSize" class="form-label small fw-semibold mb-1">Rows / page</label>
                             <input type="number" id="inspectionPointNavigatorPageSize" class="form-control form-control-sm" min="1" max="500" step="1" value="20" />
                         </div>
                     </div>
