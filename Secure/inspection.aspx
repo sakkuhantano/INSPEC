@@ -1670,7 +1670,7 @@
     /* Desktop map workspace: constrain the grid track, not just the list child.
        This gives the Point List a real scrollport and reserves a separate row for Submit. */
     @media(min-width:768px){
-        #inspectionMapWorkspace{
+        #inspectionMapWorkspace:not(.d-none){
             display:flex!important;
             flex-direction:column!important;
         }
