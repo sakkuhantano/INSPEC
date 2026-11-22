@@ -662,7 +662,7 @@
                 // Match the inspection.aspx map workspace: zoom is anchored to the
                 // viewport center/top coordinate system, while the fitted floor plan
                 // itself remains centered inside the board.
-                content.style.transformOrigin = '50% 0';
+                content.style.transformOrigin = 'center top';
                 content.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0) scale(' + zoom + ')';
                 var vectorSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (vectorSvg && content.clientWidth && content.clientHeight) {
@@ -685,7 +685,7 @@
                 // from the board center horizontally and from its top vertically.
                 var rect = board.getBoundingClientRect();
                 var x = centerX == null ? rect.width / 2 : centerX;
-                var y = centerY == null ? 0 : centerY;
+                var y = centerY == null ? rect.height / 2 : centerY;
                 var localX = x - rect.width / 2;
                 var localY = y;
                 var ratio = next / zoom;
