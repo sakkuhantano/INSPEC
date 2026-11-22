@@ -353,7 +353,7 @@
         var stage = document.getElementById('inspectionMapPreviewStage');
         var media = document.getElementById('inspectionMapPreviewMedia');
         if (!stage || !media) return;
-        var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
+        var zoom = 1, panX = 0, panY = 0, dragging = false, activePointerId = null, startX = 0, startY = 0;
         var label = document.getElementById('lblMapPreviewZoom');
         var image = media.querySelector('.inspection-image-preview');
         if (image) {
@@ -415,19 +415,36 @@
             setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
         }, { passive: false });
         stage.addEventListener('pointerdown', function (event) {
-            if (zoom <= 1 || event.button !== 0) return;
-            dragging = true; moved = false;
-            startX = event.clientX - panX; startY = event.clientY - panY;
-            stage.setPointerCapture(event.pointerId);
+            if (zoom <= 1 || event.button !== 0 || dragging) return;
+            // Capture the pointer on the viewport so dragging continues even when
+            // the pointer leaves the floor-plan image/canvas during the gesture.
+            event.preventDefault();
+            dragging = true;
+            activePointerId = event.pointerId;
+            startX = event.clientX - panX;
+            startY = event.clientY - panY;
+            try { stage.setPointerCapture(activePointerId); } catch (ignore) { }
         });
         stage.addEventListener('pointermove', function (event) {
-            if (!dragging) return;
-            var nx = event.clientX - startX, ny = event.clientY - startY;
-            if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
-            panX = nx; panY = ny; apply();
+            if (!dragging || event.pointerId !== activePointerId) return;
+            event.preventDefault();
+            panX = event.clientX - startX;
+            panY = event.clientY - startY;
+            apply();
         });
-        stage.addEventListener('pointerup', function () { dragging = false; });
-        stage.addEventListener('pointercancel', function () { dragging = false; });
+        function stopMapPreviewDrag(event) {
+            if (!dragging || (event && event.pointerId !== activePointerId)) return;
+            var pointerId = activePointerId;
+            dragging = false;
+            activePointerId = null;
+            try {
+                if (pointerId !== null && stage.hasPointerCapture(pointerId))
+                    stage.releasePointerCapture(pointerId);
+            } catch (ignore) { }
+        }
+        stage.addEventListener('pointerup', stopMapPreviewDrag);
+        stage.addEventListener('pointercancel', stopMapPreviewDrag);
+        stage.addEventListener('lostpointercapture', stopMapPreviewDrag);
         apply();
     }
     var inspectionPdfRenderVersion = 0;
