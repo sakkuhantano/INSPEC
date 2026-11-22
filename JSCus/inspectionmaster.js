@@ -814,7 +814,7 @@
                 if (!circleStart || !point || !circlePreview) return;
                 var aspect = content.clientWidth && content.clientHeight ? content.clientWidth / content.clientHeight : 1;
                 var dx = point.x - circleStart.x, dy = point.y - circleStart.y;
-                var radius = Math.max(0.15, Math.sqrt(dx * dx + dy * dy * aspect * aspect));
+                var radius = Math.max(0.15, Math.min(50, Math.sqrt(dx * dx + dy * dy * aspect * aspect)));
                 circlePreview.setAttribute('cx', circleStart.x);
                 circlePreview.setAttribute('cy', circleStart.y);
                 circlePreview.setAttribute('r', radius);
