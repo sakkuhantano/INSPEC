@@ -1922,7 +1922,10 @@ VALUES
                 });
             }
             if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
-            const decimal radius = 0.45m;
+            Dictionary<string, object> circle = null;
+            try { circle = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}"); } catch { }
+            decimal radius = ShapeAttributeDecimal(circle, "r", 0.45m);
+            radius = Math.Max(0.15m, Math.Min(50m, radius));
             return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
                 { "cx", coordinateX.Value }, { "cy", coordinateY.Value }, { "r", radius }
             });
@@ -1994,15 +1997,20 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 {
                     decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
                     decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
-                    const decimal radius = 0.45m;
+                    decimal radius = 0.45m;
                     try
                     {
                         var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
                         object value;
+                        decimal parsed;
                         if (attributes != null && attributes.TryGetValue("cx", out value)) cx = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
                         if (attributes != null && attributes.TryGetValue("cy", out value)) cy = Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+                        if (attributes != null && attributes.TryGetValue("r", out value) &&
+                            Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed))
+                            radius = parsed;
                     }
                     catch { }
+                    radius = Math.Max(0.15m, Math.Min(50m, radius));
                     bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
                     pathSvg.Append("<circle class='inspection-coordinate-circle");
                     if (isCurrent) pathSvg.Append(" inspection-coordinate-circle-current");
