@@ -763,7 +763,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                 }
                 decimal cx = Convert.ToDecimal(point["MapX"], CultureInfo.InvariantCulture);
                 decimal cy = Convert.ToDecimal(point["MapY"], CultureInfo.InvariantCulture);
-                decimal radius = 2.0m;
+                decimal radius = 3.0m;
                 try
                 {
                     var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
@@ -774,7 +774,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     if (attributes != null && attributes.TryGetValue("r", out value) && Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)) radius = parsed;
                 }
                 catch { }
-                radius = Math.Max(1.0m, Math.Min(8m, radius));
+                radius = Math.Max(3.0m, Math.Min(8m, radius));
                 markers.Append("<circle class='inspection-map-preview-circle' cx='");
                 markers.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
                 markers.Append("' cy='");
@@ -1924,8 +1924,8 @@ VALUES
             if (!coordinateX.HasValue || !coordinateY.HasValue) return "{}";
             Dictionary<string, object> circle = null;
             try { circle = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(existingJson ?? "{}"); } catch { }
-            decimal radius = ShapeAttributeDecimal(circle, "r", 1.0m);
-            radius = Math.Max(1.0m, Math.Min(50m, radius));
+            decimal radius = ShapeAttributeDecimal(circle, "r", 3.0m);
+            radius = Math.Max(3.0m, Math.Min(50m, radius));
             return new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
                 { "cx", coordinateX.Value }, { "cy", coordinateY.Value }, { "r", radius }
             });
@@ -1997,7 +1997,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
                 {
                     decimal cx = Convert.ToDecimal(point["XPercent"], CultureInfo.InvariantCulture);
                     decimal cy = Convert.ToDecimal(point["YPercent"], CultureInfo.InvariantCulture);
-                    decimal radius = 1.0m;
+                    decimal radius = 3.0m;
                     try
                     {
                         var attributes = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(Convert.ToString(point["ShapeAttributes"]));
@@ -2010,7 +2010,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
                             radius = parsed;
                     }
                     catch { }
-                    radius = Math.Max(1.0m, Math.Min(50m, radius));
+                    radius = Math.Max(3.0m, Math.Min(50m, radius));
                     bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
                     pathSvg.Append("<circle class='inspection-coordinate-circle");
                     if (isCurrent) pathSvg.Append(" inspection-coordinate-circle-current");
