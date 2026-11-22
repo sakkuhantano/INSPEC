@@ -873,7 +873,8 @@
 .inspection-map-option-summary-host{width:100%;overflow:visible;padding:.15rem 0 .25rem;scrollbar-width:thin}
 .inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch;min-width:0}
 .inspection-map-option-summary-card{min-width:170px;max-width:280px;padding:.45rem .55rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
-.inspection-map-option-summary-title{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.25rem}
+.inspection-map-option-summary-title{font-size:.76rem;font-weight:800;white-space:normal;overflow-wrap:anywhere;margin-bottom:.35rem;color:var(--bs-body-color)}
+    .inspection-map-option-item-title{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.25rem}
 .inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.25rem}
 .inspection-map-option-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .38rem;border-radius:999px;background:var(--bs-secondary-bg);font-size:.68rem;line-height:1.1;white-space:nowrap}
 .inspection-map-option-chip strong{font-size:.72rem}
@@ -1585,7 +1586,15 @@
             border-radius: .4rem;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-title {
-            display: none;
+            display: block;
+            font-size: .66rem;
+            line-height: 1.2;
+            white-space: normal;
+            margin-bottom: .2rem;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-item-title {
+            font-size: .6rem;
+            line-height: 1.15;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-chip {
             padding: .14rem .32rem;
@@ -2106,7 +2115,7 @@
     <div id="inspectionEditorStickyHeader" class="inspection-editor-sticky mb-2"><div class="inspection-form-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
         <div class="d-flex align-items-center gap-2 min-w-0">
             <h6 id="inspectionFormTitle" class="mb-0 text-truncate">Checklist</h6>
-            <button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi" title="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button>
+            <button type="button" id="btnInspectionFormInfo" class="btn btn-sm btn-outline-secondary py-0 px-2 flex-shrink-0" aria-label="Informasi inspeksi"><i class="bi bi-info-circle-fill"></i></button>
         </div>
         <div class="inspection-entry-header-actions d-flex align-items-center justify-content-end flex-wrap gap-2">
             <div class="inspection-entry-heading text-end"><div class="fw-semibold">Inspection Entry</div><div class="inspection-muted" id="inspectionConnectionLabel">Offline-ready</div></div>
