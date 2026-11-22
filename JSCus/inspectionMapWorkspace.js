@@ -657,8 +657,6 @@
         var host = document.getElementById("inspectionMapOptionSummaryHost");
         if (!host) return;
 
-        // Reset state before inspecting the next map/template. Without this,
-        // a map with no OPTION items can inherit the previous map's info state.
         host.setAttribute("data-has-summary", "false");
         host.classList.add("d-none");
         closeOptionSummaryPopover();
@@ -684,81 +682,55 @@
             return;
         }
 
-        var inspectionTypeDescription = String(currentMapRecord && currentMapRecord.InspectionTypeName || "Inspection") +
-            " — " + String(currentMapRecord && currentMapRecord.InspectionTypeDetailName || "");
+        // This popover is a batch-wide summary. Do not restrict its counts to
+        // the currently selected floor plan.
+        var allPoints = Array.isArray(points) ? points : [];
+        var totalPoints = allPoints.length;
+        var completedPoints = allPoints.filter(function (point) {
+            return getPointStatus(point) === "DONE";
+        }).length;
+        var unfilledPoints = Math.max(0, totalPoints - completedPoints);
+        var optionCounts = { ON: 0, OFF: 0 };
 
-        var cards = optionItems.map(function (item) {
-            var itemId = Number(item.idItem != null ? item.idItem :
-                (item.IDItem != null ? item.IDItem : item.id));
-            var label = String(item.itemLabel || item.ItemLabel || item.label || item.Label || "Option");
-            var rawOptions = item.optionList != null ? item.optionList :
-                (item.OptionList != null ? item.OptionList :
-                    (item.StatusOption != null ? item.StatusOption : item.statusOption));
-            var options = Array.isArray(rawOptions)
-                ? rawOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
-                : String(rawOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
-            // Some templates inherit the OPTION values from the version-level StatusOption.
-            // Keep those choices visible even before the first point has a saved transaction.
-            if (!options.length) {
-                var defaultOptions = template && (template.StatusOption || template.statusOption);
-                options = Array.isArray(defaultOptions)
-                    ? defaultOptions.map(function (value) { return String(value).trim(); }).filter(Boolean)
-                    : String(defaultOptions || "").split(";").map(function (value) { return value.trim(); }).filter(Boolean);
-            }
-            var counts = {};
-            options.forEach(function (option) { counts[option] = 0; });
-            var unanswered = 0;
+        allPoints.forEach(function (point) {
+            var transaction = getPointTransaction(point);
+            var transactionItems = transaction && (transaction.Items || transaction.items);
+            if (!Array.isArray(transactionItems)) return;
 
-            (Array.isArray(points) ? points : []).forEach(function (point) {
-                var transaction = getPointTransaction(point);
-                var transactionItems = transaction && (transaction.Items || transaction.items);
-                var answer = Array.isArray(transactionItems)
-                    ? transactionItems.find(function (result) {
-                        return Number(result.IDItem != null ? result.IDItem :
-                            (result.idItem != null ? result.idItem : result.id)) === itemId;
-                    })
-                    : null;
+            optionItems.forEach(function (optionItem) {
+                var itemId = optionItem.idItem != null ? optionItem.idItem :
+                    (optionItem.IDItem != null ? optionItem.IDItem : optionItem.id);
+                if (itemId == null || itemId === "") return;
+                var answer = transactionItems.find(function (result) {
+                    var answerId = result.IDItem != null ? result.IDItem :
+                        (result.idItem != null ? result.idItem : result.id);
+                    return Number(answerId) === Number(itemId);
+                });
                 var rawValue = answer && (answer.Value != null ? answer.Value :
                     (answer.value != null ? answer.value : answer.Result));
-                var value = String(rawValue == null ? "" : rawValue).trim();
-                if (!value) {
-                    unanswered++;
-                    return;
-                }
-                var matched = options.find(function (option) {
-                    return String(option).trim().toUpperCase() === value.toUpperCase();
-                });
-                if (matched) counts[matched]++;
-                else unanswered++;
+                var value = String(rawValue == null ? "" : rawValue).trim().toUpperCase();
+                if (value === "ON") optionCounts.ON++;
+                else if (value === "OFF") optionCounts.OFF++;
             });
+        });
 
-            var chips = options.map(function (option) {
-                return '<span class="inspection-map-option-chip">' +
-                    '<span class="inspection-map-option-chip-label">' + esc(option) + '</span>' +
-                    '<strong>' + counts[option] + '</strong>' +
-                    '</span>';
-            }).join("");
+        host.innerHTML =
+            '<div class="small fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Seluruh Denah</div>' +
+            '<div class="inspection-map-global-summary">' +
+                '<div class="inspection-map-global-stat"><strong>' + totalPoints + '</strong><span>Total Point</span></div>' +
+                '<div class="inspection-map-global-stat"><strong>' + completedPoints + '</strong><span>Selesai</span></div>' +
+                '<div class="inspection-map-global-stat"><strong>' + unfilledPoints + '</strong><span>Belum diisi</span></div>' +
+            '</div>' +
+            '<div class="inspection-map-option-summary">' +
+                '<div class="inspection-map-option-summary-card">' +
+                    '<div class="inspection-map-option-chip-row">' +
+                        '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">ON</span><strong>' + optionCounts.ON + '</strong></span>' +
+                        '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OFF</span><strong>' + optionCounts.OFF + '</strong></span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
 
-            if (unanswered > 0) {
-                chips += '<span class="inspection-map-option-chip inspection-map-option-chip-muted">' +
-                    '<span class="inspection-map-option-chip-label">Belum diisi</span>' +
-                    '<strong>' + unanswered + '</strong>' +
-                    '</span>';
-            }
-
-            return '<div class="inspection-map-option-summary-card">' +
-                '<div class="inspection-map-option-item-title" title="' + esc(label) + '">' + esc(label) + '</div>' +
-                '<div class="inspection-map-option-chip-row">' + chips + '</div>' +
-                '</div>';
-        }).join("");
-
-        host.innerHTML = '<div class="inspection-map-option-summary-title" title="' + esc(inspectionTypeDescription) + '">' +
-            esc(inspectionTypeDescription) + '</div>' +
-            '<div class="inspection-map-option-summary">' + cards + '</div>';
-        // Rendering counts must never open the popover. Visibility is controlled
-        // exclusively by the user's info-button click.
-        host.setAttribute("data-has-summary", cards ? "true" : "false");
-        host.classList.add("d-none");
+        host.setAttribute("data-has-summary", "true");
     }
 
     function updateSummary() {
@@ -807,7 +779,7 @@
 
         // OPTION statistics are derived entirely from the active Template Snapshot.
         // No option name such as ON/OFF, GOOD/BROKEN, etc. is hard-coded here.
-        renderTemplateOptionSummary(points);
+        renderTemplateOptionSummary(currentPoints);
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
         var hasOptionSummary = !!(optionSummaryHost && optionSummaryHost.getAttribute("data-has-summary") === "true");
