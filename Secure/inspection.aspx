@@ -859,7 +859,6 @@
             overflow-y:auto;overflow-x:hidden;padding:.45rem;background:transparent;
         }
         #inspectionPointListModal .inspection-point-list-tools{top:0}
-        #inspectionMapWorkspace #btnInspectionMapPointList{display:inline-flex!important;align-items:center}
         #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:none!important;max-height:none!important}
     }
 
@@ -1857,6 +1856,32 @@
         overflow-x:hidden!important;
         overscroll-behavior:contain;
     }
+
+    /* Mobile map actions: remove the legacy Point List control and normalize
+       action-button dimensions after the older per-button width overrides. */
+    @media (max-width: 767.98px) {
+        #inspectionMapWorkspace #btnInspectionMapPointList {
+            display: none !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnInspectionNextPending,
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnDeleteInspectionBatchDraft {
+            display: inline-flex !important;
+            flex: 0 0 30px !important;
+            width: 30px !important;
+            min-width: 30px !important;
+            max-width: 30px !important;
+            height: 30px !important;
+            min-height: 30px !important;
+            max-height: 30px !important;
+            padding: 0 !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions .inspection-map-action-label {
+            display: none !important;
+        }
+    }
+
 </style>
 </asp:Content>
 
@@ -2130,8 +2155,6 @@
         <div id="inspectionMapStickyStack" class="inspection-map-sticky-stack">
         <div class="inspection-map-toolbar">
             <div class="inspection-map-actions">
-                <button type="button" id="btnInspectionMapPointList" class="btn btn-sm btn-outline-secondary d-inline-flex d-md-none" title="Lihat Point List" aria-expanded="false"><i class="bi bi-list-ul me-1"></i><span>Points</span></button>
-
                 <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya" aria-label="Next Wajib"><i class="bi bi-arrow-right-circle"></i><span class="inspection-map-action-label">Next Wajib</span></button>
                 <button type="button" id="btnInspectionMapReset" class="btn btn-sm btn-outline-secondary" title="Reset map"><i class="bi bi-arrows-fullscreen"></i></button>
