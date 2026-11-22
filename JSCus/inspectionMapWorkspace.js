@@ -825,6 +825,8 @@
         if (isMobile && modalElement && modalBody && window.bootstrap && bootstrap.Modal) {
             if (listHost.parentElement !== modalBody) modalBody.appendChild(listHost);
             var modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            var pointListButton = document.getElementById("btnInspectionMapPointList");
+            if (pointListButton) pointListButton.setAttribute("aria-expanded", "true");
             var runScrollAfterShow = function () {
                 window.requestAnimationFrame(function () {
                     window.requestAnimationFrame(scrollSelectedRow);
@@ -1729,7 +1731,9 @@
         if (activate) {
             // Apply the mobile full-height layout before revealing the map so PDF.js measures a real viewport.
             document.body.classList.add("inspection-map-tab-active");
-            document.body.classList.add("inspection-map-mobile-active");
+            var mobileMapViewport = window.matchMedia &&
+                window.matchMedia("(max-width: 767.98px)").matches;
+            document.body.classList.toggle("inspection-map-mobile-active", !!mobileMapViewport);
             workspace.classList.remove("d-none");
             var paramPane = document.getElementById("inspectionParamsPane");
             var checklistPane = document.getElementById("inspectionChecklistPane");
