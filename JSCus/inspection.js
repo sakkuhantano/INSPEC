@@ -1552,13 +1552,15 @@ function renderInspectionApprovalWorkflowCards(record) {
     const host = document.getElementById("inspectionApprovalWorkflowCards");
     if (!panel || !host) return;
 
-    if (!record) {
+    // Approval Workflow is exclusive to LIGHTNING inspections.
+    // STANDARD and BATCH must never display this panel.
+    if (!record || String(record.InspectionMode || "").trim().toUpperCase() !== "LIGHTNING") {
         host.innerHTML = "";
         panel.classList.add("d-none");
         return;
     }
 
-    // Show the workflow area as soon as an inspection record is opened.
+    // Show the workflow area as soon as a LIGHTNING record is opened.
     // Each stage remains "Data belum tersedia" until its server flag is completed.
     panel.classList.remove("d-none");
 
