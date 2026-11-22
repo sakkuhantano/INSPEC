@@ -1463,6 +1463,8 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
                 if (drawMode && shapeSelect && shapeSelect.value === 'PATH') {
                     event.preventDefault();
+                    if (!drawingPath && pathPoints.length === 0)
+                        clearActivePointShapeFromOverlay();
                     var vertex = mapPointFromEvent(event);
                     var previousVertex = pathPoints[pathPoints.length - 1];
                     if (!previousVertex || Math.hypot(vertex.x - previousVertex.x, vertex.y - previousVertex.y) >= 0.5)
