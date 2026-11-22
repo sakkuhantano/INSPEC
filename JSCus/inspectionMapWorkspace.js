@@ -1056,7 +1056,13 @@
         removeNavigatorFocusRing();
 
         document.querySelectorAll(".inspection-map-point, .inspection-map-svg-path, .inspection-map-svg-rect, .inspection-map-svg-circle").forEach(function (element) {
-            element.classList.toggle("selected", element.getAttribute("data-point-id") === String(id));
+            var isSelected = element.getAttribute("data-point-id") === String(id);
+            // Navigator focus adds a separate class for the blue target fill.
+            // Clear it from every previous marker when the user picks another
+            // point, otherwise a former RECTANGLE remains filled after its
+            // focus ring has been dismissed.
+            element.classList.toggle("selected", isSelected);
+            element.classList.remove("navigator-target");
         });
 
         var statusValue = getPointStatus(selectedPoint);
@@ -1109,8 +1115,9 @@
             var quickRing = pointHost.querySelector(".inspection-map-quick-focus-ring");
             if (quickRing) quickRing.remove();
         }
-        document.querySelectorAll(".inspection-map-point.selected, .inspection-map-svg-path.selected, .inspection-map-svg-rect.selected, .inspection-map-svg-circle.selected").forEach(function (element) {
+        document.querySelectorAll(".inspection-map-point.selected, .inspection-map-svg-path.selected, .inspection-map-svg-rect.selected, .inspection-map-svg-circle.selected, .inspection-map-point.navigator-target, .inspection-map-svg-path.navigator-target, .inspection-map-svg-rect.navigator-target, .inspection-map-svg-circle.navigator-target").forEach(function (element) {
             element.classList.remove("selected");
+            element.classList.remove("navigator-target");
         });
     }
 
