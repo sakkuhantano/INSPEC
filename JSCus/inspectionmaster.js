@@ -19,10 +19,13 @@
         var mapId = document.getElementById('hidMapID');
         var mapIsDraft = document.getElementById('hidMapIsDraft');
         var isNewOrDraftMap = !mapId || !mapId.value || (mapIsDraft && mapIsDraft.value === '1');
-        // Upload the browser draft with the first Save Point that persists a new Map.
-        // Existing saved Maps keep the file local until the toolbar Save creates a new version.
-        var uploadWithPoint = isSavePoint && isNewOrDraftMap;
-        if ((isSaveMap || uploadWithPoint) && originalName) input.name = originalName;
+        // A new/draft Map must keep the FileUpload participating in every
+        // postback until its first Save Point persists the floor plan. Otherwise
+        // WebForms can rebuild the input between Add Point and Save Point and
+        // the browser draft is no longer part of the multipart request.
+        // Existing saved Maps keep the file local until the toolbar Save creates
+        // a new version.
+        if ((isNewOrDraftMap || isSaveMap) && originalName) input.name = originalName;
         else input.removeAttribute('name');
     }
     function inspectionOpenDraftDb() {
@@ -56,6 +59,87 @@
             });
         });
     }
+    function inspectionShowDraftMapPreview(blob, fileName) {
+        var panel = document.getElementById('pnlMapPreview');
+        if (!panel) return;
+        panel.style.display = 'block';
+
+        var title = document.getElementById('lblMapPreviewTitle');
+        if (title) title.textContent = 'Denah Draft - ' + (fileName || 'Floor Plan');
+
+        var link = document.getElementById('lnkMapPdf');
+        if (link) {
+            link.style.display = 'inline-block';
+            if (inspectionDraftObjectUrl) link.href = inspectionDraftObjectUrl;
+            link.textContent = 'Open Floor Plan';
+        }
+
+        var literalHost = panel.querySelector('.inspection-map-preview-draft-host');
+        if (!literalHost) {
+            literalHost = document.createElement('div');
+            literalHost.className = 'inspection-map-preview-draft-host';
+            var body = panel.querySelector('.p-2');
+            if (body) body.innerHTML = '';
+            if (body) body.appendChild(literalHost);
+            else panel.appendChild(literalHost);
+        }
+
+        literalHost.innerHTML =
+            '<div class="inspection-map-preview-toolbar d-flex align-items-center gap-1 mb-2">' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapPreviewZoomOut" title="Zoom out"><i class="bi bi-zoom-out"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapPreviewZoomIn" title="Zoom in"><i class="bi bi-zoom-in"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapPreviewZoomFit">Fit</button>' +
+            '<span class="small text-muted ms-1" id="lblMapPreviewZoom">100%</span>' +
+            '<span class="small text-muted ms-auto">Denah draft belum tersimpan</span>' +
+            '</div>' +
+            '<div class="inspection-map-preview-stage" id="inspectionMapPreviewStage">' +
+            '<div class="inspection-map-preview-media" id="inspectionMapPreviewMedia">' +
+            '<div class="inspection-map-preview-draft-status inspection-pdf-status">Memuat denah draft...</div>' +
+            '</div></div>';
+
+        var media = document.getElementById('inspectionMapPreviewMedia');
+        var extension = (fileName || '').toLowerCase().split('.').pop();
+        if (!media) return;
+
+        if (extension === 'jpg' || extension === 'jpeg' || extension === 'png' ||
+            (blob.type || '').toLowerCase().indexOf('image/') === 0) {
+            var img = document.createElement('img');
+            img.className = 'inspection-image-preview';
+            img.alt = 'Inspection floor plan draft';
+            img.onload = function () {
+                var status = media.querySelector('.inspection-map-preview-draft-status');
+                if (status) status.remove();
+            };
+            img.onerror = function () {
+                var status = media.querySelector('.inspection-map-preview-draft-status');
+                if (status) status.textContent = 'Gagal memuat gambar denah draft.';
+            };
+            media.innerHTML = '';
+            media.appendChild(img);
+            img.src = inspectionDraftObjectUrl;
+        } else {
+            var canvas = document.createElement('canvas');
+            canvas.id = 'inspectionMapPreviewCanvas';
+            canvas.className = 'inspection-map-preview-canvas';
+            canvas.setAttribute('data-map-url', inspectionDraftObjectUrl);
+            media.innerHTML = '';
+            media.appendChild(canvas);
+            var status = document.createElement('div');
+            status.id = 'inspectionMapPreviewStatus';
+            status.className = 'inspection-pdf-status';
+            status.textContent = 'Memuat denah draft...';
+            media.appendChild(status);
+            window.requestAnimationFrame(renderMapPreviewPdf);
+        }
+
+        var zoomOut = document.getElementById('btnMapPreviewZoomOut');
+        var zoomIn = document.getElementById('btnMapPreviewZoomIn');
+        var zoomFit = document.getElementById('btnMapPreviewZoomFit');
+        if (zoomOut) zoomOut.onclick = function () { setMapPreviewZoom(inspectionMapPreviewZoom - 0.25); };
+        if (zoomIn) zoomIn.onclick = function () { setMapPreviewZoom(inspectionMapPreviewZoom + 0.25); };
+        if (zoomFit) zoomFit.onclick = function () { inspectionMapPreviewZoom = 1; renderMapPreviewCanvasAtZoom(); };
+    }
+
     function inspectionShowDraftPreview(blob, fileName) {
         var board = document.getElementById('inspectionCoordinateBoard');
         var content = document.getElementById('inspectionCoordinateContent');
@@ -124,8 +208,16 @@
             }
             // Keep the Blob local during Add Point / other postbacks. Only the
             // toolbar Save action temporarily restores the FileUpload name.
-            input.removeAttribute('name');
+            // Keep the name for a new/draft Map so the next Add Point /
+            // Save Point postback can carry the same multipart file.
+            var mapIsDraft = document.getElementById('hidMapIsDraft');
+            var originalName = input.getAttribute('data-inspection-original-name');
+            if (!(mapIsDraft && mapIsDraft.value === '1') && originalName)
+                input.removeAttribute('name');
+            else if (originalName)
+                input.name = originalName;
             inspectionShowDraftPreview(draft.blob, draft.fileName);
+            inspectionShowDraftMapPreview(draft.blob, draft.fileName);
         }).catch(function (error) {
             console.error('Inspection map draft restore failed:', error);
         });
@@ -142,6 +234,8 @@
                 input.value = '';
                 input.removeAttribute('name');
             }
+            var mapPreviewPanel = document.getElementById('pnlMapPreview');
+            if (mapPreviewPanel) mapPreviewPanel.style.display = 'none';
             return key ? inspectionDraftStore('readwrite', key, null) : null;
         }).then(function () {
             if (inspectionDraftObjectUrl) URL.revokeObjectURL(inspectionDraftObjectUrl);
@@ -455,7 +549,10 @@
                         blob: file, fileName: file.name, fileType: file.type,
                         lastModified: file.lastModified
                     });
-                }).then(function () { inspectionShowDraftPreview(file, file.name); });
+                }).then(function () {
+                    inspectionShowDraftPreview(file, file.name);
+                    inspectionShowDraftMapPreview(file, file.name);
+                });
             });
             inspectionDraftRestorePromise = inspectionRestoreDraft();
         }
