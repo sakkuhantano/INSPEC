@@ -680,7 +680,10 @@
         }).join("");
 
         host.innerHTML = cards;
-        host.classList.toggle("d-none", !cards);
+        // Rendering counts must never open the popover. Visibility is controlled
+        // exclusively by the user's info-button click.
+        host.setAttribute("data-has-summary", cards ? "true" : "false");
+        host.classList.add("d-none");
     }
 
     function updateSummary() {
@@ -732,7 +735,7 @@
         renderTemplateOptionSummary(points);
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
-        var hasOptionSummary = !!(optionSummaryHost && !optionSummaryHost.classList.contains("d-none"));
+        var hasOptionSummary = !!(optionSummaryHost && optionSummaryHost.getAttribute("data-has-summary") === "true");
         if (optionInfoButton) {
             optionInfoButton.classList.toggle("d-none", !hasOptionSummary);
             if (!hasOptionSummary) {
@@ -748,7 +751,11 @@
         var pointIndex = visiblePoints.findIndex(function (point) {
             return String(point.InspectionPointID) === String(pointId);
         });
-        if (pointIndex >= 0) listPage = Math.floor(pointIndex / listPageSize) + 1;
+        if (pointIndex < 0) {
+            console.warn("Inspection map marker has no matching visible Point List row:", pointId);
+            return;
+        }
+        listPage = Math.floor(pointIndex / listPageSize) + 1;
 
         switchMapList();
         renderList();
@@ -767,22 +774,16 @@
         row.setAttribute("aria-current", "true");
 
         function scrollSelectedRow() {
-            if (!document.documentElement.contains(row)) return;
-            // Let the browser scroll the actual overflow ancestor. The list can
-            // be hosted in the workspace or temporarily moved into its modal.
-            try {
-                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-            } catch (_) {
-                row.scrollIntoView(false);
-            }
-            // Explicitly keep the Point List itself aligned when it is the
-            // scroll container (desktop two-column workspace).
+            if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
+            // Scroll the Point List itself, not whichever ancestor the browser
+            // happens to choose (the workspace and Submit bar are separate flex items).
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
-            if (listHost.scrollHeight > listHost.clientHeight && hostRect.height > 0 && rowRect.height > 0) {
-                var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
-                listHost.scrollTop = Math.max(0, listHost.scrollTop + delta);
-            }
+            var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
+            if (Math.abs(delta) > 1)
+                listHost.scrollTo({ top: Math.max(0, listHost.scrollTop + delta), behavior: "smooth" });
+            row.classList.add("active", "selected");
+            row.setAttribute("aria-current", "true");
         }
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
@@ -1786,6 +1787,7 @@
         if (optionInfoButton && optionSummaryHost) {
             optionInfoButton.addEventListener("click", function (event) {
                 event.stopPropagation();
+                if (optionSummaryHost.getAttribute("data-has-summary") !== "true") return;
                 var opening = optionSummaryHost.classList.contains("d-none");
                 optionSummaryHost.classList.toggle("d-none", !opening);
                 optionInfoButton.setAttribute("aria-expanded", opening ? "true" : "false");
