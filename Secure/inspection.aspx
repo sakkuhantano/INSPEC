@@ -282,8 +282,8 @@
             white-space: nowrap;
             border: 1px solid var(--bs-border-color);
             border-radius: .5rem;
-            padding: .45rem .75rem;
-            font-size: .84rem;
+            padding: .3rem .55rem;
+            font-size: .72rem;
         }
         .inspection-lightning-schedule-tabs .nav-link.active {
             font-weight: 700;
@@ -1952,18 +1952,124 @@
     #inspectionMapWorkspace > #inspectionApprovalWorkflowPanel {
         position: relative;
         z-index: 1;
+        display: block;
         flex: 0 0 auto;
-        margin: .4rem .5rem .55rem !important;
+        min-width: 0;
+        padding: .35rem .5rem .4rem !important;
+        margin: .2rem .45rem .35rem !important;
+        border-radius: .55rem;
     }
-    #inspectionMapWorkspace > #inspectionApprovalWorkflowPanel .inspection-approval-workflow {
-        margin-bottom: 0;
+    .inspection-approval-workflow-heading {
+        display: flex;
+        align-items: center;
+        gap: .35rem;
+        min-height: 16px;
+        margin-bottom: .3rem;
+        color: var(--bs-body-color);
+        font-size: .66rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: .035em;
     }
-    .inspection-approval-workflow .card,
-    .inspection-approval-workflow .card-body {
+    .inspection-approval-workflow-heading .bi { font-size: .72rem; }
+    .inspection-approval-workflow-mode {
+        margin-left: auto;
+        color: var(--bs-secondary-color);
+        font-size: .55rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+    }
+    .inspection-approval-workflow-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: .35rem;
         min-width: 0;
     }
-    .inspection-approval-workflow .inspection-approval-person {
-        overflow-wrap: anywhere;
+    .inspection-approval-workflow-card,
+    .inspection-approval-workflow-card .card,
+    .inspection-approval-workflow-card .card-body {
+        min-width: 0;
+    }
+    .inspection-approval-workflow-card .card {
+        height: 100%;
+        border-radius: .45rem;
+    }
+    .inspection-approval-workflow-card .card-body {
+        padding: .38rem .5rem !important;
+        line-height: 1.15;
+    }
+    .inspection-approval-workflow-title {
+        overflow: hidden;
+        font-size: .64rem;
+        font-weight: 800;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .inspection-approval-workflow-role {
+        overflow: hidden;
+        margin-top: .08rem;
+        color: var(--bs-secondary-color);
+        font-size: .58rem;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .inspection-approval-workflow-status {
+        overflow: hidden;
+        margin-top: .22rem;
+        font-size: .61rem;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .inspection-approval-workflow-person {
+        overflow: hidden;
+        margin-top: .22rem;
+        font-size: .62rem;
+        font-weight: 700;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .inspection-approval-workflow-date {
+        overflow: hidden;
+        margin-top: .12rem;
+        color: var(--bs-secondary-color);
+        font-size: .55rem;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    @media (max-width: 767.98px) {
+        #inspectionMapWorkspace > #inspectionApprovalWorkflowPanel {
+            padding: .3rem .4rem .35rem !important;
+            margin: .15rem .35rem .25rem !important;
+        }
+        .inspection-approval-workflow-heading {
+            min-height: 14px;
+            margin-bottom: .22rem;
+            font-size: .62rem;
+        }
+        .inspection-approval-workflow-strip {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: .3rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: .12rem;
+            scrollbar-width: thin;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+        }
+        .inspection-approval-workflow-card {
+            flex: 0 0 158px;
+            width: 158px;
+            scroll-snap-align: start;
+        }
+        .inspection-approval-workflow-card .card-body {
+            padding: .34rem .42rem !important;
+        }
     }
     @media (max-width: 767.98px) {
         #inspectionPointNavigatorModal .inspection-point-navigator-dialog {
@@ -2268,13 +2374,14 @@
     </div>
     </div>
     <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
-        <section id="inspectionApprovalWorkflowPanel" class="inspection-card p-2 p-md-3 mb-3 d-none" aria-label="Approval Workflow">
-        <div class="d-flex align-items-center gap-2 mb-2">
-            <i class="bi bi-diagram-3-fill text-primary"></i>
-            <div><div class="fw-bold small">APPROVAL WORKFLOW</div><div class="small text-muted">Riwayat submit dan persetujuan inspeksi ini.</div></div>
-        </div>
-        <div id="inspectionApprovalWorkflowCards"></div>
-    </section>
+        <section id="inspectionApprovalWorkflowPanel" class="inspection-card d-none" aria-label="Approval Workflow">
+            <div class="inspection-approval-workflow-heading">
+                <i class="bi bi-diagram-3-fill text-primary" aria-hidden="true"></i>
+                <span>APPROVAL WORKFLOW</span>
+                <span class="inspection-approval-workflow-mode">LIGHTNING DAILY</span>
+            </div>
+            <div id="inspectionApprovalWorkflowCards"></div>
+        </section>
         <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
         <div id="inspectionMapStickyStack" class="inspection-map-sticky-stack">
         <div class="inspection-map-toolbar">
