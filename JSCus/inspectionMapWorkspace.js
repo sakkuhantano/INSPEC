@@ -305,6 +305,31 @@
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
+        if (host.getAttribute("data-point-click-wired") !== "1") {
+            /* Delegate from the stable overlay host. renderPoints() replaces
+               the SVG and marker buttons on every refresh, so direct listeners
+               attached to individual nodes are easy to lose. */
+            host.addEventListener("click", function (event) {
+                var shape = event.target && event.target.closest
+                    ? event.target.closest("[data-point-id]") : null;
+                if (!shape || !host.contains(shape)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                removeNavigatorFocusRing();
+                openPoint(shape.getAttribute("data-point-id"));
+            });
+            host.addEventListener("keydown", function (event) {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                var shape = event.target && event.target.closest
+                    ? event.target.closest("[data-point-id]") : null;
+                if (!shape || !host.contains(shape)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                removeNavigatorFocusRing();
+                openPoint(shape.getAttribute("data-point-id"));
+            });
+            host.setAttribute("data-point-click-wired", "1");
+        }
         var mapViewport = document.getElementById("inspectionMapCanvas");
         if (mapViewport && mapViewport.getAttribute("data-navigator-dismiss-wired") !== "1") {
             // Any deliberate click on the floor-plan viewport dismisses the
@@ -388,20 +413,8 @@
         host.querySelectorAll("[data-point-id]").forEach(function (shape) {
             // SVG point shapes are keyboard-focusable for accessibility, but the
             // browser's native focus outline is not useful on top of the floor plan.
-            // The selected point is indicated by our own status/selection styling.
+            // Selection is handled by the delegated listener on the stable host.
             if (shape.style) shape.style.outline = "none";
-            shape.addEventListener("click", function (event) {
-                event.preventDefault();
-                event.stopPropagation();
-                removeNavigatorFocusRing();
-                openPoint(shape.getAttribute("data-point-id"));
-            });
-            shape.addEventListener("keydown", function (event) {
-                if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openPoint(shape.getAttribute("data-point-id"));
-                }
-            });
         });
     }
 
@@ -765,7 +778,7 @@
         });
         if (pointIndex < 0) {
             console.warn("Inspection map marker has no matching visible Point List row:", pointId);
-            return;
+            return false;
         }
 
         listPage = Math.floor(pointIndex / listPageSize) + 1;
@@ -774,14 +787,14 @@
         renderList();
 
         var listHost = document.getElementById("inspectionPointList");
-        if (!listHost) return;
+        if (!listHost) return false;
         listHost.setAttribute("data-selected-point-id", selectedId);
 
         var row = Array.prototype.find.call(
             listHost.querySelectorAll(".inspection-point-list-row[data-point-id]"),
             function (item) { return String(item.getAttribute("data-point-id")) === selectedId; }
         );
-        if (!row) return;
+        if (!row) return false;
 
         listHost.querySelectorAll(".inspection-point-list-row.active, .inspection-point-list-row.selected")
             .forEach(function (item) { item.classList.remove("active", "selected"); });
@@ -793,8 +806,6 @@
             row.classList.add("active", "selected");
             row.setAttribute("aria-current", "true");
 
-            /* Calculate against the actual scrollport rectangle. offsetTop is
-               relative to offsetParent, which is not always the list itself. */
             var hostRect = listHost.getBoundingClientRect();
             var rowRect = row.getBoundingClientRect();
             var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
@@ -807,10 +818,6 @@
                 listHost.scrollTop = targetTop;
         }
 
-        /* On phones the one Point List element is moved into a Bootstrap
-           modal and is display:none while that modal is closed. Open that
-           actual scrollport first; otherwise clientHeight is zero and no
-           scroll/highlight can be seen after tapping a map marker. */
         var isMobile = window.matchMedia &&
             window.matchMedia("(max-width: 767.98px)").matches;
         var modalElement = document.getElementById("inspectionPointListModal");
@@ -818,25 +825,27 @@
         if (isMobile && modalElement && modalBody && window.bootstrap && bootstrap.Modal) {
             if (listHost.parentElement !== modalBody) modalBody.appendChild(listHost);
             var modal = bootstrap.Modal.getOrCreateInstance(modalElement);
-            if (modalElement.classList.contains("show")) {
+            var runScrollAfterShow = function () {
                 window.requestAnimationFrame(function () {
                     window.requestAnimationFrame(scrollSelectedRow);
                 });
+            };
+            if (modalElement.classList.contains("show")) {
+                runScrollAfterShow();
             } else {
                 modalElement.addEventListener("shown.bs.modal", function onPointListShown() {
                     modalElement.removeEventListener("shown.bs.modal", onPointListShown);
-                    window.requestAnimationFrame(function () {
-                        window.requestAnimationFrame(scrollSelectedRow);
-                    });
+                    runScrollAfterShow();
                 });
                 modal.show();
             }
-            return;
+            return true;
         }
 
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
         });
+        return true;
     }
 
     function getQuickPointOptionItems() {
@@ -1077,13 +1086,12 @@
         // Do this before the mobile quick-sheet branch as well, so the selected
         // row is highlighted and moved into view regardless of viewport size.
         removeNavigatorFocusRing();
-        scrollPointListToRow(id);
+        var pointListOpened = scrollPointListToRow(id);
 
-        // On phones, keep the quick-result sheet as the primary interaction,
-        // but do not skip Point List synchronization above.
+        // On phones the list is mounted in its own full-screen modal. Do not
+        // open the quick-result sheet over that modal after selecting a marker.
         if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches) {
-            var pointListModal = document.getElementById("inspectionPointListModal");
-            if (pointListModal && pointListModal.classList.contains("show")) return;
+            if (pointListOpened) return;
             removeNavigatorFocusRing();
             ensureQuickPointRing(selectedPoint);
             showQuickPointSheet(selectedPoint);
@@ -1182,7 +1190,11 @@
         }, { passive: false });
 
         viewport.addEventListener("pointerdown", function (event) {
-            if ((!currentPdfDocument && !document.querySelector("#inspectionMapPdfStage img.inspection-map-image")) || (event.target.closest && (event.target.closest(".inspection-map-point") || event.target.closest(".inspection-map-zoom-tools")))) return;
+            /* Do not capture a pointer that started on ANY map marker. SVG
+               PATH/RECT/CIRCLE targets are not .inspection-map-point buttons;
+               capturing them here retargets pointerup/click to the canvas. */
+            if ((!currentPdfDocument && !document.querySelector("#inspectionMapPdfStage img.inspection-map-image")) ||
+                (event.target.closest && (event.target.closest("[data-point-id]") || event.target.closest(".inspection-map-zoom-tools")))) return;
             if (event.pointerType === "mouse" && event.button !== 0) return;
             try { viewport.setPointerCapture(event.pointerId); } catch (_) { }
             mapPointers[event.pointerId] = { x: event.clientX, y: event.clientY };
