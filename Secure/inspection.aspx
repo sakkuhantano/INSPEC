@@ -1665,39 +1665,88 @@
     }
 
 
-    /* Desktop workspace: keep the Point List scrollable above the fixed Submit bar. */
+    /* Desktop map workspace: constrain the grid track, not just the list child.
+       This gives the Point List a real scrollport and reserves a separate row for Submit. */
     @media(min-width:768px){
+        #inspectionMapWorkspace{
+            display:flex!important;
+            flex-direction:column!important;
+        }
         #inspectionMapWorkspace>.inspection-map-content:not(.d-none){
-            flex:1 1 0!important;min-height:0!important;height:auto!important;overflow:hidden
+            display:grid!important;
+            grid-template-columns:minmax(0,2.2fr) minmax(320px,340px)!important;
+            grid-template-rows:minmax(0,1fr)!important;
+            flex:1 1 0!important;
+            min-height:0!important;
+            height:0!important;
+            max-height:none!important;
+            overflow:hidden!important;
+            align-items:stretch!important;
+        }
+        #inspectionMapWorkspace .inspection-map-content>.inspection-map-panel{
+            display:flex!important;
+            flex-direction:column!important;
+            height:100%!important;
+            min-height:0!important;
+            max-height:100%!important;
+            overflow:hidden!important;
+        }
+        #inspectionMapWorkspace .inspection-map-content>.inspection-map-panel>.inspection-map-canvas{
+            flex:1 1 0!important;
+            height:auto!important;
+            min-height:0!important;
+            max-height:none!important;
         }
         #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
-            display:block!important;box-sizing:border-box;align-self:stretch;
-            height:auto!important;min-height:0!important;max-height:none!important;
-            overflow-x:hidden!important;overflow-y:auto!important;
-            padding:.5rem .5rem 1.25rem!important;
-            overscroll-behavior:contain;scroll-behavior:smooth
+            display:block!important;
+            box-sizing:border-box!important;
+            align-self:stretch!important;
+            width:100%!important;
+            height:100%!important;
+            min-height:0!important;
+            max-height:100%!important;
+            overflow-x:hidden!important;
+            overflow-y:auto!important;
+            padding:.5rem .5rem 1.5rem!important;
+            overscroll-behavior:contain;
+            scroll-behavior:smooth;
+            scroll-padding-bottom:1rem;
         }
         #inspectionMapWorkspace>#inspectionMapSubmitBar{
-            position:relative;z-index:3;flex:0 0 auto!important;
-            min-height:48px;background:var(--bs-body-bg);
-            box-shadow:0 -2px 8px rgba(0,0,0,.06)
+            position:relative;
+            z-index:3;
+            flex:0 0 auto!important;
+            min-height:48px;
+            background:var(--bs-body-bg);
+            box-shadow:0 -2px 8px rgba(0,0,0,.06);
         }
     }
-    /* The legend is a real flex row below the map, never an overlay hidden by the canvas. */
+    /* Keep the legend in its own flex row below the floor plan on every viewport. */
     #inspectionMapWorkspace .inspection-map-panel>.inspection-map-legend{
-        position:relative!important;inset:auto!important;z-index:2;
-        display:flex!important;visibility:visible!important;
-        flex:0 0 auto!important;flex-shrink:0!important;
-        width:100%;max-width:100%;min-height:28px;
+        position:relative!important;
+        inset:auto!important;
+        z-index:2;
+        display:flex!important;
+        visibility:visible!important;
+        flex:0 0 auto!important;
+        flex-shrink:0!important;
+        width:100%;
+        max-width:100%;
+        min-height:28px;
         margin:.15rem 0 0!important;
-        align-items:center;gap:.3rem .6rem;flex-wrap:wrap
+        align-items:center;
+        gap:.3rem .6rem;
+        flex-wrap:wrap;
     }
     #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
-        flex:1 1 0!important;min-height:0!important
+        flex:1 1 0!important;
+        min-height:0!important;
     }
     @media(max-width:767.98px){
         #inspectionMapWorkspace .inspection-map-panel>.inspection-map-legend{
-            flex:0 0 auto!important;min-height:26px;padding:.3rem .4rem!important
+            flex:0 0 auto!important;
+            min-height:26px;
+            padding:.3rem .4rem!important;
         }
     }
 
