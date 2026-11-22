@@ -774,7 +774,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     if (attributes != null && attributes.TryGetValue("r", out value) && Decimal.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Number, CultureInfo.InvariantCulture, out parsed)) radius = parsed;
                 }
                 catch { }
-                radius = Math.Max(0.15m, Math.Min(50m, radius));
+                radius = Math.Max(0.2m, Math.Min(8m, radius));
                 markers.Append("<circle class='inspection-map-preview-circle' cx='");
                 markers.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
                 markers.Append("' cy='");
