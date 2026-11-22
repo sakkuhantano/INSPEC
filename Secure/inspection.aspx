@@ -1865,7 +1865,6 @@
         }
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnInspectionNextPending,
         body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-actions > #btnDeleteInspectionBatchDraft {
-            display: inline-flex !important;
             flex: 0 0 30px !important;
             width: 30px !important;
             min-width: 30px !important;
