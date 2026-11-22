@@ -296,7 +296,7 @@
                         </div>
                     </div>
 
-                    <asp:Panel ID="pnlMapPreview" runat="server" Visible="false">
+                    <asp:Panel ID="pnlMapPreview" runat="server" CssClass="inspection-map-preview-panel" Style="display:none;">
                         <div class="row my-1">
                             <div class="col border rounded shadow-sm">
                                 <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
