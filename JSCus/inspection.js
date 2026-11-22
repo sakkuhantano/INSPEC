@@ -1632,7 +1632,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
                     escInspection(timestamp || "Waktu belum tersedia") + '</div>'
                 : '<div class="small text-secondary mt-2">Data belum tersedia</div>';
 
-            return '<div class="col-12 col-sm-6 col-xl-3">' +
+            return '<div class="col-6 col-sm-6 col-xl-3">' +
                 '<div class="card h-100 ' + cardClass + '">' +
                     '<div class="card-body p-2 p-md-3">' +
                         '<div class="small fw-bold ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
