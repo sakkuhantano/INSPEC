@@ -1815,13 +1815,30 @@
         body.inspection-map-tab-active #inspectionMapStickyStack{
             top:0!important;
         }
-        body.inspection-map-tab-active #inspectionMapWorkspace{
+        /* Match and override the older, more-specific mobile shell rule
+           that still sets #inspectionMapWorkspace overflow:hidden. */
+        body.inspection-map-tab-active.inspection-map-mobile-active #contentbody #inspectionMapWorkspace{
             height:auto!important;
             min-height:calc(100dvh - 142px)!important;
             max-height:none!important;
             overflow:visible!important;
             flex:0 0 auto!important;
         }
+    }
+    #inspectionMapPoints{z-index:4;pointer-events:none!important}
+    #inspectionMapPoints > .inspection-map-svg-overlay{z-index:1;pointer-events:none!important}
+    #inspectionMapPoints > .inspection-map-svg-overlay .inspection-map-svg-path,
+    #inspectionMapPoints > .inspection-map-svg-overlay .inspection-map-svg-circle{
+        pointer-events:visiblePainted!important;
+        cursor:pointer!important;
+    }
+    #inspectionMapPoints > .inspection-map-svg-overlay .inspection-map-svg-rect{
+        pointer-events:all!important;
+        cursor:pointer!important;
+    }
+    #inspectionMapPoints > .inspection-map-point{
+        pointer-events:auto!important;
+        z-index:4!important;
     }
     #inspectionPointListModal .modal-body{
         display:flex;
