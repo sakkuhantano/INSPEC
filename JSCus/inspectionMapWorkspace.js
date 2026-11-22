@@ -777,8 +777,8 @@
         var pendingLegend = document.getElementById("inspectionMapPendingLegend");
         if (pendingLegend) pendingLegend.textContent = "Belum diperiksa";
 
-        // OPTION statistics are derived entirely from the active Template Snapshot.
-        // No option name such as ON/OFF, GOOD/BROKEN, etc. is hard-coded here.
+        // Point totals and ON/OFF answers are aggregated across every floor plan
+        // for the active inspection schedule.
         renderTemplateOptionSummary(currentPoints);
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
