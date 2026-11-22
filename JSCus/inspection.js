@@ -1547,10 +1547,20 @@ function getInspectionLightningWorkflowStatus(record) {
     return "DRAFT";
 }
 
-function renderInspectionLightningWorkflowCards(record) {
-    const host = document.getElementById("inspectionLightningWorkflowCards");
-    if (!host || !record || String(record.InspectionMode || "").toUpperCase() !== "LIGHTNING") {
-        if (host) host.innerHTML = "";
+function renderInspectionApprovalWorkflowCards(record) {
+    const panel = document.getElementById("inspectionApprovalWorkflowPanel");
+    const host = document.getElementById("inspectionApprovalWorkflowCards");
+    if (!panel || !host) return;
+
+    const hasBeenSubmitted = !!record && (
+        isInspectionFlagEnabled(record.IsSubmitted, false) ||
+        isInspectionFlagEnabled(record.IsApproved, false) ||
+        isInspectionFlagEnabled(record.IsApproved1, false) ||
+        isInspectionFlagEnabled(record.IsApproved2, false)
+    );
+    if (!hasBeenSubmitted) {
+        host.innerHTML = "";
+        panel.classList.add("d-none");
         return;
     }
 
@@ -1589,22 +1599,25 @@ function renderInspectionLightningWorkflowCards(record) {
         }
     ];
 
-    host.innerHTML = '<div class="row g-2 mb-3 inspection-lightning-workflow">' +
+    host.innerHTML = '<div class="row g-2 mb-0 inspection-approval-workflow">' +
         stages.map(function (stage) {
             const done = isInspectionFlagEnabled(record[stage.flag], false);
             const person = String(stage.by || "").trim();
             const timestamp = stage.date
                 ? formatInspectionDateDMY(stage.date) + " " + formatInspectionClockTime(stage.date)
                 : "";
-            const cardClass = done ? "border-" + stage.color + " bg-" + stage.color + "-subtle" : "border-secondary-subtle bg-body-secondary";
+            const cardClass = done
+                ? "border-" + stage.color + " bg-" + stage.color + "-subtle"
+                : "border-secondary-subtle bg-body-secondary";
             const titleClass = done ? "text-" + stage.color + "-emphasis" : "text-secondary";
             const details = done
-                ? '<div class="small fw-semibold text-body mt-2">' + escInspection(person || "Nama belum tersedia") + '</div>' +
+                ? '<div class="small fw-semibold text-body mt-2 inspection-approval-person">' +
+                    escInspection(person || "Nama belum tersedia") + '</div>' +
                     '<div class="small text-muted mt-1"><i class="bi bi-calendar-event me-1"></i>' +
                     escInspection(timestamp || "Waktu belum tersedia") + '</div>'
                 : '<div class="small text-secondary mt-2">Data belum tersedia</div>';
 
-            return '<div class="col-12 col-sm-6 col-lg-3">' +
+            return '<div class="col-12 col-sm-6 col-xl-3">' +
                 '<div class="card h-100 ' + cardClass + '">' +
                     '<div class="card-body p-2 p-md-3">' +
                         '<div class="small fw-bold ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
@@ -1616,21 +1629,15 @@ function renderInspectionLightningWorkflowCards(record) {
         }).join("") +
     '</div>';
 }
+
 window.mountInspectionBatchSummary = function (record) {
     const host = document.getElementById("inspectionMapSummaryHost");
     const checklistPane = document.getElementById("inspectionChecklistPane");
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
     const reasonVoid = document.getElementById("inspectionReasonVoidPanel");
-    const workflowHost = document.getElementById("inspectionLightningWorkflowCards");
     if (!host || !checklistPane || !followUp || !summary) return;
     const isBatch = record && isInspectionMapMode(record.InspectionMode);
-    if (workflowHost) {
-        if (record && String(record.InspectionMode || "").toUpperCase() === "LIGHTNING")
-            renderInspectionLightningWorkflowCards(record);
-        else
-            workflowHost.innerHTML = "";
-    }
     if (isBatch) {
         host.appendChild(followUp);
         host.appendChild(summary);
@@ -1718,6 +1725,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         startTime + " - " + endTime,
         "Status: " + getInspectionRecordGridStatus(record, record.Status === "DONE").label
     ]);
+    renderInspectionApprovalWorkflowCards(record);
     const summaryInput = document.getElementById("txtInspectionSummary");
     if (summaryInput) {
         // This shared field may still carry readOnly=true from the server-submitted detail view.
@@ -4704,6 +4712,7 @@ async function openServerSubmittedInspection(inspectionId) {
             formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime),
             "Status: " + getInspectionRecordGridStatus(h, true).label
         ]);
+        renderInspectionApprovalWorkflowCards(h);
         document.getElementById("txtInspectionSummary").value = h.Summary || "";
         document.getElementById("txtInspectionSummary").readOnly = true;
         document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => {
@@ -4778,15 +4787,19 @@ async function openSavedInspection(localId) {
             if (serverRecord.ReasonVoid) record.ReasonVoid = serverRecord.ReasonVoid;
             if (serverRecord.IsSubmitted != null) record.IsSubmitted = serverRecord.IsSubmitted;
             if (serverRecord.SubmittedBy != null) record.SubmittedBy = serverRecord.SubmittedBy;
+            if (serverRecord.SubmittedByName != null) record.SubmittedByName = serverRecord.SubmittedByName;
             if (serverRecord.SubmittedDate != null) record.SubmittedDate = serverRecord.SubmittedDate;
             if (serverRecord.IsApproved != null) record.IsApproved = serverRecord.IsApproved;
             if (serverRecord.ApprovedBy != null) record.ApprovedBy = serverRecord.ApprovedBy;
+            if (serverRecord.ApprovedByName != null) record.ApprovedByName = serverRecord.ApprovedByName;
             if (serverRecord.ApprovedDate != null) record.ApprovedDate = serverRecord.ApprovedDate;
             if (serverRecord.IsApproved1 != null) record.IsApproved1 = serverRecord.IsApproved1;
             if (serverRecord.Approved1By != null) record.Approved1By = serverRecord.Approved1By;
+            if (serverRecord.Approved1ByName != null) record.Approved1ByName = serverRecord.Approved1ByName;
             if (serverRecord.Approved1Date != null) record.Approved1Date = serverRecord.Approved1Date;
             if (serverRecord.IsApproved2 != null) record.IsApproved2 = serverRecord.IsApproved2;
             if (serverRecord.Approved2By != null) record.Approved2By = serverRecord.Approved2By;
+            if (serverRecord.Approved2ByName != null) record.Approved2ByName = serverRecord.Approved2ByName;
             if (serverRecord.Approved2Date != null) record.Approved2Date = serverRecord.Approved2Date;
             ["TechnicianName", "SubmittedByName", "ApprovedByName", "Approved1ByName", "Approved2ByName"].forEach(function (field) {
                 if (serverRecord[field] != null && String(serverRecord[field]).trim() !== "")
