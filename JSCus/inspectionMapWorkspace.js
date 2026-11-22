@@ -370,7 +370,7 @@
             var cx = isFinite(Number(shape.cx)) ? Math.max(0, Math.min(100, Number(shape.cx))) : x;
             var cy = isFinite(Number(shape.cy)) ? Math.max(0, Math.min(100, Number(shape.cy))) : y;
             // CIRCLE is a point dot; use PATH for larger vector areas.
-            var radius = 0.45;
+            var radius = Math.max(0.15, Math.min(50, Number(shape.r) || 0.45));
             var circleAspect = host.clientWidth && host.clientHeight ? host.clientWidth / host.clientHeight : 1;
             var circleTransform = 'translate(' + cx + ' ' + cy + ') scale(1 ' + circleAspect + ') translate(' + (-cx) + ' ' + (-cy) + ')';
             svg.push('<circle class="inspection-map-svg-circle ' + pointClass(status) + '" cx="' + cx + '" cy="' + cy + '" r="' + radius + '" transform="' + circleTransform + '" data-point-id="' + esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' + esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></circle>');
