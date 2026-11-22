@@ -1564,6 +1564,8 @@ function renderInspectionApprovalWorkflowCards(record) {
         return;
     }
 
+    panel.classList.remove("d-none");
+
     const stages = [
         {
             label: "CHECKED BY",
