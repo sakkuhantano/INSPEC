@@ -2736,12 +2736,13 @@ let inspectionPointNavigatorState = {
 let inspectionPointNavigatorLoadSequence = 0;
 
 function getInspectionPointNavigatorDetails(record) {
-    const allowed = getInspectionTemplateDetailCodes(record.TemplateSnapshot);
+    // The Navigator is intentionally broader than the currently selected
+    // template detail: show every Inspection Detail belonging to this
+    // Inspection Type and company/location so its maps can be browsed too.
     return inspectionDetails.filter(detail =>
         String(detail.InspectionTypeCode || "") === String(record.InspectionTypeCode || "") &&
         (!detail.CompanyID || String(detail.CompanyID) === String(record.CompanyID || "")) &&
-        (!detail.LocationID || String(detail.LocationID) === String(record.LocationID || "")) &&
-        (!allowed.length || allowed.indexOf(String(detail.InspectionTypeDetailCode || "").trim().toUpperCase()) >= 0)
+        (!detail.LocationID || String(detail.LocationID) === String(record.LocationID || ""))
     ).sort((a, b) => String(a.InspectionTypeDetailName || a.InspectionTypeDetailCode || "")
         .localeCompare(String(b.InspectionTypeDetailName || b.InspectionTypeDetailCode || "")));
 }
