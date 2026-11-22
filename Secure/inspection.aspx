@@ -2409,8 +2409,8 @@
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="text" id="txtApprovalDateFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date from" /></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="text" id="txtApprovalDateThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><input type="date" id="txtApprovalDateFrom" class="form-control form-control-sm" aria-label="Approved date from" /></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><input type="date" id="txtApprovalDateThru" class="form-control form-control-sm" aria-label="Approved date thru" /></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
@@ -2541,11 +2541,11 @@
             <div id="inspectionSubmittedFilters" class="d-none align-items-end gap-2 flex-wrap">
                 <div class="inspection-date-control">
                     <label for="txtSubmittedFrom" class="form-label small mb-1">From</label>
-                    <input type="text" id="txtSubmittedFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
+                    <input type="date" id="txtSubmittedFrom" class="form-control form-control-sm" aria-label="Submitted date from" />
                 </div>
                 <div class="inspection-date-control">
                     <label for="txtSubmittedThru" class="form-label small mb-1">Thru</label>
-                    <input type="text" id="txtSubmittedThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control form-control-sm" />
+                    <input type="date" id="txtSubmittedThru" class="form-control form-control-sm" aria-label="Submitted date thru" />
                 </div>
                 <div class="inspection-filter-control"><label for="selSubmittedType" class="form-label small mb-1">Inspection Type</label><select id="selSubmittedType" class="form-select form-select-sm"><option value="">All types</option></select></div>
                 <div class="inspection-filter-control"><label for="selSubmittedDetail" class="form-label small mb-1">Detail Code</label><select id="selSubmittedDetail" class="form-select form-select-sm"><option value="">All details</option></select></div>
