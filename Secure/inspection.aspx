@@ -1905,6 +1905,90 @@
         }
     }
 
+
+    /* Keep the Point Navigator window fixed; only its result list scrolls. */
+    #inspectionPointNavigatorModal .inspection-point-navigator-dialog {
+        width: min(960px, calc(100vw - 2rem));
+        max-width: 960px;
+        height: min(88vh, 860px);
+        height: min(88dvh, 860px);
+        max-height: calc(100vh - 2rem);
+        max-height: calc(100dvh - 2rem);
+        margin: 1rem auto;
+    }
+    #inspectionPointNavigatorModal .modal-content {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+    #inspectionPointNavigatorModal .modal-header,
+    #inspectionPointNavigatorModal .modal-footer {
+        flex: 0 0 auto;
+    }
+    #inspectionPointNavigatorModal .modal-body {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+    #inspectionPointNavigatorModal .modal-body > .row,
+    #inspectionPointNavigatorModal #inspectionPointNavigatorSummary {
+        flex: 0 0 auto;
+    }
+    #inspectionPointNavigatorModal #inspectionPointNavigatorList {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+        max-height: none !important;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+    .inspection-approval-workflow .card,
+    .inspection-approval-workflow .card-body {
+        min-width: 0;
+    }
+    .inspection-approval-workflow .inspection-approval-person {
+        overflow-wrap: anywhere;
+    }
+    @media (max-width: 767.98px) {
+        #inspectionPointNavigatorModal .inspection-point-navigator-dialog {
+            width: calc(100vw - 1rem);
+            max-width: none;
+            height: calc(100vh - 1rem);
+            height: calc(100dvh - 1rem);
+            max-height: calc(100vh - 1rem);
+            max-height: calc(100dvh - 1rem);
+            margin: .5rem auto;
+        }
+        #inspectionPointNavigatorModal .modal-header {
+            padding: .65rem .8rem;
+        }
+        #inspectionPointNavigatorModal .modal-body {
+            padding: .65rem .75rem;
+        }
+        #inspectionPointNavigatorModal .modal-footer {
+            padding: .5rem .75rem;
+        }
+        #inspectionPointNavigatorModal .modal-body > .row {
+            margin-bottom: .55rem !important;
+        }
+    }
+    @media (max-width: 380px) {
+        #inspectionPointNavigatorModal .modal-body {
+            padding: .5rem;
+        }
+        #inspectionPointNavigatorModal .modal-body > .row {
+            --bs-gutter-x: .5rem;
+            --bs-gutter-y: .4rem;
+        }
+    }
+
 </style>
 </asp:Content>
 
@@ -2114,6 +2198,13 @@
             <button type="button" id="btnBackToInspectionRecords" class="btn btn-sm btn-outline-secondary d-none text-nowrap"><i class="bi bi-arrow-left"></i> Back to List</button>
         </div>
     </div><ul id="inspectionEditorTabs" class="nav nav-tabs mb-2 d-none" role="tablist"><li class="nav-item"><button type="button" id="btnInspectionParamTab" class="nav-link" role="tab">PARAM</button></li><li class="nav-item"><button type="button" id="btnInspectionChecklistTab" class="nav-link active" role="tab">CHECKLIST</button></li><li class="nav-item"><button type="button" id="btnInspectionMapTab" class="nav-link" role="tab"><i class="bi bi-map me-1"></i>MAP</button></li></ul><div id="inspectionSectionNavHost" class="inspection-section-nav-host d-none"></div></div>
+    <section id="inspectionApprovalWorkflowPanel" class="inspection-card p-2 p-md-3 mb-3 d-none" aria-label="Approval Workflow">
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-diagram-3-fill text-primary"></i>
+            <div><div class="fw-bold small">APPROVAL WORKFLOW</div><div class="small text-muted">Riwayat submit dan persetujuan inspeksi ini.</div></div>
+        </div>
+        <div id="inspectionApprovalWorkflowCards"></div>
+    </section>
     <div id="inspectionParamsPane">
     <div id="inspectionParameterNotice" class="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-2 small" role="note">
         <i class="bi bi-info-circle-fill flex-shrink-0 mt-1" aria-hidden="true"></i>
@@ -2202,9 +2293,7 @@
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-secondary" id="inspectionMapPendingCount">0</span><span class="inspection-map-stat-label">Belum dicek</span></div>
             <div class="inspection-map-stat"><span class="inspection-map-stat-value text-warning" id="inspectionMapIncompleteCount">0</span><span class="inspection-map-stat-label">Belum lengkap</span></div>
         </div>
-        <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none">
-            <div id="inspectionLightningWorkflowCards"></div>
-        </div>
+        <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"></div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
             <div class="inspection-map-picker-heading mb-2">
                 <div class="inspection-map-eyebrow">LOKASI INSPEKSI</div>
@@ -2350,7 +2439,7 @@
         <div class="inspection-photo-viewer-footer"><span id="inspectionPhotoViewerCount">1 / 1</span><div class="small">Gunakan panah atau geser foto ke kiri/kanan</div></div>
     </div>
     <div class="modal fade" id="inspectionPointNavigatorModal" tabindex="-1" aria-labelledby="inspectionPointNavigatorTitle" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered inspection-point-navigator-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <div>
