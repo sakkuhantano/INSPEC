@@ -301,10 +301,10 @@
                             <div class="col border rounded shadow-sm">
                                 <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
                                     <div class="col d-flex align-items-center">
-                                        <asp:Label ID="lblMapPreviewTitle" runat="server" />
+                                        <asp:Label ID="lblMapPreviewTitle" runat="server" ClientIDMode="Static" />
                                     </div>
                                     <div class="col-auto d-flex align-items-center">
-                                        <asp:HyperLink ID="lnkMapPdf" runat="server" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
+                                        <asp:HyperLink ID="lnkMapPdf" runat="server" ClientIDMode="Static" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
                                     </div>
                                 </div>
                                 <div class="p-2">
