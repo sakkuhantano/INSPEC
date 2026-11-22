@@ -836,7 +836,7 @@
         max-width:none!important;max-height:none!important;object-fit:contain;
     }
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
-        align-self:stretch;width:100%;height:100%;min-height:0;max-height:none;padding:.5rem;
+        align-self:stretch;width:100%;height:min(72vh,760px);min-height:0;max-height:min(72vh,760px);padding:.5rem;
         overflow-x:hidden;overflow-y:auto!important;overscroll-behavior:contain;
         scroll-behavior:smooth
     }
@@ -2082,8 +2082,8 @@
                 <div class="modal-body">
                     <div class="row g-2 mb-3">
                         <div class="col-12 col-md-4">
-                            <label for="inspectionPointNavigatorDetail" class="form-label small fw-semibold mb-1">Inspection Type Detail</label>
-                            <select id="inspectionPointNavigatorDetail" class="form-select form-select-sm"></select>
+                            <label for="inspectionPointNavigatorMap" class="form-label small fw-semibold mb-1">Denah / Map</label>
+                            <select id="inspectionPointNavigatorMap" class="form-select form-select-sm"></select>
                         </div>
                         <div id="inspectionPointNavigatorScheduleWrap" class="col-12 col-md-3 d-none">
                             <label for="inspectionPointNavigatorSchedule" class="form-label small fw-semibold mb-1">Schedule Time</label>
