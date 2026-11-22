@@ -2071,13 +2071,44 @@ ORDER BY P.DisplayOrder,P.PointCode",
 
         protected void btnClearCoordinate_Click(object sender, EventArgs e)
         {
+            long pointID, mapID;
+            if (Int64.TryParse(hidPointID.Value, out pointID) && pointID > 0 &&
+                Int64.TryParse(hidMapID.Value, out mapID) && mapID > 0)
+            {
+                // Clear the persisted geometry as well as the editor fields.
+                // BindMapElements() reloads from SQL, so clearing only the hidden
+                // fields would immediately make the old plot reappear.
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"
+UPDATE P
+SET MapX=NULL, MapY=NULL, ShapeType='CIRCLE',
+    SvgPathData=NULL, ShapeAttributes='{}',
+    UpdateUser=@UserID, UpdateDate=GETDATE()
+FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=M.InspectionTypeCode
+LEFT JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+WHERE P.InspectionPointID=@PointID AND P.MapID=@MapID
+  AND P.IsActive=1 AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
+                        new SqlParameter[] {
+                            new SqlParameter("@PointID", pointID),
+                            new SqlParameter("@MapID", mapID),
+                            new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                            new SqlParameter("@LocationID", Master.Mn_LocationID),
+                            new SqlParameter("@IsAdmin", IsAdministrator()),
+                            new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo),
+                            new SqlParameter("@UserID", Master.Mn_EmployeeID)
+                        });
+                }
+            }
             txtMarkerX.Text = "";
             txtMarkerY.Text = "";
             hidSvgPathData.Value = "";
             hidShapeAttributes.Value = "{}";
             ddlPointShapeType.SelectedValue = "CIRCLE";
-            //ShowMessage("Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", false);
-            GF.MsgBox(this, "Koordinat dikosongkan pada form. Klik Save Point untuk menyimpan perubahan.", "BS-5.3.0");
+            GF.MsgBox(this, "Shape/koordinat point berhasil di-reset dari denah.", "BS-5.3.0");
             pnlPointEditor.Visible = true;
             pnlEditor.Visible = true;
             BindMapElements();
