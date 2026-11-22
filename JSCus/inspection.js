@@ -3209,6 +3209,7 @@ function wireInspectionPointNavigator() {
             const state = inspectionPointNavigatorState;
             const action = pageButton.getAttribute("data-point-navigator-page");
             const pageCount = Math.max(1, Math.ceil((state.setup && state.setup.points || []).filter(point => {
+                const matchMap = !state.selectedMapId || String(point.MapID || "") === String(state.selectedMapId);
                 const keyword = String(state.keyword || "").trim().toLowerCase();
                 const matchKeyword = !keyword || String(point.PointCode || "").toLowerCase().includes(keyword) ||
                     String(point.PointName || "").toLowerCase().includes(keyword);
@@ -3218,7 +3219,7 @@ function wireInspectionPointNavigator() {
                     (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
                     (state.statusFilter === "done" && status === "DONE") ||
                     (state.statusFilter === "abnormal" && status === "ABNORMAL");
-                return matchKeyword && matchStatus;
+                return matchMap && matchKeyword && matchStatus;
             }).length / Math.max(1, state.pageSize)));
             if (action === "first") state.page = 1;
             else if (action === "prev") state.page--;
