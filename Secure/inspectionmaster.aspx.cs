@@ -698,7 +698,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                 "<div class='inspection-map-preview-stage' id='inspectionMapPreviewStage'><div class='inspection-map-preview-media' id='inspectionMapPreviewMedia'>" + media +
                 "<div class='inspection-map-preview-markers'>" + markers + "</div></div></div>";
             pnlMapPreview.Visible = true;
-            pnlMapPreview.Style.Remove("display");
+            pnlMapPreview.Style["display"] = "block";
         }
 
         private string BuildMapPreviewMarkers(long mapID)
