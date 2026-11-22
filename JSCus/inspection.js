@@ -1604,7 +1604,7 @@ function renderInspectionLightningWorkflowCards(record) {
                     escInspection(timestamp || "Waktu belum tersedia") + '</div>'
                 : '<div class="small text-secondary mt-2">Data belum tersedia</div>';
 
-            return '<div class="col-6 col-xl-3">' +
+            return '<div class="col-12 col-sm-6 col-lg-3">' +
                 '<div class="card h-100 ' + cardClass + '">' +
                     '<div class="card-body p-2 p-md-3">' +
                         '<div class="small fw-bold ' + titleClass + '">' + escInspection(stage.label) + '</div>' +
@@ -5033,7 +5033,13 @@ function setInspectionFormInfoPopover(infoLines) {
             if (!target) return;
             const popover = bootstrap.Popover.getInstance(button);
             if (!popover) return;
-            const tip = typeof popover.getTipElement === "function" ? popover.getTipElement() : null;
+            // Bootstrap 5.3 keeps the generated tip id in aria-describedby.
+            // Prefer its public getter when present, then resolve that id so
+            // taps inside the popover itself do not count as outside clicks.
+            const describedBy = button.getAttribute("aria-describedby");
+            const tip = (typeof popover.getTipElement === "function" && popover.getTipElement()) ||
+                (describedBy ? document.getElementById(describedBy) : null) ||
+                (popover.tip || null);
             if (button.contains(target) || (tip && tip.contains(target))) return;
             popover.hide();
         };
