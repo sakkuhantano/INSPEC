@@ -4535,10 +4535,10 @@ function renderInspectionRecordTable(records, host, submitted) {
     ];
     const header = '<thead><tr>' + columns.map(column => {
         const active = inspectionGridSort.key === column.key;
-        const arrow = active ? (inspectionGridSort.direction === "asc" ? " ▲" : " ▼") : "";
+        const indicatorClass = active ? (inspectionGridSort.direction === "asc" ? "is-asc" : "is-desc") : "";
         return '<th class="text-nowrap" role="button" tabindex="0" data-inspection-sort="' + column.key + '" aria-sort="' +
             (active ? (inspectionGridSort.direction === "asc" ? "ascending" : "descending") : "none") + '">' +
-            column.label + '<span class="text-muted small">' + arrow + '</span></th>';
+            column.label + '<span class="inspection-sort-indicator ' + indicatorClass + '" aria-hidden="true"></span></th>';
     }).join("") + '</tr></thead>';
     const sortedRecords = records.slice().sort((a, b) => {
         const value = record => {
@@ -6472,7 +6472,10 @@ function renderInspectionApprovalQueue() {
     document.querySelectorAll("#inspectionApprovalTable [data-approval-sort]").forEach(th => {
         const active = th.dataset.approvalSort === inspectionApprovalSort.key;
         const indicator = th.querySelector(".approval-sort-indicator");
-        if (indicator) indicator.textContent = active ? (inspectionApprovalSort.direction === "asc" ? " ▲" : " ▼") : "";
+        if (indicator) {
+            indicator.classList.toggle("is-asc", active && inspectionApprovalSort.direction === "asc");
+            indicator.classList.toggle("is-desc", active && inspectionApprovalSort.direction === "desc");
+        }
         th.setAttribute("aria-sort", active ? (inspectionApprovalSort.direction === "asc" ? "ascending" : "descending") : "none");
     });
     host.innerHTML = sortedRows.map(row => {
