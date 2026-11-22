@@ -1547,22 +1547,37 @@ function getInspectionLightningWorkflowStatus(record) {
     return "DRAFT";
 }
 
-function renderInspectionApprovalWorkflowCards(record) {
+function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     const panel = document.getElementById("inspectionApprovalWorkflowPanel");
     const host = document.getElementById("inspectionApprovalWorkflowCards");
     if (!panel || !host) return;
 
+    // Prefer the mode resolved by the new-inspection flow; for saved drafts,
+    // fall back to the mode stored on the record, then its Inspection Type master.
+    const recordMode = String(modeOverride || (record && record.InspectionMode) || "").trim().toUpperCase();
+    const typeMaster = record && inspectionTypes.find(type =>
+        String(type.InspectionTypeCode || "") === String(record.InspectionTypeCode || "")
+    );
+    const inspectionMode = recordMode || String(typeMaster && typeMaster.InspectionMode || "").trim().toUpperCase();
+
     // Approval Workflow is exclusive to LIGHTNING inspections.
     // STANDARD and BATCH must never display this panel.
-    if (!record || String(record.InspectionMode || "").trim().toUpperCase() !== "LIGHTNING") {
+    if (!record || inspectionMode !== "LIGHTNING") {
         host.innerHTML = "";
         panel.classList.add("d-none");
+        panel.setAttribute("aria-hidden", "true");
+        panel.style.removeProperty("display");
+        panel.style.removeProperty("flex");
         return;
     }
 
-    // Show the workflow area as soon as a LIGHTNING record is opened.
-    // Each stage remains "Data belum tersedia" until its server flag is completed.
+    // Force the panel to remain a visible flex item in the full-height MAP layout.
+    // All four cards are shown immediately, before any submit/approval flag is set.
     panel.classList.remove("d-none");
+    panel.hidden = false;
+    panel.setAttribute("aria-hidden", "false");
+    panel.style.setProperty("display", "block", "important");
+    panel.style.setProperty("flex", "0 0 auto");
 
     const stages = [
         {
@@ -1629,6 +1644,9 @@ function renderInspectionApprovalWorkflowCards(record) {
         }).join("") +
     '</div>';
 }
+
+// Expose the renderer so the MAP workspace can refresh the panel after switching layouts.
+window.renderInspectionApprovalWorkflowCards = renderInspectionApprovalWorkflowCards;
 
 window.mountInspectionBatchSummary = function (record) {
     const host = document.getElementById("inspectionMapSummaryHost");
