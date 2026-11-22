@@ -663,6 +663,27 @@
         }
         if (board && content && markerX && markerY) {
             var zoom = 1, panX = 0, panY = 0, dragging = false, moved = false, startX = 0, startY = 0;
+            var activePointers = {}, pinchStartDistance = 0, pinchStartZoom = 1;
+            function pointerDistance(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+            function beginPinch(){
+                var ids=Object.keys(activePointers);
+                if(ids.length!==2||drawMode||rectangleDrawing||rectangleResize)return;
+                pinchStartDistance=pointerDistance(activePointers[ids[0]],activePointers[ids[1]]);
+                pinchStartZoom=zoom; dragging=false;
+                board.classList.add('inspection-map-pinching');
+            }
+            function updatePinch(){
+                var ids=Object.keys(activePointers);
+                if(ids.length!==2||!pinchStartDistance)return;
+                var a=activePointers[ids[0]],b=activePointers[ids[1]];
+                var centerX=(a.clientX+b.clientX)/2,centerY=(a.clientY+b.clientY)/2;
+                var next=Math.max(1,Math.min(4,pinchStartZoom*(pointerDistance(a,b)/pinchStartDistance)));
+                var br=board.getBoundingClientRect(),localX=centerX-br.left,localY=centerY-br.top,ratio=next/zoom;
+                panX=(panX-localX)*ratio+localX; panY=(panY-localY)*ratio+localY;
+                zoom=next; inspectionCoordinateZoom=zoom;
+                if(zoom===1){panX=0;panY=0;}
+                applyView(); updateMarkerScale();
+            }
             var zoomLabel = document.getElementById('lblMapZoom');
             function updateMarkerScale() {
                 // Markers are children of the zoomed content, so compensate for
@@ -1326,19 +1347,35 @@
                 setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
+                activePointers[event.pointerId]=event;
+                if(Object.keys(activePointers).length===2&&!drawMode&&!rectangleDrawing&&!rectangleResize){
+                    beginPinch(); event.preventDefault(); return;
+                }
                 // Drawing mode owns the pointer; never start map panning while a path is being drawn.
                 if (drawMode || (event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
             board.addEventListener('pointermove', function (event) {
+                if(activePointers[event.pointerId]) activePointers[event.pointerId]=event;
+                if(Object.keys(activePointers).length===2&&!drawMode&&!rectangleDrawing&&!rectangleResize){
+                    event.preventDefault(); updatePinch(); return;
+                }
                 if (!dragging) return;
                 var nx = event.clientX - startX, ny = event.clientY - startY;
                 if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
                 panX = nx; panY = ny; applyView();
             });
-            board.addEventListener('pointerup', function () { dragging = false; });
-            board.addEventListener('pointercancel', function () { dragging = false; });
+            board.addEventListener('pointerup', function (event) {
+                delete activePointers[event.pointerId];
+                if(Object.keys(activePointers).length<2){pinchStartDistance=0;board.classList.remove('inspection-map-pinching');}
+                dragging=false;
+            });
+            board.addEventListener('pointercancel', function (event) {
+                delete activePointers[event.pointerId];
+                if(Object.keys(activePointers).length<2){pinchStartDistance=0;board.classList.remove('inspection-map-pinching');}
+                dragging=false;
+            });
             content.addEventListener('click', function (event) {
                 var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle') : null;
                 if (marker) {
