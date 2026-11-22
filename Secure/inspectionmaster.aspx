@@ -174,7 +174,7 @@
                                                 <button type="button" id="btnUndoPath" class="btn btn-sm btn-outline-secondary" disabled>Undo</button>
                                                 <button type="button" id="btnRedoPath" class="btn btn-sm btn-outline-secondary" disabled>Redo</button>
                                                 <button type="button" id="btnClearPath" class="btn btn-sm btn-outline-danger">Clear Path</button>
-                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: klik map. Rectangle: drag. PATH: klik titik-titik sudut poligon lalu double-click. Siku: klik titik demi titik lalu double-click.</span>
+                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: drag dari pusat ke tepi. Rectangle: drag sudut ke sudut. PATH: klik titik-titik jalur lalu double-click. Siku: klik titik demi titik lalu double-click.</span>
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
