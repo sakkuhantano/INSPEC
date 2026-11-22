@@ -235,8 +235,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         const submittedToday = localDateString(new Date());
-        document.getElementById("txtSubmittedFrom").value = submittedToday;
-        document.getElementById("txtSubmittedThru").value = submittedToday;
+        document.getElementById("txtSubmittedFrom").value = formatInspectionDateDMY(submittedToday);
+        document.getElementById("txtSubmittedThru").value = formatInspectionDateDMY(submittedToday);
+        wireInspectionDatePicker("txtSubmittedFrom", "pickerSubmittedFrom");
+        wireInspectionDatePicker("txtSubmittedThru", "pickerSubmittedThru");
         document.getElementById("txtInspectionDate").value = formatInspectionDateDMY(submittedToday);
         document.getElementById("txtInspectionDate").disabled = true;
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
@@ -1377,6 +1379,28 @@ function parseInspectionDateFilter(value) {
     const date = new Date(year, month - 1, day);
     if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return "";
     return year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+}
+
+function wireInspectionDatePicker(textId, pickerId) {
+    const textInput = document.getElementById(textId);
+    const datePicker = document.getElementById(pickerId);
+    if (!textInput || !datePicker || textInput.dataset.datePickerWired === "1") return;
+
+    const syncPickerFromText = function () {
+        const parsed = parseInspectionDateFilter(textInput.value);
+        datePicker.value = parsed || "";
+    };
+    const syncTextFromPicker = function () {
+        if (!datePicker.value) return;
+        textInput.value = formatInspectionDateDMY(datePicker.value);
+        textInput.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
+    textInput.addEventListener("change", syncPickerFromText);
+    textInput.addEventListener("blur", syncPickerFromText);
+    datePicker.addEventListener("change", syncTextFromPicker);
+    textInput.dataset.datePickerWired = "1";
+    syncPickerFromText();
 }
 
 function formatInspectionClock(value) {
@@ -6246,9 +6270,11 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
 
     const today = localDateString(new Date());
+    wireInspectionDatePicker("txtApprovalDateFrom", "pickerApprovalDateFrom");
+    wireInspectionDatePicker("txtApprovalDateThru", "pickerApprovalDateThru");
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
         const input = document.getElementById(id);
-        if (input && !input.value) input.value = today;
+        if (input && !input.value) input.value = formatInspectionDateDMY(today);
     });
     setInspectionApprovalTab(currentInspectionApprovalTab, false);
 }
