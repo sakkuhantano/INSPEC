@@ -1220,6 +1220,9 @@
                         svg.setAttribute('preserveAspectRatio', 'none');
                         content.appendChild(svg);
                     }
+                    var previousCirclePreview = content.querySelector('#inspectionCoordinateCirclePreview');
+                    if (previousCirclePreview && previousCirclePreview.parentNode)
+                        previousCirclePreview.parentNode.removeChild(previousCirclePreview);
                     circlePreview = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                     circlePreview.id = 'inspectionCoordinateCirclePreview';
                     circlePreview.setAttribute('fill', 'rgba(13,110,253,.18)');
