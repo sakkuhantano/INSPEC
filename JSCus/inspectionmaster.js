@@ -461,9 +461,10 @@
             media.height = Math.max(1, Math.floor(renderViewport.height));
             media.style.width = Math.max(1, displayViewport.width) + 'px';
             media.style.height = Math.max(1, displayViewport.height) + 'px';
-            if (content) {
-                content.style.width = media.style.width;
-                content.style.height = media.style.height;
+            var coordinateContent = document.getElementById('inspectionCoordinateContent');
+            if (coordinateContent) {
+                coordinateContent.style.width = media.style.width;
+                coordinateContent.style.height = media.style.height;
             }
             var context = media.getContext('2d');
             inspectionPdfRenderTask = inspectionPdfPage.render({ canvasContext: context, viewport: renderViewport });
