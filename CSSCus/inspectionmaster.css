@@ -139,7 +139,7 @@
 .inspection-coordinate-hint>span{display:inline-flex;align-items:center;gap:.3rem;white-space:nowrap}
 .inspection-coordinate-hint>span i{font-size:.55rem}
 .inspection-coordinate-hint-action{color:#6c757d}
-.inspection-point-modal-body .inspection-coordinate-board{height:clamp(180px,34vh,350px)}
+.inspection-point-modal-body .inspection-coordinate-board{height:min(75vh,720px);min-height:260px;max-height:720px}
 @media(max-width:767.98px){.inspection-coordinate-hint{gap:.3rem .65rem;font-size:.68rem}.inspection-coordinate-hint-action{flex-basis:100%}}
 
 /* Saved inspection points on the lower floor-plan preview. */
