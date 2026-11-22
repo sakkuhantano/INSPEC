@@ -710,6 +710,40 @@
                 rectanglePreview.style.width = width + '%';
                 rectanglePreview.style.height = height + '%';
             }
+            function renderRectangleEditorShape(left, top, width, height) {
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (!svg) {
+                    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.id = 'inspectionCoordinateSvgOverlay';
+                    svg.setAttribute('class', 'inspection-coordinate-svg-overlay');
+                    svg.setAttribute('viewBox', '0 0 100 100');
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                    content.appendChild(svg);
+                }
+                svg.querySelectorAll('.inspection-coordinate-rectangle-current[data-editor-preview="1"]').forEach(function (oldRect) {
+                    if (oldRect.parentNode) oldRect.parentNode.removeChild(oldRect);
+                });
+                var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('class', 'inspection-coordinate-rectangle inspection-coordinate-rectangle-current');
+                rect.setAttribute('data-editor-preview', '1');
+                rect.setAttribute('x', Number(left.toFixed(3)));
+                rect.setAttribute('y', Number(top.toFixed(3)));
+                rect.setAttribute('width', Number(width.toFixed(3)));
+                rect.setAttribute('height', Number(height.toFixed(3)));
+                rect.setAttribute('fill', 'rgba(13,110,253,.30)');
+                rect.setAttribute('stroke', '#0d6efd');
+                rect.setAttribute('stroke-width', '1.4');
+                rect.setAttribute('vector-effect', 'non-scaling-stroke');
+                rect.setAttribute('pointer-events', 'none');
+                svg.appendChild(rect);
+            }
+            function removeRectangleEditorShape() {
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (!svg) return;
+                svg.querySelectorAll('.inspection-coordinate-rectangle-current[data-editor-preview="1"]').forEach(function (rect) {
+                    if (rect.parentNode) rect.parentNode.removeChild(rect);
+                });
+            }
             function finishRectangleDrawing(event) {
                 if (!rectangleDrawing) return;
                 var end = mapPointFromEvent(event);
@@ -723,6 +757,7 @@
                 rectanglePreview = null;
                 suppressNextClick = true;
                 if (width < 0.35 || height < 0.35) {
+                    removeRectangleEditorShape();
                     pathStatusText('Area terlalu kecil. Drag kembali untuk membuat rectangle.');
                     return;
                 }
@@ -734,6 +769,7 @@
                 });
                 if (markerX) markerX.value = Number((left + width / 2).toFixed(3)).toFixed(2);
                 if (markerY) markerY.value = Number((top + height / 2).toFixed(3)).toFixed(2);
+                renderRectangleEditorShape(left, top, width, height);
                 pathStatusText('Rectangle area siap disimpan. Save Inspection Point untuk menyimpan blok ini.');
             }
             function mapPointFromEvent(event) {
@@ -890,6 +926,24 @@
                 pathStatusText('PATH / Polyline siap disimpan. Save Inspection Point untuk menyimpan garis ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
+                if (shapeSelect && shapeSelect.value === 'RECTANGLE') {
+                    recordPathEditorAction();
+                    drawMode = false;
+                    drawingPath = false;
+                    orthogonalDrawing = false;
+                    orthogonalPreviewPoint = null;
+                    rectangleDrawing = false;
+                    rectangleStart = null;
+                    removeRectangleEditorShape();
+                    board.classList.remove('path-drawing');
+                    board.classList.add('rectangle-drawing');
+                    board.style.setProperty('cursor', 'crosshair', 'important');
+                    content.style.setProperty('cursor', 'crosshair', 'important');
+                    board.style.setProperty('touch-action', 'none', 'important');
+                    content.style.setProperty('touch-action', 'none', 'important');
+                    pathStatusText('Rectangle aktif: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
+                    return;
+                }
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && pathPoints.length >= 2) {
                     finishPathDrawing();
                     return;
@@ -939,6 +993,7 @@
                 pathPreview = null;
                 var coordinatePreview = document.getElementById('inspectionCoordinatePreview');
                 if (coordinatePreview && coordinatePreview.parentNode) coordinatePreview.parentNode.removeChild(coordinatePreview);
+                removeRectangleEditorShape();
                 pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
@@ -964,7 +1019,8 @@
                     if (pathField) pathField.value = '';
                     if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = '{}';
-                    pathStatusText('Rectangle: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
+                    removeRectangleEditorShape();
+                    pathStatusText('Rectangle: klik Draw SVG Path, lalu drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
                 } else if (this.value === 'ORTHOGONAL') {
                     drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
                     if (pathField) pathField.value = '';
