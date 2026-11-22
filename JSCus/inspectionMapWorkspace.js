@@ -677,108 +677,90 @@
             });
         });
 
-        if (!optionItems.length) {
-            host.innerHTML = "";
-            return;
-        }
-
-        // This popover is a batch-wide summary. Do not restrict its counts to
-        // the currently selected floor plan.
+        // currentPoints contains the master points across every map. The status
+        // helpers resolve each point's transaction using only getActiveScheduleTime().
         var allPoints = Array.isArray(points) ? points : [];
         var totalPoints = allPoints.length;
         var completedPoints = allPoints.filter(function (point) {
             return getPointStatus(point) === "DONE";
         }).length;
         var unfilledPoints = Math.max(0, totalPoints - completedPoints);
+        var incompletePoints = allPoints.filter(function (point) {
+            return getPointStatus(point) === "INCOMPLETE";
+        }).length;
+
+        var hasNormalAbnormal = allPoints.some(isNormalAbnormalRequired);
+        var normalPoints = hasNormalAbnormal ? allPoints.filter(function (point) {
+            return isNormalAbnormalRequired(point) && getPointVisualStatus(point) === "DONE";
+        }).length : 0;
+        var abnormalPoints = hasNormalAbnormal ? allPoints.filter(function (point) {
+            return isNormalAbnormalRequired(point) && getPointVisualStatus(point) === "ABNORMAL";
+        }).length : 0;
+
         var optionCounts = { ON: 0, OFF: 0 };
+        if (optionItems.length) {
+            allPoints.forEach(function (point) {
+                var transaction = getPointTransaction(point);
+                var transactionItems = transaction && (transaction.Items || transaction.items);
+                if (!Array.isArray(transactionItems)) return;
 
-        allPoints.forEach(function (point) {
-            var transaction = getPointTransaction(point);
-            var transactionItems = transaction && (transaction.Items || transaction.items);
-            if (!Array.isArray(transactionItems)) return;
-
-            optionItems.forEach(function (optionItem) {
-                var itemId = optionItem.idItem != null ? optionItem.idItem :
-                    (optionItem.IDItem != null ? optionItem.IDItem : optionItem.id);
-                if (itemId == null || itemId === "") return;
-                var answer = transactionItems.find(function (result) {
-                    var answerId = result.IDItem != null ? result.IDItem :
-                        (result.idItem != null ? result.idItem : result.id);
-                    return Number(answerId) === Number(itemId);
+                optionItems.forEach(function (optionItem) {
+                    var itemId = optionItem.idItem != null ? optionItem.idItem :
+                        (optionItem.IDItem != null ? optionItem.IDItem : optionItem.id);
+                    if (itemId == null || itemId === "") return;
+                    var answer = transactionItems.find(function (result) {
+                        var answerId = result.IDItem != null ? result.IDItem :
+                            (result.idItem != null ? result.idItem : result.id);
+                        return Number(answerId) === Number(itemId);
+                    });
+                    var rawValue = answer && (answer.Value != null ? answer.Value :
+                        (answer.value != null ? answer.value : answer.Result));
+                    var value = String(rawValue == null ? "" : rawValue).trim().toUpperCase();
+                    if (value === "ON") optionCounts.ON++;
+                    else if (value === "OFF") optionCounts.OFF++;
                 });
-                var rawValue = answer && (answer.Value != null ? answer.Value :
-                    (answer.value != null ? answer.value : answer.Result));
-                var value = String(rawValue == null ? "" : rawValue).trim().toUpperCase();
-                if (value === "ON") optionCounts.ON++;
-                else if (value === "OFF") optionCounts.OFF++;
             });
-        });
+        }
 
-        host.innerHTML =
-            '<div class="small fw-semibold text-muted mb-2"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Seluruh Denah</div>' +
+        var isLightning = currentMapRecord &&
+            String(currentMapRecord.InspectionMode || "").toUpperCase() === "LIGHTNING";
+        var scheduleLabel = isLightning ? (getActiveScheduleTime() || "Belum dipilih") : "Batch";
+        var html =
+            '<div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Semua Denah' +
+                '<span class="fw-normal"> · Jadwal ' + esc(scheduleLabel) + '</span></div>' +
             '<div class="inspection-map-global-summary">' +
                 '<div class="inspection-map-global-stat"><strong>' + totalPoints + '</strong><span>Total Point</span></div>' +
                 '<div class="inspection-map-global-stat"><strong>' + completedPoints + '</strong><span>Selesai</span></div>' +
-                '<button type="button" class="inspection-map-global-stat inspection-map-global-stat-action" data-open-inspection-unfilled aria-label="Lihat seluruh point yang belum diisi"><strong>' + unfilledPoints + '</strong><span>Belum diisi</span></button>' +
-            '</div>' +
-            '<div class="inspection-map-option-summary">' +
-                '<div class="inspection-map-option-summary-card">' +
-                    '<div class="inspection-map-option-chip-row">' +
-                        '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">ON</span><strong>' + optionCounts.ON + '</strong></span>' +
-                        '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OFF</span><strong>' + optionCounts.OFF + '</strong></span>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
+                '<button type="button" class="inspection-map-global-stat inspection-map-global-stat-action" data-open-inspection-unfilled aria-label="Lihat point yang belum diisi pada jadwal aktif"><strong>' + unfilledPoints + '</strong><span>Belum diisi</span></button>' +
+                '<div class="inspection-map-global-stat"><strong>' + incompletePoints + '</strong><span>Belum lengkap</span></div>';
 
-        host.setAttribute("data-has-summary", "true");
+        if (hasNormalAbnormal) {
+            html +=
+                '<div class="inspection-map-global-stat"><strong>' + normalPoints + '</strong><span>Normal</span></div>' +
+                '<div class="inspection-map-global-stat"><strong>' + abnormalPoints + '</strong><span>Abnormal</span></div>';
+        }
+
+        html += '</div>';
+        if (optionItems.length) {
+            html +=
+                '<div class="inspection-map-option-summary">' +
+                    '<div class="inspection-map-option-summary-card">' +
+                        '<div class="inspection-map-option-chip-row">' +
+                            '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OPTION ON</span><strong>' + optionCounts.ON + '</strong></span>' +
+                            '<span class="inspection-map-option-chip"><span class="inspection-map-option-chip-label">OPTION OFF</span><strong>' + optionCounts.OFF + '</strong></span>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+        }
+
+        host.innerHTML = html;
+        host.setAttribute("data-has-summary", totalPoints > 0 ? "true" : "false");
     }
 
     function updateSummary() {
-        var points = getVisiblePoints();
-        var done = points.filter(function (p) { return getPointStatus(p) === "DONE"; }).length;
-        var hasNormalAbnormal = points.some(isNormalAbnormalRequired);
-        var abnormal = hasNormalAbnormal
-            ? points.filter(function (p) { return getPointVisualStatus(p) === "ABNORMAL"; }).length
-            : 0;
-        var incomplete = points.filter(function (p) { return getPointStatus(p) === "INCOMPLETE"; }).length;
-        var pending = points.filter(function (p) { return getPointStatus(p) === "PENDING"; }).length;
-        var set = function (id, value) {
-            var element = document.getElementById(id);
-            if (element) element.textContent = String(value);
-        };
-        var labels = {
-            done: document.querySelector("#inspectionMapDoneCount"),
-            abnormal: document.querySelector("#inspectionMapAbnormalCount"),
-            pending: document.querySelector("#inspectionMapPendingCount"),
-            incomplete: document.querySelector("#inspectionMapIncompleteCount")
-        };
-        var labelFor = function (element, value) {
-            var label = element && element.parentElement ? element.parentElement.querySelector(".inspection-map-stat-label") : null;
-            if (label) label.textContent = value;
-        };
-
-        set("inspectionMapTotalCount", points.length);
-
-        var abnormalStat = document.getElementById("inspectionMapAbnormalCount");
-        var abnormalLegend = document.getElementById("inspectionMapAbnormalLegendItem");
-        if (abnormalStat && abnormalStat.parentElement)
-            abnormalStat.parentElement.classList.toggle("d-none", !hasNormalAbnormal);
-        if (abnormalLegend) abnormalLegend.classList.toggle("d-none", !hasNormalAbnormal);
-
-        set("inspectionMapDoneCount", done);
-        set("inspectionMapAbnormalCount", abnormal);
-        set("inspectionMapPendingCount", pending);
-        set("inspectionMapIncompleteCount", incomplete);
-        labelFor(labels.done, "Selesai");
-        labelFor(labels.abnormal, "Abnormal");
-        labelFor(labels.pending, "Belum dicek");
-        labelFor(labels.incomplete, "Belum lengkap");
-
-        var pendingLegend = document.getElementById("inspectionMapPendingLegend");
-        if (pendingLegend) pendingLegend.textContent = "Belum diperiksa";
-
-        // Point totals and ON/OFF answers are aggregated across every floor plan
-        // for the active inspection schedule.
+        // The old full-width per-map status strip has been retired. Keep only
+        // the compact popover summary, aggregated across all maps for the
+        // currently selected schedule time.
         renderTemplateOptionSummary(currentPoints);
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
@@ -1560,6 +1542,7 @@
         }
         host.innerHTML = currentMaps.map(function (map) {
             return '<button type="button" class="inspection-map-choice-card" data-inspection-map-id="' + esc(map.MapID) + '">' +
+                '<i class="bi bi-map" aria-hidden="true"></i>' +
                 '<span class="inspection-map-choice-title">' + esc(map.MapName || "Inspection Map") + '</span>' +
                 '</button>';
         }).join("");
@@ -1576,8 +1559,9 @@
         if (!host) return;
         host.querySelectorAll("[data-inspection-map-id]").forEach(function (button) {
             var selected = String(button.getAttribute("data-inspection-map-id")) === String(currentMapId);
-            button.classList.toggle("active", selected);
-            button.setAttribute("aria-pressed", selected ? "true" : "false");
+            button.classList.toggle("selected", selected);
+            if (selected) button.setAttribute("aria-current", "true");
+            else button.removeAttribute("aria-current");
         });
     }
 
