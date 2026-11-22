@@ -1204,7 +1204,7 @@
             });
             board.addEventListener('pointerdown', function (event) {
                 if (shapeSelect && shapeSelect.value === 'CIRCLE' && event.button === 0 &&
-                    !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
+                    !(event.target.closest && event.target.closest('button, input, select, textarea, .inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
                     circleDrawing = true;
