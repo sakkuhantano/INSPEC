@@ -604,10 +604,52 @@
         });
     }
 
+    function resetOptionSummaryPopoverPosition(host) {
+        if (!host) return;
+        ["position", "left", "right", "top", "width", "max-width", "max-height", "z-index"].forEach(function (property) {
+            host.style.removeProperty(property);
+        });
+    }
+
+    function positionOptionSummaryPopover() {
+        var host = document.getElementById("inspectionMapOptionSummaryHost");
+        var button = document.getElementById("btnInspectionMapOptionInfo");
+        var isMobile = window.matchMedia &&
+            window.matchMedia("(max-width: 767.98px)").matches;
+        if (!host || !button || !isMobile) {
+            if (host) resetOptionSummaryPopoverPosition(host);
+            return;
+        }
+
+        // The option summary lives inside the last toolbar action. Absolute
+        // positioning from that tiny wrapper pushes most of the panel beyond
+        // the phone's left edge. Anchor it to the viewport using the button's
+        // rendered coordinates instead.
+        var rect = button.getBoundingClientRect();
+        var viewportWidth = Math.max(1, document.documentElement.clientWidth || window.innerWidth || 1);
+        var viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+        var width = Math.max(1, Math.min(340, viewportWidth - 16));
+        var left = Math.max(8, Math.min(rect.right - width, viewportWidth - width - 8));
+        var top = Math.min(rect.bottom + 6, Math.max(8, viewportHeight - 112));
+        var maxHeight = Math.max(96, Math.min(viewportHeight * 0.42, viewportHeight - top - 12));
+
+        host.style.position = "fixed";
+        host.style.left = left + "px";
+        host.style.right = "auto";
+        host.style.top = top + "px";
+        host.style.width = width + "px";
+        host.style.maxWidth = width + "px";
+        host.style.maxHeight = maxHeight + "px";
+        host.style.zIndex = "1090";
+    }
+
     function closeOptionSummaryPopover() {
         var host = document.getElementById("inspectionMapOptionSummaryHost");
         var button = document.getElementById("btnInspectionMapOptionInfo");
-        if (host) host.classList.add("d-none");
+        if (host) {
+            host.classList.add("d-none");
+            resetOptionSummaryPopoverPosition(host);
+        }
         if (button) button.setAttribute("aria-expanded", "false");
     }
 
@@ -1910,6 +1952,12 @@
                 var opening = optionSummaryHost.classList.contains("d-none");
                 optionSummaryHost.classList.toggle("d-none", !opening);
                 optionInfoButton.setAttribute("aria-expanded", opening ? "true" : "false");
+                if (opening) positionOptionSummaryPopover();
+                else resetOptionSummaryPopoverPosition(optionSummaryHost);
+            });
+            window.addEventListener("resize", function () {
+                if (!optionSummaryHost.classList.contains("d-none"))
+                    positionOptionSummaryPopover();
             });
             document.addEventListener("click", function (event) {
                 if (optionSummaryHost.classList.contains("d-none")) return;
