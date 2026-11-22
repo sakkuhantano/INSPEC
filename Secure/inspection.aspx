@@ -2181,7 +2181,7 @@
                     <i class="bi bi-trash"></i><span class="inspection-map-action-label">Delete Draft Batch</span>
                 </button>
                 <div class="inspection-map-option-info">
-                    <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan jawaban template" aria-label="Info status option" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
+                    <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan seluruh denah" aria-label="Ringkasan seluruh denah" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
                         <i class="bi bi-info-circle"></i>
                     </button>
                     <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan seluruh denah">
