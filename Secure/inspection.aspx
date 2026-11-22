@@ -2318,6 +2318,59 @@
             width:26px!important;min-width:26px!important;height:26px!important;min-height:26px!important;
         }
     }
+
+    /* Final map-space tuning: readable desktop map chips and a taller canvas. */
+    @media(min-width:768px){
+        #inspectionMapWorkspace:not(.d-none){
+            min-height:max(720px,calc(100dvh - 230px))!important;
+        }
+        #inspectionMapWorkspace>.inspection-map-content:not(.d-none){
+            min-height:460px!important;
+        }
+        #inspectionMapWorkspace .inspection-map-content>.inspection-map-panel>.inspection-map-canvas{
+            min-height:430px!important;
+        }
+        #inspectionMapPicker{
+            height:50px!important;min-height:50px!important;max-height:50px!important;
+            padding:.28rem .5rem!important;
+        }
+        #inspectionMapPicker .inspection-map-choice-card{
+            height:40px!important;min-height:40px!important;max-height:40px!important;
+            padding:.38rem .68rem!important;align-items:center!important;
+        }
+        #inspectionMapPicker .inspection-map-choice-title{
+            font-size:.74rem!important;line-height:1.25!important;
+        }
+    }
+
+    /* Make the selected schedule visually unmistakable on desktop and mobile. */
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link{
+        display:inline-flex;align-items:center;justify-content:center;gap:.32rem;
+        border:1px solid var(--bs-border-color)!important;
+        border-radius:.48rem!important;
+        background:var(--bs-body-bg)!important;
+        color:var(--bs-secondary-color)!important;
+        font-weight:650;
+        transition:background-color .12s ease,color .12s ease,border-color .12s ease,box-shadow .12s ease;
+    }
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link.active,
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link[aria-current="page"]{
+        background:var(--bs-primary)!important;
+        color:#fff!important;
+        border-color:var(--bs-primary)!important;
+        font-weight:850!important;
+        box-shadow:0 2px 8px rgba(var(--bs-primary-rgb),.32),inset 0 0 0 1px rgba(255,255,255,.12)!important;
+        text-shadow:0 1px 1px rgba(0,0,0,.12);
+    }
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link.active .small,
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link[aria-current="page"] .small{
+        color:#fff!important;opacity:.92!important;
+    }
+    #inspectionMapScheduleToolbarRow #inspectionLightningScheduleTabs .nav-link:not(.active):hover{
+        background:var(--bs-primary-bg-subtle)!important;
+        color:var(--bs-primary)!important;
+        border-color:var(--bs-primary-border-subtle)!important;
+    }
 </style>
 </asp:Content>
 
