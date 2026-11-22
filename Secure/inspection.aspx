@@ -814,8 +814,8 @@
     #inspectionMapWorkspace>.inspection-map-toolbar{flex:0 0 auto;padding:.4rem .7rem;min-height:48px}
     #inspectionMapWorkspace>.inspection-map-summary{flex:0 0 auto;min-height:52px}
     #inspectionMapWorkspace>#inspectionMapSelectWrap{flex:0 0 auto;padding:.25rem .7rem!important}
-    #inspectionMapWorkspace>.inspection-map-content{flex:1 1 auto;min-height:0;grid-template-columns:minmax(0,1fr) 250px;gap:.45rem}
-    #inspectionMapWorkspace .inspection-map-panel{min-height:0;overflow:hidden}
+    #inspectionMapWorkspace>.inspection-map-content{flex:1 1 auto;min-height:0;align-items:stretch;grid-template-columns:minmax(0,1fr) minmax(320px,340px);gap:.55rem}
+    #inspectionMapWorkspace .inspection-map-panel{display:flex;flex-direction:column;min-height:0;height:100%;overflow:hidden}
     #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
         flex:1 1 auto;height:auto!important;min-height:0!important;max-height:none!important;
         padding:4px!important;display:flex;align-items:flex-start;justify-content:center;
@@ -828,14 +828,15 @@
     }
     /* Start the floor plan at the top edge instead of vertically centering it. */
     #inspectionMapWorkspace .inspection-map-pdf-stage{
-        flex:0 0 auto;align-self:flex-start;max-width:none!important;max-height:none!important;margin:0 auto!important;
+        flex:0 0 auto;align-self:center;min-width:0!important;max-width:none!important;max-height:none!important;
+        margin-left:auto!important;margin-right:auto!important;
     }
     #inspectionMapWorkspace .inspection-map-pdf-stage canvas,
     #inspectionMapWorkspace .inspection-map-pdf-stage img{
         max-width:none!important;max-height:none!important;object-fit:contain;
     }
     #inspectionMapWorkspace .inspection-map-content>#inspectionPointList{
-        height:100%;min-height:0;max-height:none;padding:.45rem;
+        align-self:stretch;width:100%;height:100%;min-height:0;max-height:none;padding:.5rem;
         overflow-x:hidden;overflow-y:auto!important;overscroll-behavior:contain;
         scroll-behavior:smooth
     }
