@@ -719,7 +719,7 @@
             '<div class="inspection-map-global-summary">' +
                 '<div class="inspection-map-global-stat"><strong>' + totalPoints + '</strong><span>Total Point</span></div>' +
                 '<div class="inspection-map-global-stat"><strong>' + completedPoints + '</strong><span>Selesai</span></div>' +
-                '<div class="inspection-map-global-stat"><strong>' + unfilledPoints + '</strong><span>Belum diisi</span></div>' +
+                '<button type="button" class="inspection-map-global-stat inspection-map-global-stat-action" data-open-inspection-unfilled aria-label="Lihat seluruh point yang belum diisi"><strong>' + unfilledPoints + '</strong><span>Belum diisi</span></button>' +
             '</div>' +
             '<div class="inspection-map-option-summary">' +
                 '<div class="inspection-map-option-summary-card">' +
@@ -1923,6 +1923,16 @@
         var optionInfoButton = document.getElementById("btnInspectionMapOptionInfo");
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         if (optionInfoButton && optionSummaryHost) {
+            optionSummaryHost.addEventListener("click", function (event) {
+                var unfilledButton = event.target && event.target.closest
+                    ? event.target.closest("[data-open-inspection-unfilled]") : null;
+                if (!unfilledButton) return;
+                event.preventDefault();
+                event.stopPropagation();
+                closeOptionSummaryPopover();
+                if (typeof window.openInspectionPointNavigator === "function")
+                    window.openInspectionPointNavigator({ mapId: "all", statusFilter: "unfilled" });
+            });
             optionInfoButton.addEventListener("click", function (event) {
                 event.stopPropagation();
                 if (optionSummaryHost.getAttribute("data-has-summary") !== "true") return;
