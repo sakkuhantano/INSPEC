@@ -235,8 +235,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
 
         const submittedToday = localDateString(new Date());
-        document.getElementById("txtSubmittedFrom").value = formatInspectionDateDMY(submittedToday);
-        document.getElementById("txtSubmittedThru").value = formatInspectionDateDMY(submittedToday);
+        document.getElementById("txtSubmittedFrom").value = submittedToday;
+        document.getElementById("txtSubmittedThru").value = submittedToday;
         document.getElementById("txtInspectionDate").value = formatInspectionDateDMY(submittedToday);
         document.getElementById("txtInspectionDate").disabled = true;
         document.getElementById("txtInspectionDate").setAttribute("aria-readonly", "true");
@@ -4535,7 +4535,7 @@ function renderInspectionRecordTable(records, host, submitted) {
     ];
     const header = '<thead><tr>' + columns.map(column => {
         const active = inspectionGridSort.key === column.key;
-        const arrow = active ? (inspectionGridSort.direction === "asc" ? " ▲" : " ▼") : " ↕";
+        const arrow = active ? (inspectionGridSort.direction === "asc" ? " ▲" : " ▼") : "";
         return '<th class="text-nowrap" role="button" tabindex="0" data-inspection-sort="' + column.key + '" aria-sort="' +
             (active ? (inspectionGridSort.direction === "asc" ? "ascending" : "descending") : "none") + '">' +
             column.label + '<span class="text-muted small">' + arrow + '</span></th>';
@@ -6248,7 +6248,7 @@ function wireInspectionApprovalEvents() {
     const today = localDateString(new Date());
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
         const input = document.getElementById(id);
-        if (input && !input.value) input.value = formatInspectionDateDMY(today);
+        if (input && !input.value) input.value = today;
     });
     setInspectionApprovalTab(currentInspectionApprovalTab, false);
 }
@@ -6345,7 +6345,7 @@ async function loadInspectionApprovalQueue() {
         if (currentInspectionApprovalTab === "APPROVED" &&
             ((dateFrom && dateFrom.value && !parseInspectionDateFilter(dateFrom.value)) ||
              (dateThru && dateThru.value && !parseInspectionDateFilter(dateThru.value)))) {
-            showToast("Format tanggal harus dd-MMM-yyyy, contoh 18-Nov-2026.", "warning");
+            showToast("Tanggal From/Thru tidak valid. Periksa rentang tanggal yang dipilih.", "warning");
             return;
         }
         const queueParameters = {
@@ -6472,7 +6472,7 @@ function renderInspectionApprovalQueue() {
     document.querySelectorAll("#inspectionApprovalTable [data-approval-sort]").forEach(th => {
         const active = th.dataset.approvalSort === inspectionApprovalSort.key;
         const indicator = th.querySelector(".approval-sort-indicator");
-        if (indicator) indicator.textContent = active ? (inspectionApprovalSort.direction === "asc" ? " ▲" : " ▼") : " ↕";
+        if (indicator) indicator.textContent = active ? (inspectionApprovalSort.direction === "asc" ? " ▲" : " ▼") : "";
         th.setAttribute("aria-sort", active ? (inspectionApprovalSort.direction === "asc" ? "ascending" : "descending") : "none");
     });
     host.innerHTML = sortedRows.map(row => {
