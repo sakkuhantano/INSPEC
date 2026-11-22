@@ -1569,7 +1569,10 @@
         if (preserveView && listHost) listHost.scrollTop = previousListScrollTop;
         updateSummary();
         renderPoints();
-        window.requestAnimationFrame(function () { renderPdf(map); });
+        window.requestAnimationFrame(function () {
+            if (preserveView) applyMapTransform();
+            else renderPdf(map);
+        });
     }
 
     function setInspectionSectionNavForTab(tabName) {
