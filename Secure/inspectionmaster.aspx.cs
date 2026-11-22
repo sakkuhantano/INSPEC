@@ -497,7 +497,10 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
             BindInspectionDetails();
             chkRequireAllPoints.Checked = true;
             lblMapVersion.Text = "New map · version will start at 1";
-            pnlMapPreview.Visible = false;
+            // Keep the preview container in the DOM for an unsaved New Map.
+            // Client-side draft preview reveals it as soon as a file is selected.
+            pnlMapPreview.Visible = true;
+            pnlMapPreview.Style["display"] = "none";
         }
 
         private void PreparePoint()
@@ -695,6 +698,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                 "<div class='inspection-map-preview-stage' id='inspectionMapPreviewStage'><div class='inspection-map-preview-media' id='inspectionMapPreviewMedia'>" + media +
                 "<div class='inspection-map-preview-markers'>" + markers + "</div></div></div>";
             pnlMapPreview.Visible = true;
+            pnlMapPreview.Style.Remove("display");
         }
 
         private string BuildMapPreviewMarkers(long mapID)
@@ -1229,7 +1233,9 @@ ORDER BY M.MapVersion DESC",
                     txtMapGroupName.Text = "";
                     txtMapGroupDescription.Text = "";
                     lblMapVersion.Text = "New map · version will start at 1";
-                    pnlMapPreview.Visible = false;
+                    // Keep the client preview host rendered while resetting to New Map.
+                    pnlMapPreview.Visible = true;
+                    pnlMapPreview.Style["display"] = "none";
                     Master.TB_VisibleButton(ToolbarItem_2.Previous, false);
                     Master.TB_VisibleButton(ToolbarItem_2.Next, false);
                     BindEditorMaps();
