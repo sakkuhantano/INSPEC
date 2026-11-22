@@ -6270,12 +6270,12 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
 
     const today = localDateString(new Date());
-    wireInspectionDatePicker("txtApprovalDateFrom", "pickerApprovalDateFrom");
-    wireInspectionDatePicker("txtApprovalDateThru", "pickerApprovalDateThru");
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
         const input = document.getElementById(id);
         if (input && !input.value) input.value = formatInspectionDateDMY(today);
     });
+    wireInspectionDatePicker("txtApprovalDateFrom", "pickerApprovalDateFrom");
+    wireInspectionDatePicker("txtApprovalDateThru", "pickerApprovalDateThru");
     setInspectionApprovalTab(currentInspectionApprovalTab, false);
 }
 
