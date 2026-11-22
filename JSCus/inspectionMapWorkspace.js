@@ -1520,12 +1520,26 @@
         if (!map) return;
         closeOptionSummaryPopover();
         currentMapId = String(map.MapID);
+        var workspace = document.getElementById("inspectionMapWorkspace");
+        var toolbar = workspace && workspace.querySelector(".inspection-map-toolbar");
         var summary = document.getElementById("inspectionMapSummary");
         var content = document.getElementById("inspectionMapContent");
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
         var nextButton = document.getElementById("btnInspectionNextPending");
-        if (summary) summary.classList.remove("d-none");
+        // Lihat Map must always restore the map chrome even if a previous tab
+        // transition left a stale hidden state on one of these workspace rows.
+        if (workspace) workspace.classList.remove("d-none");
+        if (toolbar) {
+            toolbar.classList.remove("d-none");
+            toolbar.removeAttribute("hidden");
+            toolbar.style.removeProperty("display");
+        }
+        if (summary) {
+            summary.classList.remove("d-none");
+            summary.removeAttribute("hidden");
+            summary.style.removeProperty("display");
+        }
         if (content) content.classList.remove("d-none");
         if (summaryHost) summaryHost.classList.remove("d-none");
         if (submitBar) submitBar.classList.remove("d-none");
@@ -1740,7 +1754,7 @@
         var pointX = stageRect.left + stageRect.width * x / 100;
         var pointY = stageRect.top + stageRect.height * y / 100;
         var stageCenterX = stageRect.left + stageRect.width / 2;
-        var zoom = Math.min(mapMaxZoom, Math.max(3.0, mapMinZoom));
+        var zoom = Math.min(mapMaxZoom, Math.max(2.2, mapMinZoom));
         mapZoom = zoom;
         mapPanX = viewportRect.left + viewportRect.width / 2 -
             (stageCenterX + (pointX - stageCenterX) * zoom);
@@ -1766,9 +1780,6 @@
                 var targetY = targetPosition.y;
                 var ring = document.createElement("div");
                 ring.className = "inspection-map-navigator-focus-ring";
-                ring.style.width = "34px";
-                ring.style.height = "34px";
-                ring.style.borderWidth = "2px";
                 ring.style.left = targetX + "%";
                 ring.style.top = targetY + "%";
                 ring.setAttribute("aria-hidden", "true");
