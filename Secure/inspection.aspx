@@ -871,17 +871,20 @@
     .inspection-map-svg-path.selected{stroke-width:1.8!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.75))}
 
 .inspection-map-option-summary-host{width:100%;overflow:visible;padding:.15rem 0 .25rem;scrollbar-width:thin}
-.inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch;min-width:0}
-.inspection-map-option-summary-card{min-width:170px;max-width:280px;padding:.45rem .55rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
-.inspection-map-option-summary-title{font-size:.76rem;font-weight:800;white-space:normal;overflow-wrap:anywhere;margin-bottom:.35rem;color:var(--bs-body-color)}
-    .inspection-map-option-item-title{font-size:.72rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.25rem}
-.inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.25rem}
-.inspection-map-option-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .38rem;border-radius:999px;background:var(--bs-secondary-bg);font-size:.68rem;line-height:1.1;white-space:nowrap}
-.inspection-map-option-chip strong{font-size:.72rem}
-.inspection-map-option-chip-muted{opacity:.7}
+.inspection-map-global-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.35rem;margin-bottom:.45rem}
+.inspection-map-global-stat{min-width:0;padding:.35rem .4rem;border:1px solid var(--bs-border-color);border-radius:.5rem;background:var(--bs-secondary-bg);text-align:center}
+.inspection-map-global-stat strong{display:block;font-size:.9rem;line-height:1.1;color:var(--bs-body-color)}
+.inspection-map-global-stat span{display:block;margin-top:.12rem;font-size:.62rem;line-height:1.15;color:var(--bs-secondary-color);white-space:nowrap}
+.inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.35rem;align-items:stretch;min-width:0}
+.inspection-map-option-summary-card{min-width:0;max-width:none;width:100%;padding:.4rem .5rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
+.inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.3rem}
+.inspection-map-option-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .45rem;border-radius:999px;background:var(--bs-secondary-bg);font-size:.7rem;line-height:1.1;white-space:nowrap}
+.inspection-map-option-chip strong{font-size:.76rem}
 @media(max-width:767.98px){
     #inspectionMapStickyStack>#inspectionMapSummaryHost{max-height:none!important;overflow:visible!important}
-    .inspection-map-option-summary-card{min-width:130px;max-width:230px;flex:1 1 145px}
+    .inspection-map-global-summary{gap:.25rem;margin-bottom:.3rem}
+    .inspection-map-global-stat{padding:.28rem .25rem}
+    .inspection-map-option-summary-card{padding:.32rem .4rem}
 }
 .inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
 .inspection-map-picker-heading h5{font-size:1.05rem}
@@ -1558,43 +1561,28 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapOptionSummaryHost {
-            flex: 0 0 auto !important;
-            max-height: 64px;
-            min-height: 0;
-            overflow: hidden;
-            padding: .15rem .45rem .2rem !important;
-        }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-host > .small {
+            font-size: .68rem;
+            line-height: 1.15;
+            margin-bottom: .35rem !important;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-global-stat strong {
+            font-size: .82rem;
+        }
+        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-global-stat span {
             font-size: .58rem;
-            line-height: 1.1;
-            margin-bottom: .12rem !important;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary {
-            flex-wrap: nowrap;
-            gap: .3rem;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding-bottom: .1rem;
-            -webkit-overflow-scrolling: touch;
+            flex-wrap: wrap;
+            gap: .25rem;
+            overflow: visible;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-card {
-            flex: 0 0 auto;
+            flex: 1 1 100%;
             min-width: 0;
             max-width: 100%;
-            padding: .18rem .32rem;
+            padding: .25rem .35rem;
             border-radius: .4rem;
-        }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-summary-title {
-            display: block;
-            font-size: .66rem;
-            line-height: 1.2;
-            white-space: normal;
-            margin-bottom: .2rem;
-        }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-item-title {
-            font-size: .6rem;
-            line-height: 1.15;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace .inspection-map-option-chip {
             padding: .14rem .32rem;
@@ -2196,8 +2184,8 @@
                     <button type="button" id="btnInspectionMapOptionInfo" class="btn btn-sm btn-outline-secondary d-none" title="Lihat ringkasan jawaban template" aria-label="Info status option" aria-expanded="false" aria-controls="inspectionMapOptionSummaryHost">
                         <i class="bi bi-info-circle"></i>
                     </button>
-                    <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan jawaban template">
-                        <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Jawaban Template</div>
+                    <div id="inspectionMapOptionSummaryHost" class="inspection-map-option-summary-host d-none" role="region" aria-label="Ringkasan seluruh denah">
+                        <div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Seluruh Denah</div>
                         <div class="inspection-map-option-summary"></div>
                     </div>
                 </div>
