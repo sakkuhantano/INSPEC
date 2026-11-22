@@ -5964,25 +5964,27 @@ function wireInspectionEditorStickyHeader() {
             Math.max(max, toMs(duration) + toMs(delays[index % delays.length])), 0);
     }
 
+    function updateInspectionInfoPopoverPosition() {
+        const infoButton = document.getElementById("btnInspectionFormInfo");
+        if (!infoButton || !window.bootstrap || !bootstrap.Popover) return;
+        const infoPopover = bootstrap.Popover.getInstance(infoButton);
+        if (infoPopover && typeof infoPopover.update === "function")
+            infoPopover.update();
+    }
+
     function syncHeaderDuringSidebarTransition(now) {
         updateFixedHeader();
+        updateInspectionInfoPopoverPosition();
         if (now < sidebarSyncUntil) {
             sidebarSyncFrame = window.requestAnimationFrame(syncHeaderDuringSidebarTransition);
         } else {
             sidebarSyncFrame = 0;
             updateFixedHeader();
+            updateInspectionInfoPopoverPosition();
         }
     }
 
     function handleSidebarLayoutChange() {
-        // Bootstrap appends this popover to <body>; close it rather than leaving
-        // it floating at the previous header coordinates after the sidebar moves.
-        const infoButton = document.getElementById("btnInspectionFormInfo");
-        if (infoButton && window.bootstrap && bootstrap.Popover) {
-            const infoPopover = bootstrap.Popover.getInstance(infoButton);
-            if (infoPopover) infoPopover.hide();
-        }
-
         const transitionMs = Math.max(
             getCssTransitionMs(sidebar),
             getCssTransitionMs(pageContent)
