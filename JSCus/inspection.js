@@ -4994,6 +4994,19 @@ function setInspectionFormInfoPopover(infoLines) {
     }
     infoButton.removeAttribute("title");
 
+    // Bootstrap's click trigger toggles the popover only when the info button
+    // itself is clicked. Explicitly dismiss it when the user clicks anywhere else.
+    if (!document.documentElement.dataset.inspectionInfoPopoverOutsideClickWired) {
+        document.documentElement.dataset.inspectionInfoPopoverOutsideClickWired = "1";
+        document.addEventListener("click", function (event) {
+            const button = document.getElementById("btnInspectionFormInfo");
+            if (!button || !window.bootstrap || !bootstrap.Popover) return;
+            if (event.target.closest && event.target.closest("#btnInspectionFormInfo")) return;
+            const popover = bootstrap.Popover.getInstance(button);
+            if (popover) popover.hide();
+        }, true);
+    }
+
     const content = (infoLines || []).filter(Boolean).map(line =>
         '<div class="mb-1">' + escInspection(line) + '</div>'
     ).join("");
