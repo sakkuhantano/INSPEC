@@ -1044,14 +1044,71 @@ WHERE IT.InspectionTypeCode=@TypeCode
             }
         }
 
+        protected void txtMapGroupCode_TextChanged(object sender, EventArgs e)
+        {
+            LoadMapGroupByCode(true);
+        }
+
+        private bool LoadMapGroupByCode(bool clearWhenNotFound)
+        {
+            string groupCode = (txtMapGroupCode.Text ?? "").Trim().ToUpperInvariant();
+            if (groupCode == "")
+            {
+                if (clearWhenNotFound)
+                {
+                    txtMapGroupName.Text = "";
+                    txtMapGroupDescription.Text = "";
+                }
+                return false;
+            }
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable group = br.EQueryP(@"
+SELECT TOP 1 GroupName, Description
+FROM dbo.PIP_M_InspectionMapGroup
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+  AND GroupCode=@GroupCode AND IsActive=1",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@GroupCode", groupCode)
+                    });
+
+                if (group != null && group.Rows.Count > 0)
+                {
+                    txtMapGroupName.Text = Convert.ToString(group.Rows[0]["GroupName"]);
+                    txtMapGroupDescription.Text = Convert.ToString(group.Rows[0]["Description"]);
+                    return true;
+                }
+            }
+
+            if (clearWhenNotFound)
+            {
+                txtMapGroupName.Text = "";
+                txtMapGroupDescription.Text = "";
+            }
+            return false;
+        }
+
         private long? SaveOrGetMapGroup()
         {
             string groupCode = (txtMapGroupCode.Text ?? "").Trim().ToUpperInvariant();
             string groupName = (txtMapGroupName.Text ?? "").Trim();
             string groupDescription = (txtMapGroupDescription.Text ?? "").Trim();
             if (groupCode == "" && groupName == "" && groupDescription == "") return null;
-            if (groupCode == "" || groupName == "")
-                throw new Exception("Map Group Code dan Map Group Name harus diisi bersama-sama.");
+            if (groupCode == "")
+                throw new Exception("Map Group Code harus diisi jika Map Group digunakan.");
+
+            // A selected existing Group Code is sufficient. Resolve its master
+            // name/description when the lookup did not trigger a TextChanged postback.
+            if (groupName == "")
+            {
+                if (!LoadMapGroupByCode(false))
+                    throw new Exception("Map Group Code belum terdaftar. Isi Map Group Name untuk membuat grup baru.");
+                groupName = (txtMapGroupName.Text ?? "").Trim();
+                groupDescription = (txtMapGroupDescription.Text ?? "").Trim();
+            }
 
             long newID = NextId("dbo.PIP_M_InspectionMapGroup", "MapGroupID");
             using (var br = new WAL.BR.CF())
