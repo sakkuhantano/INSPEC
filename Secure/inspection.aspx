@@ -875,6 +875,10 @@
 .inspection-map-global-stat{min-width:0;padding:.35rem .4rem;border:1px solid var(--bs-border-color);border-radius:.5rem;background:var(--bs-secondary-bg);text-align:center}
 .inspection-map-global-stat strong{display:block;font-size:.9rem;line-height:1.1;color:var(--bs-body-color)}
 .inspection-map-global-stat span{display:block;margin-top:.12rem;font-size:.62rem;line-height:1.15;color:var(--bs-secondary-color);white-space:nowrap}
+.inspection-map-global-stat-action{display:block;width:100%;font:inherit;color:inherit;border:1px solid var(--bs-border-color);cursor:pointer}
+.inspection-map-global-stat-action:hover,.inspection-map-global-stat-action:focus-visible{border-color:var(--bs-primary);background:var(--bs-primary-bg-subtle);outline:0}
+.inspection-lightning-workflow .card-body{min-width:0}
+.inspection-lightning-workflow .card{min-width:0}
 .inspection-map-option-summary{display:flex;flex-wrap:wrap;gap:.35rem;align-items:stretch;min-width:0}
 .inspection-map-option-summary-card{min-width:0;max-width:none;width:100%;padding:.4rem .5rem;border:1px solid var(--bs-border-color);border-radius:.55rem;background:var(--bs-body-bg)}
 .inspection-map-option-chip-row{display:flex;flex-wrap:wrap;gap:.3rem}
@@ -2361,14 +2365,11 @@
                             <label for="inspectionPointNavigatorMap" class="form-label small fw-semibold mb-1">Denah / Map</label>
                             <select id="inspectionPointNavigatorMap" class="form-select form-select-sm"></select>
                         </div>
-                        <div id="inspectionPointNavigatorScheduleWrap" class="col-12 col-md-3 d-none">
-                            <label for="inspectionPointNavigatorSchedule" class="form-label small fw-semibold mb-1">Schedule Time</label>
-                            <select id="inspectionPointNavigatorSchedule" class="form-select form-select-sm"></select>
-                        </div>
                         <div class="col-12 col-md-2">
                             <label for="inspectionPointNavigatorStatusFilter" class="form-label small fw-semibold mb-1">Status</label>
                             <select id="inspectionPointNavigatorStatusFilter" class="form-select form-select-sm">
                                 <option value="all">Semua</option>
+                                <option value="unfilled">Belum diisi</option>
                                 <option value="pending">Belum diinspeksi</option>
                                 <option value="incomplete">Belum lengkap</option>
                                 <option value="done">Selesai</option>
@@ -2384,7 +2385,6 @@
                                 <option value="name">Point Name A-Z</option>
                                 <option value="name-desc">Point Name Z-A</option>
                                 <option value="status">Status Inspeksi</option>
-                                <option value="schedule">Schedule Time</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-9">
