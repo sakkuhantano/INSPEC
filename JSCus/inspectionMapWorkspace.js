@@ -1567,13 +1567,11 @@
 
     function showMapPicker() {
         var picker = document.getElementById("inspectionMapPicker");
-        var summary = document.getElementById("inspectionMapSummary");
         var content = document.getElementById("inspectionMapContent");
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
         var nextButton = document.getElementById("btnInspectionNextPending");
         if (picker) picker.classList.toggle("d-none", !hasMapGroups());
-        if (summary) summary.classList.add("d-none");
         if (content) content.classList.add("d-none");
         if (summaryHost) summaryHost.classList.add("d-none");
         if (submitBar) submitBar.classList.add("d-none");
@@ -1592,7 +1590,6 @@
         currentMapId = String(map.MapID);
         var workspace = document.getElementById("inspectionMapWorkspace");
         var toolbar = workspace && workspace.querySelector(".inspection-map-toolbar");
-        var summary = document.getElementById("inspectionMapSummary");
         var content = document.getElementById("inspectionMapContent");
         var summaryHost = document.getElementById("inspectionMapSummaryHost");
         var submitBar = document.getElementById("inspectionMapSubmitBar");
@@ -1604,11 +1601,6 @@
             toolbar.classList.remove("d-none");
             toolbar.removeAttribute("hidden");
             toolbar.style.removeProperty("display");
-        }
-        if (summary) {
-            summary.classList.remove("d-none");
-            summary.removeAttribute("hidden");
-            summary.style.removeProperty("display");
         }
         if (content) content.classList.remove("d-none");
         if (summaryHost) summaryHost.classList.remove("d-none");
