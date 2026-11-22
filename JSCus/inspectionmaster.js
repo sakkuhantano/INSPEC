@@ -924,6 +924,17 @@
                     if (rect.parentNode) rect.parentNode.removeChild(rect);
                 });
             }
+            function hasRectangleGeometry() {
+                if (!shapeAttributesField) return false;
+                try {
+                    var attributes = JSON.parse(shapeAttributesField.value || '{}') || {};
+                    return isFinite(Number(attributes.x)) && isFinite(Number(attributes.y)) &&
+                        isFinite(Number(attributes.width)) && isFinite(Number(attributes.height)) &&
+                        Number(attributes.width) > 0 && Number(attributes.height) > 0;
+                } catch (_) {
+                    return false;
+                }
+            }
             function finishRectangleDrawing(event) {
                 if (!rectangleDrawing) return;
                 var end = mapPointFromEvent(event);
@@ -1268,6 +1279,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 var resizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-rectangle-resize-handle');
                 if(resizeHandle&&event.button===0){beginRectangleResize(event,resizeHandle.getAttribute('data-resize-handle'));return;}
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
+                    !hasRectangleGeometry() &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
