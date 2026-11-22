@@ -29,8 +29,8 @@
 @media(max-width:575.98px){.inspection-map-stat{padding:.4rem .1rem;font-size:.52rem}.inspection-map-stat-value{font-size:1rem}.inspection-map-stat-label{font-size:.52rem}}.inspection-map-canvas{position:relative;min-height:520px;overflow:hidden;background:linear-gradient(135deg,#eef3f2,#f8faf9)}[data-bs-theme=dark] .inspection-map-canvas{background:linear-gradient(135deg,#151a1b,#202528)}.inspection-map-floorplan{position:absolute;inset:18px;border:2px solid rgba(4,93,93,.35);border-radius:18px;background:rgba(255,255,255,.72);box-shadow:inset 0 0 0 10px rgba(4,93,93,.035)}[data-bs-theme=dark] .inspection-map-floorplan{background:rgba(25,30,31,.82);border-color:rgba(32,201,151,.28)}.inspection-map-room{position:absolute;border:2px solid rgba(4,93,93,.25);border-radius:10px;display:flex;align-items:flex-start;justify-content:flex-start;padding:9px;font-size:.58rem;font-weight:800;color:rgba(4,93,93,.55);letter-spacing:.06em}[data-bs-theme=dark] .inspection-map-room{border-color:rgba(32,201,151,.22);color:rgba(32,201,151,.55)}.room-a{left:4%;top:5%;width:37%;height:30%}.room-b{left:47%;top:5%;width:48%;height:42%}.room-c{left:4%;top:42%;width:37%;height:51%}.room-d{left:47%;top:54%;width:48%;height:39%}.inspection-map-corridor{position:absolute;background:rgba(4,93,93,.08);border-radius:8px}.corridor-a{left:41%;top:8%;width:6%;height:84%}.corridor-b{left:8%;top:35%;width:84%;height:8%}.corridor-c{left:41%;top:47%;width:6%;height:8%}.inspection-map-points{position:absolute;inset:0}.inspection-map-point{position:absolute;transform:translate(-50%,-50%);width:34px;height:34px;border:0;padding:0;background:transparent;z-index:3;cursor:pointer}.inspection-map-point-dot{display:flex;width:28px;height:28px;margin:auto;border-radius:50%;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.25);font-size:.58rem;font-weight:800;color:#fff}.inspection-map-point.pending .inspection-map-point-dot{background:#6c757d}.inspection-map-point.done .inspection-map-point-dot{background:#198754}.inspection-map-point.selected .inspection-map-point-dot{outline:4px solid rgba(13,110,253,.25);transform:scale(1.12)}
 .inspection-map-navigator-focus-ring{position:absolute;z-index:8;width:68px;height:68px;border:0;border-radius:50%;background:repeating-conic-gradient(#ffc107 0deg 22deg,transparent 22deg 45deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));transform:translate(-50%,-50%);pointer-events:none;box-sizing:border-box;animation:inspectionMapNavigatorFocusPulse 1s ease-in-out infinite;filter:drop-shadow(0 0 4px rgba(255,193,7,.8))}
 @keyframes inspectionMapNavigatorFocusPulse{0%,100%{opacity:.45;transform:translate(-50%,-50%) scale(.82)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.18)}}
-#inspectionMapWorkspace>.inspection-map-toolbar:not(.d-none){display:flex!important}
-#inspectionMapWorkspace>.inspection-map-summary:not(.d-none){display:grid!important}
+#inspectionMapStickyStack>.inspection-map-toolbar:not(.d-none){display:flex!important}
+#inspectionMapStickyStack>.inspection-map-summary:not(.d-none){display:grid!important}
 .inspection-map-quick-focus-ring{position:absolute;z-index:9;width:38px;height:38px;border:2px dashed #f59e0b;border-radius:50%;transform:translate(-50%,-50%) scale(var(--inspection-map-ring-scale,1));pointer-events:none;box-sizing:border-box;opacity:.95;filter:drop-shadow(0 0 5px rgba(245,158,11,.72))}
 .inspection-map-quick-focus-ring::after{content:"";position:absolute;inset:-4px;border:2px dashed rgba(245,158,11,.55);border-radius:50%;animation:inspectionMapQuickFocusPulse 1.15s ease-in-out infinite}
 @keyframes inspectionMapQuickFocusPulse{0%,100%{opacity:.25;box-shadow:0 0 0 0 rgba(245,158,11,.35)}50%{opacity:1;box-shadow:0 0 0 8px rgba(245,158,11,0)}}
@@ -813,8 +813,8 @@
         overflow:hidden;
         border-radius:.55rem;
     }
-    #inspectionMapWorkspace>.inspection-map-toolbar{flex:0 0 auto;padding:.4rem .7rem;min-height:48px}
-    #inspectionMapWorkspace>.inspection-map-summary{flex:0 0 auto;min-height:52px}
+    #inspectionMapStickyStack>.inspection-map-toolbar{flex:0 0 auto;padding:.4rem .7rem;min-height:48px}
+    #inspectionMapStickyStack>.inspection-map-summary{flex:0 0 auto;min-height:52px}
     #inspectionMapWorkspace>#inspectionMapSelectWrap{flex:0 0 auto;padding:.25rem .7rem!important}
     #inspectionMapWorkspace>.inspection-map-content{flex:1 1 auto;min-height:0;align-items:stretch;grid-template-columns:minmax(0,1fr) minmax(320px,340px);gap:.55rem}
     #inspectionMapWorkspace .inspection-map-panel{display:flex;flex-direction:column;min-height:0;height:100%;overflow:hidden}
@@ -842,12 +842,12 @@
         overflow-x:hidden;overflow-y:auto!important;overscroll-behavior:contain;
         scroll-behavior:smooth
     }
-    #inspectionMapWorkspace>#inspectionMapSummaryHost{flex:0 0 auto;max-height:none;overflow:visible;padding-top:.25rem!important;padding-bottom:.35rem!important}
+    #inspectionMapStickyStack>#inspectionMapSummaryHost{flex:0 0 auto;max-height:none;overflow:visible;padding-top:.25rem!important;padding-bottom:.35rem!important}
     #inspectionMapWorkspace>.d-flex.justify-content-end{flex:0 0 auto;padding:.35rem .55rem!important}
     @media(max-width:767.98px){
         #inspectionMapWorkspace{height:calc(100dvh - 142px);min-height:0}
-        #inspectionMapWorkspace>.inspection-map-toolbar{min-height:44px;padding:.3rem .45rem}
-        #inspectionMapWorkspace>.inspection-map-summary{min-height:46px}
+        #inspectionMapStickyStack>.inspection-map-toolbar{min-height:44px;padding:.3rem .45rem}
+        #inspectionMapStickyStack>.inspection-map-summary{min-height:46px}
         #inspectionMapWorkspace>.inspection-map-content{grid-template-columns:minmax(0,1fr);min-height:0}
         #inspectionMapWorkspace .inspection-map-panel>.inspection-map-canvas{
             height:100%!important;min-height:0!important;max-height:none!important;padding:2px!important
@@ -880,7 +880,7 @@
 .inspection-map-option-chip strong{font-size:.72rem}
 .inspection-map-option-chip-muted{opacity:.7}
 @media(max-width:767.98px){
-    #inspectionMapWorkspace>#inspectionMapSummaryHost{max-height:none!important;overflow:visible!important}
+    #inspectionMapStickyStack>#inspectionMapSummaryHost{max-height:none!important;overflow:visible!important}
     .inspection-map-option-summary-card{min-width:130px;max-width:230px;flex:1 1 145px}
 }
 .inspection-map-picker{background:var(--bs-body-bg);border-bottom:1px solid var(--bs-border-color)}
@@ -950,7 +950,7 @@
 
     /* Phone-first compact controls: keep the floor plan, not its chrome, dominant. */
     @media (max-width: 575.98px) {
-        #inspectionMapWorkspace > .inspection-map-toolbar {
+        #inspectionMapStickyStack > .inspection-map-toolbar {
             display: flex;
             align-items: center;
             gap: .35rem;
@@ -1116,7 +1116,7 @@
             white-space: nowrap !important;
         }
 
-        #inspectionMapWorkspace > .inspection-map-toolbar {
+        #inspectionMapStickyStack > .inspection-map-toolbar {
             display: flex !important;
             flex-wrap: nowrap !important;
             align-items: center;
@@ -1253,7 +1253,7 @@
         }
     }
     @media (max-width: 575.98px) {
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-toolbar {
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > .inspection-map-toolbar {
             display: flex !important;
             flex-direction: column !important;
             align-items: stretch !important;
@@ -1321,7 +1321,7 @@
         }
     }
     @media (max-width: 575.98px) {
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar {
+        body.inspection-map-tab-active #inspectionMapStickyStack > .inspection-map-toolbar {
             display: flex !important;
             flex-direction: column !important;
             align-items: stretch !important;
@@ -1429,10 +1429,10 @@
             margin-bottom: 0 !important;
         }
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-lightning-schedule-tabs,
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-toolbar,
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > .inspection-map-summary,
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > .inspection-map-toolbar,
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > .inspection-map-summary,
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSelectWrap,
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSummaryHost,
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > #inspectionMapSummaryHost,
         body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSubmitBar {
             flex: 0 0 auto;
         }
@@ -1511,7 +1511,7 @@
             min-height: 0 !important;
             overflow: hidden !important;
         }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapPicker {
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > #inspectionMapPicker {
             flex: 0 0 auto !important;
             width: 100%;
             max-height: 58px;
@@ -1519,7 +1519,7 @@
             padding: .2rem .4rem !important;
             overflow: hidden;
         }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapPicker .inspection-map-choice-grid {
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > #inspectionMapPicker .inspection-map-choice-grid {
             display: flex !important;
             flex-wrap: nowrap !important;
             justify-content: flex-start !important;
@@ -1592,7 +1592,7 @@
             padding: .14rem .32rem;
             font-size: .62rem;
         }
-        body.inspection-map-mobile-active #contentbody #inspectionMapWorkspace > #inspectionMapSummaryHost {
+        body.inspection-map-mobile-active #contentbody #inspectionMapStickyStack > #inspectionMapSummaryHost {
             flex: 0 1 auto !important;
             max-height: 13dvh !important;
             min-height: 0 !important;
@@ -1654,7 +1654,7 @@
     .inspection-map-option-summary-host .inspection-map-option-summary{display:flex;flex-direction:column;gap:.4rem}
     .inspection-map-option-summary-host .inspection-map-option-summary-card{min-width:0;max-width:none;width:100%}
     @media(max-width:767.98px){
-        #inspectionMapWorkspace>.inspection-map-toolbar{min-height:36px!important;padding:.2rem .35rem!important}
+        #inspectionMapStickyStack>.inspection-map-toolbar{min-height:36px!important;padding:.2rem .35rem!important}
         #inspectionMapWorkspace .inspection-map-actions{width:100%;justify-content:flex-end}
         #inspectionMapWorkspace .inspection-map-actions>.btn,
         #inspectionMapWorkspace .inspection-map-actions>.inspection-map-option-info>.btn{
@@ -1753,40 +1753,43 @@
     }
 
 
-    /* Sticky map controls must stick to the document scroll, not to the
-       compact mobile app shell. The mobile shell normally clips its ancestors
-       for the full-screen map; that defeats position:sticky entirely. */
-    body.inspection-map-tab-active #inspectionMapWorkspace{
+    /* Keep all three map chrome rows in one sticky stack. Individual sticky
+       flex children were being constrained independently by the workspace. */
+    #inspectionMapWorkspace{
         height:auto!important;
-        min-height:calc(100dvh - 148px)!important;
         max-height:none!important;
         overflow:visible!important;
-        flex:0 0 auto!important;
     }
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar,
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary,
-    body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
+    body.inspection-map-tab-active #inspectionMapStickyStack{
         position:sticky!important;
+        top:0!important;
+        z-index:80!important;
+        display:flex!important;
+        flex:0 0 auto!important;
+        flex-direction:column!important;
         align-self:stretch!important;
-        flex:0 0 auto!important;
-        z-index:30!important;
-    }
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{top:0!important}
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{top:48px!important}
-    body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{
-        top:100px!important;
+        width:100%;
         background:var(--bs-body-bg);
+        isolation:isolate;
+        box-shadow:0 2px 8px rgba(0,0,0,.07);
     }
-    body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{
+    body.inspection-map-tab-active #inspectionMapStickyStack > .inspection-map-toolbar,
+    body.inspection-map-tab-active #inspectionMapStickyStack > .inspection-map-summary,
+    body.inspection-map-tab-active #inspectionMapStickyStack > #inspectionMapPicker,
+    body.inspection-map-tab-active #inspectionMapStickyStack > #inspectionMapSummaryHost{
+        position:relative!important;
+        top:auto!important;
+        z-index:auto!important;
         flex:0 0 auto!important;
-        min-height:min(72vh,760px)!important;
     }
     @media(max-width:767.98px){
-        /* Override the more-specific full-screen mobile rules above. */
+        /* In MAP mode the document is the scrollport. The old phone workspace
+           locked #contentbody and every intermediate wrapper to the viewport,
+           which prevented sticky positioning from following page scroll. */
         body.inspection-map-tab-active.inspection-map-mobile-active{
             height:auto!important;
             min-height:100dvh!important;
-            overflow-x:hidden!important;
+            overflow-x:clip!important;
             overflow-y:auto!important;
         }
         body.inspection-map-tab-active.inspection-map-mobile-active #contentbody{
@@ -1809,6 +1812,9 @@
             overflow:visible!important;
             flex:0 0 auto!important;
         }
+        body.inspection-map-tab-active #inspectionMapStickyStack{
+            top:0!important;
+        }
         body.inspection-map-tab-active #inspectionMapWorkspace{
             height:auto!important;
             min-height:calc(100dvh - 142px)!important;
@@ -1816,14 +1822,23 @@
             overflow:visible!important;
             flex:0 0 auto!important;
         }
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-toolbar{top:0!important}
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-summary{top:44px!important}
-        body.inspection-map-tab-active #inspectionMapWorkspace > #inspectionMapPicker{top:90px!important}
-        body.inspection-map-tab-active #inspectionMapWorkspace > .inspection-map-content{min-height:44dvh!important}
-        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel,
-        body.inspection-map-tab-active #inspectionMapWorkspace .inspection-map-panel > .inspection-map-canvas{
-            min-height:44dvh!important;
-        }
+    }
+    #inspectionPointListModal .modal-body{
+        display:flex;
+        flex-direction:column;
+        min-height:0;
+        overflow:hidden;
+    }
+    #inspectionPointListModal #inspectionPointList{
+        display:block!important;
+        flex:1 1 auto;
+        width:100%;
+        height:100%;
+        min-height:0;
+        max-height:none!important;
+        overflow-y:auto!important;
+        overflow-x:hidden!important;
+        overscroll-behavior:contain;
     }
 </style>
 </asp:Content>
@@ -2095,8 +2110,10 @@
     </div>
     <div id="inspectionMapWorkspace" class="inspection-map-workspace d-none">
         <div id="inspectionLightningScheduleTabs" class="inspection-lightning-schedule-tabs nav nav-tabs d-none mb-2" role="tablist" aria-label="Jadwal inspeksi harian"></div>
+        <div id="inspectionMapStickyStack" class="inspection-map-sticky-stack">
         <div class="inspection-map-toolbar">
             <div class="inspection-map-actions">
+                <button type="button" id="btnInspectionMapPointList" class="btn btn-sm btn-outline-secondary d-inline-flex d-md-none" title="Lihat Point List" aria-expanded="false"><i class="bi bi-list-ul me-1"></i><span>Points</span></button>
 
                 <button type="button" id="btnInspectionPointNavigator" class="btn btn-sm btn-outline-primary" title="Cari dan navigasi semua Inspection Point"><i class="bi bi-list-ul me-1"></i><span class="inspection-point-navigator-button-label">Navigator</span></button>
                 <button type="button" id="btnInspectionNextPending" class="btn btn-sm btn-outline-warning" title="Buka titik wajib berikutnya" aria-label="Next Wajib"><i class="bi bi-arrow-right-circle"></i><span class="inspection-map-action-label">Next Wajib</span></button>
@@ -2131,6 +2148,7 @@
                 <div class="small text-muted">Pilih map yang akan diperiksa. Denah map pertama otomatis ditampilkan.</div>
             </div>
             <div id="inspectionMapCards" class="inspection-map-choice-grid"></div>
+        </div>
         </div>
         <div class="inspection-map-content d-none" id="inspectionMapContent">
             <div class="inspection-map-panel">
@@ -2175,6 +2193,17 @@
             <div class="inspection-map-quick-actions mt-2">
                 <button type="button" id="btnCancelInspectionMapPoint" class="btn btn-light border">Batal</button>
                 <button type="button" id="btnApplyInspectionMapPoint" class="btn btn-primary">Terapkan</button>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="inspectionPointListModal" tabindex="-1" aria-labelledby="inspectionPointListTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-md-down">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="inspectionPointListTitle"><i class="bi bi-list-ul me-2 text-primary"></i>Inspection Point List</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body" id="inspectionPointListModalBody"></div>
             </div>
         </div>
     </div>
