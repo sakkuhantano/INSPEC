@@ -705,7 +705,7 @@
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
                 // CIRCLE is a small point dot; area geometry belongs to PATH.
-                var radius = 0.45;
+                var radius = 1.0;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
             // Action-based Undo/Redo for unsaved map geometry edits.
