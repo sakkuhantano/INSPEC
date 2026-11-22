@@ -684,6 +684,9 @@
             return;
         }
 
+        var inspectionTypeDescription = String(currentMapRecord && currentMapRecord.InspectionTypeName || "Inspection") +
+            " — " + String(currentMapRecord && currentMapRecord.InspectionTypeDetailName || "");
+
         var cards = optionItems.map(function (item) {
             var itemId = Number(item.idItem != null ? item.idItem :
                 (item.IDItem != null ? item.IDItem : item.id));
@@ -744,12 +747,14 @@
             }
 
             return '<div class="inspection-map-option-summary-card">' +
-                '<div class="inspection-map-option-summary-title" title="' + esc(label) + '">' + esc(label) + '</div>' +
+                '<div class="inspection-map-option-item-title" title="' + esc(label) + '">' + esc(label) + '</div>' +
                 '<div class="inspection-map-option-chip-row">' + chips + '</div>' +
                 '</div>';
         }).join("");
 
-        host.innerHTML = cards;
+        host.innerHTML = '<div class="inspection-map-option-summary-title" title="' + esc(inspectionTypeDescription) + '">' +
+            esc(inspectionTypeDescription) + '</div>' +
+            '<div class="inspection-map-option-summary">' + cards + '</div>';
         // Rendering counts must never open the popover. Visibility is controlled
         // exclusively by the user's info-button click.
         host.setAttribute("data-has-summary", cards ? "true" : "false");
