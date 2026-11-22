@@ -767,21 +767,19 @@
             console.warn("Inspection map marker has no matching visible Point List row:", pointId);
             return;
         }
+
         listPage = Math.floor(pointIndex / listPageSize) + 1;
         var selectedId = String(pointId);
-
         switchMapList();
         renderList();
-        listHost = document.getElementById("inspectionPointList");
-        if (listHost) listHost.setAttribute("data-selected-point-id", selectedId);
-        // renderList() rebuilds the rows, so make the selected state explicit
-        // before the scroll pass as well as during the normal render cycle.
 
         var listHost = document.getElementById("inspectionPointList");
         if (!listHost) return;
+        listHost.setAttribute("data-selected-point-id", selectedId);
+
         var row = Array.prototype.find.call(
             listHost.querySelectorAll(".inspection-point-list-row[data-point-id]"),
-            function (item) { return String(item.getAttribute("data-point-id")) === String(pointId); }
+            function (item) { return String(item.getAttribute("data-point-id")) === selectedId; }
         );
         if (!row) return;
 
@@ -792,39 +790,50 @@
 
         function scrollSelectedRow() {
             if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
-            // The list itself is the only scroll container. Keep the selected
-            // row centered without moving the map or the Submit Batch bar.
             row.classList.add("active", "selected");
             row.setAttribute("aria-current", "true");
 
-            // The Point List host is the intended scroll container. Move its
-            // scrollTop directly instead of relying only on scrollIntoView(),
-            // which can choose the page/map as the scroll container.
-            var targetTop = row.offsetTop - Math.max(0, (listHost.clientHeight - row.offsetHeight) / 2);
+            /* Calculate against the actual scrollport rectangle. offsetTop is
+               relative to offsetParent, which is not always the list itself. */
+            var hostRect = listHost.getBoundingClientRect();
+            var rowRect = row.getBoundingClientRect();
+            var targetTop = listHost.scrollTop + rowRect.top - hostRect.top -
+                Math.max(0, (listHost.clientHeight - rowRect.height) / 2);
             var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
             targetTop = Math.max(0, Math.min(maxScroll, targetTop));
             if (typeof listHost.scrollTo === "function")
                 listHost.scrollTo({ top: targetTop, behavior: "smooth" });
             else
                 listHost.scrollTop = targetTop;
-
-            // Keep a native fallback for layouts where offsetTop is not relative
-            // to the scrolling host (e.g. a temporarily reparented list).
-            window.requestAnimationFrame(function () {
-                if (!document.documentElement.contains(row)) return;
-                var hostRect = listHost.getBoundingClientRect();
-                var rowRect = row.getBoundingClientRect();
-                var hostTop = hostRect.top;
-                var hostBottom = hostRect.bottom;
-                if (rowRect.top < hostTop || rowRect.bottom > hostBottom) {
-                    try {
-                        row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-                    } catch (_) {
-                        row.scrollIntoView(false);
-                    }
-                }
-            });
         }
+
+        /* On phones the one Point List element is moved into a Bootstrap
+           modal and is display:none while that modal is closed. Open that
+           actual scrollport first; otherwise clientHeight is zero and no
+           scroll/highlight can be seen after tapping a map marker. */
+        var isMobile = window.matchMedia &&
+            window.matchMedia("(max-width: 767.98px)").matches;
+        var modalElement = document.getElementById("inspectionPointListModal");
+        var modalBody = document.getElementById("inspectionPointListModalBody");
+        if (isMobile && modalElement && modalBody && window.bootstrap && bootstrap.Modal) {
+            if (listHost.parentElement !== modalBody) modalBody.appendChild(listHost);
+            var modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            if (modalElement.classList.contains("show")) {
+                window.requestAnimationFrame(function () {
+                    window.requestAnimationFrame(scrollSelectedRow);
+                });
+            } else {
+                modalElement.addEventListener("shown.bs.modal", function onPointListShown() {
+                    modalElement.removeEventListener("shown.bs.modal", onPointListShown);
+                    window.requestAnimationFrame(function () {
+                        window.requestAnimationFrame(scrollSelectedRow);
+                    });
+                });
+                modal.show();
+            }
+            return;
+        }
+
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
         });
@@ -1073,6 +1082,8 @@
         // On phones, keep the quick-result sheet as the primary interaction,
         // but do not skip Point List synchronization above.
         if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches) {
+            var pointListModal = document.getElementById("inspectionPointListModal");
+            if (pointListModal && pointListModal.classList.contains("show")) return;
             removeNavigatorFocusRing();
             ensureQuickPointRing(selectedPoint);
             showQuickPointSheet(selectedPoint);
