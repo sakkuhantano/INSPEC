@@ -1677,10 +1677,10 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
-        "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || "-"),
+        "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || ""),
         startTime + " - " + endTime,
         "Status: " + getInspectionRecordGridStatus(record, record.Status === "DONE").label
-    ]);
+    ], record);
     const summaryInput = document.getElementById("txtInspectionSummary");
     if (summaryInput) {
         // This shared field may still carry readOnly=true from the server-submitted detail view.
@@ -2661,30 +2661,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         title.title = [point.PointCode, point.PointName].filter(Boolean).join(" · ");
         title.classList.remove("text-truncate");
     }
-    const pointInfoButton = document.getElementById("btnInspectionFormInfo");
-    if (pointInfoButton && window.bootstrap && bootstrap.Popover) {
-        const existingPointInfo = bootstrap.Popover.getInstance(pointInfoButton);
-        if (existingPointInfo) existingPointInfo.dispose();
-        const pointInfoLines = [
-            "Inspection No: " + (currentInspectionRecord.InspectionNo || "TEMP-" +
-                String(currentInspectionRecord.LocalInspectionID || "").replace(/-/g, "").substring(0, 8).toUpperCase()),
-            "Point Code: " + (point.PointCode || "—"),
-            "Point Description: " + (point.PointName || "—"),
-            "Inspection Point ID: " + point.InspectionPointID,
-            scheduleTime ? "Schedule: " + scheduleTime : ""
-        ].filter(Boolean);
-        const pointInfoContent = pointInfoLines.map(line =>
-            '<div class="mb-1">' + escInspection(line) + '</div>'
-        ).join("");
-        pointInfoButton.disabled = false;
-        bootstrap.Popover.getOrCreateInstance(pointInfoButton, {
-            container: "body",
-            trigger: "focus",
-            placement: "bottom",
-            html: true,
-            content: pointInfoContent
-        });
-    }
+    setInspectionFormInfoPopover(currentInspectionRecord);
     const followUp = document.getElementById("inspectionFollowUpPanel");
     const summary = document.getElementById("inspectionSummaryPanel");
     if (followUp) followUp.classList.add("d-none");
@@ -4682,7 +4659,7 @@ async function openServerSubmittedInspection(inspectionId) {
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
             formatInspectionClock(h.StartDateTime) + " - " + formatInspectionClock(h.EndDateTime),
             "Status: " + getInspectionRecordGridStatus(h, true).label
-        ]);
+        ], h);
         document.getElementById("txtInspectionSummary").value = h.Summary || "";
         document.getElementById("txtInspectionSummary").readOnly = true;
         document.querySelectorAll('input[name="inspectionFollowUp"]').forEach(input => {
@@ -4981,25 +4958,42 @@ function formatInspectionEmployeeLabel(name, employeeId) {
     return displayName || id || "—";
 }
 
-function setInspectionFormHeader(transactionNo, infoLines) {
-    const title = document.getElementById("inspectionFormTitle");
+function setInspectionFormInfoPopover(record) {
     const infoButton = document.getElementById("btnInspectionFormInfo");
-    if (title) title.textContent = transactionNo || "Inspection";
-    if (!infoButton || !window.bootstrap || !bootstrap.Popover) return;
-    const existing = bootstrap.Popover.getInstance(infoButton);
-    if (existing) existing.dispose();
-    const content = (infoLines || []).filter(Boolean).map(line =>
-        '<div class="mb-1">' + escInspection(line) + '</div>'
-    ).join("");
-    infoButton.disabled = !content;
-    if (!content) return;
+    if (!infoButton) return;
+
+    // Remove any legacy Tooltip/Popover instance and the native title tooltip.
+    if (window.bootstrap && bootstrap.Tooltip) {
+        const tooltip = bootstrap.Tooltip.getInstance(infoButton);
+        if (tooltip) tooltip.dispose();
+    }
+    if (window.bootstrap && bootstrap.Popover) {
+        const existing = bootstrap.Popover.getInstance(infoButton);
+        if (existing) existing.dispose();
+    }
+    infoButton.removeAttribute("title");
+
+    const typeName = String(record && record.InspectionTypeName || "Inspection");
+    const detailName = String(record && record.InspectionTypeDetailName || "");
+    const description = typeName + " — " + detailName;
+    infoButton.disabled = !description.trim();
+    if (!description.trim() || !window.bootstrap || !bootstrap.Popover) return;
+
     bootstrap.Popover.getOrCreateInstance(infoButton, {
         container: "body",
-        trigger: "focus",
+        trigger: "click",
         placement: "bottom",
+        boundary: "viewport",
+        fallbackPlacements: ["top", "bottom"],
         html: true,
-        content: content
+        content: '<div class="inspection-form-info-description">' + escInspection(description) + '</div>'
     });
+}
+
+function setInspectionFormHeader(transactionNo, infoLines, record) {
+    const title = document.getElementById("inspectionFormTitle");
+    if (title) title.textContent = transactionNo || "Inspection";
+    setInspectionFormInfoPopover(record || currentInspectionRecord);
 }
 
 function populateInspectionParameters(record) {
