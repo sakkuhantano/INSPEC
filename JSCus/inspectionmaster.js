@@ -957,6 +957,17 @@
                 renderRectangleEditorShape(l,t,w,h);
                 pathStatusText('Rectangle di-resize. Save Inspection Point untuk menyimpan ukuran baru.');
             }
+            var shapeTransform = null;
+            function removeGenericShapeHandles(){var s=content.querySelector('#inspectionCoordinateSvgOverlay');if(!s)return;s.querySelectorAll('.inspection-coordinate-shape-resize-handle').forEach(function(h){if(h.parentNode)h.parentNode.removeChild(h);});}
+            function currentShapeElement(){var id=document.getElementById('hidPointID'),s=content.querySelector('#inspectionCoordinateSvgOverlay');if(!id||!id.value||!s)return null;return s.querySelector('[data-point-id="'+id.value+'"].inspection-coordinate-circle,[data-point-id="'+id.value+'"].inspection-coordinate-path,[data-point-id="'+id.value+'"].inspection-coordinate-rectangle');}
+            function parsePathPoints(d){var a=String(d||'').match(/[ML]\s*[-+]?(?:\d*\.\d+|\d+\.?\d*)\s*[-+]?(?:\d*\.\d+|\d+\.?\d*)/gi)||[];return a.map(function(t){var n=t.match(/[-+]?(?:\d*\.\d+|\d+\.?\d*)/g)||[];return{x:Number(n[0]),y:Number(n[1])};}).filter(function(p){return isFinite(p.x)&&isFinite(p.y);});}
+            function pathFromPoints(p,closed){if(!p.length)return'';var d='M '+p[0].x.toFixed(2)+' '+p[0].y.toFixed(2);for(var i=1;i<p.length;i++)d+=' L '+p[i].x.toFixed(2)+' '+p[i].y.toFixed(2);return closed?d+' Z':d;}
+            function shapeBounds(el){if(!el)return null;var t=String(el.tagName||'').toLowerCase();if(t==='circle'){var cx=Number(el.getAttribute('cx')),cy=Number(el.getAttribute('cy')),r=Number(el.getAttribute('r'));return{left:cx-r,top:cy-r,right:cx+r,bottom:cy+r,cx:cx,cy:cy,r:r,type:'CIRCLE'};}if(t==='rect'){var x=Number(el.getAttribute('x')),y=Number(el.getAttribute('y')),w=Number(el.getAttribute('width')),h=Number(el.getAttribute('height'));return{left:x,top:y,right:x+w,bottom:y+h,cx:x+w/2,cy:y+h/2,width:w,height:h,type:'RECTANGLE'};}if(t==='path'){var p=parsePathPoints(el.getAttribute('d'));if(!p.length)return null;var l=p[0].x,r=p[0].x,tb=p[0].y,b=p[0].y;p.forEach(function(q){l=Math.min(l,q.x);r=Math.max(r,q.x);tb=Math.min(tb,q.y);b=Math.max(b,q.y);});return{left:l,top:tb,right:r,bottom:b,cx:(l+r)/2,cy:(tb+b)/2,width:r-l,height:b-tb,type:'PATH',points:p};}return null;}
+            function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=currentShapeElement(),b=shapeBounds(el),s=content.querySelector('#inspectionCoordinateSvgOverlay');if(!b||b.type==='RECTANGLE'||!s)return;[{n:'nw',x:b.left,y:b.top,c:'nwse-resize'},{n:'n',x:b.cx,y:b.top,c:'ns-resize'},{n:'ne',x:b.right,y:b.top,c:'nesw-resize'},{n:'e',x:b.right,y:b.cy,c:'ew-resize'},{n:'se',x:b.right,y:b.bottom,c:'nwse-resize'},{n:'s',x:b.cx,y:b.bottom,c:'ns-resize'},{n:'sw',x:b.left,y:b.bottom,c:'nesw-resize'},{n:'w',x:b.left,y:b.cy,c:'ew-resize'}].forEach(function(q){var h=document.createElementNS('http://www.w3.org/2000/svg','rect');h.setAttribute('class','inspection-coordinate-shape-resize-handle');h.setAttribute('data-shape-resize-handle',q.n);h.setAttribute('x',Number((q.x-1).toFixed(3)));h.setAttribute('y',Number((q.y-1).toFixed(3)));h.setAttribute('width','2');h.setAttribute('height','2');h.setAttribute('rx','.35');h.setAttribute('fill','#fff');h.setAttribute('stroke','#0d6efd');h.setAttribute('stroke-width','.6');h.setAttribute('vector-effect','non-scaling-stroke');h.setAttribute('pointer-events','all');h.style.cursor=q.c;s.appendChild(h);});}
+            function shapeAnchor(cx,cy){if(markerX)markerX.value=Number(cx.toFixed(3)).toFixed(2);if(markerY)markerY.value=Number(cy.toFixed(3)).toFixed(2);}
+            function moveCurrentShape(p,start){var el=currentShapeElement();if(!el)return;var dx=p.x-start.point.x,dy=p.y-start.point.y;if(start.type==='CIRCLE'){var cx=Math.max(start.r,Math.min(100-start.r,start.cx+dx)),cy=Math.max(start.r,Math.min(100-start.r,start.cy+dy));el.setAttribute('cx',cx.toFixed(3));el.setAttribute('cy',cy.toFixed(3));if(shapeAttributesField)shapeAttributesField.value=JSON.stringify({cx:Number(cx.toFixed(3)),cy:Number(cy.toFixed(3)),r:start.r});shapeAnchor(cx,cy);}else if(start.type==='RECTANGLE'){var x=Math.max(0,Math.min(100-start.width,start.x+dx)),y=Math.max(0,Math.min(100-start.height,start.y+dy));el.setAttribute('x',x.toFixed(3));el.setAttribute('y',y.toFixed(3));if(shapeAttributesField)shapeAttributesField.value=JSON.stringify({coordinateSpace:'PERCENT_100',x:Number(x.toFixed(3)),y:Number(y.toFixed(3)),width:start.width,height:start.height});shapeAnchor(x+start.width/2,y+start.height/2);renderRectangleEditorShape(x,y,start.width,start.height);}else if(start.type==='PATH'){var pts=start.points.map(function(q){return{x:Math.max(0,Math.min(100,q.x+dx)),y:Math.max(0,Math.min(100,q.y+dy))};}),d=pathFromPoints(pts,start.closed);el.setAttribute('d',d);if(pathField)pathField.value=d;shapeAnchor(start.cx+dx,start.cy+dy);}renderGenericShapeResizeHandles();}
+            function resizeCurrentShape(h,p,start){var el=currentShapeElement();if(!el)return;if(start.type==='CIRCLE'){var ds=[];if(h.indexOf('e')>=0||h.indexOf('w')>=0)ds.push(Math.abs(p.x-start.cx));if(h.indexOf('n')>=0||h.indexOf('s')>=0)ds.push(Math.abs(p.y-start.cy));var r=Math.max(.5,Math.min(50,Math.max.apply(Math,ds)));el.setAttribute('r',r.toFixed(3));if(shapeAttributesField)shapeAttributesField.value=JSON.stringify({cx:start.cx,cy:start.cy,r:Number(r.toFixed(3))});}else if(start.type==='PATH'){var ow=Math.max(.01,start.right-start.left),oh=Math.max(.01,start.bottom-start.top),l=start.left,rr=start.right,t=start.top,b=start.bottom;if(h.indexOf('w')>=0)l=p.x;if(h.indexOf('e')>=0)rr=p.x;if(h.indexOf('n')>=0)t=p.y;if(h.indexOf('s')>=0)b=p.y;l=Math.max(0,Math.min(100,l));rr=Math.max(0,Math.min(100,rr));t=Math.max(0,Math.min(100,t));b=Math.max(0,Math.min(100,b));if(rr<l){var sx=l;l=rr;rr=sx;}if(b<t){var sy=t;t=b;b=sy;}var nw=Math.max(.35,rr-l),nh=Math.max(.35,b-t),sx2=nw/ow,sy2=nh/oh,pts=start.points.map(function(q){return{x:l+(q.x-start.left)*sx2,y:t+(q.y-start.top)*sy2};}),d=pathFromPoints(pts,start.closed);el.setAttribute('d',d);if(pathField)pathField.value=d;if(shapeAttributesField)shapeAttributesField.value=JSON.stringify({renderMode:start.orthogonal?'ORTHOGONAL':'PATH'});shapeAnchor((l+rr)/2,(t+b)/2);}renderGenericShapeResizeHandles();}
+            function beginShapeTransform(event,handle){var el=currentShapeElement(),b=shapeBounds(el);if(!el||!b)return false;var a={};try{a=JSON.parse(shapeAttributesField&&shapeAttributesField.value||'{}')||{};}catch(_){ }shapeTransform={mode:handle?'resize':'move',handle:handle,type:b.type,start:{type:b.type,point:mapPointFromEvent(event),cx:b.cx,cy:b.cy,r:b.r,x:b.left,y:b.top,width:b.width,height:b.height,left:b.left,top:b.top,right:b.right,bottom:b.bottom,points:b.points||[],closed:String(el.getAttribute('d')||'').trim().slice(-1).toUpperCase()==='Z',orthogonal:a.renderMode==='ORTHOGONAL'}};event.preventDefault();event.stopImmediatePropagation();try{board.setPointerCapture(event.pointerId);}catch(_){ }return true;}
             function mapPointFromEvent(event) {
                 // Measure the actual image content, not the outer 16:10 board.
                 // This keeps coordinates aligned when the floor plan has a different aspect ratio.
@@ -1184,6 +1195,7 @@
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
+                removeGenericShapeHandles();
                 if (this.value !== 'ORTHOGONAL') {
                     orthogonalDrawing = false;
                     orthogonalPreviewPoint = null;
@@ -1224,6 +1236,10 @@
                 }
             });
             board.addEventListener('pointerdown', function (event) {
+                var genericResizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-shape-resize-handle');
+                if(genericResizeHandle&&event.button===0){beginShapeTransform(event,genericResizeHandle.getAttribute('data-shape-resize-handle'));return;}
+                var shapeElement=event.target.closest&&event.target.closest('.inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle');
+                if(shapeElement&&event.button===0){var activeId=document.getElementById('hidPointID');if(activeId&&shapeElement.getAttribute('data-point-id')===activeId.value){beginShapeTransform(event,null);return;}}
                 var resizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-rectangle-resize-handle');
                 if(resizeHandle&&event.button===0){beginRectangleResize(event,resizeHandle.getAttribute('data-resize-handle'));return;}
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
@@ -1256,6 +1272,7 @@
                 }
             }, true);
             board.addEventListener('pointermove', function (event) {
+                if(shapeTransform){event.preventDefault();event.stopImmediatePropagation();var p=mapPointFromEvent(event);if(shapeTransform.mode==='move')moveCurrentShape(p,shapeTransform.start);else resizeCurrentShape(shapeTransform.handle,p,shapeTransform.start);return;}
                 if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();resizeRectangleFromHandle(rectangleResize.handle,rectangleResize.start,mapPointFromEvent(event));return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1280,6 +1297,7 @@
                 }
             }, true);
             board.addEventListener('pointerup', function (event) {
+                if(shapeTransform){event.preventDefault();event.stopImmediatePropagation();try{board.releasePointerCapture(event.pointerId);}catch(_){ }shapeTransform=null;suppressNextClick=true;return;}
                 if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();try{board.releasePointerCapture(rectangleResize.pointerId);}catch(_){} rectangleResize=null;suppressNextClick=true;return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1314,6 +1332,7 @@
                 }
             }, true);
             board.addEventListener('pointercancel', function (event) {
+                if(shapeTransform){shapeTransform=null;suppressNextClick=false;return;}
                 if(rectangleResize){rectangleResize=null;suppressNextClick=false;return;}
                 if (rectangleDrawing) {
                     event.preventDefault(); event.stopImmediatePropagation();
@@ -1443,6 +1462,7 @@
                         renderRectangleEditorShape(Number(sr.x),Number(sr.y),Number(sr.width),Number(sr.height));
                 }catch(_){}
             }
+            renderGenericShapeResizeHandles();
             applyView();
             var pointModal = document.getElementById('pnlPointEditor');
             if (pointModal) pointModal.addEventListener('shown.bs.modal', function () {
