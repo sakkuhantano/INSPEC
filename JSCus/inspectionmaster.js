@@ -538,7 +538,16 @@
             draftInput.addEventListener('change', function () {
                 var file = draftInput.files && draftInput.files[0];
                 var key = inspectionDraftKey();
-                if (!file || !key) return;
+                if (!file) return;
+
+                // Render the selected file immediately. The visual preview must
+                // not depend on IndexedDB completing first; IndexedDB is only
+                // the persistence layer used to restore the draft after a
+                // WebForms postback.
+                inspectionShowDraftPreview(file, file.name);
+                inspectionShowDraftMapPreview(file, file.name);
+
+                if (!key) return;
                 if (!draftInput.getAttribute('data-inspection-original-name') && draftInput.name)
                     draftInput.setAttribute('data-inspection-original-name', draftInput.name);
                 inspectionDraftWritePromise = inspectionDraftWritePromise.then(function () {
@@ -546,9 +555,8 @@
                         blob: file, fileName: file.name, fileType: file.type,
                         lastModified: file.lastModified
                     });
-                }).then(function () {
-                    inspectionShowDraftPreview(file, file.name);
-                    inspectionShowDraftMapPreview(file, file.name);
+                }).catch(function (error) {
+                    console.error('Inspection map draft save failed:', error);
                 });
             });
             inspectionDraftRestorePromise = inspectionRestoreDraft();
