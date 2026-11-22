@@ -429,6 +429,7 @@
             });
         }
 
+        host.setAttribute("data-selected-point-id", selectedPoint ? String(selectedPoint.InspectionPointID) : "");
         host.innerHTML =
             '<div class="inspection-point-list-tools">' +
                 '<div class="d-flex gap-2 align-items-center mb-2">' +
@@ -489,8 +490,8 @@
             });
         }
         host.querySelectorAll(".inspection-point-list-row[data-point-id]").forEach(function (row) {
-            row.classList.toggle("active", !!selectedPoint &&
-                row.getAttribute("data-point-id") === String(selectedPoint.InspectionPointID));
+            row.classList.toggle("active",
+                row.getAttribute("data-point-id") === String(host.getAttribute("data-selected-point-id") || ""));
             row.addEventListener("click", function () {
                 openPoint(row.getAttribute("data-point-id"));
             });
@@ -767,9 +768,14 @@
             return;
         }
         listPage = Math.floor(pointIndex / listPageSize) + 1;
+        var selectedId = String(pointId);
 
         switchMapList();
         renderList();
+        listHost = document.getElementById("inspectionPointList");
+        if (listHost) listHost.setAttribute("data-selected-point-id", selectedId);
+        // renderList() rebuilds the rows, so make the selected state explicit
+        // before the scroll pass as well as during the normal render cycle.
 
         var listHost = document.getElementById("inspectionPointList");
         if (!listHost) return;
@@ -788,18 +794,32 @@
             if (!document.documentElement.contains(row) || !listHost.clientHeight) return;
             // The list itself is the only scroll container. Keep the selected
             // row centered without moving the map or the Submit Batch bar.
-            var hostRect = listHost.getBoundingClientRect();
-            var rowRect = row.getBoundingClientRect();
-            var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
-            var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
-            var targetScroll = Math.max(0, Math.min(maxScroll, listHost.scrollTop + delta));
-            if (Math.abs(targetScroll - listHost.scrollTop) > 1) {
-                if (typeof listHost.scrollTo === "function")
-                    listHost.scrollTo({ top: targetScroll, behavior: "smooth" });
-                else listHost.scrollTop = targetScroll;
-            }
             row.classList.add("active", "selected");
             row.setAttribute("aria-current", "true");
+
+            // First use the browser's native scroll-into-view for the actual
+            // row, then clamp the list's own scrollTop. This handles both
+            // normal desktop overflow and a list that has been moved into the
+            // Point List modal.
+            try {
+                row.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+            } catch (_) {
+                row.scrollIntoView(false);
+            }
+
+            window.requestAnimationFrame(function () {
+                if (!document.documentElement.contains(row)) return;
+                var hostRect = listHost.getBoundingClientRect();
+                var rowRect = row.getBoundingClientRect();
+                var delta = rowRect.top - hostRect.top - (listHost.clientHeight - rowRect.height) / 2;
+                var maxScroll = Math.max(0, listHost.scrollHeight - listHost.clientHeight);
+                var targetScroll = Math.max(0, Math.min(maxScroll, listHost.scrollTop + delta));
+                if (Math.abs(targetScroll - listHost.scrollTop) > 1) {
+                    if (typeof listHost.scrollTo === "function")
+                        listHost.scrollTo({ top: targetScroll, behavior: "smooth" });
+                    else listHost.scrollTop = targetScroll;
+                }
+            });
         }
         window.requestAnimationFrame(function () {
             window.requestAnimationFrame(scrollSelectedRow);
@@ -1005,6 +1025,8 @@
             return String(point.InspectionPointID) === String(id);
         }) || null;
         if (!selectedPoint) return;
+        var pointListHost = document.getElementById("inspectionPointList");
+        if (pointListHost) pointListHost.setAttribute("data-selected-point-id", String(id));
         navigatorFocusRequestSequence++;
         navigatorFocusPendingPointId = "";
         removeNavigatorFocusRing();
