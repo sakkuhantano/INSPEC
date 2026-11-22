@@ -5942,6 +5942,62 @@ function wireInspectionEditorStickyHeader() {
         header.style.zIndex = "1045";
     }
 
+    // The master sidebar changes #content's margin-left with a CSS transition.
+    // This header becomes position:fixed while scrolling, so it no longer follows
+    // that layout shift by itself. Re-measure it throughout the sidebar transition.
+    const sidebar = document.getElementById("sidebar");
+    const pageContent = document.getElementById("content");
+    let sidebarSyncFrame = 0;
+    let sidebarSyncUntil = 0;
+
+    function getCssTransitionMs(element) {
+        if (!element) return 0;
+        const style = window.getComputedStyle(element);
+        const durations = String(style.transitionDuration || "0s").split(",");
+        const delays = String(style.transitionDelay || "0s").split(",");
+        const toMs = value => {
+            const v = String(value || "0s").trim();
+            const n = parseFloat(v) || 0;
+            return v.endsWith("ms") ? n : n * 1000;
+        };
+        return durations.reduce((max, duration, index) =>
+            Math.max(max, toMs(duration) + toMs(delays[index % delays.length])), 0);
+    }
+
+    function syncHeaderDuringSidebarTransition(now) {
+        updateFixedHeader();
+        if (now < sidebarSyncUntil) {
+            sidebarSyncFrame = window.requestAnimationFrame(syncHeaderDuringSidebarTransition);
+        } else {
+            sidebarSyncFrame = 0;
+            updateFixedHeader();
+        }
+    }
+
+    function handleSidebarLayoutChange() {
+        // Bootstrap appends this popover to <body>; close it rather than leaving
+        // it floating at the previous header coordinates after the sidebar moves.
+        const infoButton = document.getElementById("btnInspectionFormInfo");
+        if (infoButton && window.bootstrap && bootstrap.Popover) {
+            const infoPopover = bootstrap.Popover.getInstance(infoButton);
+            if (infoPopover) infoPopover.hide();
+        }
+
+        const transitionMs = Math.max(
+            getCssTransitionMs(sidebar),
+            getCssTransitionMs(pageContent)
+        );
+        sidebarSyncUntil = performance.now() + transitionMs + 80;
+        if (!sidebarSyncFrame)
+            sidebarSyncFrame = window.requestAnimationFrame(syncHeaderDuringSidebarTransition);
+    }
+
+    const sidebarLayoutObserver = new MutationObserver(handleSidebarLayoutChange);
+    if (sidebar)
+        sidebarLayoutObserver.observe(sidebar, { attributes: true, attributeFilter: ["class"] });
+    if (pageContent)
+        sidebarLayoutObserver.observe(pageContent, { attributes: true, attributeFilter: ["class"] });
+
     window.addEventListener("scroll", updateFixedHeader, { passive: true });
     window.addEventListener("resize", updateFixedHeader);
     document.addEventListener("shown.bs.tab", updateFixedHeader);
