@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="M_InspectionType.aspx.cs" Inherits="INSPEC.Secure.M_InspectionType" %>
+<%@ Page Title="" Language="C#" MasterPageFile="~/MasterPages/Site_BS_5.Master" AutoEventWireup="true" CodeBehind="M_InspectionType.aspx.cs" Inherits="INSPEC.Secure.M_InspectionType" %>
 <%@ MasterType VirtualPath="~/MasterPages/Site_BS_5.Master" %>
 <%@ Register Src="~/UserControls/UC_FilterSearchList_2.ascx" TagPrefix="uc1" TagName="UC_FilterSearchList_2" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -18,199 +18,199 @@
     .grouping-by-empty { color: var(--bs-secondary-color, #6c757d); font-size: .8rem; }
 </style>
 <script type="text/javascript">
-(function () {
-    window.showScheduleModal = function (scheduleString, detailName) {
-        var modalElement = document.getElementById("scheduleListModal");
-        var title = document.getElementById("scheduleListModalTitle");
-        var host = document.getElementById("scheduleListModalTimes");
+    (function () {
+        window.showScheduleModal = function (scheduleString, detailName) {
+            var modalElement = document.getElementById("scheduleListModal");
+            var title = document.getElementById("scheduleListModalTitle");
+            var host = document.getElementById("scheduleListModalTimes");
 
-        if (!modalElement || !title || !host) {
-            console.error("Schedule modal element tidak ditemukan.");
-            return false;
-        }
-
-        title.textContent = "Schedule Time — " + (detailName || "Inspection Detail");
-        host.innerHTML = "";
-
-        var times = (scheduleString || "").split(";")
-            .map(function (x) { return x.trim(); })
-            .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
-            .filter(function (x, i, all) { return all.indexOf(x) === i; })
-            .sort();
-
-        times.forEach(function (time) {
-            var chip = document.createElement("span");
-            chip.className = "schedule-time-chip";
-            chip.textContent = time;
-            host.appendChild(chip);
-        });
-
-        if (window.bootstrap && window.bootstrap.Modal) {
-            window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
-        } else {
-            console.error("Bootstrap Modal JavaScript tidak tersedia.");
-        }
-
-        return false;
-    };
-
-    function getGroupingBy() {
-        var field = document.getElementById("hidGroupingBy");
-        return (field && field.value ? field.value.split(";") : [])
-            .map(function (x) { return x.trim(); })
-            .filter(function (x) { return x !== ""; })
-            .filter(function (x, i, all) { return all.indexOf(x) === i; });
-    }
-
-    function renderGroupingBy() {
-        var field = document.getElementById("hidGroupingBy");
-        var ddl = document.getElementById("ddlGroupingBy");
-        var host = document.getElementById("groupingByChips");
-        if (!field || !ddl || !host) return;
-
-        var items = getGroupingBy();
-        field.value = items.join(";");
-        host.innerHTML = "";
-
-        Array.prototype.forEach.call(ddl.options, function (option) {
-            option.disabled = option.value !== "" && items.indexOf(option.value) >= 0;
-        });
-        ddl.value = "";
-
-        if (!items.length) {
-            var empty = document.createElement("span");
-            empty.className = "grouping-by-empty";
-            empty.textContent = "Belum ada grouping. Pilih field lalu tekan Tambah.";
-            host.appendChild(empty);
-            return;
-        }
-
-        items.forEach(function (item) {
-            var option = Array.prototype.find.call(ddl.options, function (x) { return x.value === item; });
-            var labelText = option ? option.text : item;
-
-            var chip = document.createElement("span");
-            chip.className = "grouping-by-chip";
-
-            var label = document.createElement("span");
-            label.textContent = labelText;
-
-            var remove = document.createElement("button");
-            remove.type = "button";
-            remove.className = "grouping-by-chip-remove";
-            remove.setAttribute("aria-label", "Hapus grouping " + labelText);
-            remove.title = "Hapus " + labelText;
-            remove.textContent = "×";
-            remove.addEventListener("click", function () {
-                field.value = getGroupingBy().filter(function (x) { return x !== item; }).join(";");
-                renderGroupingBy();
-            });
-
-            chip.appendChild(label);
-            chip.appendChild(remove);
-            host.appendChild(chip);
-        });
-    }
-
-    function getTimes() {
-        var field = document.getElementById("hidScheduleTimes");
-        return (field && field.value ? field.value.split(";") : [])
-            .map(function (x) { return x.trim(); })
-            .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
-            .filter(function (x, i, all) { return all.indexOf(x) === i; })
-            .sort();
-    }
-    function renderTimes() {
-        var field = document.getElementById("hidScheduleTimes");
-        var host = document.getElementById("scheduleTimeChips");
-        if (!field || !host) return;
-        var times = getTimes();
-        field.value = times.join(";");
-        host.innerHTML = "";
-        if (!times.length) {
-            var empty = document.createElement("span");
-            empty.className = "schedule-time-empty";
-            empty.textContent = "Belum ada jadwal. Pilih jam lalu tekan Tambah.";
-            host.appendChild(empty);
-            return;
-        }
-        times.forEach(function (time) {
-            var chip = document.createElement("span");
-            chip.className = "schedule-time-chip";
-            var label = document.createElement("span");
-            label.textContent = time;
-            var remove = document.createElement("button");
-            remove.type = "button";
-            remove.className = "schedule-time-chip-remove";
-            remove.setAttribute("aria-label", "Hapus jadwal " + time);
-            remove.title = "Hapus " + time;
-            remove.textContent = "×";
-            remove.addEventListener("click", function () {
-                field.value = getTimes().filter(function (x) { return x !== time; }).join(";");
-                renderTimes();
-            });
-            chip.appendChild(label);
-            chip.appendChild(remove);
-            host.appendChild(chip);
-        });
-    }
-    document.addEventListener("DOMContentLoaded", function () {
-        var groupingAdd = document.getElementById("btnAddGroupingBy");
-        var groupingDdl = document.getElementById("ddlGroupingBy");
-
-        if (groupingAdd && groupingDdl) groupingAdd.addEventListener("click", function () {
-            var value = groupingDdl.value;
-            if (!value) {
-                groupingDdl.focus();
-                return;
+            if (!modalElement || !title || !host) {
+                console.error("Schedule modal element tidak ditemukan.");
+                return false;
             }
+
+            title.textContent = "Schedule Time — " + (detailName || "Inspection Detail");
+            host.innerHTML = "";
+
+            var times = (scheduleString || "").split(";")
+                .map(function (x) { return x.trim(); })
+                .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
+                .filter(function (x, i, all) { return all.indexOf(x) === i; })
+                .sort();
+
+            times.forEach(function (time) {
+                var chip = document.createElement("span");
+                chip.className = "schedule-time-chip";
+                chip.textContent = time;
+                host.appendChild(chip);
+            });
+
+            if (window.bootstrap && window.bootstrap.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            } else {
+                console.error("Bootstrap Modal JavaScript tidak tersedia.");
+            }
+
+            return false;
+        };
+
+        function getGroupingBy() {
+            var field = document.getElementById("hidGroupingBy");
+            return (field && field.value ? field.value.split(";") : [])
+                .map(function (x) { return x.trim(); })
+                .filter(function (x) { return x !== ""; })
+                .filter(function (x, i, all) { return all.indexOf(x) === i; });
+        }
+
+        function renderGroupingBy() {
+            var field = document.getElementById("hidGroupingBy");
+            var ddl = document.getElementById("ddlGroupingBy");
+            var host = document.getElementById("groupingByChips");
+            if (!field || !ddl || !host) return;
 
             var items = getGroupingBy();
-            if (items.indexOf(value) < 0) items.push(value);
-            document.getElementById("hidGroupingBy").value = items.join(";");
-            renderGroupingBy();
-            groupingDdl.focus();
-        });
+            field.value = items.join(";");
+            host.innerHTML = "";
 
-        if (groupingDdl) groupingDdl.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-                event.preventDefault();
-                if (groupingAdd) groupingAdd.click();
-            }
-        });
+            Array.prototype.forEach.call(ddl.options, function (option) {
+                option.disabled = option.value !== "" && items.indexOf(option.value) >= 0;
+            });
+            ddl.value = "";
 
-        renderGroupingBy();
-
-        var add = document.getElementById("btnAddScheduleTime");
-        var input = document.getElementById("scheduleTimeInput");
-        if (add && input) add.addEventListener("click", function () {
-            var time = input.value;
-            if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
-                input.focus();
+            if (!items.length) {
+                var empty = document.createElement("span");
+                empty.className = "grouping-by-empty";
+                empty.textContent = "Belum ada grouping. Pilih field lalu tekan Tambah.";
+                host.appendChild(empty);
                 return;
             }
+
+            items.forEach(function (item) {
+                var option = Array.prototype.find.call(ddl.options, function (x) { return x.value === item; });
+                var labelText = option ? option.text : item;
+
+                var chip = document.createElement("span");
+                chip.className = "grouping-by-chip";
+
+                var label = document.createElement("span");
+                label.textContent = labelText;
+
+                var remove = document.createElement("button");
+                remove.type = "button";
+                remove.className = "grouping-by-chip-remove";
+                remove.setAttribute("aria-label", "Hapus grouping " + labelText);
+                remove.title = "Hapus " + labelText;
+                remove.textContent = "×";
+                remove.addEventListener("click", function () {
+                    field.value = getGroupingBy().filter(function (x) { return x !== item; }).join(";");
+                    renderGroupingBy();
+                });
+
+                chip.appendChild(label);
+                chip.appendChild(remove);
+                host.appendChild(chip);
+            });
+        }
+
+        function getTimes() {
+            var field = document.getElementById("hidScheduleTimes");
+            return (field && field.value ? field.value.split(";") : [])
+                .map(function (x) { return x.trim(); })
+                .filter(function (x) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(x); })
+                .filter(function (x, i, all) { return all.indexOf(x) === i; })
+                .sort();
+        }
+        function renderTimes() {
+            var field = document.getElementById("hidScheduleTimes");
+            var host = document.getElementById("scheduleTimeChips");
+            if (!field || !host) return;
             var times = getTimes();
-            if (times.indexOf(time) < 0) times.push(time);
-            document.getElementById("hidScheduleTimes").value = times.sort().join(";");
-            input.value = "";
+            field.value = times.join(";");
+            host.innerHTML = "";
+            if (!times.length) {
+                var empty = document.createElement("span");
+                empty.className = "schedule-time-empty";
+                empty.textContent = "Belum ada jadwal. Pilih jam lalu tekan Tambah.";
+                host.appendChild(empty);
+                return;
+            }
+            times.forEach(function (time) {
+                var chip = document.createElement("span");
+                chip.className = "schedule-time-chip";
+                var label = document.createElement("span");
+                label.textContent = time;
+                var remove = document.createElement("button");
+                remove.type = "button";
+                remove.className = "schedule-time-chip-remove";
+                remove.setAttribute("aria-label", "Hapus jadwal " + time);
+                remove.title = "Hapus " + time;
+                remove.textContent = "×";
+                remove.addEventListener("click", function () {
+                    field.value = getTimes().filter(function (x) { return x !== time; }).join(";");
+                    renderTimes();
+                });
+                chip.appendChild(label);
+                chip.appendChild(remove);
+                host.appendChild(chip);
+            });
+        }
+        document.addEventListener("DOMContentLoaded", function () {
+            var groupingAdd = document.getElementById("btnAddGroupingBy");
+            var groupingDdl = document.getElementById("ddlGroupingBy");
+
+            if (groupingAdd && groupingDdl) groupingAdd.addEventListener("click", function () {
+                var value = groupingDdl.value;
+                if (!value) {
+                    groupingDdl.focus();
+                    return;
+                }
+
+                var items = getGroupingBy();
+                if (items.indexOf(value) < 0) items.push(value);
+                document.getElementById("hidGroupingBy").value = items.join(";");
+                renderGroupingBy();
+                groupingDdl.focus();
+            });
+
+            if (groupingDdl) groupingDdl.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (groupingAdd) groupingAdd.click();
+                }
+            });
+
+            renderGroupingBy();
+
+            var add = document.getElementById("btnAddScheduleTime");
+            var input = document.getElementById("scheduleTimeInput");
+            if (add && input) add.addEventListener("click", function () {
+                var time = input.value;
+                if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+                    input.focus();
+                    return;
+                }
+                var times = getTimes();
+                if (times.indexOf(time) < 0) times.push(time);
+                document.getElementById("hidScheduleTimes").value = times.sort().join(";");
+                input.value = "";
+                renderTimes();
+                input.focus();
+            });
+            if (input) input.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") { event.preventDefault(); if (add) add.click(); }
+            });
             renderTimes();
-            input.focus();
         });
-        if (input) input.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") { event.preventDefault(); if (add) add.click(); }
-        });
-        renderTimes();
-    });
-})();
+    })();
 </script>
 
     <script type="text/javascript" src="../../WebFolder/bootstrap/js/bootstrap-datepicker.min.js"></script>   
 <script type="text/javascript">
-document.addEventListener("DOMContentLoaded", function () {
-    var info = document.getElementById("btnInspectionModeInfo");
-    if (info && window.bootstrap && bootstrap.Tooltip)
-        bootstrap.Tooltip.getOrCreateInstance(info, { trigger: "click focus", container: "body" });
-});
+    document.addEventListener("DOMContentLoaded", function () {
+        var info = document.getElementById("btnInspectionModeInfo");
+        if (info && window.bootstrap && bootstrap.Tooltip)
+            bootstrap.Tooltip.getOrCreateInstance(info, { trigger: "click focus", container: "body" });
+    });
 </script>
 </asp:Content>
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
@@ -325,7 +325,13 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="row my-1">
             <div class="col-sm-3 mb-1"><div class="small">Detail Code</div><asp:TextBox ID="txtDetailCode" runat="server" MaxLength="20" CssClass="form-control form-control-sm fz-custom1" /></div>
             <div class="col-sm-4 mb-1"><div class="small">Description</div><asp:TextBox ID="txtDetailName" runat="server" MaxLength="100" CssClass="form-control form-control-sm fz-custom1" /></div>
-            <div class="col-sm-4 mb-1 schedule-time-editor">
+            <div class="col-sm-4 mb-1">
+                <asp:CheckBox ID="chkTenantInspection" runat="server" Text="Inspection per Tenant (Tenant ID &amp; Suite No wajib)" />
+                <div class="small text-muted">Aktifkan untuk inspeksi tenant terpisah. Tenant dan Suite No menjadi bagian dari validasi duplikat.</div>
+            </div>
+        </div>
+        <div class="row my-1">
+            <div class="col-sm-12 mb-1 schedule-time-editor">
                 <div class="small">Schedule Time</div>
                 <div class="input-group input-group-sm">
                     <input type="time" id="scheduleTimeInput" class="form-control form-control-sm fz-custom1" aria-label="Pilih schedule time" />
@@ -334,17 +340,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 <asp:HiddenField ID="hidScheduleTimes" runat="server" ClientIDMode="Static" />
                 <div id="scheduleTimeChips" class="schedule-time-chips" aria-live="polite"></div>
             </div>
-
+        </div>
+        <div class="row my-1">
             <%--<div class="col-sm-1 mb-1 d-flex align-items-end"><asp:CheckBox ID="chkDetailActive" runat="server" Checked="true" Text="Active" /></div>--%>
             <div class="col-sm-2 mb-1 d-flex align-items-end"><asp:LinkButton ID="lBtnSaveDetail" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="lBtn_Click"><i class="fas fa-save"></i> Save</asp:LinkButton></div>
         </div>
     </div></div>
-        <div class="row my-1">
-            <div class="col-12 mb-1">
-                <asp:CheckBox ID="chkTenantInspection" runat="server" Text="Inspection per Tenant (Tenant ID &amp; Suite No wajib)" />
-                <div class="small text-muted">Aktifkan untuk inspeksi tenant terpisah. Tenant dan Suite No menjadi bagian dari validasi duplikat.</div>
-            </div>
-        </div>
         </asp:Panel>
     <div class="row my-1"><div class="col-sm-6 mb-1">
         <asp:LinkButton ID="lBtnAddNewDetail" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" Width="150px" OnClick="lBtn_Click"><i class="fas fa-plus-circle"></i> Add detail</asp:LinkButton>
