@@ -156,7 +156,7 @@ function getLoginData() {
 }
 function initIndexedDB() {
     return new Promise((resolve, reject) => {
-    const request = indexedDB.open("OfflineAppDB", 6);
+    const request = indexedDB.open("OfflineAppDB", 7);
 
     // JALAN jika DB belum ada / version naik
     request.onupgradeneeded = function (event) {
@@ -232,6 +232,17 @@ function initIndexedDB() {
         }
         if (!db.objectStoreNames.contains("inspection_templates")) {
             db.createObjectStore("inspection_templates", { keyPath: "IDTemplate" });
+        }
+        // Tenant and suite masters are cached for tenant-based inspections while offline.
+        if (!db.objectStoreNames.contains("inspection_tenants")) {
+            db.createObjectStore("inspection_tenants", {
+                keyPath: ["CompanyID", "LocationID", "TenantID"]
+            });
+        }
+        if (!db.objectStoreNames.contains("inspection_tenant_suites")) {
+            db.createObjectStore("inspection_tenant_suites", {
+                keyPath: ["CompanyID", "LocationID", "TenantID", "SuiteNo"]
+            });
         }
         if (!db.objectStoreNames.contains("inspection_records")) {
             const inspectionStore = db.createObjectStore("inspection_records", { keyPath: "LocalInspectionID" });
