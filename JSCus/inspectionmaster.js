@@ -941,6 +941,47 @@
                         element.parentNode) element.parentNode.removeChild(element);
                 });
             }
+            function clearCurrentShapeForReplacement() {
+                // A point owns one geometry only. Remove the active saved overlay
+                // plus every temporary geometry before starting its replacement.
+                clearActivePointShapeFromOverlay();
+                var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+                if (svg) {
+                    svg.querySelectorAll(
+                        '[data-editor-preview="1"],.inspection-coordinate-shape-move-hit,' +
+                        '.inspection-coordinate-shape-resize-handle,.inspection-coordinate-rectangle-resize-handle'
+                    ).forEach(function (element) {
+                        if (element.parentNode) element.parentNode.removeChild(element);
+                    });
+                    var svgPathPreview = svg.querySelector('#inspectionCoordinatePathPreview');
+                    if (svgPathPreview) svgPathPreview.setAttribute('d', '');
+                }
+                var circlePreview = document.getElementById('inspectionCoordinatePreview');
+                if (circlePreview && circlePreview.parentNode) circlePreview.parentNode.removeChild(circlePreview);
+                if (rectanglePreview && rectanglePreview.parentNode) rectanglePreview.parentNode.removeChild(rectanglePreview);
+                rectanglePreview = null;
+                rectangleDrawing = false;
+                rectangleStart = null;
+                rectangleResize = null;
+                shapeTransform = null;
+                drawMode = false;
+                drawingPath = false;
+                orthogonalDrawing = false;
+                orthogonalPreviewPoint = null;
+                pathPoints = [];
+                if (pathPreview) pathPreview.setAttribute('d', '');
+                if (pathField) pathField.value = '';
+                if (shapeAttributesField) shapeAttributesField.value = '{}';
+                if (markerX) markerX.value = '';
+                if (markerY) markerY.value = '';
+                removeGenericShapeHandles();
+                board.classList.remove('path-drawing', 'rectangle-drawing');
+                board.style.removeProperty('cursor');
+                content.style.removeProperty('cursor');
+                board.style.removeProperty('touch-action');
+                content.style.removeProperty('touch-action');
+                suppressNextClick = false;
+            }
             function hasRectangleGeometry() {
                 if (!shapeAttributesField) return false;
                 try {
@@ -1090,6 +1131,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
             }
             function startPathDrawing() {
                 recordPathEditorAction();
+                clearCurrentShapeForReplacement();
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = []; suppressNextClick = false;
                 if (pathField) pathField.value = '';
@@ -1245,44 +1287,21 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
                 recordPathEditorAction();
+                // Changing shape type starts a clean replacement. Do not leave a
+                // previous Circle/Rectangle/Path visible underneath the new draft.
+                clearCurrentShapeForReplacement();
                 board.classList.toggle('rectangle-drawing', this.value === 'RECTANGLE');
-                removeGenericShapeHandles();
-                if (this.value !== 'ORTHOGONAL') {
-                    orthogonalDrawing = false;
-                    orthogonalPreviewPoint = null;
-                }
                 if (this.value === 'CIRCLE') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing'); board.style.cursor = ''; content.style.cursor = '';
-                    if (pathField) pathField.value = '';
-                    if (pathPreview) pathPreview.setAttribute('d', '');
-                    var activeId = document.getElementById('hidPointID');
-                    var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                    if (svg && activeId && activeId.value) {
-                        var oldPath = svg.querySelector('.inspection-coordinate-path[data-point-id="' + activeId.value + '"]');
-                        if (oldPath) oldPath.style.display = 'none';
-                    }
+                    if (shapeAttributesField) shapeAttributesField.value = '{}';
                     pathStatusText('Circle: klik map untuk menentukan satu koordinat.');
                 } else if (this.value === 'RECTANGLE') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
-                    if (pathField) pathField.value = '';
-                    if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = '{}';
-                    removeRectangleEditorShape();
-                    pathStatusText('Rectangle: klik Draw SVG Path, lalu drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
+                    pathStatusText('Rectangle: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area baru.');
                 } else if (this.value === 'ORTHOGONAL') {
-                    drawMode = false; drawingPath = false; board.classList.remove('path-drawing');
-                    if (pathField) pathField.value = '';
-                    if (pathPreview) pathPreview.setAttribute('d', '');
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
                     pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
                 } else {
-                    // PATH is a click-by-click polygon. Clear previous geometry
-                    // when switching modes so a fresh set of vertices is required.
-                    if (this.value === 'PATH') {
-                        if (pathField) pathField.value = '';
-                        if (pathPreview) pathPreview.setAttribute('d', '');
-                        if (shapeAttributesField) shapeAttributesField.value = '{}';
-                    }
+                    if (this.value === 'PATH' && shapeAttributesField) shapeAttributesField.value = '{}';
                     pathStatusText('PATH: klik Draw SVG Path, klik titik-titik jalur, lalu double-click untuk selesai.');
                 }
             });
@@ -1296,11 +1315,10 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 var resizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-rectangle-resize-handle');
                 if(resizeHandle&&event.button===0){beginRectangleResize(event,resizeHandle.getAttribute('data-resize-handle'));return;}
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE' && event.button === 0 &&
-                    !hasRectangleGeometry() &&
                     !(event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle'))) {
                     event.preventDefault(); event.stopImmediatePropagation();
                     recordPathEditorAction();
-                    clearActivePointShapeFromOverlay();
+                    clearCurrentShapeForReplacement();
                     rectangleDrawing = true;
                     rectangleStart = mapPointFromEvent(event);
                     suppressNextClick = true;
@@ -1487,6 +1505,12 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 // must not replace its centroid anchor with a stray yellow marker.
                 if (shapeSelect && (shapeSelect.value === 'PATH' || shapeSelect.value === 'ORTHOGONAL') &&
                     pathField && pathField.value) {
+                    event.preventDefault();
+                    return;
+                }
+                // Only Circle mode may place the single-dot preview. Rectangle
+                // requires a drag and PATH modes own their dedicated draw gesture.
+                if (shapeSelect && shapeSelect.value !== 'CIRCLE') {
                     event.preventDefault();
                     return;
                 }
