@@ -182,6 +182,7 @@
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomOut" title="Zoom out" aria-label="Zoom out"><i class="bi bi-zoom-out"></i></button>
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomIn" title="Zoom in" aria-label="Zoom in"><i class="bi bi-zoom-in"></i></button>
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapZoomFit">Fit</button>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnMapPan" title="Freehand: drag untuk menggeser denah" aria-label="Freehand pan" aria-pressed="false"><i class="bi bi-hand-index-thumb"></i> Pan</button>
                                                 <span class="small text-muted" id="lblMapZoom">100%</span>
                                             </div>
                                             <div class="inspection-coordinate-content" id="inspectionCoordinateContent">
