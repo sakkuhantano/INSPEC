@@ -256,13 +256,13 @@
                                         <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control form-control-sm fz-custom1" MaxLength="50" placeholder="Search Point Code" />
                                         <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="fas fa-search"></i></asp:LinkButton>
                                     </div>
-                                    <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm ms-1" Width="75px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
+                                    <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm ms-1 inspection-master-point-page-size" Width="75px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
                                         <asp:ListItem Value="10">10</asp:ListItem>
                                         <asp:ListItem Value="20" Selected="True">20</asp:ListItem>
                                         <asp:ListItem Value="50">50</asp:ListItem>
                                         <asp:ListItem Value="100">100</asp:ListItem>
                                     </asp:DropDownList>
-                                    <asp:LinkButton ID="btnNewPointGrid" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 ms-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="btnNewPointGrid_Click" CausesValidation="false"><i class="fas fa-plus-circle"></i> Add Point</asp:LinkButton>
+                                    <asp:LinkButton ID="btnNewPointGrid" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 ms-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4 inspection-master-point-add" OnClick="btnNewPointGrid_Click" CausesValidation="false"><i class="fas fa-plus-circle"></i> Add Point</asp:LinkButton>
                                 </div>
                             </div>
                             <div class="row">
