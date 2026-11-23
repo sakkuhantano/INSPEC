@@ -14,6 +14,7 @@ CREATE PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_D_InspectionTypeDetailCode VARCHAR(20),
     @p_D_InspectionTypeDetailName VARCHAR(100),
     @p_D_ScheduleTime VARCHAR(200),
+    @p_D_IsTenantInspection BIT=0,
     @p_D_IsActive BIT=1,
     @p_UpdateUser VARCHAR(50)
 AS
@@ -47,13 +48,14 @@ BEGIN
             RAISERROR('Inspection Type Detail Code already exists.', 16, 1);
         SET @p_D_ID = ISNULL((SELECT MAX(ID) FROM PIP_M_InspectionTypeDetail),0)+1
         INSERT INTO dbo.PIP_M_InspectionTypeDetail
-            (InspectionTypeCode, InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyID, LocationID, ID)
+            (InspectionTypeCode, InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime, IsTenantInspection, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, CompanyID, LocationID, ID)
         VALUES
-            (@p_H_InspectionTypeCode, @p_D_InspectionTypeDetailCode, @p_D_InspectionTypeDetailName, @p_D_ScheduleTime, @p_D_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_D_CompanyID, @p_D_LocationID, @p_D_ID);
+            (@p_H_InspectionTypeCode, @p_D_InspectionTypeDetailCode, @p_D_InspectionTypeDetailName, @p_D_ScheduleTime, @p_D_IsTenantInspection, @p_D_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_D_CompanyID, @p_D_LocationID, @p_D_ID);
     END
     ELSE IF @p_D_Tipe = '2'
         UPDATE dbo.PIP_M_InspectionTypeDetail
         SET InspectionTypeDetailName=@p_D_InspectionTypeDetailName, ScheduleTime=@p_D_ScheduleTime,
+            IsTenantInspection=@p_D_IsTenantInspection,
             IsActive=@p_D_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE()
         WHERE ID=@p_D_ID;
     ELSE IF @p_D_Tipe = '3'
