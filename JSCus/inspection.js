@@ -5138,7 +5138,7 @@ function getInspectionConflictDisplayReason(record) {
          (lower.includes("schedule") || lower.includes("template"))) ||
         lower.includes("sudah lebih dulu disimpan") ||
         lower.includes("jadwal inspeksi ini sudah dipakai"))
-        return "Pilihan inspeksi dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft di perangkat ini belum masuk ke server. Silakan hapus draft ini agar tidak dikirim ulang. Jika ragu, hubungi SPV untuk pengecekan.";
+        return "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
 
     // Older drafts may still contain the technical exception text from earlier sync versions.
     const technicalMarkers = [
