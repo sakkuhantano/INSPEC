@@ -5129,6 +5129,28 @@ async function openServerReturnedInspection(inspectionId) {
     }
 }
 
+function getInspectionConflictDisplayReason(record) {
+    const value = String(record && record.ConflictReason || "").trim();
+    const lower = value.toLowerCase();
+    if (lower.includes("an inspection already exists for this date") ||
+        lower.includes("already exists for this date") ||
+        (lower.includes("duplicate") && lower.includes("inspection") &&
+         (lower.includes("schedule") || lower.includes("template"))) ||
+        lower.includes("sudah lebih dulu disimpan") ||
+        lower.includes("jadwal inspeksi ini sudah dipakai"))
+        return "Pilihan inspeksi dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft di perangkat ini belum masuk ke server. Silakan hapus draft ini agar tidak dikirim ulang. Jika ragu, hubungi SPV untuk pengecekan.";
+
+    // Older drafts may still contain the technical exception text from earlier sync versions.
+    const technicalMarkers = [
+        "system.exception", "sqlexception", "uncommittable transaction",
+        "stack trace", "tahap:", "procedure", "line ", " at inspec."
+    ];
+    if (technicalMarkers.some(marker => lower.includes(marker)) || value.length > 300)
+        return "Data inspeksi ini bentrok dengan data yang sudah ada. Periksa kembali jadwal dan pilihan inspeksinya. Jika masih ragu, hubungi SPV.";
+
+    return value || "Data inspeksi ini belum dapat dikirim karena ada bentrok data. Hubungi SPV bila perlu pengecekan.";
+}
+
 function getInspectionRecordGridStatus(record, submitted) {
     const status = String(record && record.Status || "").trim().toUpperCase();
     const syncStatus = String(record && record.SyncStatus || "").trim().toUpperCase();
@@ -5139,7 +5161,7 @@ function getInspectionRecordGridStatus(record, submitted) {
     ].some(value => String(value || "").trim() !== "");
 
     if (syncStatus === "CONFLICT")
-        return { label: "Conflict", badge: "text-bg-danger" };
+        return { label: "Konflik Data", badge: "text-bg-danger" };
     if (syncStatus === "DELETE_PENDING")
         return { label: "Pending Delete", badge: "text-bg-warning" };
     if (status === "DRAFT" && hasVoidReason)
@@ -5220,7 +5242,7 @@ function renderInspectionRecordTable(records, host, submitted) {
                     ? '<button type="button" class="btn btn-link btn-sm p-0 text-nowrap" data-open-server-inspection="' + escInspection(serverId) + '">' + escInspection(number) + '</button>'
                     : escInspection(number)));
         const conflictHtml = record.SyncStatus === "CONFLICT"
-            ? '<div class="text-danger small mt-1"><strong>CONFLICT:</strong> ' + escInspection(record.ConflictReason || "Server menolak transaksi.") + '</div>'
+            ? '<div class="text-danger small mt-1"><strong>Konflik data:</strong> ' + escInspection(getInspectionConflictDisplayReason(record)) + '</div>'
             : record.SyncStatus === "DELETE_PENDING"
                 ? '<div class="text-warning small mt-1">' +
                     (record.DeleteOriginalSyncStatus === "VOIDED"
@@ -5234,7 +5256,7 @@ function renderInspectionRecordTable(records, host, submitted) {
             ? '<div class="text-warning small mt-1"><strong>Returned:</strong> ' + escInspection(record.ReasonVoid) + '</div>'
             : "";
         const deleteHtml = record.SyncStatus === "CONFLICT"
-            ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Delete Local Transaction</button>'
+            ? '<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-delete-conflict="' + escInspection(localId) + '">Hapus Draft Ini</button>'
             : (record.SyncStatus === "DELETE_PENDING" && record.DeleteOriginalSyncStatus === "VOIDED"
                 ? '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" data-edit-delete-reason="' + escInspection(localId) + '">Reason Cancel</button>'
                 : "");
