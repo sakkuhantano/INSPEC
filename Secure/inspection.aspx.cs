@@ -1017,15 +1017,9 @@ WHERE InspectionID=@InspectionID",
                     WriteInspectionSyncError(syncStage, clientId, userId, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
-                    // Return the same diagnostic detail written to App_Data so the user can
-                    // identify the actual failing stage, SQL error, and stack location without
-                    // opening the IIS server log.
-                    string userMessage = String.Format(
-                        CultureInfo.InvariantCulture,
-                        "Tahap: {0}{1}{2}",
-                        syncStage ?? "unknown",
-                        Environment.NewLine,
-                        ex.ToString());
+                    // Keep technical diagnostics in App_Data/server logs only.
+                    // Browser responses must contain a clear, non-technical explanation.
+                    string userMessage = GetInspectionSyncUserMessage(ex, syncStage);
 
                     outcomes.Add(new
                     {
@@ -1046,6 +1040,40 @@ WHERE InspectionID=@InspectionID",
             try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, emailCompanyId); }
             catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
             return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
+        }
+
+        private static string GetInspectionSyncUserMessage(Exception error, string stage)
+        {
+            string diagnostic = error == null ? "" : error.ToString();
+            string normalized = diagnostic.ToLowerInvariant();
+
+            // A second device may submit the same inspection slot after the first device
+            // has already saved it. Treat this as a normal data conflict, not a system error.
+            if (normalized.Contains("an inspection already exists for this date") ||
+                normalized.Contains("already exists for this date") ||
+                (normalized.Contains("duplicate") && normalized.Contains("inspection") &&
+                 (normalized.Contains("schedule") || normalized.Contains("template"))))
+            {
+                return "Pilihan inspeksi dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft di perangkat ini belum masuk ke server. Silakan hapus draft ini agar tidak dikirim ulang. Jika ragu, hubungi SPV untuk pengecekan.";
+            }
+
+            string rootMessage = "";
+            try
+            {
+                rootMessage = error == null || error.GetBaseException() == null
+                    ? ""
+                    : error.GetBaseException().Message ?? "";
+            }
+            catch { }
+
+            string rootLower = rootMessage.ToLowerInvariant();
+            if (rootLower.Contains("belongs to another employee"))
+                return "Draft inspeksi ini bukan milik akun yang sedang digunakan. Silakan masuk dengan akun teknisi yang membuat draft tersebut.";
+            if (rootLower.Contains("only completed inspections"))
+                return "Inspeksi belum selesai. Selesaikan pemeriksaan terlebih dahulu sebelum melakukan sinkronisasi.";
+
+            // Do not expose SQL messages, procedure names, stack traces, or transaction details.
+            return "Inspeksi belum berhasil disinkronkan. Data masih tersimpan di perangkat ini. Periksa koneksi internet, lalu coba sinkronkan kembali. Jika masalah tetap muncul, hubungi SPV.";
         }
 
         private static void WriteInspectionSyncError(string stage, string clientInspectionId, string userId, Exception error)
