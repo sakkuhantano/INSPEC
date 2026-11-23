@@ -2639,12 +2639,11 @@
         <div id="inspectionTenantPanel" class="mb-3 d-none">
             <div class="row g-2">
                 <div class="col-12">
-                    <label for="txtInspectionTenantSearch" class="form-label small fw-semibold">Cari Tenant</label>
+                    <label for="selInspectionTenant" class="form-label small fw-semibold">Tenant</label>
                     <input type="search" id="txtInspectionTenantSearch"
                            class="form-control form-control-sm mb-2"
                            placeholder="Ketik Tenant ID atau nama tenant..."
                            autocomplete="off" disabled />
-                    <label for="selInspectionTenant" class="form-label small fw-semibold">Tenant</label>
                     <select id="selInspectionTenant" class="form-select form-select-sm">
                         <option value="">Pilih tenant...</option>
                     </select>
