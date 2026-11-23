@@ -499,6 +499,18 @@
             renderInspectionPdfCanvasAtZoom();
         }, 140);
     }
+    function updateInspectionCoordinateCircleAspect(content) {
+        if (!content || !content.clientWidth || !content.clientHeight) return;
+        var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
+        if (!svg) return;
+        var aspect = content.clientWidth / content.clientHeight;
+        svg.querySelectorAll('.inspection-coordinate-circle').forEach(function (circle) {
+            var cx = Number(circle.getAttribute('cx')) || 0;
+            var cy = Number(circle.getAttribute('cy')) || 0;
+            circle.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(1 ' + aspect + ') translate(' + (-cx) + ' ' + (-cy) + ')');
+        });
+    }
+
     function fitInspectionCoordinateContent(board, content, naturalWidth, naturalHeight) {
         if (!board || !content || !naturalWidth || !naturalHeight) return null;
         var availableWidth = board.clientWidth;
@@ -515,6 +527,9 @@
         content.style.top = Math.round((availableHeight - height) / 2) + 'px';
         content.style.width = width + 'px';
         content.style.height = height + 'px';
+        // The SVG overlay has a non-uniform viewBox mapping. Reapply its
+        // circle compensation only after the floor plan has its final dimensions.
+        updateInspectionCoordinateCircleAspect(content);
         return { width: width, height: height };
     }
 
@@ -701,15 +716,7 @@
                 // itself remains centered inside the board.
                 content.style.transformOrigin = 'center top';
                 content.style.transform = 'translate3d(' + panX + 'px,' + panY + 'px,0) scale(' + zoom + ')';
-                var vectorSvg = content.querySelector('#inspectionCoordinateSvgOverlay');
-                if (vectorSvg && content.clientWidth && content.clientHeight) {
-                    var vectorAspect = content.clientWidth / content.clientHeight;
-                    vectorSvg.querySelectorAll('.inspection-coordinate-circle').forEach(function (circle) {
-                        var cx = Number(circle.getAttribute('cx')) || 0;
-                        var cy = Number(circle.getAttribute('cy')) || 0;
-                        circle.setAttribute('transform', 'translate(' + cx + ' ' + cy + ') scale(1 ' + vectorAspect + ') translate(' + (-cx) + ' ' + (-cy) + ')');
-                    });
-                }
+                updateInspectionCoordinateCircleAspect(content);
                 updateMarkerScale();
                 if (zoomLabel) zoomLabel.textContent = Math.round(zoom * 100) + '%';
                 board.classList.toggle('inspection-map-zoomed', zoom > 1);
@@ -742,7 +749,7 @@
             function updateCircleShapeAttributes(x, y) {
                 if (!shapeAttributesField) return;
                 // CIRCLE is a small point dot; area geometry belongs to PATH.
-                var radius = 4.5;
+                var radius = 3.0;
                 shapeAttributesField.value = JSON.stringify({ cx: Number(x.toFixed(2)), cy: Number(y.toFixed(2)), r: radius });
             }
             // Action-based Undo/Redo for unsaved map geometry edits.
