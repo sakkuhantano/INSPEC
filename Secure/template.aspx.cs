@@ -681,7 +681,7 @@ WHERE a.SectionID = @SectionID
                         {
                             string minTol = GF.GetString(item["MinTolerance"]);
                             string maxTol = GF.GetString(item["MaxTolerance"]);
-                            if (String.IsNullOrWhiteSpace(minTol))
+                            if (String.IsNullOrWhiteSpace(minTol) && _errMsg == "")
                             {
                                 errorDetails.Add("type", "ITEM");
                                 errorDetails.Add("field", "MinTolerance");
@@ -716,6 +716,13 @@ WHERE a.SectionID = @SectionID
                     }
                 }
             }
+            if (_errMsg != "")
+            {
+                r["success"] = false;
+                r["firstError"] = errorDetails;
+                return r;
+            }
+
             RequireAllowedSection(sectionID);
             if (idTemplate > 0) RequireTemplateAccess(idTemplate.ToString());
             using (var br = new WAL.BR.CF())
