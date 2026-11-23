@@ -119,6 +119,7 @@
 .inspection-map-preview-media{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;line-height:0}
 .inspection-map-preview-canvas,.inspection-map-preview-media .inspection-image-preview{display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:fill;border:0;background:#fff}
 .inspection-map-preview-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.inspection-map-preview-svg [data-point-id]{pointer-events:visiblePainted;cursor:pointer}
 .inspection-map-preview-svg .inspection-map-preview-circle{fill:#fd7e14;stroke:#fff;stroke-width:1.05;vector-effect:non-scaling-stroke}
 .inspection-map-preview-svg .inspection-map-preview-rectangle{fill:rgba(253,126,20,.20)!important;stroke:#fd7e14!important;stroke-width:.85}
 .inspection-map-preview-svg .inspection-map-preview-path{stroke:#fd7e14!important}
