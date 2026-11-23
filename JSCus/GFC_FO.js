@@ -1716,7 +1716,7 @@ async function uploadPendingInspections() {
     }
 
     const failed = outcomes.filter(x => !x.success);
-    const duplicateConflictMessage = "Pilihan inspeksi dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft di perangkat ini belum masuk ke server. Silakan hapus draft ini agar tidak dikirim ulang. Jika ragu, hubungi SPV untuk pengecekan.";
+    const duplicateConflictMessage = "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
     const genericConflictMessage = "Data inspeksi ini bentrok dengan data yang sudah ada. Periksa kembali jadwal dan pilihan inspeksinya. Jika masih ragu, hubungi SPV.";
     const getInspectionConflictDisplayMessage = message => {
         const value = String(message || "").trim();
