@@ -682,7 +682,7 @@
             function pointerDistance(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
             function beginPinch(){
                 var ids=Object.keys(activePointers);
-                if(ids.length!==2||drawMode||rectangleDrawing||rectangleResize)return;
+                if(ids.length!==2||(drawMode&&!panMode)||rectangleDrawing||rectangleResize)return;
                 pinchStartDistance=pointerDistance(activePointers[ids[0]],activePointers[ids[1]]);
                 pinchStartZoom=zoom; dragging=false;
                 board.classList.add('inspection-map-pinching');
@@ -839,27 +839,28 @@
             var clearPathButton = document.getElementById('btnClearPath');
             var pathStatus = document.getElementById('lblPathDrawStatus');
             var drawMode = false, drawingPath = false, suppressNextClick = false;
-            // Hold Space to temporarily pan the floor plan without changing the selected shape tool.
-            var spacePanHeld = false;
-            document.addEventListener('keydown', function (event) {
-                if (event.code === 'Space' && !event.repeat) {
-                    var target = event.target;
-                    if (!(target && (target.matches('input, textarea, select') || target.isContentEditable))) {
-                        spacePanHeld = true;
-                        board.classList.add('inspection-map-space-pan');
-                        event.preventDefault();
-                    }
+            var panMode = false;
+            var panButton = document.getElementById('btnMapPan');
+            function setMapPanMode(enabled) {
+                panMode = !!enabled;
+                if (panButton) {
+                    panButton.classList.toggle('btn-primary', panMode);
+                    panButton.classList.toggle('btn-outline-secondary', !panMode);
+                    panButton.setAttribute('aria-pressed', panMode ? 'true' : 'false');
+                    panButton.title = panMode ? 'Freehand aktif: drag denah untuk menggeser' : 'Freehand: drag untuk menggeser denah';
                 }
-            });
-            document.addEventListener('keyup', function (event) {
-                if (event.code === 'Space') {
-                    spacePanHeld = false;
-                    board.classList.remove('inspection-map-space-pan');
+                board.classList.toggle('inspection-map-freehand', panMode);
+                if (!dragging) {
+                    board.style.cursor = panMode ? 'grab' : '';
+                    content.style.cursor = panMode ? 'grab' : '';
                 }
-            });
-            window.addEventListener('blur', function () {
-                spacePanHeld = false;
-                board.classList.remove('inspection-map-space-pan');
+                if (panMode) pathStatusText('Freehand aktif: drag area denah untuk menggeser map. Klik Pan lagi untuk kembali ke tool ' + (shapeSelect ? shapeSelect.options[shapeSelect.selectedIndex].text : 'geometry') + '.');
+                else pathStatusText('Mode geometry aktif: ' + (shapeSelect ? shapeSelect.options[shapeSelect.selectedIndex].text : 'Circle') + '.');
+            }
+            if (panButton) panButton.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                setMapPanMode(!panMode);
             });
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
@@ -1248,6 +1249,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 pathStatusText('PATH / Polyline siap disimpan. Save Inspection Point untuk menyimpan garis ini.');
             }
             if (drawButton) drawButton.addEventListener('click', function () {
+                if (panMode) setMapPanMode(false);
                 if (shapeSelect && shapeSelect.value === 'RECTANGLE') {
                     recordPathEditorAction();
                     drawMode = false;
@@ -1319,6 +1321,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 pathStatusText('Path dan marker aktif dihapus. Klik map untuk menempatkan titik baru, lalu Save Inspection Point.');
             });
             if (shapeSelect) shapeSelect.addEventListener('change', function () {
+                if (panMode) setMapPanMode(false);
                 recordPathEditorAction();
                 // Changing shape type starts a clean replacement. Do not leave a
                 // previous Circle/Rectangle/Path visible underneath the new draft.
@@ -1343,9 +1346,9 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 // before Rectangle/shape drawing can interpret the toolbar as map
                 // canvas input and clear the geometry being edited.
                 if (event.target.closest && event.target.closest('.inspection-map-toolbar-floating')) return;
-                // Space temporarily suspends the active shape tool so the bubble-phase
-                // map handler can start a pan gesture instead of drawing a new shape.
-                if (spacePanHeld && event.button === 0) return;
+                // Freehand mode temporarily suspends all shape editing/drawing gestures.
+                // The regular map handler below then owns the drag and pans the viewport.
+                if (panMode && event.button === 0) return;
                 var genericResizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-shape-resize-handle');
                 if(genericResizeHandle&&event.button===0){beginShapeTransform(event,genericResizeHandle.getAttribute('data-shape-resize-handle'));return;}
                 var shapeMoveHit=event.target.closest&&event.target.closest('.inspection-coordinate-shape-move-hit');
@@ -1391,6 +1394,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
             }, true);
             board.addEventListener('pointermove', function (event) {
+                if (panMode) return;
                 if(shapeTransform){event.preventDefault();event.stopImmediatePropagation();var p=mapPointFromEvent(event);if(shapeTransform.mode==='move')moveCurrentShape(p,shapeTransform.start);else resizeCurrentShape(shapeTransform.handle,p,shapeTransform.start);return;}
                 if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();resizeRectangleFromHandle(rectangleResize.handle,rectangleResize.start,mapPointFromEvent(event));return;}
                 if (rectangleDrawing) {
@@ -1416,6 +1420,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
             }, true);
             board.addEventListener('pointerup', function (event) {
+                if (panMode) return;
                 if(shapeTransform){event.preventDefault();event.stopImmediatePropagation();try{board.releasePointerCapture(event.pointerId);}catch(_){ }shapeTransform=null;suppressNextClick=true;return;}
                 if(rectangleResize){event.preventDefault();event.stopImmediatePropagation();try{board.releasePointerCapture(rectangleResize.pointerId);}catch(_){} rectangleResize=null;suppressNextClick=true;return;}
                 if (rectangleDrawing) {
@@ -1486,21 +1491,24 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
             }, { passive: false });
             board.addEventListener('pointerdown', function (event) {
                 activePointers[event.pointerId]=event;
-                if(Object.keys(activePointers).length===2&&!drawMode&&!rectangleDrawing&&!rectangleResize){
+                if(Object.keys(activePointers).length===2&&(!drawMode||panMode)&&!rectangleDrawing&&!rectangleResize){
                     beginPinch(); event.preventDefault(); return;
                 }
-                // Space temporarily overrides drawing mode. Dragging a shape/handle
-                // still edits that shape; dragging empty map space pans the floor plan.
-                if ((drawMode && !spacePanHeld) || (event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle, .inspection-coordinate-shape-resize-handle')) || zoom <= 1 || event.button !== 0) return;
+                // In Freehand mode every map surface (including existing geometry)
+                // pans the viewport. Otherwise the selected geometry keeps its edit gesture.
+                var isShapeTarget = event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle, .inspection-coordinate-shape-resize-handle');
+                if ((!panMode && (drawMode || isShapeTarget)) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
             board.addEventListener('pointermove', function (event) {
                 if(activePointers[event.pointerId]) activePointers[event.pointerId]=event;
-                if(Object.keys(activePointers).length===2&&!drawMode&&!rectangleDrawing&&!rectangleResize){
+                if(Object.keys(activePointers).length===2&&(!drawMode||panMode)&&!rectangleDrawing&&!rectangleResize){
                     event.preventDefault(); updatePinch(); return;
                 }
                 if (!dragging) return;
+                board.style.cursor = 'grabbing';
+                content.style.cursor = 'grabbing';
                 var nx = event.clientX - startX, ny = event.clientY - startY;
                 if (Math.abs(nx - panX) + Math.abs(ny - panY) > 3) moved = true;
                 panX = nx; panY = ny; applyView();
@@ -1509,13 +1517,18 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 delete activePointers[event.pointerId];
                 if(Object.keys(activePointers).length<2){pinchStartDistance=0;board.classList.remove('inspection-map-pinching');}
                 dragging=false;
+                board.style.cursor = panMode ? 'grab' : '';
+                content.style.cursor = panMode ? 'grab' : '';
             });
             board.addEventListener('pointercancel', function (event) {
                 delete activePointers[event.pointerId];
                 if(Object.keys(activePointers).length<2){pinchStartDistance=0;board.classList.remove('inspection-map-pinching');}
                 dragging=false;
+                board.style.cursor = panMode ? 'grab' : '';
+                content.style.cursor = panMode ? 'grab' : '';
             });
             content.addEventListener('click', function (event) {
+                if (panMode) { event.preventDefault(); event.stopPropagation(); return; }
                 var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle') : null;
                 if (marker) {
                     event.preventDefault(); event.stopPropagation();
@@ -1532,6 +1545,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
             });
             board.addEventListener('click', function (event) {
+                if (panMode) { event.preventDefault(); return; }
                 if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
                 if (drawMode && shapeSelect && shapeSelect.value === 'PATH') {
                     event.preventDefault();
