@@ -5143,7 +5143,9 @@ function getInspectionConflictDisplayReason(record) {
          (lower.includes("schedule") || lower.includes("template"))) ||
         lower.includes("sudah lebih dulu disimpan") ||
         lower.includes("jadwal inspeksi ini sudah dipakai");
-    if (duplicateInspection && lower.includes("tenant") && lower.includes("suite"))
+    const hasTenantSuite = (lower.includes("tenant") && lower.includes("suite")) ||
+        !!(record && String(record.TenantID || "").trim() && String(record.SuiteNo || "").trim());
+    if (duplicateInspection && hasTenantSuite)
         return "Inspeksi untuk Tenant dan Suite yang sama sudah lebih dulu disimpan dari perangkat lain dengan jadwal dan template tersebut. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
     if (duplicateInspection)
         return "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
