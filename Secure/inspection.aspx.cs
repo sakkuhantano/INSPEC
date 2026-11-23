@@ -1309,8 +1309,18 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                 DataTable rows = br.EQueryP(@"
 SELECT G.TenantID,G.TenantName
 FROM dbo.THD_M_GeneralInformation G
-WHERE G.CompanyID=@CompanyID AND G.LocationID=@LocationID
-  AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+WHERE (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.THD_M_AgreementInformation A
+      WHERE A.CompanyID=G.CompanyID
+        AND A.LocationID=G.LocationID
+        AND A.TenantID=G.TenantID
+        AND A.LeaseTermDate<> ''
+        AND A.LeaseTermDate>=GETDATE()
+  )
+  AND G.CompanyID=@CompanyID
+  AND G.LocationID=@LocationID
 ORDER BY G.TenantName,G.TenantID",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", companyId),
