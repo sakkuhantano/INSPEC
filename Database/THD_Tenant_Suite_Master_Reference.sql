@@ -83,7 +83,7 @@ BEGIN
         [NPWPAddress] varchar(1000) NOT NULL,
         [NPWPNIK] varchar(100) NOT NULL,
         [NPWPCity] varchar(30) NOT NULL,
-        [NPWPPostCode] varchar(30) NOT NULL,
+        [NPWPPostCode] varchar(10) NOT NULL,
         [NPWPProvince] varchar(25) NOT NULL,
         [IsPSC] bit NOT NULL,
         [Limit] money NOT NULL,
