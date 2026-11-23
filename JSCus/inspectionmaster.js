@@ -854,7 +854,7 @@
                     board.style.cursor = panMode ? 'grab' : '';
                     content.style.cursor = panMode ? 'grab' : '';
                 }
-                if (panMode) pathStatusText('Freehand aktif: drag area denah untuk menggeser map. Klik Pan lagi untuk kembali ke tool ' + (shapeSelect ? shapeSelect.options[shapeSelect.selectedIndex].text : 'geometry') + '.');
+                if (panMode) pathStatusText('Freehand aktif: drag area denah untuk menggeser map. Klik Freehand lagi untuk kembali ke tool ' + (shapeSelect ? shapeSelect.options[shapeSelect.selectedIndex].text : 'geometry') + '.');
                 else pathStatusText('Mode geometry aktif: ' + (shapeSelect ? shapeSelect.options[shapeSelect.selectedIndex].text : 'Circle') + '.');
             }
             if (panButton) panButton.addEventListener('click', function (event) {
@@ -1528,7 +1528,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 content.style.cursor = panMode ? 'grab' : '';
             });
             content.addEventListener('click', function (event) {
-                if (panMode) { event.preventDefault(); event.stopPropagation(); return; }
+                if (panMode) { moved = false; event.preventDefault(); event.stopPropagation(); return; }
                 var marker = event.target.closest ? event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle') : null;
                 if (marker) {
                     event.preventDefault(); event.stopPropagation();
@@ -1545,7 +1545,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
             });
             board.addEventListener('click', function (event) {
-                if (panMode) { event.preventDefault(); return; }
+                if (panMode) { moved = false; event.preventDefault(); return; }
                 if (suppressNextClick) { suppressNextClick = false; event.preventDefault(); return; }
                 if (drawMode && shapeSelect && shapeSelect.value === 'PATH') {
                     event.preventDefault();
