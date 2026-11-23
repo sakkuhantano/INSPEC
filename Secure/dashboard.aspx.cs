@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -13,53 +13,6 @@ namespace INSPEC.Secure
 {
     public partial class dashboard : System.Web.UI.Page
     {
-        // Positional TVP contract: first supplied value -> C1, second -> C2, etc.; parameter names are not serialized.
-        private static SqlParameter[] InspectionDashboardQueryParameters(string type, params SqlParameter[] values)
-        {
-            DataTable data = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                data.Columns.Add("C" + i, typeof(string));
-            DataRow row = data.NewRow();
-            int index = 0;
-            if (values != null)
-            {
-                foreach (SqlParameter parameter in values)
-                {
-                    if (parameter == null) continue;
-                    if (index >= 13) throw new ArgumentException("Inspection dashboard TVP supports at most 13 values.", "values");
-                    object value = parameter.Value;
-                    row[index++] = value == null || value == DBNull.Value
-                        ? (object)DBNull.Value
-                        : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
-                }
-            }
-            data.Rows.Add(row);
-            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
-            tvp.TypeName = "dbo.Type_N_Tbl_C13";
-            tvp.Value = data;
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
-        }
-
-        private static DataTable BuildDashboardQueryData(params string[] values)
-        {
-            DataTable table = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                table.Columns.Add("C" + i, typeof(string));
-            DataRow row = table.NewRow();
-            for (int i = 0; i < values.Length && i < 13; i++)
-                row[i] = values[i] ?? String.Empty;
-            table.Rows.Add(row);
-            return table;
-        }
-
-        private static SqlParameter[] DashboardQueryParameters(string type, params string[] values)
-        {
-            SqlParameter data = new SqlParameter("@p_Data", SqlDbType.Structured);
-            data.TypeName = "dbo.Type_N_Tbl_C13";
-            data.Value = BuildDashboardQueryData(values);
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), data };
-        }
-
         private static string GetCurrentSessionToken()
         {
             HttpContext context = HttpContext.Current;
@@ -110,13 +63,27 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Employee identity is required for inspection template download.");
 
                     DataTable auth = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        InspectionDashboardQueryParameters("081", new SqlParameter[] {
-                            new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                        @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                          FROM dbo.SysWebUser SU
+                          
+                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+                            AND (
+                                EXISTS (
+                                    SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                                    WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
+                                )
+                            )",
+                        new SqlParameter[] {
                             new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                             new SqlParameter("@CompanyID", companyId),
                             new SqlParameter("@LocationID", locationId)
-                        }), true);
+                        });
 
                     if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                         throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -146,9 +113,34 @@ namespace INSPEC.Secure
                         throw new HttpException(403, "Requested Work Order section is not assigned to this employee.");
                     section = String.Join(";", requestedSections);
                 }
-                DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    DashboardQueryParameters("206", section, templateNo, version, companyId, locationId, templateType, employeeId), true);
+                DataTable dt = br.EQuery(
+@"SELECT B.IDTemplate, B.TemplateNo, B.TemplateName, B.SectionID, ISNULL(B.TemplateType,'W') TemplateType, ISNULL(B.InspectionTypeCode,'') InspectionTypeCode, ISNULL(B.InspectionTypeDetailCode,'') InspectionTypeDetailCode, ISNULL(B.CompanyScope,'S') CompanyScope, ISNULL(B.CompanyLocationList,'') CompanyLocationList, ISNULL(B.EmployeeList,'') EmployeeList, a.IDVersion, a.Version, a.StatusOption, ISNULL(a.RemarkRequiredOptions,'') VersionRemarkRequiredOptions, ISNULL(a.SummarySampleText,'') SummarySampleText, ISNULL(a.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(a.IsFollowUpRequired,1) VersionIsFollowUpRequired, a.IsRemark1Required VersionIsRemark1Required, a.Remark1Text VersionRemark1Text, a.IsRemark2Required VersionIsRemark2Required, a.Remark2Text VersionRemark2Text, ISNULL(a.PhotoRequirement,'NONE') PhotoRequirement FROM PIP_M_CheckListWOPM_Version a 
+JOIN PIP_M_CheckListWOPM b on A.IDTemplate=B.IDTemplate 
+WHERE b.IsActive=1
+AND ISNULL(b.TemplateType,'W')=@TemplateType
+AND (a.Status='Active' OR (@version<>'' AND a.Status='Archieved' AND EXISTS (
+    SELECT 1 FROM dbo.PIP_T_WO ExistingWO
+    WHERE ExistingWO.TemplateWOPM=B.TemplateNo AND ExistingWO.TemplateVersion=a.Version
+      AND ExistingWO.CompanyID=@CompanyID AND ExistingWO.LocationID=@LocationID
+      AND ExistingWO.SectionID=B.SectionID
+)))
+AND (
+    @TemplateType <> 'I'
+    OR ISNULL(B.EmployeeList,'')='' OR (';' + ISNULL(B.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%')
+)
+AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@sectionlist,';') c WHERE c.val=b.sectionid)
+AND (ISNULL(b.CompanyScope,'S')='A' OR (';' + ISNULL(b.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+AND B.TemplateNo=CASE WHEN @templateno='' THEN B.TemplateNo ELSE @templateno END
+AND a.Version=CASE WHEN @version='' THEN a.Version ELSE @version END
+ORDER BY CASE WHEN ISNULL(b.CompanyScope,'S')='S' THEN 0 ELSE 1 END, B.IDTemplate, a.IDVersion
+",
+"@sectionlist=" + section + GF.Str2 +
+"@templateno=" + templateNo + GF.Str2 +
+"@version=" + version + GF.Str2 +
+"@CompanyID=" + companyId + GF.Str2 +
+"@LocationID=" + locationId + GF.Str2 +
+"@TemplateType=" + templateType + GF.Str2 +
+"@EmployeeID=" + employeeId);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<string, object>();
@@ -177,19 +169,63 @@ namespace INSPEC.Secure
                     dict["IsRemark2Required"] = Convert.ToBoolean(row["VersionIsRemark2Required"]);
                     dict["Remark2Text"] = GF.GetString(row["VersionRemark2Text"]);
                     dict["PhotoRequirement"] = new[] { "NONE", "BEFORE", "AFTER", "BOTH" }.Contains(GF.GetString(row["PhotoRequirement"]).ToUpperInvariant()) ? GF.GetString(row["PhotoRequirement"]).ToUpperInvariant() : "NONE";
-                    DataTable dt1 = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        DashboardQueryParameters("207", row["IDTemplate"].ToString(), row["IDVersion"].ToString(),
-                            row["TemplateNo"].ToString(), templateType, modelcode), true);
-                    DataTable dt2 = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        DashboardQueryParameters("208"), true);
-                    DataTable dtRepeat = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        DashboardQueryParameters("209", row["IDVersion"].ToString()), true);
-                    DataTable dtRepeatFields = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        DashboardQueryParameters("210", row["IDVersion"].ToString()), true);
+                    DataTable dt1 = br.EQuery(
+@"SELECT  
+s.IDSection,
+s.SectionName,
+s.DisplayOrder AS SectionOrder,
+i.IDItem,
+i.IDSubSection,
+ISNULL(ss.SubSectionName,'') AS SubSectionName,
+ISNULL(ss.DisplayOrder,0) AS SubSectionOrder,
+i.ItemLabel,
+i.ItemType,
+ISNULL(i.OptionList,'') OptionList,
+i.MinValue,
+i.MaxValue,
+ISNULL(i.Unit,'') Unit,
+ISNULL(i.ShowUnitInRange,0) ShowUnitInRange,
+i.IsValueRequired,
+i.IsRemark1Required, i.IsRemark2Required, i.IsRemark1Mandatory, i.IsRemark2Mandatory, i.Remark1Text, i.Remark2Text, i.IsUseDefaultRemark1, i.IsUseDefaultRemark2, ISNULL(i.RemarkRequiredOptions,'') ItemRemarkRequiredOptions,
+i.DisplayOrder AS ItemOrder,
+v.StatusOption, i.ModelCode, i.MinTolerance, i.MaxTolerance, i.IsToleranceRequired
+FROM PIP_M_CheckListWOPM_Section s
+JOIN PIP_M_CheckListWOPM_Version v ON v.IDVersion=s.IDVersion
+JOIN PIP_M_CheckListWOPM_Item i ON s.IDSection = i.IDSection
+LEFT JOIN PIP_M_CheckListWOPM_SubSection ss ON ss.IDSubSection = i.IDSubSection
+JOIN PIP_M_CheckListWOPM m ON m.IDTemplate = v.IDTemplate
+WHERE m.IDTemplate=@IDTemplate
+  AND v.IDVersion=@IDVersion
+  AND m.TemplateNo = @TemplateNo
+  AND m.IsActive=1
+  AND ISNULL(m.TemplateType,'W')=@TemplateType
+  -- The header query has already authorized the requested Active version or
+  -- the exact archived version referenced by an existing WorkOrder.
+  AND (ISNULL(i.ModelCode,'')='' OR i.ModelCode=@ModelCode OR @ModelCode='')
+ORDER BY s.DisplayOrder, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN i.DisplayOrder ELSE ss.DisplayOrder END, CASE WHEN ISNULL(i.IDSubSection,0)=0 THEN 0 ELSE 1 END, i.DisplayOrder",
+                                        "@TemplateNo=" + row["TemplateNo"].ToString() + GF.Str2 +
+                                        "@ModelCode=" + modelcode + GF.Str2 +
+                                        "@TemplateType=" + templateType + GF.Str2 +
+                                        "@IDTemplate=" + row["IDTemplate"].ToString() + GF.Str2 +
+                                        "@IDVersion=" + row["IDVersion"].ToString());
+                    DataTable dt2 = br.EQuery("SELECT IDItem, GroupName, FieldList, Unit, DisplayOrder " +
+                                              "FROM PIP_M_CheckListWOPM_ItemGroup");
+                    DataTable dtRepeat = br.EQuery(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                        "@IDVersion=" + row["IDVersion"].ToString());
+                    DataTable dtRepeatFields = br.EQuery(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.IsRequired,F.GroupName,F.DisplayOrder,F.MinInclusive,F.MaxInclusive
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
+                        "@IDVersion=" + row["IDVersion"].ToString());
                     var sections = dt1.AsEnumerable()
                         .GroupBy(r => new
                         {
@@ -305,7 +341,7 @@ namespace INSPEC.Secure
                     dict["sections"] = sections;
                     result.Add(dict);
                 }
-                
+
                 //DataSet ds = new DataSet();
                 //dt.TableName = "templates";
                 //ds.Tables.Add(dt);
@@ -341,11 +377,12 @@ namespace INSPEC.Secure
                     throw new HttpException(403, "Employee identity is required for inspection master download.");
 
                 DataTable auth = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    InspectionDashboardQueryParameters("082", new SqlParameter[] {
-                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                        new SqlParameter("@EmployeeID", employeeId)
-                    }), true);
+                    @"SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID IN ('20021','20022')) THEN 1 ELSE 0 END IsWO
+                      FROM dbo.SysWebUser SU
+                      
+                      WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1",
+                    new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@EmployeeID", employeeId) });
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for inspection entry.");
@@ -366,31 +403,65 @@ namespace INSPEC.Secure
                     throw new HttpException(400, "Company and location are required for inspection master download.");
 
                 DataTable companyAuth = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    InspectionDashboardQueryParameters("083", new SqlParameter[] {
+                    @"SELECT SU.UserID
+                      FROM dbo.SysWebUser SU
+                          
+                          WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+                        AND (
+                            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                                      AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                                       WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+                        )",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@CompanyID", companyId),
+new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 if (companyAuth.Rows.Count == 0)
                     throw new HttpException(403, "Employee is not authorized for this company/location.");
 
-                DataTable types = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    InspectionDashboardQueryParameters("084", new SqlParameter[] {
-                        new SqlParameter("@SectionList", section),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId),
-                        new SqlParameter("@EmployeeID", employeeId)
-                    }), true);
+                DataTable types = br.EQuery(@"
+SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
+       ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode
+FROM dbo.PIP_M_InspectionType T
+WHERE T.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM C
+      WHERE C.InspectionTypeCode=T.InspectionTypeCode
+        AND C.SectionID=T.SectionID
+        AND C.IsActive=1
+        AND ISNULL(C.TemplateType,'W')='I'
+        AND (ISNULL(C.CompanyScope,'S')='A'
+             OR (';' + ISNULL(C.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+        AND (ISNULL(C.EmployeeList,'')=''
+             OR (';' + ISNULL(C.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
+        AND EXISTS (
+            SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+            WHERE V.IDTemplate=C.IDTemplate AND V.Status='Active'
+        )
+  )
+ORDER BY T.SectionID, T.InspectionTypeName",
+                    "@SectionList=" + section + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId + GF.Str2 +
+                    "@EmployeeID=" + employeeId);
 
-                DataTable details = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    InspectionDashboardQueryParameters("085", new SqlParameter[] {
-                        new SqlParameter("@SectionList", section),
-                        new SqlParameter("@CompanyID", companyId),
-                        new SqlParameter("@LocationID", locationId)
-                    }), true);
+                DataTable details = br.EQuery(@"
+SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
+       D.InspectionTypeDetailName, D.ScheduleTime
+FROM dbo.PIP_M_InspectionType T
+JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
+WHERE T.IsActive=1 AND D.IsActive=1
+  AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
+ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
+                    "@SectionList=" + section + GF.Str2 +
+                    "@CompanyID=" + companyId + GF.Str2 +
+                    "@LocationID=" + locationId);
 
                 var typeRows = types.AsEnumerable().Select(row => new
                 {
@@ -421,12 +492,33 @@ namespace INSPEC.Secure
             string sessionToken = GetCurrentSessionToken();
             if (String.IsNullOrWhiteSpace(sessionToken))
                 throw new HttpException(401, "INSPEC device session is missing.");
-            using (var br=new WAL.BR.CF())
+            using (var br = new WAL.BR.CF())
             {
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    DashboardQueryParameters("211", employeeid, sessionToken,
-                        Convert.ToDateTime(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture)), true);
+@"DECLARE @V_GetDate DATETIME = GETDATE()
+UPDATE UserSession SET LastSyncMaster=@V_GetDate
+ WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
+SELECT e.EmployeeID, e.Name, @V_GetDate LastSync   --, e.CompanyID, e.LocationID, e.ProfitCenterNo
+FROM M_HRD_Employee e
+WHERE EXISTS (
+    SELECT 1 
+    FROM M_HRD_Employee e1
+    CROSS JOIN SysWebCommonValue v
+    CROSS APPLY dbo.SplitStringConvertToTable(v.Description, '|') s
+    WHERE e1.EmployeeID = @EmployeeID
+      AND v.AppID = 'PIP' AND v.CommonGroup='GroupEmployeeWO' AND v.IsDelete=0
+      AND e.CompanyID+e.LocationID IN (v.ID, s.val)
+      AND e1.CompanyID+e1.LocationID IN (v.ID, s.val)
+      AND e.ProfitCenterNo=e1.ProfitCenterNo
+      AND e1.TerminationDate=''
+) AND e.TerminationDate='' and e.UpdateDate>=@LastSync
+ORDER BY e.CompanyID, e.LocationID, e.EmployeeID",
+new SqlParameter[] 
+{ 
+    new SqlParameter("@EmployeeID", employeeid),
+     new SqlParameter("@SessionToken", sessionToken),
+    new SqlParameter("@LastSync", Convert.ToDateTime(lastSync))
+});
                 return GFC.getData(dt);
             }
         }
@@ -436,5 +528,5 @@ namespace INSPEC.Secure
             return new { status = "OK" };
         }
     }
-    
+
 }
