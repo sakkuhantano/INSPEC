@@ -1730,8 +1730,11 @@ async function uploadPendingInspections() {
             return duplicateConflictMessage;
 
         // Never store a technical exception/SQL dump in the user-facing ConflictReason field.
-        if (/system\\.exception|sqlexception|uncommittable transaction|stack trace|\\bat [a-z0-9_.]+\\s*\\(|tahap:|procedure|\\bline \\d+\\b/i.test(value) ||
-            value.length > 300)
+        const technicalMarkers = [
+            "system.exception", "sqlexception", "uncommittable transaction",
+            "stack trace", "tahap:", "procedure", "line "
+        ];
+        if (technicalMarkers.some(marker => lower.includes(marker)) || value.length > 300)
             return genericConflictMessage;
 
         return value || genericConflictMessage;
