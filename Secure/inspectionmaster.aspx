@@ -170,11 +170,10 @@
                                                 </asp:DropDownList>
                                             </div>
                                             <div class="col-12 col-md d-flex flex-wrap gap-1 align-items-end">
-                                                <button type="button" id="btnStartPathDraw" class="btn btn-sm btn-outline-primary">Draw SVG Path</button>
                                                 <button type="button" id="btnUndoPath" class="btn btn-sm btn-outline-secondary" disabled>Undo</button>
                                                 <button type="button" id="btnRedoPath" class="btn btn-sm btn-outline-secondary" disabled>Redo</button>
                                                 <button type="button" id="btnClearPath" class="btn btn-sm btn-outline-danger">Clear Path</button>
-                                                <span id="lblPathDrawStatus" class="small text-muted">Circle: klik map. Rectangle: drag. PATH: klik titik-titik sudut poligon lalu double-click. Siku: klik titik demi titik lalu double-click.</span>
+                                                <span id="lblPathDrawStatus" class="small text-muted">Pilih Circle lalu klik map, Rectangle lalu drag, atau PATH / Siku untuk langsung menggambar. Double-click untuk menyelesaikan PATH / Siku.</span>
                                             </div>
                                         </div>
                                         <div class="inspection-coordinate-board" id="inspectionCoordinateBoard" title="Klik bidang denah untuk menentukan koordinat Inspection Point aktif">
