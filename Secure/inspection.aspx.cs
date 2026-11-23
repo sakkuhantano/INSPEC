@@ -1378,6 +1378,7 @@ JOIN dbo.THD_M_GeneralInformation G
 WHERE A.CompanyID=@CompanyID AND A.LocationID=@LocationID
   AND (@TenantID='' OR A.TenantID=@TenantID)
   AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+  AND A.LeaseTermDate<> ''
   AND A.LeaseTermDate>=GETDATE()
 ORDER BY A.SuiteNo",
                     new SqlParameter[] {
