@@ -154,7 +154,7 @@
 .inspection-coordinate-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:2}
 .inspection-coordinate-path{pointer-events:visiblePainted;cursor:pointer;stroke-linejoin:round;stroke-linecap:round}
 .inspection-coordinate-circle{pointer-events:visiblePainted;cursor:pointer;fill:#0d6efd;stroke:#fff;stroke-width:.9}
-.inspection-coordinate-circle-current{fill:#fd7e14;stroke:#fff;stroke-width:1.1}
+.inspection-coordinate-circle-current{fill:#0d6efd;stroke:#fff;stroke-width:1.1}
 .inspection-coordinate-rectangle{fill:rgba(108,117,125,.20);stroke:#6c757d;stroke-width:.65;pointer-events:visiblePainted;cursor:pointer;vector-effect:non-scaling-stroke}
 .inspection-coordinate-rectangle-current{fill:rgba(13,110,253,.30);stroke:#0d6efd;stroke-width:1.4}
 .inspection-coordinate-rectangle:hover{stroke:#0d6efd;stroke-width:1.2}
