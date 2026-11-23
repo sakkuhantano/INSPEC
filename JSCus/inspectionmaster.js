@@ -1227,7 +1227,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
                 if (pathPoints.length < 2) {
                     pathPoints = []; renderPathPreview(false);
-                    pathStatusText('PATH perlu minimal 2 titik. Klik Draw SVG Path untuk mencoba lagi.');
+                    pathStatusText('PATH perlu minimal 2 titik. Klik Clear Path, lalu pilih PATH kembali untuk mencoba lagi.');
                     return;
                 }
                 renderPathPreview(false);
