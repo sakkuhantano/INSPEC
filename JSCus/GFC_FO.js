@@ -1258,6 +1258,8 @@ async function downloadReturnedInspections() {
                     InspectionTypeName: serverRecord.InspectionTypeName,
                     InspectionTypeDetailCode: serverRecord.InspectionTypeDetailCode,
                     InspectionTypeDetailName: serverRecord.InspectionTypeDetailName,
+                    TenantID: serverRecord.TenantID || "",
+                    SuiteNo: serverRecord.SuiteNo || "",
                     ScheduledTime: serverRecord.ScheduledTime || "",
                     IDTemplate: Number(serverRecord.IDTemplate),
                     IDVersion: Number(serverRecord.IDVersion),
@@ -1270,6 +1272,10 @@ async function downloadReturnedInspections() {
             local.ServerInspectionID = Number(serverRecord.InspectionID || local.ServerInspectionID || 0);
             local.InspectionNo = serverRecord.InspectionNo || local.InspectionNo || "";
             local.InspectionMode = String(serverRecord.InspectionMode || local.InspectionMode || "STANDARD").toUpperCase();
+            // Refresh tenant identity from the authoritative returned header without
+            // overwriting valid local values when a legacy response omits either field.
+            local.TenantID = serverRecord.TenantID || local.TenantID || "";
+            local.SuiteNo = serverRecord.SuiteNo || local.SuiteNo || "";
             if (["BATCH", "LIGHTNING"].includes(local.InspectionMode)) {
                 local.Points = Array.isArray(serverRecord.Points) ? serverRecord.Points : (local.Points || []);
                 try {
