@@ -1760,9 +1760,9 @@ async function startNewInspection() {
     );
     if (duplicate) {
         if (duplicate.SyncStatus === "CONFLICT" || duplicate.SyncStatus === "DELETE_PENDING") {
-            showToast("Jadwal ini punya record lokal berstatus " + duplicate.SyncStatus +
-                ". Alasan: " + (duplicate.ConflictReason || "arsip/pemeriksaan konflik belum selesai.") +
-                " Selesaikan konflik tersebut sebelum membuat transaksi baru.", "warning");
+            showToast("Draft ini masih memiliki konflik data. " +
+                getInspectionConflictDisplayReason(duplicate) +
+                " Selesaikan draft ini terlebih dahulu sebelum membuat inspeksi baru.", "warning");
             return;
         }
         showToast("Jadwal ini sudah memiliki inspeksi di perangkat (" +
