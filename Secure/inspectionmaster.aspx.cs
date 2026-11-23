@@ -328,8 +328,8 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
 WITH PointRows AS
 (
     SELECT P.InspectionPointID, P.PointCode, P.PointName,
-           P.ObjectReferenceCode, P.IsNormalAbnormalRequired,
-           P.DisplayOrder,
+           ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,
+           P.IsNormalAbnormalRequired,
            ISNULL(M.MapCode,'') AS MapCode,
            ROW_NUMBER() OVER
            (
@@ -354,7 +354,7 @@ WITH PointRows AS
       ))
 )
 SELECT InspectionPointID, PointCode, PointName,
-       ObjectReferenceCode, IsNormalAbnormalRequired, DisplayOrder, MapCode
+       ShapeType, IsNormalAbnormalRequired, MapCode
 FROM PointRows
 WHERE RowNum BETWEEN @StartRow AND @EndRow
 ORDER BY RowNum",
