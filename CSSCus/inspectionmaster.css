@@ -91,7 +91,27 @@
 .inspection-image-preview{display:block;width:100%;max-height:70vh;object-fit:contain;background:#f8f9fa;border:1px solid #dee2e6;border-radius:.35rem}
 .inspection-coordinate-pdf{display:block;max-width:100%}
 
-/* Map preview is intentionally the final section below the Inspection Points panel. */
+/* Main Inspection Map and point grid share the available desktop width. */
+.inspection-master-map-points-layout{align-items:stretch}
+.inspection-master-map-column,.inspection-master-points-column{min-width:0}
+.inspection-master-map-column .inspection-map-preview-panel{height:100%}
+.inspection-master-points-column .inspection-master-point-table{max-height:min(75vh,720px);overflow:auto;border:1px solid #e2e8f0;border-radius:.35rem}
+.inspection-master-points-column .inspection-master-grid{min-width:480px;margin-bottom:0}
+.inspection-master-points-column .inspection-master-grid thead th{position:sticky;top:0;z-index:2}
+.inspection-master-points-column .inspection-master-grid tbody tr{cursor:pointer}
+.inspection-master-points-column .inspection-master-grid tbody tr:hover>td{background:rgba(253,126,20,.09)}
+.inspection-master-points-column .inspection-master-grid tbody tr.inspection-point-row-selected>td{background:rgba(13,110,253,.12)!important}
+.inspection-point-row-target{display:none}
+@media(max-width:991.98px){
+ .inspection-master-points-column .inspection-master-point-table{max-height:55vh}
+ .inspection-master-map-column .inspection-map-preview-stage{height:min(60vh,560px)}
+}
+@media(max-width:575.98px){
+ .inspection-master-map-column .inspection-map-preview-stage{height:55vh;min-height:220px}
+ .inspection-master-points-column .inspection-master-point-table{max-height:50vh}
+}
+
+/* Map preview and Inspection Point grid are presented side by side on desktop. */
 .inspection-map-preview-toolbar .btn{min-width:32px}
 .inspection-map-preview-stage{position:relative;width:100%;height:min(75vh,720px);min-height:260px;overflow:hidden;border:1px solid var(--bs-border-color);border-radius:.4rem;background:#f8fafc;touch-action:pan-y;cursor:default}
 .inspection-map-preview-stage.inspection-map-preview-zoomed{cursor:grab;touch-action:none}
@@ -99,6 +119,12 @@
 .inspection-map-preview-media{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;line-height:0}
 .inspection-map-preview-canvas,.inspection-map-preview-media .inspection-image-preview{display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:fill;border:0;background:#fff}
 .inspection-map-preview-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.inspection-map-preview-svg .inspection-map-preview-circle{fill:#fd7e14;stroke:#fff;stroke-width:1.05;vector-effect:non-scaling-stroke}
+.inspection-map-preview-svg .inspection-map-preview-rectangle{fill:rgba(253,126,20,.20)!important;stroke:#fd7e14!important;stroke-width:.85}
+.inspection-map-preview-svg .inspection-map-preview-path{stroke:#fd7e14!important}
+.inspection-map-preview-svg .inspection-map-preview-circle.inspection-map-preview-shape-selected{fill:#0d6efd!important;stroke:#fff!important;stroke-width:1.5!important}
+.inspection-map-preview-svg .inspection-map-preview-rectangle.inspection-map-preview-shape-selected{fill:rgba(13,110,253,.30)!important;stroke:#0d6efd!important;stroke-width:1.5!important}
+.inspection-map-preview-svg .inspection-map-preview-path.inspection-map-preview-shape-selected{stroke:#0d6efd!important;filter:drop-shadow(0 0 2px rgba(13,110,253,.65))}
 .inspection-map-preview-marker{position:absolute;transform:translate(-50%,-50%);width:9px;height:9px;border:1.5px solid #fff;border-radius:50%;background:#0d6efd;box-shadow:0 1px 4px rgba(0,0,0,.55)}
 .inspection-point-pager{padding:.2rem .35rem;border:1px solid #e2e8f0;border-radius:.45rem;background:#f8fafc}
 .inspection-point-pager .btn{min-width:32px;border-radius:.3rem!important;font-size:.78rem}
