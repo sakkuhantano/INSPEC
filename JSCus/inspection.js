@@ -373,6 +373,23 @@ function wireInspectionEvents() {
         onInspectionDetailChanged();
         updateInspectionParameterTabGate();
     });
+    document.getElementById("selInspectionTenant").addEventListener("change", async function () {
+        try {
+            await loadInspectionTenantSuites(this.value || "");
+        } catch (error) {
+            showToast(error.message || "Gagal memuat Suite No tenant.", "warning");
+        }
+        refreshInspectionDetailAvailability();
+        refreshInspectionScheduleOptions();
+        updateStartButton();
+        updateInspectionParameterTabGate();
+    });
+    document.getElementById("selInspectionSuite").addEventListener("change", function () {
+        refreshInspectionDetailAvailability();
+        refreshInspectionScheduleOptions();
+        updateStartButton();
+        updateInspectionParameterTabGate();
+    });
     const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
@@ -970,7 +987,8 @@ function refreshInspectionDetailAvailability() {
                     String(record.InspectionTypeCode || "") === String(typeCode || "") &&
                     String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
                     String(record.ScheduledTime || "") === String(time || "") &&
-                    Number(record.IDTemplate) === Number(template.IDTemplate);
+                    Number(record.IDTemplate) === Number(template.IDTemplate) &&
+                    inspectionTenantMatchesRecord(record, detail);
 
                 if (inspectionRecords.some(matchesKey) || serverSlotRecords.some(matchesKey)) {
                     occupiedSlots++;
@@ -1032,6 +1050,18 @@ function onInspectionDetailChanged() {
         x.InspectionTypeCode === typeCode &&
         x.InspectionTypeDetailCode === detailCode
     );
+    const tenantPanel = document.getElementById("inspectionTenantPanel");
+    if (isInspectionTenantDetail(detail)) {
+        if (tenantPanel) tenantPanel.classList.remove("d-none");
+        loadInspectionTenantOptions().catch(error => {
+            console.warn("Unable to load Inspection tenant options:", error);
+            showToast(error.message || "Gagal memuat daftar tenant.", "warning");
+            updateStartButton();
+        });
+    } else {
+        resetInspectionTenantSelection();
+        inspectionTenantSuites = [];
+    }
     populateInspectionScheduleTimeOptions(detail);
     const selectedType = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const scheduleControl = document.getElementById("selInspectionScheduleTime");
@@ -1123,7 +1153,8 @@ function refreshInspectionScheduleOptions() {
             String(record.InspectionTypeCode || "") === String(typeCode || "") &&
             String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
             String(record.ScheduledTime || "") === String(time || "") &&
-            Number(record.IDTemplate) === templateId;
+            Number(record.IDTemplate) === templateId &&
+            inspectionTenantMatchesRecord(record, detail);
 
         if (!templateId || !type || selectedDate !== today) {
             option.textContent = baseLabel;
@@ -1223,7 +1254,9 @@ function updateStartButton() {
     const selectedType = inspectionTypes.find(x => String(x.InspectionTypeCode || "") === String(typeCode || ""));
     const isLightning = String(selectedType && selectedType.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
-    const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate &&
+    const tenantRequired = isInspectionTenantDetail(detail);
+    const tenantComplete = !tenantRequired || (!!getSelectedInspectionTenantID() && !!getSelectedInspectionSuiteNo());
+    const enabled = !!typeCode && !!detail && !!detailCode && detailMatchesTemplate && tenantComplete &&
         (isLightning ? hasScheduledTimes : (!hasScheduledTimes || !!scheduledTime)) && !!templateId;
     document.getElementById("btnStartInspection").disabled = !enabled;
 }
@@ -1244,12 +1277,15 @@ async function startNewInspection() {
     const scheduledTime = inspectionMode === "LIGHTNING"
         ? (configuredScheduleTimes[0] || "")
         : (document.getElementById("selInspectionScheduleTime").value || "");
+    const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
+    const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
 
     if (!type || !detail || !template ||
         !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
         (inspectionMode === "LIGHTNING" ? !configuredScheduleTimes.length :
-            (configuredScheduleTimes.length > 0 && !scheduledTime))) {
-        showToast("Pilih Inspection Type, detail, jam jadwal (jika tersedia), dan template yang valid.", "warning");
+            (configuredScheduleTimes.length > 0 && !scheduledTime)) ||
+        (isInspectionTenantDetail(detail) && (!tenantId || !suiteNo))) {
+        showToast("Pilih Inspection Type, detail, tenant, Suite No, jam jadwal (jika tersedia), dan template yang valid.", "warning");
         return;
     }
 
@@ -1323,7 +1359,8 @@ async function startNewInspection() {
         record.InspectionTypeCode === type.InspectionTypeCode &&
         record.InspectionTypeDetailCode === detail.InspectionTypeDetailCode &&
         String(record.ScheduledTime || "") === String(scheduledTime || "") &&
-        Number(record.IDTemplate) === Number(template.IDTemplate)
+        Number(record.IDTemplate) === Number(template.IDTemplate) &&
+        inspectionTenantMatchesRecord(record, detail)
     );
     if (duplicate) {
         if (duplicate.SyncStatus === "CONFLICT" || duplicate.SyncStatus === "DELETE_PENDING") {
@@ -1383,7 +1420,9 @@ async function startNewInspection() {
                     inspectionTypeDetailCode: detail.InspectionTypeDetailCode,
                     scheduledTime: scheduledTime,
                     templateId: Number(template.IDTemplate),
-                    inspectionDate: inspectionDate
+                    inspectionDate: inspectionDate,
+                    tenantId: tenantId,
+                    suiteNo: suiteNo
                 })
             });
             const payload = await response.json();
@@ -1464,6 +1503,8 @@ async function startNewInspection() {
         InspectionTypeName: type.InspectionTypeName,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
+        TenantID: tenantId,
+        SuiteNo: suiteNo,
         ScheduledTime: scheduledTime,
         IDTemplate: Number(template.IDTemplate),
         IDVersion: Number(template.IDVersion),
