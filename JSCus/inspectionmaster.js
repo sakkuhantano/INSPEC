@@ -494,7 +494,7 @@
                 if (panel && panel.scrollIntoView)
                     panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-            if (!target || !options.focusMap) return;
+            if (!target || !options.focusMap || options.zoomMap === false) return;
 
             window.requestAnimationFrame(function () {
                 var bounds;
@@ -743,7 +743,7 @@
             var pointKey = row.querySelector('.inspection-point-row-target[data-point-id]');
             if (!pointKey) return;
             if (window.inspectionMasterSelectPoint)
-                window.inspectionMasterSelectPoint(pointKey.getAttribute('data-point-id'), { focusMap: true, scrollGrid: false });
+                window.inspectionMasterSelectPoint(pointKey.getAttribute('data-point-id'), { focusMap: true, zoomMap: false, scrollGrid: false });
         });
 
         var board = document.getElementById('inspectionCoordinateBoard');
