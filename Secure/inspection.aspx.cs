@@ -1241,6 +1241,7 @@ WHERE G.CompanyID=@CompanyID AND G.LocationID=@LocationID AND G.TenantID=@Tenant
 SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
 FROM dbo.PIP_T_Inspection
 WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+  AND ISNULL(IsActive,1)=1
   AND InspectionTypeCode=@InspectionTypeCode
   AND InspectionTypeDetailCode=@InspectionTypeDetailCode
   AND ISNULL(ScheduledTime,'')=ISNULL(@ScheduledTime,'')
