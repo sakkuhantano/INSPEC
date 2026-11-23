@@ -1293,7 +1293,8 @@ function refreshInspectionSuiteAvailability() {
                 ? " • KONFLIK"
                 : firstConflict && firstConflict.local && !firstConflict.server
                     ? " • DRAFT DI PERANGKAT INI"
-                    : " • SUDAH DIINSPEKSI");
+                    : " • SUDAH DIINSPEKSI")
+            : baseLabel;
     });
 
     // Never leave a now-locked Suite selected; otherwise Start Inspection could
