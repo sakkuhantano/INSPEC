@@ -834,7 +834,6 @@
                     event.preventDefault(); redoPathAction();
                 }
             });
-            var drawButton = document.getElementById('btnStartPathDraw');
             var undoButton = document.getElementById('btnUndoPath');
             var clearPathButton = document.getElementById('btnClearPath');
             var pathStatus = document.getElementById('lblPathDrawStatus');
@@ -1163,9 +1162,11 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
                 path.setAttribute('d', d);
             }
-            function startPathDrawing() {
-                recordPathEditorAction();
-                clearCurrentShapeForReplacement();
+            function startPathDrawing(skipReset) {
+                if (!skipReset) {
+                    recordPathEditorAction();
+                    clearCurrentShapeForReplacement();
+                }
                 if (shapeSelect && shapeSelect.value !== 'ORTHOGONAL') shapeSelect.value = 'PATH';
                 drawMode = true; drawingPath = false; orthogonalDrawing = false; orthogonalPreviewPoint = null; pathPoints = []; suppressNextClick = false;
                 if (pathField) pathField.value = '';
@@ -1197,7 +1198,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 if (shapeSelect && shapeSelect.value === 'ORTHOGONAL') {
                     if (pathPoints.length < 2) {
                         pathPoints = []; renderPathPreview(false);
-                        pathStatusText('Garis siku perlu minimal 2 titik. Klik Draw SVG Path untuk mencoba lagi.');
+                        pathStatusText('Garis siku perlu minimal 2 titik. Klik Clear Path, lalu pilih Siku kembali untuk mencoba lagi.');
                         return;
                     }
                     renderPathPreview(false);
@@ -1248,32 +1249,6 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 });
                 pathStatusText('PATH / Polyline siap disimpan. Save Inspection Point untuk menyimpan garis ini.');
             }
-            if (drawButton) drawButton.addEventListener('click', function () {
-                if (panMode) setMapPanMode(false);
-                if (shapeSelect && shapeSelect.value === 'RECTANGLE') {
-                    recordPathEditorAction();
-                    drawMode = false;
-                    drawingPath = false;
-                    orthogonalDrawing = false;
-                    orthogonalPreviewPoint = null;
-                    rectangleDrawing = false;
-                    rectangleStart = null;
-                    removeRectangleEditorShape();
-                    board.classList.remove('path-drawing');
-                    board.classList.add('rectangle-drawing');
-                    board.style.setProperty('cursor', 'crosshair', 'important');
-                    content.style.setProperty('cursor', 'crosshair', 'important');
-                    board.style.setProperty('touch-action', 'none', 'important');
-                    content.style.setProperty('touch-action', 'none', 'important');
-                    pathStatusText('Rectangle aktif: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area.');
-                    return;
-                }
-                if (shapeSelect && shapeSelect.value === 'ORTHOGONAL' && drawMode && pathPoints.length >= 2) {
-                    finishPathDrawing();
-                    return;
-                }
-                startPathDrawing();
-            });
             updatePathHistoryButtons();
             if (undoButton) undoButton.addEventListener('click', undoPathAction);
             if (redoButton) redoButton.addEventListener('click', redoPathAction);
@@ -1335,10 +1310,10 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                     pathStatusText('Rectangle: drag dari sudut pertama ke sudut berlawanan untuk membuat blok area baru.');
                 } else if (this.value === 'ORTHOGONAL') {
                     if (shapeAttributesField) shapeAttributesField.value = JSON.stringify({ renderMode: 'ORTHOGONAL' });
-                    pathStatusText('Siku: klik Draw SVG Path, lalu klik titik demi titik. Double-click untuk selesai.');
+                    startPathDrawing(true);
                 } else {
                     if (this.value === 'PATH' && shapeAttributesField) shapeAttributesField.value = '{}';
-                    pathStatusText('PATH: klik Draw SVG Path, klik titik-titik jalur, lalu double-click untuk selesai.');
+                    startPathDrawing(true);
                 }
             });
             board.addEventListener('pointerdown', function (event) {
