@@ -1028,6 +1028,68 @@ async function getInspectionData() {
         await reconcileScopedInspectionTypes(masters.types || []);
         await replaceStore("inspection_type_details", details);
         await replaceStore("inspection_templates", templates);
+
+        // Cache the tenant and suite snapshots with the inspection masters so a
+        // technician can choose any tenant/suite even before opening that detail online.
+        try {
+            const employeeId = login.employeeid || "";
+            const companyId = companyLocation[0] || "";
+            const locationId = companyLocation[1] || "";
+            const [tenantResponse, suiteResponse] = await Promise.all([
+                fetch("inspection.aspx/GetInspectionTenantList", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({ employeeId: employeeId, companyId: companyId, locationId: locationId })
+                }),
+                fetch("inspection.aspx/GetInspectionTenantSuites", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json; charset=utf-8" },
+                    body: JSON.stringify({ employeeId: employeeId, companyId: companyId, locationId: locationId, tenantId: "" })
+                })
+            ]);
+            const [tenantPayload, suitePayload] = await Promise.all([
+                tenantResponse.json(), suiteResponse.json()
+            ]);
+            if (!tenantResponse.ok)
+                throw new Error((tenantPayload && tenantPayload.Message) || "Download daftar tenant gagal.");
+            if (!suiteResponse.ok)
+                throw new Error((suitePayload && suitePayload.Message) || "Download daftar suite gagal.");
+            const tenantResult = tenantPayload && Object.prototype.hasOwnProperty.call(tenantPayload, "d") ? tenantPayload.d : tenantPayload;
+            const suiteResult = suitePayload && Object.prototype.hasOwnProperty.call(suitePayload, "d") ? suitePayload.d : suitePayload;
+            const tenantRows = (tenantResult && tenantResult.data || []).map(row => Object.assign({}, row, {
+                CompanyID: companyId, LocationID: locationId
+            }));
+            const suiteRows = (suiteResult && suiteResult.data || []).map(row => Object.assign({}, row, {
+                CompanyID: companyId, LocationID: locationId
+            }));
+            const replaceLookupSnapshot = (storeName, rows, keyFields) => new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+                const incomingKeys = new Set(rows.map(row => keyFields.map(field => String(row[field] || "")).join("|")));
+                const readReq = store.getAll();
+                readReq.onsuccess = () => {
+                    (readReq.result || []).forEach(row => {
+                        if (String(row.CompanyID || "") !== companyId || String(row.LocationID || "") !== locationId) return;
+                        const key = keyFields.map(field => String(row[field] || "")).join("|");
+                        if (!incomingKeys.has(key))
+                            store.delete(keyFields.map(field => row[field]));
+                    });
+                    rows.forEach(row => store.put(row));
+                };
+                readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan cache tenant/suite."));
+                tx.onabort = () => reject(tx.error || new Error("Penyimpanan cache tenant/suite dibatalkan."));
+            });
+            await replaceLookupSnapshot("inspection_tenants", tenantRows, ["CompanyID", "LocationID", "TenantID"]);
+            await replaceLookupSnapshot("inspection_tenant_suites", suiteRows, ["CompanyID", "LocationID", "TenantID", "SuiteNo"]);
+            console.log("Inspection tenant/suite master sync success", {
+                tenants: tenantRows.length, suites: suiteRows.length
+            });
+        } catch (tenantSyncError) {
+            console.warn("Inspection tenant/suite cache refresh failed:", tenantSyncError);
+        }
+
         await downloadReturnedInspections();
         await downloadTodayInspectionSlots();
         console.log("Inspection offline data sync success", {
