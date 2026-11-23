@@ -285,8 +285,6 @@
                                             </asp:TemplateField>
                                             <asp:BoundField DataField="PointCode" HeaderText="Point Code" />
                                             <asp:BoundField DataField="PointName" HeaderText="Point Name" />
-                                            <asp:BoundField DataField="ObjectReferenceCode" HeaderText="Object Reference" />
-                                            <asp:BoundField DataField="DisplayOrder" HeaderText="Order" />
                                             <asp:TemplateField HeaderText="N/Abn" HeaderStyle-Width="6%" ItemStyle-HorizontalAlign="Center">
                                                 <ItemTemplate><%# Convert.ToBoolean(Eval("IsNormalAbnormalRequired")) ? "Yes" : "-" %></ItemTemplate>
                                             </asp:TemplateField>
