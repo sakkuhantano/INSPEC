@@ -1142,6 +1142,8 @@ async function downloadTodayInspectionSlots() {
         InspectionTypeName: x.InspectionTypeName,
         InspectionTypeDetailCode: x.InspectionTypeDetailCode,
         InspectionTypeDetailName: x.InspectionTypeDetailName,
+        TenantID: x.TenantID || "",
+        SuiteNo: x.SuiteNo || "",
         ScheduledTime: x.ScheduledTime || "",
         IDTemplate: Number(x.IDTemplate),
         IDVersion: Number(x.IDVersion),
