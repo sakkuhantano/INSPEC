@@ -1306,6 +1306,10 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 }
             });
             board.addEventListener('pointerdown', function (event) {
+                // This handler runs in capture phase. Ignore toolbar pointers here,
+                // before Rectangle/shape drawing can interpret the toolbar as map
+                // canvas input and clear the geometry being edited.
+                if (event.target.closest && event.target.closest('.inspection-map-toolbar-floating')) return;
                 var genericResizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-shape-resize-handle');
                 if(genericResizeHandle&&event.button===0){beginShapeTransform(event,genericResizeHandle.getAttribute('data-shape-resize-handle'));return;}
                 var shapeMoveHit=event.target.closest&&event.target.closest('.inspection-coordinate-shape-move-hit');
