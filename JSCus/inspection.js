@@ -5399,6 +5399,29 @@ function populateInspectionParameters(record) {
             escInspection(templateLabel || "-") + '</option>';
         templateSelect.value = templateId;
 
+        // Submitted records are rendered from their saved header snapshot. Restore
+        // the tenant identity here as well; do not depend on current master caches.
+        const tenantPanel = document.getElementById("inspectionTenantPanel");
+        const tenantSelect = document.getElementById("selInspectionTenant");
+        const suiteSelect = document.getElementById("selInspectionSuite");
+        const savedTenantID = String(record.TenantID || "").trim();
+        const savedSuiteNo = String(record.SuiteNo || "").trim();
+        if (tenantPanel && tenantSelect && suiteSelect && (savedTenantID || savedSuiteNo)) {
+            tenantPanel.classList.remove("d-none");
+            tenantSelect.innerHTML = savedTenantID
+                ? '<option value="' + escInspection(savedTenantID) + '">' + escInspection(savedTenantID) + '</option>'
+                : '<option value="">-</option>';
+            tenantSelect.value = savedTenantID;
+            suiteSelect.innerHTML = savedSuiteNo
+                ? '<option value="' + escInspection(savedSuiteNo) + '">' + escInspection(savedSuiteNo) + '</option>'
+                : '<option value="">-</option>';
+            suiteSelect.value = savedSuiteNo;
+            tenantSelect.disabled = true;
+            suiteSelect.disabled = true;
+        } else {
+            resetInspectionTenantSelection();
+        }
+
         [typeSelect, detailSelect, scheduleTimeSelect, templateSelect].forEach(select => {
             select.disabled = true;
         });
