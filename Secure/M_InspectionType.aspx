@@ -339,7 +339,13 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="col-sm-2 mb-1 d-flex align-items-end"><asp:LinkButton ID="lBtnSaveDetail" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" OnClick="lBtn_Click"><i class="fas fa-save"></i> Save</asp:LinkButton></div>
         </div>
     </div></div>
-    </asp:Panel>
+        <div class="row my-1">
+            <div class="col-12 mb-1">
+                <asp:CheckBox ID="chkTenantInspection" runat="server" Text="Inspection per Tenant (Tenant ID &amp; Suite No wajib)" />
+                <div class="small text-muted">Aktifkan untuk inspeksi tenant terpisah. Tenant dan Suite No menjadi bagian dari validasi duplikat.</div>
+            </div>
+        </div>
+        </asp:Panel>
     <div class="row my-1"><div class="col-sm-6 mb-1">
         <asp:LinkButton ID="lBtnAddNewDetail" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" Width="150px" OnClick="lBtn_Click"><i class="fas fa-plus-circle"></i> Add detail</asp:LinkButton>
     </div></div>
