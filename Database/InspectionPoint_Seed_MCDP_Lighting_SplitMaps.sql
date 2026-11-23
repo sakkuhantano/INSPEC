@@ -109,7 +109,22 @@ VALUES
 (3,N'I.5',N'Outdoor Lighting - I.5',31.6770,14.2539,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":30.4348,"y":9.7996,"width":2.4845,"height":9.3541}',41),
 (3,N'I.6',N'Outdoor Lighting - I.6',42.0290,14.2539,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":40.7867,"y":9.7996,"width":2.4845,"height":9.3541}',42),
 (3,N'I.7',N'Outdoor Lighting - I.7',51.9669,14.2539,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":50.7246,"y":9.7996,"width":2.4845,"height":9.3541}',43),
-(3,N'I.8',N'Outdoor Lighting - I.8',62.1118,14.2539,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":60.8696,"y":9.7996,"width":2.4844,"height":9.3541}',44);
+(3,N'I.8',N'Outdoor Lighting - I.8',62.1118,14.2539,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":60.8696,"y":9.7996,"width":2.4844,"height":9.3541}',44),
+(4,N'SB-01',N'Signboard Lighting - Segment 1',48.2328,27.1429,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":23.1169,"width":16.6321,"height":8.0519}',1),
+(4,N'SB-02',N'Signboard Lighting - Segment 2',48.2328,34.6753,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":31.1688,"width":16.6321,"height":7.013}',2),
+(4,N'SB-03',N'Signboard Lighting - Segment 3',48.2328,41.8182,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":38.1818,"width":16.6321,"height":7.2727}',3),
+(4,N'SB-04',N'Signboard Lighting - Segment 4',48.2328,49.0909,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":45.4545,"width":16.6321,"height":7.2728}',4),
+(4,N'SB-05',N'Signboard Lighting - Segment 5',48.2328,56.3636,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":52.7273,"width":16.6321,"height":7.2727}',5),
+(4,N'SB-06',N'Signboard Lighting - Segment 6',48.2328,63.6364,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":60,"width":16.6321,"height":7.2727}',6),
+(4,N'SB-07',N'Signboard Lighting - Segment 7',48.2328,70.9091,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":67.2727,"width":16.6321,"height":7.2728}',7),
+(4,N'SB-08',N'Signboard Lighting - Segment 8',48.2328,78.1818,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":74.5455,"width":16.6321,"height":7.2727}',8),
+(4,N'SB-09',N'Signboard Lighting - Segment 9',48.2328,85.5844,N'RECTANGLE',NULL,N'{"coordinateSpace":"PERCENT_100","x":39.9168,"y":81.8182,"width":16.6321,"height":7.5324}',9),
+(5,N'A.1',N'Logo M-LED Facade - A.1',16.0221,14.5089,N'CIRCLE',NULL,N'{"cx":16.0221,"cy":14.5089,"r":1.6}',1),
+(5,N'A.2',N'Logo M-LED Facade - A.2',73.4807,14.5089,N'CIRCLE',NULL,N'{"cx":73.4807,"cy":14.5089,"r":1.6}',2),
+(5,N'A.3',N'Logo M-LED Facade - A.3',24.3094,39.0625,N'CIRCLE',NULL,N'{"cx":24.3094,"cy":39.0625,"r":1.6}',3),
+(5,N'A.4',N'Logo M-LED Facade - A.4',75.6906,39.0625,N'CIRCLE',NULL,N'{"cx":75.6906,"cy":39.0625,"r":1.6}',4),
+(5,N'A.5',N'Logo M-LED Facade - A.5',19.3370,72.7679,N'CIRCLE',NULL,N'{"cx":19.337,"cy":72.7679,"r":1.6}',5),
+(5,N'A.6',N'Logo M-LED Facade - A.6',76.7956,72.7679,N'CIRCLE',NULL,N'{"cx":76.7956,"cy":72.7679,"r":1.6}',6);
 
 IF EXISTS
 (
