@@ -190,7 +190,7 @@ SELECT IT.InspectionTypeCode, IT.InspectionTypeName
 FROM dbo.PIP_M_InspectionType IT
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE IT.IsActive=1
-  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('BATCH','LIGHTNING')
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
 ORDER BY IT.InspectionTypeCode",
                     new SqlParameter[] {
@@ -253,7 +253,7 @@ WHERE InspectionTypeCode=@TypeCode
   AND EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
               INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
               WHERE IT.InspectionTypeCode=@TypeCode
-                AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+                AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('BATCH','LIGHTNING')
                 AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo))
 ORDER BY InspectionTypeDetailCode",
                     new SqlParameter[] {
@@ -1030,7 +1030,7 @@ WHERE IT.InspectionTypeCode=@TypeCode
   AND D.InspectionTypeDetailCode=@DetailCode
   AND D.CompanyID=@CompanyID AND D.LocationID=@LocationID
   AND IT.IsActive=1 AND D.IsActive=1
-  AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('BATCH','LIGHTNING')
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)",
                     new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
