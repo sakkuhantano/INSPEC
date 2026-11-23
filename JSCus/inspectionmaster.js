@@ -686,9 +686,10 @@
             }
             var zoomLabel = document.getElementById('lblMapZoom');
             function updateMarkerScale() {
-                // Markers are children of the zoomed content, so compensate for
-                // the content scale. Include dynamically-created preview markers.
-                var markers = content.querySelectorAll('.inspection-coordinate-marker, .inspection-coordinate-preview');
+                // Persisted HTML markers keep a constant screen size. The new-point
+                // preview is intentionally excluded so it scales naturally with the
+                // floor plan instead of growing when the map is zoomed out.
+                var markers = content.querySelectorAll('.inspection-coordinate-marker');
                 var inverseScale = 1 / zoom;
                 for (var i = 0; i < markers.length; i++) {
                     markers[i].style.transform = 'translate(-50%, -50%) scale(' + inverseScale + ')';
@@ -1498,7 +1499,7 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                     preview = document.createElement('span');
                     preview.id = 'inspectionCoordinatePreview';
                     preview.className = 'inspection-coordinate-preview';
-                    preview.textContent = '+';
+                    preview.setAttribute('aria-hidden', 'true');
                     content.appendChild(preview);
                 }
                 preview.style.left = x + '%'; preview.style.top = y + '%';
