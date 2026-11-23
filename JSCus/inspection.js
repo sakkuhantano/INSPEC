@@ -6,6 +6,7 @@ let inspectionTypes = [];
 let inspectionDetails = [];
 let inspectionTenants = [];
 let inspectionTenantSuites = [];
+let inspectionTenantSuiteMasterRows = [];
 let inspectionTemplates = [];
 let inspectionRecords = [];
 let serverSubmittedInspectionRecords = [];
@@ -425,12 +426,14 @@ function wireInspectionEvents() {
             showToast(error.message || "Gagal memuat Suite No tenant.", "warning");
         }
         refreshInspectionScheduleOptions();
+        refreshInspectionTenantAvailability();
         refreshInspectionSuiteAvailability();
         refreshInspectionDetailAvailability();
         updateStartButton();
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionSuite").addEventListener("change", function () {
+        refreshInspectionTenantAvailability();
         refreshInspectionSuiteAvailability();
         refreshInspectionDetailAvailability();
         refreshInspectionScheduleOptions();
@@ -441,6 +444,7 @@ function wireInspectionEvents() {
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
         refreshInspectionScheduleOptions();
+        refreshInspectionTenantAvailability();
         refreshInspectionSuiteAvailability();
         updateStartButton();
         updateInspectionParameterTabGate();
@@ -490,12 +494,14 @@ function wireInspectionEvents() {
         syncInspectionDetailSearchOptions();
         updateStartButton();
         refreshInspectionScheduleOptions();
+        refreshInspectionTenantAvailability();
         refreshInspectionSuiteAvailability();
         updateInspectionParameterTabGate();
     });
     document.getElementById("txtInspectionDate").addEventListener("change", function () {
         refreshInspectionDetailAvailability();
         refreshInspectionScheduleOptions();
+        refreshInspectionTenantAvailability();
         refreshInspectionSuiteAvailability();
         updateStartButton();
     });
@@ -874,6 +880,87 @@ function cacheInspectionLookupRows(storeName, rows, scopeTenantId) {
     });
 }
 
+function cacheInspectionTenantSuiteMasterRows(rows) {
+    return new Promise((resolve, reject) => {
+        if (!db || !db.objectStoreNames.contains("inspection_tenant_suites")) {
+            resolve(false);
+            return;
+        }
+        const companyId = String(inspectionCompanyID || "");
+        const locationId = String(inspectionLocationID || "");
+        const incoming = rows || [];
+        const tx = db.transaction("inspection_tenant_suites", "readwrite");
+        const store = tx.objectStore("inspection_tenant_suites");
+        const readReq = store.getAll();
+        readReq.onsuccess = () => {
+            (readReq.result || []).forEach(row => {
+                if (String(row.CompanyID || "") === companyId &&
+                    String(row.LocationID || "") === locationId) {
+                    store.delete([row.CompanyID, row.LocationID, row.TenantID, row.SuiteNo]);
+                }
+            });
+            incoming.forEach(row => store.put(row));
+        };
+        readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan master Suite tenant."));
+        tx.onabort = () => reject(tx.error || new Error("Penyimpanan master Suite tenant dibatalkan."));
+    });
+}
+
+async function loadInspectionTenantSuiteMasterRows() {
+    let rows = [];
+    try {
+        rows = (await readInspectionStore("inspection_tenant_suites")).filter(row =>
+            String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+            String(row.LocationID || "") === String(inspectionLocationID || ""));
+    } catch (error) {
+        console.warn("Unable to read cached tenant Suite master:", error);
+    }
+
+    if (navigator.onLine) {
+        try {
+            const response = await fetch("inspection.aspx/GetInspectionTenantSuites", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: inspectionLogin.employeeid,
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID,
+                    tenantId: ""
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok)
+                throw new Error((payload && payload.Message) || "Gagal memuat seluruh Suite tenant.");
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            rows = (result && result.data || []).map(row => Object.assign({}, row, {
+                CompanyID: inspectionCompanyID,
+                LocationID: inspectionLocationID
+            }));
+            try {
+                await cacheInspectionTenantSuiteMasterRows(rows);
+            } catch (cacheError) {
+                console.warn("Unable to cache tenant Suite master snapshot:", cacheError);
+            }
+        } catch (error) {
+            console.warn("Tenant Suite master refresh failed; using cached snapshot:", error);
+        }
+    }
+
+    const unique = [];
+    const seen = new Set();
+    rows.forEach(row => {
+        const key = [row.CompanyID, row.LocationID, row.TenantID, row.SuiteNo].join("|");
+        if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(row);
+        }
+    });
+    inspectionTenantSuiteMasterRows = unique;
+    return unique;
+}
+
 async function loadInspectionTenantOptions() {
     const tenantSelect = document.getElementById("selInspectionTenant");
     const suiteSelect = document.getElementById("selInspectionSuite");
@@ -918,6 +1005,9 @@ async function loadInspectionTenantOptions() {
     tenantSelect.disabled = inspectionTenants.length === 0;
     if (!inspectionTenants.length)
         throw new Error("Daftar tenant aktif belum tersedia. Jalankan Sync saat online terlebih dahulu.");
+
+    await loadInspectionTenantSuiteMasterRows();
+    refreshInspectionTenantAvailability();
 }
 
 async function loadInspectionTenantSuites(tenantId) {
@@ -969,6 +1059,137 @@ async function loadInspectionTenantSuites(tenantId) {
     suiteSelect.disabled = inspectionTenantSuites.length === 0;
     if (!inspectionTenantSuites.length)
         showToast("Suite aktif untuk tenant ini tidak tersedia.", "warning");
+}
+
+function refreshInspectionTenantAvailability() {
+    const tenantSelect = document.getElementById("selInspectionTenant");
+    if (!tenantSelect) return;
+
+    const typeCode = document.getElementById("selInspectionType").value;
+    const type = inspectionTypes.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || ""));
+    const detailCode = document.getElementById("selInspectionDetail").value;
+    const detail = inspectionDetails.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || "") &&
+        String(x.InspectionTypeDetailCode || "") === String(detailCode || ""));
+    const selectedDate = parseInspectionDateFilter(
+        document.getElementById("txtInspectionDate").value) || localDateString(new Date());
+    const today = localDateString(new Date());
+    const selectedTemplateId = Number(document.getElementById("selInspectionTemplate").value);
+    const templates = inspectionTemplates.filter(template =>
+        String(template.InspectionTypeCode || "") === String(typeCode || "") &&
+        (!type || String(template.SectionID || "") === String(type.SectionID || "")) &&
+        (!selectedTemplateId || Number(template.IDTemplate) === selectedTemplateId));
+    const scheduleSelect = document.getElementById("selInspectionScheduleTime");
+    const selectedTime = scheduleSelect ? String(scheduleSelect.value || "") : "";
+
+    const resetOptions = () => {
+        Array.from(tenantSelect.options).forEach(option => {
+            if (!option.value) return;
+            option.disabled = false;
+            const tenant = inspectionTenants.find(row =>
+                String(row.TenantID || "").trim() === String(option.value || "").trim());
+            option.textContent = tenant
+                ? String(tenant.TenantID || "") + " - " + String(tenant.TenantName || "")
+                : option.value;
+        });
+    };
+
+    if (!type || !isInspectionTenantDetail(detail) ||
+        selectedDate !== today || !templates.length) {
+        resetOptions();
+        return;
+    }
+
+    const suiteMasterRows = (inspectionTenantSuiteMasterRows || []).filter(row =>
+        String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+        String(row.LocationID || "") === String(inspectionLocationID || ""));
+    // Without a complete Suite master snapshot we cannot safely declare a tenant fully used.
+    if (!suiteMasterRows.length) {
+        resetOptions();
+        return;
+    }
+
+    const configuredTimes = getInspectionScheduleTimes(detail);
+    const isLightning = String(type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
+    let slotTimes = isLightning
+        ? [configuredTimes.length ? configuredTimes[0] : ""]
+        : (configuredTimes.length ? configuredTimes : [""]);
+    if (selectedTime) slotTimes = [selectedTime];
+
+    Array.from(tenantSelect.options).forEach(option => {
+        const tenantId = String(option.value || "").trim();
+        if (!tenantId) return;
+
+        option.disabled = false;
+        const baseTenant = inspectionTenants.find(row =>
+            String(row.TenantID || "").trim() === tenantId);
+        const baseLabel = baseTenant
+            ? String(baseTenant.TenantID || "") + " - " + String(baseTenant.TenantName || "")
+            : tenantId;
+        const suites = suiteMasterRows.filter(row =>
+            String(row.TenantID || "").trim() === tenantId);
+        if (!suites.length) {
+            option.textContent = baseLabel;
+            return;
+        }
+
+        let totalSlots = 0;
+        let occupiedSlots = 0;
+        let firstConflict = null;
+        suites.forEach(suite => {
+            const suiteNo = String(suite.SuiteNo || "").trim();
+            if (!suiteNo) return;
+            templates.forEach(template => {
+                slotTimes.forEach(time => {
+                    totalSlots++;
+                    const matchesKey = record =>
+                        parseInspectionDate(record.InspectionDate) === selectedDate &&
+                        String(record.CompanyID || "") === String(inspectionCompanyID || "") &&
+                        String(record.LocationID || "") === String(inspectionLocationID || "") &&
+                        String(record.SectionID || "") === String(type.SectionID || "") &&
+                        String(record.InspectionTypeCode || "") === String(typeCode || "") &&
+                        String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
+                        String(record.TenantID || "").trim() === tenantId &&
+                        String(record.SuiteNo || "").trim() === suiteNo &&
+                        String(record.ScheduledTime || "") === String(time || "") &&
+                        Number(record.IDTemplate) === Number(template.IDTemplate) &&
+                        !isCurrentInspectionSlotRecord(record);
+
+                    const local = inspectionRecords.find(matchesKey);
+                    const server = serverSlotRecords.find(matchesKey);
+                    if (local || server) {
+                        occupiedSlots++;
+                        if (!firstConflict) firstConflict = { local, server };
+                    }
+                });
+            });
+        });
+
+        const fullyOccupied = totalSlots > 0 && occupiedSlots === totalSlots;
+        option.disabled = fullyOccupied;
+        option.textContent = fullyOccupied
+            ? baseLabel + (firstConflict && firstConflict.local &&
+                ["CONFLICT", "DELETE_PENDING"].includes(firstConflict.local.SyncStatus)
+                ? " • KONFLIK"
+                : firstConflict && firstConflict.local && !firstConflict.server
+                    ? " • DRAFT DI PERANGKAT INI"
+                    : " • SUDAH DIINSPEKSI")
+            : baseLabel;
+    });
+
+    // If the selected tenant has no remaining Suite/slot, release both selections.
+    const selectedOption = tenantSelect.options[tenantSelect.selectedIndex];
+    if (selectedOption && selectedOption.value && selectedOption.disabled) {
+        tenantSelect.value = "";
+        const suiteSelect = document.getElementById("selInspectionSuite");
+        if (suiteSelect) {
+            suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
+            suiteSelect.value = "";
+            suiteSelect.disabled = true;
+        }
+        inspectionTenantSuites = [];
+    }
 }
 
 function isCurrentInspectionSlotRecord(record) {
