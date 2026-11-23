@@ -1053,9 +1053,10 @@ function onInspectionDetailChanged() {
         x.InspectionTypeDetailCode === detailCode
     );
     const tenantPanel = document.getElementById("inspectionTenantPanel");
+    let tenantLoad = Promise.resolve();
     if (isInspectionTenantDetail(detail)) {
         if (tenantPanel) tenantPanel.classList.remove("d-none");
-        loadInspectionTenantOptions().catch(error => {
+        tenantLoad = loadInspectionTenantOptions().catch(error => {
             console.warn("Unable to load Inspection tenant options:", error);
             showToast(error.message || "Gagal memuat daftar tenant.", "warning");
             updateStartButton();
@@ -1073,6 +1074,7 @@ function onInspectionDetailChanged() {
     refreshInspectionDetailAvailability();
     updateStartButton();
     refreshInspectionScheduleOptions();
+    return tenantLoad;
 }
 
 function getInspectionScheduleTimes(detail) {
@@ -1956,7 +1958,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     document.getElementById("inspectionStartButtonRow").classList.add("d-none");
     document.getElementById("inspectionStartPanel").classList.remove("d-none");
     document.getElementById("inspectionFormPanel").classList.remove("d-none");
-    populateInspectionParameters(record);
+    await populateInspectionParameters(record);
     showInspectionEditorTab(initialTab || "checklist");
     const canDeleteVoidedInspection = isVoidedServerRecord;
     const canDeleteConflictInspection = record.SyncStatus === "CONFLICT";
@@ -3670,7 +3672,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
                 String(currentInspectionRecord && currentInspectionRecord.InspectionTypeDetailCode || "").toUpperCase() !==
                     String(state.detail.InspectionTypeDetailCode || "").toUpperCase()) {
                 if (previousRecord) {
-                    populateInspectionParameters(previousRecord);
+                    await populateInspectionParameters(previousRecord);
                     if (typeof window.showInspectionMapWorkspace === "function")
                         window.showInspectionMapWorkspace(previousRecord, true);
                 }
@@ -5364,7 +5366,7 @@ function setInspectionFormHeader(transactionNo, infoLines) {
     setInspectionFormInfoPopover(infoLines);
 }
 
-function populateInspectionParameters(record) {
+async function populateInspectionParameters(record) {
     const typeSelect = document.getElementById("selInspectionType");
     const templateSelect = document.getElementById("selInspectionTemplate");
     const detailSelect = document.getElementById("selInspectionDetail");
@@ -5442,7 +5444,22 @@ function populateInspectionParameters(record) {
     templateSelect.dispatchEvent(new Event("change"));
 
     detailSelect.value = record.InspectionTypeDetailCode || "";
-    onInspectionDetailChanged();
+    await onInspectionDetailChanged();
+    const selectedDetail = inspectionDetails.find(x =>
+        x.InspectionTypeCode === (record.InspectionTypeCode || "") &&
+        x.InspectionTypeDetailCode === (record.InspectionTypeDetailCode || "")
+    );
+    if (isInspectionTenantDetail(selectedDetail) && record.TenantID) {
+        const tenantSelect = document.getElementById("selInspectionTenant");
+        const suiteSelect = document.getElementById("selInspectionSuite");
+        if (tenantSelect && suiteSelect) {
+            tenantSelect.value = String(record.TenantID || "");
+            if (tenantSelect.value) {
+                await loadInspectionTenantSuites(tenantSelect.value);
+                suiteSelect.value = String(record.SuiteNo || "");
+            }
+        }
+    }
     scheduleTimeSelect.value = record.ScheduledTime || "";
     refreshInspectionScheduleOptions();
 
@@ -5529,7 +5546,7 @@ async function applyInspectionParameters() {
     );
     if (duplicate) {
         showToast("Kombinasi parameter ini sudah dipakai transaksi lain. Draft tidak diubah.", "warning");
-        populateInspectionParameters(currentInspectionRecord);
+        await populateInspectionParameters(currentInspectionRecord);
         updateInspectionParameterTabGate();
         return false;
     }
@@ -5563,7 +5580,7 @@ async function applyInspectionParameters() {
             noText: "No, Keep Existing Data"
         });
         if (!confirmed) {
-            populateInspectionParameters(record);
+            await populateInspectionParameters(record);
             updateInspectionParameterTabGate();
             return false;
         }
