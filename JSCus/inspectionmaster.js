@@ -475,10 +475,13 @@
                     if (options.scrollGrid) {
                         var tableViewport = selectedRow.closest('.inspection-master-point-table');
                         if (tableViewport) {
-                            var rowTop = selectedRow.offsetTop - tableViewport.offsetTop;
-                            if (rowTop < tableViewport.scrollTop ||
-                                rowTop + selectedRow.offsetHeight > tableViewport.scrollTop + tableViewport.clientHeight)
-                                tableViewport.scrollTop = Math.max(0, rowTop - Math.max(0, (tableViewport.clientHeight - selectedRow.offsetHeight) / 2));
+                            var rowRect = selectedRow.getBoundingClientRect();
+                            var viewportRect = tableViewport.getBoundingClientRect();
+                            if (rowRect.top < viewportRect.top) {
+                                tableViewport.scrollTop -= viewportRect.top - rowRect.top;
+                            } else if (rowRect.bottom > viewportRect.bottom) {
+                                tableViewport.scrollTop += rowRect.bottom - viewportRect.bottom;
+                            }
                         }
                     }
                 }
