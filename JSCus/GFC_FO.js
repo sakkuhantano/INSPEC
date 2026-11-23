@@ -1578,6 +1578,9 @@ async function uploadPendingInspections() {
             SectionID: record.SectionID,
             InspectionTypeCode: record.InspectionTypeCode,
             InspectionTypeDetailCode: record.InspectionTypeDetailCode,
+            // Tenant identity must travel with the submitted inspection header.
+            TenantID: record.TenantID || "",
+            SuiteNo: record.SuiteNo || "",
             ScheduledTime: record.ScheduledTime || "",
             IDTemplate: record.IDTemplate,
             IDVersion: record.IDVersion,
