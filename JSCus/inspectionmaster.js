@@ -878,8 +878,15 @@
                     svg.setAttribute('preserveAspectRatio', 'none');
                     content.appendChild(svg);
                 }
-                svg.querySelectorAll('.inspection-coordinate-rectangle-current[data-editor-preview="1"]').forEach(function (oldRect) {
-                    if (oldRect.parentNode) oldRect.parentNode.removeChild(oldRect);
+                // Resize re-renders this shape on every pointer move. Remove the
+                // previous rectangle and its hit/resize handles first, otherwise
+                // handles from the old edge positions accumulate as ghost dots.
+                svg.querySelectorAll(
+                    '.inspection-coordinate-rectangle-current[data-editor-preview="1"],' +
+                    '.inspection-coordinate-shape-move-hit,' +
+                    '.inspection-coordinate-rectangle-resize-handle'
+                ).forEach(function (oldElement) {
+                    if (oldElement.parentNode) oldElement.parentNode.removeChild(oldElement);
                 });
                 var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 rect.setAttribute('class', 'inspection-coordinate-rectangle inspection-coordinate-rectangle-current');
@@ -928,8 +935,12 @@
             function removeRectangleEditorShape() {
                 var svg = content.querySelector('#inspectionCoordinateSvgOverlay');
                 if (!svg) return;
-                svg.querySelectorAll('.inspection-coordinate-rectangle-current[data-editor-preview="1"]').forEach(function (rect) {
-                    if (rect.parentNode) rect.parentNode.removeChild(rect);
+                svg.querySelectorAll(
+                    '.inspection-coordinate-rectangle-current[data-editor-preview="1"],' +
+                    '.inspection-coordinate-shape-move-hit,' +
+                    '.inspection-coordinate-rectangle-resize-handle'
+                ).forEach(function (element) {
+                    if (element.parentNode) element.parentNode.removeChild(element);
                 });
             }
             function clearActivePointShapeFromOverlay() {
