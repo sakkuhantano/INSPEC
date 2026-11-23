@@ -437,7 +437,7 @@ function wireInspectionEvents() {
                 detailSelect.value = previousDetail;
         }
         const selectedDetail = details.find(detail => normalizeDetailCode(detail.InspectionTypeDetailCode) === normalizeDetailCode(detailSelect.value));
-        populateInspectionScheduleTimeOptions(selectedDetail);
+        onInspectionDetailChanged();
         refreshInspectionDetailAvailability();
         syncInspectionDetailSearchOptions();
         updateStartButton();
@@ -1005,6 +1005,8 @@ function refreshInspectionDetailAvailability() {
 }
 
 function onInspectionTypeChanged() {
+    resetInspectionTenantSelection();
+    inspectionTenantSuites = [];
     const typeCode = document.getElementById("selInspectionType").value;
     const type = inspectionTypes.find(x => x.InspectionTypeCode === typeCode);
     const templates = inspectionTemplates.filter(x =>
