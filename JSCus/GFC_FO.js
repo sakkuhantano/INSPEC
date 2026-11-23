@@ -1398,9 +1398,23 @@ async function uploadPendingInspections() {
             req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => reject(req.error);
         });
-        const confirmed = records.filter(r => r.SyncStatus === "SYNCED" &&
-            r.CompanyID === companyId && r.LocationID === locationId &&
-            allowedSections.includes(r.SectionID) && r.OwnerEmployeeID === login.employeeid);
+        const confirmed = records.filter(r => {
+            const hasServerVoidReason = [
+                r.ReasonVoid, r.ReasonVoid1, r.ReasonVoid2
+            ].some(reason => String(reason || "").trim() !== "");
+            const isReturnedVoidDraft = r.Status === "DRAFT" &&
+                Number(r.ServerInspectionID || 0) > 0 &&
+                (hasServerVoidReason || r.VoidedServerInspection === true);
+
+            // A server-confirmed transaction is normally disposable after sync.
+            // Exception: an SPV-voided server inspection is downloaded as a local
+            // DRAFT (SyncStatus remains SYNCED because it is already on the server).
+            // Keep its checklist/photos until the technician corrects and resubmits it,
+            // or explicitly queues its deletion.
+            return r.SyncStatus === "SYNCED" && !isReturnedVoidDraft &&
+                r.CompanyID === companyId && r.LocationID === locationId &&
+                allowedSections.includes(r.SectionID) && r.OwnerEmployeeID === login.employeeid;
+        });
         for (const record of confirmed) {
             await new Promise((resolve, reject) => {
                 const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
