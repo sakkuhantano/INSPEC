@@ -1719,7 +1719,7 @@ async function uploadPendingInspections() {
     const duplicateConflictMessage = "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
     const tenantSuiteConflictMessage = "Inspeksi untuk Tenant dan Suite yang sama sudah lebih dulu disimpan dari perangkat lain dengan jadwal dan template tersebut. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
     const genericConflictMessage = "Data inspeksi ini bentrok dengan data yang sudah ada. Periksa kembali jadwal dan pilihan inspeksinya. Jika masih ragu, hubungi SPV.";
-    const getInspectionConflictDisplayMessage = message => {
+    const getInspectionConflictDisplayMessage = (message, record) => {
         const value = String(message || "").trim();
         const lower = value.toLowerCase();
         const duplicateInspection =
@@ -1729,7 +1729,9 @@ async function uploadPendingInspections() {
              (lower.includes("schedule") || lower.includes("template"))) ||
             lower.includes("sudah lebih dulu disimpan") ||
             lower.includes("jadwal inspeksi ini sudah dipakai");
-        if (duplicateInspection && lower.includes("tenant") && lower.includes("suite"))
+        const hasTenantSuite = (lower.includes("tenant") && lower.includes("suite")) ||
+            !!(record && String(record.TenantID || "").trim() && String(record.SuiteNo || "").trim());
+        if (duplicateInspection && hasTenantSuite)
             return tenantSuiteConflictMessage;
         if (duplicateInspection)
             return duplicateConflictMessage;
@@ -1759,7 +1761,7 @@ async function uploadPendingInspections() {
                 record.SyncStatus = "CONFLICT";
                 // Keep raw diagnostics separate for support; never show them to the technician.
                 record.ConflictTechnicalReason = technicalReason;
-                record.ConflictReason = getInspectionConflictDisplayMessage(technicalReason);
+                record.ConflictReason = getInspectionConflictDisplayMessage(technicalReason, record);
                 record.LastSyncAt = new Date().toISOString();
                 store.put(record);
             });
