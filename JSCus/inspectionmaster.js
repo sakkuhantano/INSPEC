@@ -1526,6 +1526,9 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 if (!rect.width || !rect.height) return;
                 var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
                 var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+                // Replacing the active point's Circle removes the old saved
+                // overlay first; the blue dot below is only the new draft preview.
+                clearCurrentShapeForReplacement();
                 markerX.value = x.toFixed(2); markerY.value = y.toFixed(2);
                 if (!shapeSelect || shapeSelect.value === 'CIRCLE') updateCircleShapeAttributes(x, y);
                 if (swapTarget) swapTarget.value = '';
