@@ -4,6 +4,8 @@ let inspectionCompanyID = "";
 let inspectionLocationID = "";
 let inspectionTypes = [];
 let inspectionDetails = [];
+let inspectionTenants = [];
+let inspectionTenantSuites = [];
 let inspectionTemplates = [];
 let inspectionRecords = [];
 let serverSubmittedInspectionRecords = [];
@@ -68,6 +70,30 @@ function applyInspectionDetailSearch() {
 
 function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
+}
+
+function isInspectionTenantDetail(detail) {
+    const value = detail && detail.IsTenantInspection;
+    return value === true || value === 1 || value === "1" || String(value || "").toLowerCase() === "true";
+}
+
+function getSelectedInspectionTenantID() {
+    const select = document.getElementById("selInspectionTenant");
+    return select ? String(select.value || "").trim() : "";
+}
+
+function getSelectedInspectionSuiteNo() {
+    const select = document.getElementById("selInspectionSuite");
+    return select ? String(select.value || "").trim() : "";
+}
+
+function inspectionTenantMatchesRecord(record, detail) {
+    if (!isInspectionTenantDetail(detail)) return true;
+    const tenantId = getSelectedInspectionTenantID();
+    const suiteNo = getSelectedInspectionSuiteNo();
+    return !!tenantId && !!suiteNo &&
+        String(record && record.TenantID || "").trim() === tenantId &&
+        String(record && record.SuiteNo || "").trim() === suiteNo;
 }
 
 window.getActiveInspectionScheduleTime = function () {
@@ -735,6 +761,160 @@ function readInspectionStore(storeName) {
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => reject(req.error);
     });
+}
+
+function cacheInspectionLookupRows(storeName, rows, scopeTenantId) {
+    return new Promise((resolve, reject) => {
+        if (!db || !db.objectStoreNames.contains(storeName)) {
+            reject(new Error("Tenant cache belum tersedia. Refresh halaman setelah aplikasi diperbarui."));
+            return;
+        }
+        const companyId = String(inspectionCompanyID || "");
+        const locationId = String(inspectionLocationID || "");
+        const incoming = rows || [];
+        const incomingKeys = new Set(incoming.map(row => storeName === "inspection_tenants"
+            ? [row.CompanyID, row.LocationID, row.TenantID].join("|")
+            : [row.CompanyID, row.LocationID, row.TenantID, row.SuiteNo].join("|")));
+        const tx = db.transaction(storeName, "readwrite");
+        const store = tx.objectStore(storeName);
+        const readReq = store.getAll();
+        readReq.onsuccess = () => {
+            (readReq.result || []).forEach(row => {
+                const inScope = String(row.CompanyID || "") === companyId &&
+                    String(row.LocationID || "") === locationId &&
+                    (storeName !== "inspection_tenant_suites" ||
+                        String(row.TenantID || "") === String(scopeTenantId || ""));
+                const key = storeName === "inspection_tenants"
+                    ? [row.CompanyID, row.LocationID, row.TenantID].join("|")
+                    : [row.CompanyID, row.LocationID, row.TenantID, row.SuiteNo].join("|");
+                if (inScope && !incomingKeys.has(key)) {
+                    if (storeName === "inspection_tenants")
+                        store.delete([row.CompanyID, row.LocationID, row.TenantID]);
+                    else
+                        store.delete([row.CompanyID, row.LocationID, row.TenantID, row.SuiteNo]);
+                }
+            });
+            incoming.forEach(row => store.put(row));
+        };
+        readReq.onerror = () => { try { tx.abort(); } catch (_) {} reject(readReq.error); };
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error || new Error("Gagal menyimpan cache tenant."));
+        tx.onabort = () => reject(tx.error || new Error("Penyimpanan cache tenant dibatalkan."));
+    });
+}
+
+async function loadInspectionTenantOptions() {
+    const tenantSelect = document.getElementById("selInspectionTenant");
+    const suiteSelect = document.getElementById("selInspectionSuite");
+    if (!tenantSelect || !suiteSelect) return;
+    tenantSelect.disabled = true;
+    suiteSelect.disabled = true;
+    suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
+
+    let rows = (await readInspectionStore("inspection_tenants")).filter(row =>
+        String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+        String(row.LocationID || "") === String(inspectionLocationID || ""));
+    if (navigator.onLine) {
+        try {
+            const response = await fetch("inspection.aspx/GetInspectionTenantList", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: inspectionLogin.employeeid,
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat daftar tenant.");
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            rows = (result && result.data || []).map(row => Object.assign({}, row, {
+                CompanyID: inspectionCompanyID,
+                LocationID: inspectionLocationID
+            }));
+            await cacheInspectionLookupRows("inspection_tenants", rows);
+        } catch (error) {
+            console.warn("Tenant list refresh failed; using cached list:", error);
+            if (!rows.length) throw error;
+        }
+    }
+    inspectionTenants = rows.slice().sort((a, b) =>
+        String(a.TenantName || a.TenantID || "").localeCompare(String(b.TenantName || b.TenantID || "")));
+    tenantSelect.innerHTML = '<option value="">Pilih tenant...</option>' + inspectionTenants.map(row =>
+        '<option value="' + escInspection(row.TenantID) + '">' +
+        escInspection(String(row.TenantID || "") + " - " + String(row.TenantName || "")) + '</option>'
+    ).join("");
+    tenantSelect.disabled = inspectionTenants.length === 0;
+    if (!inspectionTenants.length)
+        throw new Error("Daftar tenant aktif belum tersedia. Jalankan Sync saat online terlebih dahulu.");
+}
+
+async function loadInspectionTenantSuites(tenantId) {
+    const suiteSelect = document.getElementById("selInspectionSuite");
+    if (!suiteSelect) return;
+    suiteSelect.disabled = true;
+    suiteSelect.innerHTML = '<option value="">Pilih Suite No...</option>';
+    inspectionTenantSuites = [];
+    if (!tenantId) {
+        suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
+        return;
+    }
+
+    let rows = (await readInspectionStore("inspection_tenant_suites")).filter(row =>
+        String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+        String(row.LocationID || "") === String(inspectionLocationID || "") &&
+        String(row.TenantID || "") === String(tenantId));
+    if (navigator.onLine) {
+        try {
+            const response = await fetch("inspection.aspx/GetInspectionTenantSuites", {
+                method: "POST",
+                headers: { "Content-Type": "application/json; charset=utf-8" },
+                body: JSON.stringify({
+                    employeeId: inspectionLogin.employeeid,
+                    companyId: inspectionCompanyID,
+                    locationId: inspectionLocationID,
+                    tenantId: tenantId
+                })
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error((payload && payload.Message) || "Gagal memuat Suite No.");
+            const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
+            rows = (result && result.data || []).map(row => Object.assign({}, row, {
+                CompanyID: inspectionCompanyID,
+                LocationID: inspectionLocationID,
+                TenantID: tenantId
+            }));
+            await cacheInspectionLookupRows("inspection_tenant_suites", rows, tenantId);
+        } catch (error) {
+            console.warn("Tenant suite refresh failed; using cached list:", error);
+            if (!rows.length) throw error;
+        }
+    }
+    inspectionTenantSuites = rows.slice().sort((a, b) =>
+        String(a.SuiteNo || "").localeCompare(String(b.SuiteNo || "")));
+    suiteSelect.innerHTML = '<option value="">Pilih Suite No...</option>' + inspectionTenantSuites.map(row =>
+        '<option value="' + escInspection(row.SuiteNo) + '">' + escInspection(row.SuiteNo) + '</option>'
+    ).join("");
+    suiteSelect.disabled = inspectionTenantSuites.length === 0;
+    if (!inspectionTenantSuites.length)
+        showToast("Suite aktif untuk tenant ini tidak tersedia.", "warning");
+}
+
+function resetInspectionTenantSelection() {
+    const panel = document.getElementById("inspectionTenantPanel");
+    const tenantSelect = document.getElementById("selInspectionTenant");
+    const suiteSelect = document.getElementById("selInspectionSuite");
+    if (panel) panel.classList.add("d-none");
+    if (tenantSelect) {
+        tenantSelect.innerHTML = '<option value="">Pilih tenant...</option>';
+        tenantSelect.value = "";
+        tenantSelect.disabled = true;
+    }
+    if (suiteSelect) {
+        suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
+        suiteSelect.value = "";
+        suiteSelect.disabled = true;
+    }
 }
 
 function refreshInspectionDetailAvailability() {
