@@ -1717,16 +1717,21 @@ async function uploadPendingInspections() {
 
     const failed = outcomes.filter(x => !x.success);
     const duplicateConflictMessage = "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
+    const tenantSuiteConflictMessage = "Inspeksi untuk Tenant dan Suite yang sama sudah lebih dulu disimpan dari perangkat lain dengan jadwal dan template tersebut. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
     const genericConflictMessage = "Data inspeksi ini bentrok dengan data yang sudah ada. Periksa kembali jadwal dan pilihan inspeksinya. Jika masih ragu, hubungi SPV.";
     const getInspectionConflictDisplayMessage = message => {
         const value = String(message || "").trim();
         const lower = value.toLowerCase();
-        if (lower.includes("an inspection already exists for this date") ||
+        const duplicateInspection =
+            lower.includes("an inspection already exists for this date") ||
             lower.includes("already exists for this date") ||
             (lower.includes("duplicate") && lower.includes("inspection") &&
              (lower.includes("schedule") || lower.includes("template"))) ||
             lower.includes("sudah lebih dulu disimpan") ||
-            lower.includes("jadwal inspeksi ini sudah dipakai"))
+            lower.includes("jadwal inspeksi ini sudah dipakai");
+        if (duplicateInspection && lower.includes("tenant") && lower.includes("suite"))
+            return tenantSuiteConflictMessage;
+        if (duplicateInspection)
             return duplicateConflictMessage;
 
         // Never store a technical exception/SQL dump in the user-facing ConflictReason field.
