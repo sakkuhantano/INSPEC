@@ -1771,14 +1771,9 @@ async function uploadPendingInspections() {
     const retryableOutcomes = failed.filter(x => !isValidationConflict(x.message));
     const retryableFailures = retryableOutcomes.length;
     if (retryableFailures > 0) {
-        const firstFailure = retryableOutcomes[0] || {};
         console.error("Inspection sync failed; records remain PENDING:", retryableOutcomes);
-        const detail = String(firstFailure.message || "Server tidak memberikan detail error.");
-        const clientId = String(firstFailure.ClientInspectionID || "");
         showToast(
-            retryableFailures + " inspeksi gagal sync. Data tetap PENDING. " +
-            (clientId ? "ID lokal: " + clientId + ". " : "") +
-            "Alasan server: " + detail,
+            retryableFailures + " inspeksi belum berhasil dikirim. Data tetap tersimpan di perangkat ini. Periksa koneksi lalu coba sinkronkan kembali. Jika masih gagal, hubungi SPV.",
             "warning"
         );
     }
