@@ -4969,6 +4969,30 @@ async function openServerSubmittedInspection(inspectionId) {
         scheduleTimeSelect.value = h.ScheduledTime || "";
         templateSelect.innerHTML = '<option value="' + escInspection(h.IDTemplate || "__server_template__") + '">' + escInspection((h.TemplateNo || "Template") + " / v" + (h.TemplateVersion || "-")) + '</option>';
         templateSelect.value = String(h.IDTemplate || "__server_template__");
+
+        // This server-only submitted view does not call populateInspectionParameters().
+        // Restore the tenant/suite fields directly from the authoritative header.
+        const tenantPanel = document.getElementById("inspectionTenantPanel");
+        const tenantSelect = document.getElementById("selInspectionTenant");
+        const suiteSelect = document.getElementById("selInspectionSuite");
+        const savedTenantID = String(h.TenantID || "").trim();
+        const savedSuiteNo = String(h.SuiteNo || "").trim();
+        if (tenantPanel && tenantSelect && suiteSelect && (savedTenantID || savedSuiteNo)) {
+            tenantPanel.classList.remove("d-none");
+            tenantSelect.innerHTML = savedTenantID
+                ? '<option value="' + escInspection(savedTenantID) + '">' + escInspection(savedTenantID) + '</option>'
+                : '<option value="">-</option>';
+            tenantSelect.value = savedTenantID;
+            suiteSelect.innerHTML = savedSuiteNo
+                ? '<option value="' + escInspection(savedSuiteNo) + '">' + escInspection(savedSuiteNo) + '</option>'
+                : '<option value="">-</option>';
+            suiteSelect.value = savedSuiteNo;
+            tenantSelect.disabled = true;
+            suiteSelect.disabled = true;
+        } else {
+            resetInspectionTenantSelection();
+        }
+
         [typeSelect, detailSelect, scheduleTimeSelect, templateSelect].forEach(select => { select.disabled = true; });
         document.getElementById("txtInspectionDate").value = inspectionDateInputValue(h.InspectionDate);
         document.getElementById("txtInspectionDate").disabled = true;
@@ -4979,6 +5003,7 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnCompleteInspection").classList.add("d-none");
         setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
+            h.TenantID || h.SuiteNo ? "Tenant: " + (h.TenantID || "-") + " / Suite " + (h.SuiteNo || "-") : "",
             "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
