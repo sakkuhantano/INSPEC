@@ -2,6 +2,7 @@
     INSPEC - MCDP Lighting geometry correction (MapID 3, 4, 5)
     Replaces the earlier approximate seed coordinates and geometry.
     Coordinates are percentages (0..100) of the supplied source raster.
+    Prerequisite: run Database/InspectionPoint_ShapeGeometry_Migration.sql first.
     Outdoor: discrete CIRCLE markers, ORTHOGONAL fixture runs, and PATH curved runs.
     Signboard: nine RECTANGLE outlines aligned to the numbered panel frames.
     Logo facade: six CIRCLE inspection targets centered on the labelled assemblies.
@@ -18,8 +19,9 @@ IF COL_LENGTH('dbo.PIP_M_InspectionPoint','MapX') IS NULL
  OR COL_LENGTH('dbo.PIP_M_InspectionPoint','ShapeType') IS NULL
  OR COL_LENGTH('dbo.PIP_M_InspectionPoint','SvgPathData') IS NULL
  OR COL_LENGTH('dbo.PIP_M_InspectionPoint','ShapeAttributes') IS NULL
+ OR COL_LENGTH('dbo.PIP_M_InspectionPoint','StrokeWidth') IS NULL
 BEGIN
-    RAISERROR('Coordinate and shape columns are required. Apply the inspection point geometry migrations first.',16,1);
+    RAISERROR('Coordinate and shape columns are required. Run InspectionPoint_Coordinate_Consolidation.sql and InspectionPoint_ShapeGeometry_Migration.sql first.',16,1);
     RETURN;
 END;
 GO
