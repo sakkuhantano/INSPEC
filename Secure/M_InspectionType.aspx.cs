@@ -78,7 +78,7 @@ namespace INSPEC.Secure
                 using (var br = new WAL.BR.CF())
                 {
                     DataTable dt = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName, 
-ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
+ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                         new SqlParameter[] { new SqlParameter("@ID", _lblID.Text.Trim()) });
                     if (dt.Rows.Count > 0)
                     {
@@ -86,6 +86,7 @@ ScheduleTime, IsActive FROM dbo.PIP_M_InspectionTypeDetail WHERE ID=@ID",
                         txtDetailCode.Text = detailCode;
                         txtDetailName.Text = Convert.ToString(dt.Rows[0]["InspectionTypeDetailName"]);
                         hidScheduleTimes.Value = Convert.ToString(dt.Rows[0]["ScheduleTime"]);
+                        chkTenantInspection.Checked = Convert.ToBoolean(dt.Rows[0]["IsTenantInspection"]);
                         //chkDetailActive.Checked = Convert.ToBoolean(dt.Rows[0]["IsActive"]);
                         txtDetailCode.ReadOnly = true;
                         GF.ShowPanel(ref pnlDetails, true);
@@ -264,6 +265,7 @@ WHERE InspectionTypeCode=@InspectionTypeCode
                     new SqlParameter("@p_D_InspectionTypeDetailCode", code),
                     new SqlParameter("@p_D_InspectionTypeDetailName", name), 
                     new SqlParameter("@p_D_ScheduleTime", time),
+                    new SqlParameter("@p_D_IsTenantInspection", chkTenantInspection.Checked),
                     new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
                     new SqlParameter("@p_D_ID", txtIDDetail.Text),
                     new SqlParameter("@p_D_CompanyID", Master.Mn_CompanyID),
@@ -295,6 +297,7 @@ WHERE InspectionTypeCode=@InspectionTypeCode
             txtDetailOriginalCode.Text = "";
             hidScheduleTimes.Value = "";
             txtDetailCode.Text = txtDetailName.Text = "";
+            chkTenantInspection.Checked = false;
             txtIDDetail.Text = "0";
             txtDetailCode.ReadOnly = false;
             lBtnAddNewDetail.Visible = false;
