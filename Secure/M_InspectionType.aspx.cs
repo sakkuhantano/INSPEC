@@ -335,7 +335,7 @@ WHERE InspectionTypeCode=@InspectionTypeCode
             using (var br = new WAL.BR.CF())
             {
                 gridData.DataSource = br.EQueryP(@"SELECT InspectionTypeDetailCode, InspectionTypeDetailName,
-ScheduleTime, IsActive, ID
+ScheduleTime, ISNULL(IsTenantInspection,0) IsTenantInspection, IsActive, ID
 FROM dbo.PIP_M_InspectionTypeDetail WHERE InspectionTypeCode=@Code AND CompanyID=@CompanyID AND LocationID=@LocationID
 ORDER BY InspectionTypeDetailCode, ScheduleTime",
                     new SqlParameter[] 
