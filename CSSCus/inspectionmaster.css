@@ -111,6 +111,81 @@
  .inspection-master-points-column .inspection-master-point-table{max-height:50vh}
 }
 
+
+/* Fix New Map layout: hidden preview must not reserve the left half of the page. */
+.inspection-master-map-points-layout{width:100%;margin-left:0;margin-right:0}
+.inspection-master-map-column[style*="display: none"]{display:none!important}
+
+/* Inspection Point toolbar has variable height and wraps instead of overlapping. */
+.inspection-master-point-toolbar{
+    height:auto!important;
+    min-height:42px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:.4rem;
+    padding:.45rem .55rem;
+}
+.inspection-master-point-toolbar-title{
+    flex:0 0 auto;
+    width:auto;
+    max-width:none;
+    padding-left:0;
+    padding-right:.5rem;
+    white-space:nowrap;
+}
+.inspection-master-point-toolbar-actions{
+    flex:1 1 100%;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:flex-start!important;
+    align-items:center;
+    gap:.35rem;
+    padding-left:0;
+    padding-right:0;
+}
+.inspection-master-point-toolbar-actions>.input-group{
+    flex:1 1 210px;
+    width:auto!important;
+    min-width:170px;
+    max-width:260px;
+    margin:0!important;
+}
+.inspection-master-point-toolbar-actions>.input-group .form-control{
+    min-width:0;
+}
+.inspection-master-point-toolbar-actions>#ddlPointPageSize{
+    flex:0 0 72px;
+    width:72px!important;
+    min-width:72px;
+    margin:0!important;
+}
+.inspection-master-point-toolbar-actions>#btnNewPointGrid{
+    flex:0 0 auto;
+    width:auto!important;
+    min-width:88px;
+    min-height:32px;
+    white-space:nowrap;
+    line-height:1.2;
+    padding:.3rem .65rem!important;
+    margin:0!important;
+}
+.inspection-master-points-column>.row,
+.inspection-master-map-column>.row{margin-left:0;margin-right:0}
+.inspection-master-points-column>.row>.col{min-width:0}
+.inspection-master-points-column .inspection-master-point-table{width:100%;max-width:100%}
+@media(min-width:992px){
+ .inspection-master-point-toolbar-actions{flex:1 1 390px;width:auto;max-width:none;justify-content:flex-end!important}
+ .inspection-master-point-toolbar-actions>.input-group{flex:0 1 230px}
+}
+@media(max-width:575.98px){
+ .inspection-master-point-toolbar-actions>.input-group{flex:1 1 100%;max-width:none}
+ .inspection-master-point-toolbar-actions>#ddlPointPageSize{flex:0 0 68px;width:68px!important;min-width:68px}
+}
+
 /* Map preview and Inspection Point grid are presented side by side on desktop. */
 .inspection-map-preview-toolbar .btn{min-width:32px}
 .inspection-map-preview-stage{position:relative;width:100%;height:min(75vh,720px);min-height:260px;overflow:hidden;border:1px solid var(--bs-border-color);border-radius:.4rem;background:#f8fafc;touch-action:pan-y;cursor:default}
