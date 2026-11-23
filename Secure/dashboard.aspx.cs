@@ -452,7 +452,7 @@ ORDER BY T.SectionID, T.InspectionTypeName",
 
                 DataTable details = br.EQuery(@"
 SELECT D.InspectionTypeCode, D.InspectionTypeDetailCode,
-       D.InspectionTypeDetailName, D.ScheduleTime
+       D.InspectionTypeDetailName, D.ScheduleTime, ISNULL(D.IsTenantInspection,0) IsTenantInspection
 FROM dbo.PIP_M_InspectionType T
 JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=T.InspectionTypeCode
 WHERE T.IsActive=1 AND D.IsActive=1
@@ -479,7 +479,8 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                     InspectionTypeCode = GF.GetString(row["InspectionTypeCode"]),
                     InspectionTypeDetailCode = GF.GetString(row["InspectionTypeDetailCode"]),
                     InspectionTypeDetailName = GF.GetString(row["InspectionTypeDetailName"]),
-                    ScheduleTime = GF.GetString(row["ScheduleTime"])
+                    ScheduleTime = GF.GetString(row["ScheduleTime"]),
+                    IsTenantInspection = Convert.ToBoolean(row["IsTenantInspection"])
                 }).ToList();
                 return new { types = typeRows, details = detailRows };
             }
