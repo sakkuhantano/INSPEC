@@ -249,9 +249,9 @@
                         <div class="col-lg-6 inspection-master-points-column">
                     <div class="row my-1">
                         <div class="col border rounded shadow-sm">
-                            <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
-                                <div class="col-sm-5 d-flex align-items-center">Inspection Points</div>
-                                <div class="col-sm-7 d-flex justify-content-end align-items-center">
+                            <div class="row font-weight-bold bg-custom20 inspection-master-point-toolbar" style="border-bottom:1px solid #dee2e6;">
+                                <div class="col-sm-5 d-flex align-items-center inspection-master-point-toolbar-title">Inspection Points</div>
+                                <div class="col-sm-7 d-flex justify-content-end align-items-center inspection-master-point-toolbar-actions">
                                     <div class="input-group input-group-sm" style="width:250px;">
                                         <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control form-control-sm fz-custom1" MaxLength="50" placeholder="Search Point Code" />
                                         <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="fas fa-search"></i></asp:LinkButton>
