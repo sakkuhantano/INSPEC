@@ -1830,8 +1830,12 @@ async function startNewInspection() {
             }
             const check = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
             if (check && check.duplicate) {
-                showToast("Jadwal ini sudah memiliki inspeksi " +
-                    (check.InspectionNo || "di server") + " untuk tanggal dan template tersebut. Duplikat tidak dibuat.", "warning");
+                if (isInspectionTenantDetail(detail)) {
+                    showToast("Tenant dan Suite yang sama sudah memiliki inspeksi dengan jadwal dan template tersebut. Silakan periksa inspeksi yang sudah ada; duplikat tidak dibuat.", "warning");
+                } else {
+                    showToast("Jadwal ini sudah memiliki inspeksi " +
+                        (check.InspectionNo || "di server") + " untuk tanggal dan template tersebut. Duplikat tidak dibuat.", "warning");
+                }
                 return;
             }
         } catch (err) {
@@ -5132,12 +5136,16 @@ async function openServerReturnedInspection(inspectionId) {
 function getInspectionConflictDisplayReason(record) {
     const value = String(record && record.ConflictReason || "").trim();
     const lower = value.toLowerCase();
-    if (lower.includes("an inspection already exists for this date") ||
+    const duplicateInspection =
+        lower.includes("an inspection already exists for this date") ||
         lower.includes("already exists for this date") ||
         (lower.includes("duplicate") && lower.includes("inspection") &&
          (lower.includes("schedule") || lower.includes("template"))) ||
         lower.includes("sudah lebih dulu disimpan") ||
-        lower.includes("jadwal inspeksi ini sudah dipakai"))
+        lower.includes("jadwal inspeksi ini sudah dipakai");
+    if (duplicateInspection && lower.includes("tenant") && lower.includes("suite"))
+        return "Inspeksi untuk Tenant dan Suite yang sama sudah lebih dulu disimpan dari perangkat lain dengan jadwal dan template tersebut. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
+    if (duplicateInspection)
         return "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
 
     // Older drafts may still contain the technical exception text from earlier sync versions.
