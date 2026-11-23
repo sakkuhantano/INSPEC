@@ -174,6 +174,7 @@ namespace INSPEC.Secure {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HiddenField hidScheduleTimes;
+        protected global::System.Web.UI.WebControls.CheckBox chkTenantInspection;
         
         /// <summary>
         /// lBtnSaveDetail control.
