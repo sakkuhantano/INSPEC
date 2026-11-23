@@ -1334,8 +1334,8 @@ ORDER BY G.TenantName,G.TenantID",
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             tenantId = Limit(tenantId, 10).Trim();
             if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) ||
-                String.IsNullOrWhiteSpace(locationId) || String.IsNullOrWhiteSpace(tenantId))
-                throw new HttpException(400, "Employee, company, location, and Tenant ID are required.");
+                String.IsNullOrWhiteSpace(locationId))
+                throw new HttpException(400, "Employee, company, and location are required.");
 
             using (var br = new WAL.BR.CF())
             {
@@ -1364,7 +1364,8 @@ SELECT A.TenantID,A.SuiteNo
 FROM dbo.THD_M_AgreementInformation A
 JOIN dbo.THD_M_GeneralInformation G
   ON G.CompanyID=A.CompanyID AND G.LocationID=A.LocationID AND G.TenantID=A.TenantID
-WHERE A.CompanyID=@CompanyID AND A.LocationID=@LocationID AND A.TenantID=@TenantID
+WHERE A.CompanyID=@CompanyID AND A.LocationID=@LocationID
+  AND (@TenantID='' OR A.TenantID=@TenantID)
   AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
   AND A.LeaseTermDate>=GETDATE()
 ORDER BY A.SuiteNo",
