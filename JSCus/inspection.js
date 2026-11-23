@@ -424,12 +424,14 @@ function wireInspectionEvents() {
         } catch (error) {
             showToast(error.message || "Gagal memuat Suite No tenant.", "warning");
         }
-        refreshInspectionDetailAvailability();
         refreshInspectionScheduleOptions();
+        refreshInspectionSuiteAvailability();
+        refreshInspectionDetailAvailability();
         updateStartButton();
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionSuite").addEventListener("change", function () {
+        refreshInspectionSuiteAvailability();
         refreshInspectionDetailAvailability();
         refreshInspectionScheduleOptions();
         updateStartButton();
@@ -438,8 +440,9 @@ function wireInspectionEvents() {
     const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
-        updateStartButton();
         refreshInspectionScheduleOptions();
+        refreshInspectionSuiteAvailability();
+        updateStartButton();
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionTemplate").addEventListener("change", function () {
@@ -487,9 +490,15 @@ function wireInspectionEvents() {
         syncInspectionDetailSearchOptions();
         updateStartButton();
         refreshInspectionScheduleOptions();
+        refreshInspectionSuiteAvailability();
         updateInspectionParameterTabGate();
     });
-    document.getElementById("txtInspectionDate").addEventListener("change", refreshInspectionScheduleOptions);
+    document.getElementById("txtInspectionDate").addEventListener("change", function () {
+        refreshInspectionDetailAvailability();
+        refreshInspectionScheduleOptions();
+        refreshInspectionSuiteAvailability();
+        updateStartButton();
+    });
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
     document.getElementById("selSubmittedType").addEventListener("change", function () {
@@ -960,6 +969,117 @@ async function loadInspectionTenantSuites(tenantId) {
     suiteSelect.disabled = inspectionTenantSuites.length === 0;
     if (!inspectionTenantSuites.length)
         showToast("Suite aktif untuk tenant ini tidak tersedia.", "warning");
+}
+
+function isCurrentInspectionSlotRecord(record) {
+    if (!record || !currentInspectionRecord) return false;
+    const currentLocalId = String(currentInspectionRecord.LocalInspectionID || "");
+    const candidateLocalId = String(record.LocalInspectionID || record.ClientInspectionID || "");
+    if (currentLocalId && candidateLocalId && currentLocalId === candidateLocalId) return true;
+    const currentInspectionId = Number(currentInspectionRecord.InspectionID || currentInspectionRecord.ServerInspectionID || 0);
+    const candidateInspectionId = Number(record.InspectionID || record.ServerInspectionID || 0);
+    return currentInspectionId > 0 && candidateInspectionId > 0 &&
+        currentInspectionId === candidateInspectionId;
+}
+
+function refreshInspectionSuiteAvailability() {
+    const suiteSelect = document.getElementById("selInspectionSuite");
+    if (!suiteSelect) return;
+
+    const tenantId = getSelectedInspectionTenantID();
+    const typeCode = document.getElementById("selInspectionType").value;
+    const type = inspectionTypes.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || ""));
+    const detailCode = document.getElementById("selInspectionDetail").value;
+    const detail = inspectionDetails.find(x =>
+        String(x.InspectionTypeCode || "") === String(typeCode || "") &&
+        String(x.InspectionTypeDetailCode || "") === String(detailCode || ""));
+    const selectedDate = parseInspectionDateFilter(
+        document.getElementById("txtInspectionDate").value) || localDateString(new Date());
+    const today = localDateString(new Date());
+    const selectedTemplateId = Number(document.getElementById("selInspectionTemplate").value);
+    const templates = inspectionTemplates.filter(template =>
+        String(template.InspectionTypeCode || "") === String(typeCode || "") &&
+        (!type || String(template.SectionID || "") === String(type.SectionID || "")) &&
+        (!selectedTemplateId || Number(template.IDTemplate) === selectedTemplateId));
+    const scheduleSelect = document.getElementById("selInspectionScheduleTime");
+    const selectedTime = scheduleSelect ? String(scheduleSelect.value || "") : "";
+
+    const resetOptions = () => {
+        Array.from(suiteSelect.options).forEach(option => {
+            if (!option.value) return;
+            option.disabled = false;
+            option.textContent = option.value;
+        });
+    };
+
+    // Keep the same date scope as the existing Type / Detail / Schedule availability checks.
+    if (!tenantId || !isInspectionTenantDetail(detail) || !type ||
+        selectedDate !== today || !templates.length) {
+        resetOptions();
+        return;
+    }
+
+    const configuredTimes = getInspectionScheduleTimes(detail);
+    const isLightning = String(type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
+    let slotTimes = isLightning
+        ? [configuredTimes.length ? configuredTimes[0] : ""]
+        : (configuredTimes.length ? configuredTimes : [""]);
+    // When a Schedule Time has been chosen, lock only suites occupied at that exact time.
+    // Before a time is chosen, a suite remains available while at least one of its slots is free.
+    if (selectedTime) slotTimes = [selectedTime];
+
+    Array.from(suiteSelect.options).forEach(option => {
+        const suiteNo = String(option.value || "").trim();
+        if (!suiteNo) return;
+
+        option.disabled = false;
+        const baseLabel = suiteNo;
+        let totalSlots = 0;
+        let occupiedSlots = 0;
+        let firstConflict = null;
+
+        templates.forEach(template => {
+            slotTimes.forEach(time => {
+                totalSlots++;
+                const matchesKey = record =>
+                    parseInspectionDate(record.InspectionDate) === selectedDate &&
+                    String(record.CompanyID || "") === String(inspectionCompanyID || "") &&
+                    String(record.LocationID || "") === String(inspectionLocationID || "") &&
+                    String(record.SectionID || "") === String(type.SectionID || "") &&
+                    String(record.InspectionTypeCode || "") === String(typeCode || "") &&
+                    String(record.InspectionTypeDetailCode || "") === String(detailCode || "") &&
+                    String(record.TenantID || "").trim() === tenantId &&
+                    String(record.SuiteNo || "").trim() === suiteNo &&
+                    String(record.ScheduledTime || "") === String(time || "") &&
+                    Number(record.IDTemplate) === Number(template.IDTemplate) &&
+                    !isCurrentInspectionSlotRecord(record);
+
+                const local = inspectionRecords.find(matchesKey);
+                const server = serverSlotRecords.find(matchesKey);
+                if (local || server) {
+                    occupiedSlots++;
+                    if (!firstConflict) firstConflict = { local, server };
+                }
+            });
+        });
+
+        const fullyOccupied = totalSlots > 0 && occupiedSlots === totalSlots;
+        option.disabled = fullyOccupied;
+        option.textContent = fullyOccupied
+            ? baseLabel + (firstConflict && firstConflict.local &&
+                ["CONFLICT", "DELETE_PENDING"].includes(firstConflict.local.SyncStatus)
+                ? " • KONFLIK"
+                : firstConflict && firstConflict.local && !firstConflict.server
+                    ? " • DRAFT DI PERANGKAT INI"
+                    : " • SUDAH DIINSPEKSI");
+    });
+
+    // Never leave a now-locked Suite selected; otherwise Start Inspection could
+    // continue using a value that is no longer available.
+    const selectedOption = suiteSelect.options[suiteSelect.selectedIndex];
+    if (selectedOption && selectedOption.value && selectedOption.disabled)
+        suiteSelect.value = "";
 }
 
 function resetInspectionTenantSelection() {
@@ -5542,6 +5662,7 @@ async function populateInspectionParameters(record) {
         }
         const savedTenantName = await resolveInspectionTenantName(record.TenantID, record.TenantName);
         if (savedTenantName) record.TenantName = savedTenantName;
+        refreshInspectionSuiteAvailability();
     }
     scheduleTimeSelect.value = record.ScheduledTime || "";
     refreshInspectionScheduleOptions();
