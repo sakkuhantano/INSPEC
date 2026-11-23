@@ -1986,7 +1986,9 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         (technicianId === inspectionLogin.employeeid ? inspectionTechnicianName : "");
     setInspectionFormHeader(transactionNo, [
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
-        record.TenantID && record.SuiteNo ? "Tenant: " + record.TenantID + " / Suite " + record.SuiteNo : "",
+        record.TenantID || record.SuiteNo
+            ? "Tenant / Suite: " + (record.TenantID || "-") + " / " + (record.SuiteNo || "-")
+            : "",
         "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || ""),
@@ -5003,7 +5005,9 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnCompleteInspection").classList.add("d-none");
         setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
-            h.TenantID || h.SuiteNo ? "Tenant: " + (h.TenantID || "-") + " / Suite " + (h.SuiteNo || "-") : "",
+            h.TenantID || h.SuiteNo
+                ? "Tenant / Suite: " + (h.TenantID || "-") + " / " + (h.SuiteNo || "-")
+                : "",
             "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
