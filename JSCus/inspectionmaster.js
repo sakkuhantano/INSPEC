@@ -63,6 +63,8 @@
         var panel = document.getElementById('pnlMapPreview');
         if (!panel) return;
         panel.style.display = 'block';
+        if (window.inspectionMasterUpdateMapPointsLayout)
+            window.inspectionMasterUpdateMapPointsLayout();
 
         var title = document.getElementById('lblMapPreviewTitle');
         if (title) title.textContent = 'Denah Draft - ' + (fileName || 'Floor Plan');
@@ -714,6 +716,20 @@
         }
         window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
+        // When the map preview is hidden (New Map without a selected file),
+        // don't leave an empty half-width column beside the point grid.
+        window.inspectionMasterUpdateMapPointsLayout = function () {
+            var mapColumn = document.querySelector('.inspection-master-map-column');
+            var pointsColumn = document.querySelector('.inspection-master-points-column');
+            var panel = document.getElementById('pnlMapPreview');
+            if (!mapColumn || !pointsColumn) return;
+            var mapVisible = !!panel && window.getComputedStyle(panel).display !== 'none';
+            mapColumn.style.display = mapVisible ? '' : 'none';
+            pointsColumn.classList.toggle('col-lg-6', mapVisible);
+            pointsColumn.classList.toggle('col-lg-12', !mapVisible);
+        };
+        window.inspectionMasterUpdateMapPointsLayout();
+
         initMapPreviewInteraction();
 
         // A normal row click focuses its plotted point. Edit/Delete buttons keep
