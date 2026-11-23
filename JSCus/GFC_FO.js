@@ -1716,9 +1716,29 @@ async function uploadPendingInspections() {
     }
 
     const failed = outcomes.filter(x => !x.success);
+    const duplicateConflictMessage = "Pilihan inspeksi dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft di perangkat ini belum masuk ke server. Silakan hapus draft ini agar tidak dikirim ulang. Jika ragu, hubungi SPV untuk pengecekan.";
+    const genericConflictMessage = "Data inspeksi ini bentrok dengan data yang sudah ada. Periksa kembali jadwal dan pilihan inspeksinya. Jika masih ragu, hubungi SPV.";
+    const getInspectionConflictDisplayMessage = message => {
+        const value = String(message || "").trim();
+        const lower = value.toLowerCase();
+        if (lower.includes("an inspection already exists for this date") ||
+            lower.includes("already exists for this date") ||
+            (lower.includes("duplicate") && lower.includes("inspection") &&
+             (lower.includes("schedule") || lower.includes("template"))) ||
+            lower.includes("sudah lebih dulu disimpan") ||
+            lower.includes("jadwal inspeksi ini sudah dipakai"))
+            return duplicateConflictMessage;
+
+        // Never store a technical exception/SQL dump in the user-facing ConflictReason field.
+        if (/system\\.exception|sqlexception|uncommittable transaction|stack trace|\\bat [a-z0-9_.]+\\s*\\(|tahap:|procedure|\\bline \\d+\\b/i.test(value) ||
+            value.length > 300)
+            return genericConflictMessage;
+
+        return value || genericConflictMessage;
+    };
     const isValidationConflict = message => {
         const text = String(message || "").toLowerCase();
-        return /already exists|duplicate|invalid|required|not authorized|unauthorized|inactive|missing|not configured|belongs to another|locked|unavailable|another inspection|sudah memiliki data di server|sudah tercatat di server|sudah ada di server|jadwal inspeksi ini sudah|inspeksi .* sudah tercatat/.test(text);
+        return /already exists|duplicate|invalid|required|not authorized|unauthorized|inactive|missing|not configured|belongs to another|locked|unavailable|another inspection|konflik data|sudah lebih dulu disimpan|sudah memiliki data di server|sudah tercatat di server|sudah ada di server|jadwal inspeksi ini sudah|inspeksi .* sudah tercatat/.test(text);
     };
     const conflicts = failed.filter(x => isValidationConflict(x.message));
     if (conflicts.length) {
@@ -1729,9 +1749,9 @@ async function uploadPendingInspections() {
                 const outcome = conflicts.find(x => x.ClientInspectionID === record.LocalInspectionID);
                 const technicalReason = outcome ? (outcome.message || "Server menolak transaksi ini.") : "Server menolak transaksi ini.";
                 record.SyncStatus = "CONFLICT";
+                // Keep raw diagnostics separate for support; never show them to the technician.
                 record.ConflictTechnicalReason = technicalReason;
-                // Keep the actual server diagnostic visible in the conflict row.
-                record.ConflictReason = technicalReason;
+                record.ConflictReason = getInspectionConflictDisplayMessage(technicalReason);
                 record.LastSyncAt = new Date().toISOString();
                 store.put(record);
             });
@@ -1739,11 +1759,8 @@ async function uploadPendingInspections() {
             tx.onerror = () => reject(tx.error);
             tx.onabort = () => reject(tx.error || new Error("Conflict status update aborted"));
         });
-        const firstConflict = conflicts[0] || {};
         showToast(
-            conflicts.length + " inspeksi konflik. " +
-            String(firstConflict.ClientInspectionID || "") + " — " +
-            String(firstConflict.message || "Server menolak transaksi."),
+            conflicts.length + " draft inspeksi perlu diperiksa karena ada bentrok data. Buka tab Draft untuk melihat penjelasan dan tindak lanjutnya.",
             "warning"
         );
         window.dispatchEvent(new CustomEvent("inspectionConflict", { detail: { count: conflicts.length } }));
