@@ -2636,6 +2636,23 @@
                 <option value="">Pilih detail...</option>
             </select>
         </div>
+        <div id="inspectionTenantPanel" class="mb-3 d-none">
+            <div class="row g-2">
+                <div class="col-12">
+                    <label for="selInspectionTenant" class="form-label small fw-semibold">Tenant</label>
+                    <select id="selInspectionTenant" class="form-select form-select-sm">
+                        <option value="">Pilih tenant...</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="selInspectionSuite" class="form-label small fw-semibold">Suite No</label>
+                    <select id="selInspectionSuite" class="form-select form-select-sm" disabled>
+                        <option value="">Pilih tenant terlebih dahulu...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="inspection-muted mt-1">Tenant dan Suite No wajib dipilih untuk detail inspeksi per tenant.</div>
+        </div>
         <div class="inspection-step mb-3">
             <div class="fw-bold">4. Schedule Time</div>
             <div class="inspection-muted">Pilih jam sesuai jadwal detail. Jika detail tidak memiliki jadwal, inspeksi akan dicatat sebagai Tanpa Jadwal.</div>
