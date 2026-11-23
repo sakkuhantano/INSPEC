@@ -2708,9 +2708,12 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.IsApproved1,I.Approved1By,ISNULL(EA1.Name,I.Approved1By) AS Approved1ByName,I.Approved1Date,
        I.IsApproved2,I.Approved2By,ISNULL(EA2.Name,I.Approved2By) AS Approved2ByName,I.Approved2Date,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
-       I.TenantID,I.SuiteNo,I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
+       I.TenantID,I.SuiteNo,ISNULL(TG.TenantName,'') AS TenantName,
+       I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.THD_M_GeneralInformation TG
+       ON TG.CompanyID=I.CompanyID AND TG.LocationID=I.LocationID AND TG.TenantID=I.TenantID
 LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
@@ -3202,7 +3205,7 @@ ORDER BY P.SeqNo",
             {
                 DataTable headers = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID,
-       I.TenantID, I.SuiteNo, I.SectionID,
+       I.TenantID, I.SuiteNo, ISNULL(TG.TenantName,'') AS TenantName, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
        I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
        I.TemplateNo, I.TemplateName, I.TemplateVersion,
@@ -3215,6 +3218,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.THD_M_GeneralInformation TG
+       ON TG.CompanyID=I.CompanyID AND TG.LocationID=I.LocationID AND TG.TenantID=I.TenantID
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApproved=0
