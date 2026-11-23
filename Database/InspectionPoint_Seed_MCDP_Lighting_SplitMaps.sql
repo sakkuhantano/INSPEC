@@ -133,9 +133,9 @@ FROM dbo.PIP_M_InspectionPoint WITH (TABLOCKX,HOLDLOCK);
     )
 )
 INSERT INTO dbo.PIP_M_InspectionPoint
-(InspectionPointID,InspectionTypeCode,InspectionTypeDetailCode,PointCode,PointName,PointObjectType,PointDescription,
+(InspectionPointID,PointCode,PointName,PointObjectType,PointDescription,
  ObjectReferenceType,ObjectReferenceID,ObjectReferenceCode,MapID,MapX,MapY,DisplayOrder,IsActive,IsNormalAbnormalRequired,EntryUser,UpdateUser)
-SELECT @BasePointID+RN,'LT','MCDP-LT',PointCode,PointName,'GENERAL',
+SELECT @BasePointID+RN,PointCode,PointName,'GENERAL',
        'Initial plotted coordinate from supplied lighting drawing; verify alignment in Inspection Master.',
        'GENERAL','',PointCode,MapID,MapX,MapY,DisplayOrder,1,0,@UserID,@UserID
 FROM Missing;
@@ -144,12 +144,20 @@ COMMIT TRANSACTION;
 GO
 
 /* Verification: point totals and plotted coordinates by MapID. */
-SELECT M.MapID,M.MapCode,M.MapName,COUNT(P.InspectionPointID) AS ActivePointCount,
-       MIN(P.MapX) AS MinMapX,MAX(P.MapX) AS MaxMapX,MIN(P.MapY) AS MinMapY,MAX(P.MapY) AS MaxMapY
+SELECT M.MapID,M.MapCode,M.MapName,
+       ISNULL(P.ActivePointCount,0) AS ActivePointCount,
+       P.MinMapX,P.MaxMapX,P.MinMapY,P.MaxMapY
 FROM dbo.PIP_M_InspectionMap M
-LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.MapID=M.MapID AND P.IsActive=1
+LEFT JOIN
+(
+    SELECT MapID,COUNT(*) AS ActivePointCount,
+           MIN(MapX) AS MinMapX,MAX(MapX) AS MaxMapX,
+           MIN(MapY) AS MinMapY,MAX(MapY) AS MaxMapY
+    FROM dbo.PIP_M_InspectionPoint
+    WHERE IsActive=1 AND MapID IN (3,4,5)
+    GROUP BY MapID
+) P ON P.MapID=M.MapID
 WHERE M.MapID IN (3,4,5)
-GROUP BY M.MapID,M.MapCode,M.MapName
 ORDER BY M.MapID;
 GO
 
