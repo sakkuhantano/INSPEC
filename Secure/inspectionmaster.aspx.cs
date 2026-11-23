@@ -2052,16 +2052,18 @@ ORDER BY P.DisplayOrder,P.PointCode",
                         .Append("' data-point-id='").Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
                         .Append("' data-can-swap='").Append(Convert.ToString(point["CanSwap"]))
                         .Append("' title='").Append(HttpUtility.HtmlAttributeEncode(Convert.ToString(point["PointCode"]) + " - " + Convert.ToString(point["PointName"])))
-                        .Append("' fill='rgba(108,117,125,.20)' stroke='#6c757d' stroke-width='0.65' vector-effect='non-scaling-stroke'></rect>");
+                        .Append("' fill='rgba(253,126,20,.20)' stroke='#fd7e14' stroke-width='0.85' vector-effect='non-scaling-stroke'></rect>");
                     continue;
                 }
                 if (!String.Equals(shapeType, "PATH", StringComparison.OrdinalIgnoreCase)) continue;
                 string d = Convert.ToString(point["SvgPathData"]);
                 if (String.IsNullOrWhiteSpace(d) || !System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$")) continue;
-                pathSvg.Append("<path class='inspection-coordinate-path' d='");
+                pathSvg.Append("<path class='inspection-coordinate-path");
+                if (isCurrent) pathSvg.Append(" inspection-coordinate-path-current");
+                pathSvg.Append("' d='");
                 pathSvg.Append(HttpUtility.HtmlAttributeEncode(d));
                 bool isOrthogonalPath = Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
-                pathSvg.Append("' fill='none' stroke='#0d6efd' stroke-width='");
+                pathSvg.Append("' fill='none' stroke='#fd7e14' stroke-width='");
                 pathSvg.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
                 pathSvg.Append("' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke' data-point-id='");
                 pathSvg.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
