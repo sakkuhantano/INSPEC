@@ -1276,7 +1276,6 @@ new SqlParameter("@CompanyID", companyId),
         }
 
         [WebMethod]
-        [WebMethod]
         public static object GetInspectionTenantList(string employeeId, string companyId, string locationId)
         {
             employeeId = GFC.RequireMenuEmployee("20021");
@@ -1386,6 +1385,7 @@ ORDER BY A.SuiteNo",
             }
         }
 
+        [WebMethod]
         public static object GetTodayInspectionSlots(string employeeId, string companyId, string locationId)
         {
             employeeId = GFC.RequireMenuEmployee("20021");
@@ -1422,7 +1422,7 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
 
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
-       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
+       I.CompanyID, I.LocationID, I.TenantID, I.SuiteNo, I.SectionID, I.InspectionTypeCode,
        I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
@@ -1878,7 +1878,7 @@ WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
 
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
-       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
+       I.CompanyID, I.LocationID, I.TenantID, I.SuiteNo, I.SectionID, I.InspectionTypeCode,
        I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
        I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
@@ -2069,7 +2069,7 @@ ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.Sched
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
+       I.TenantID, I.SuiteNo, I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
@@ -2537,7 +2537,7 @@ ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.Schedule
                     filters.Add(item);
                 }
                 DataTable rows = br.EQueryP(@"
-SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.SectionID,
+SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.TenantID,I.SuiteNo,I.SectionID,
        I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
        I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
@@ -2695,7 +2695,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.IsApproved1,I.Approved1By,ISNULL(EA1.Name,I.Approved1By) AS Approved1ByName,I.Approved1Date,
        I.IsApproved2,I.Approved2By,ISNULL(EA2.Name,I.Approved2By) AS Approved2ByName,I.Approved2Date,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
-       I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
+       I.TenantID,I.SuiteNo,I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
