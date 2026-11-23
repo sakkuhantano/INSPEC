@@ -102,6 +102,66 @@ WHERE SU.EmployeeID=@UserID
                         !String.Equals(recordOwner, userId, StringComparison.OrdinalIgnoreCase))
                         throw new Exception("This offline inspection belongs to another employee. No data was uploaded.");
 
+                    /* Reconcile an interrupted client confirmation before validating/re-uploading
+                       checklist and photo payloads. A submitted, active, non-void server row with
+                       the same ClientInspectionID is already the committed transaction. Returning
+                       its identifiers as success lets the client persist SYNCED in IndexedDB. */
+                    string recordCompanyId = Limit(TokenString(record, "CompanyID"), 10);
+                    string recordLocationId = Limit(TokenString(record, "LocationID"), 3);
+                    string recordSectionId = Limit(TokenString(record, "SectionID"), 10);
+                    using (var reconcileBr = new WAL.BR.CF())
+                    {
+                        syncStage = "reconcile existing submitted inspection";
+                        DataTable reconciledRows = reconcileBr.EQueryP(@"
+SELECT TOP 1 InspectionID, InspectionNo, CompanyID, LocationID, SectionID,
+       OwnerEmployeeID, Status, IsSubmitted, IsActive,
+       ReasonVoid, ReasonVoid1, ReasonVoid2
+FROM dbo.PIP_T_Inspection
+WHERE ClientInspectionID=@ClientInspectionID",
+                            new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
+                        if (reconciledRows == null)
+                            throw new Exception("Could not verify the existing inspection synchronization state.");
+
+                        if (reconciledRows.Rows.Count > 0)
+                        {
+                            DataRow serverRecord = reconciledRows.Rows[0];
+                            bool sameOwner = String.Equals(Convert.ToString(serverRecord["OwnerEmployeeID"]),
+                                userId, StringComparison.OrdinalIgnoreCase);
+                            bool sameCompany = String.Equals(Convert.ToString(serverRecord["CompanyID"]),
+                                recordCompanyId, StringComparison.OrdinalIgnoreCase);
+                            bool sameLocation = String.Equals(Convert.ToString(serverRecord["LocationID"]),
+                                recordLocationId, StringComparison.OrdinalIgnoreCase);
+                            bool sameSection = String.Equals(Convert.ToString(serverRecord["SectionID"]),
+                                recordSectionId, StringComparison.OrdinalIgnoreCase);
+                            if (!sameOwner || !sameCompany || !sameLocation || !sameSection)
+                                throw new HttpException(403, "The existing server inspection does not match this employee and company/location/section.");
+
+                            bool serverIsActive = serverRecord["IsActive"] == DBNull.Value ||
+                                Convert.ToBoolean(serverRecord["IsActive"]);
+                            bool serverIsSubmitted = serverRecord["IsSubmitted"] != DBNull.Value &&
+                                Convert.ToBoolean(serverRecord["IsSubmitted"]);
+                            bool serverIsDone = String.Equals(Convert.ToString(serverRecord["Status"]),
+                                "DONE", StringComparison.OrdinalIgnoreCase);
+                            bool serverHasVoidReason =
+                                !String.IsNullOrWhiteSpace(Convert.ToString(serverRecord["ReasonVoid"])) ||
+                                !String.IsNullOrWhiteSpace(Convert.ToString(serverRecord["ReasonVoid1"])) ||
+                                !String.IsNullOrWhiteSpace(Convert.ToString(serverRecord["ReasonVoid2"]));
+
+                            if (serverIsActive && serverIsDone && serverIsSubmitted && !serverHasVoidReason)
+                            {
+                                outcomes.Add(new
+                                {
+                                    ClientInspectionID = clientId,
+                                    success = true,
+                                    InspectionID = Convert.ToInt64(serverRecord["InspectionID"]),
+                                    InspectionNo = Convert.ToString(serverRecord["InspectionNo"]),
+                                    message = ""
+                                });
+                                continue;
+                            }
+                        }
+                    }
+
                     syncStage = "build checklist data";
                     // dbo.Type_N_Tbl_C13: C1=IDItem, C2=ItemLabel, C3=ItemType,
                     // C4=Value, C5=Remark1, C6=IsAnomali, C7=DisplayOrder, C8=Remark2; C9-C13 unused.
