@@ -415,6 +415,7 @@
             setZoom(zoom + (event.deltaY < 0 ? 0.25 : -0.25), event.clientX - rect.left, event.clientY - rect.top);
         }, { passive: false });
         stage.addEventListener('pointerdown', function (event) {
+            if (event.target && event.target.closest && event.target.closest('.inspection-map-preview-svg [data-point-id]')) return;
             if (zoom <= 1 || event.button !== 0 || dragging) return;
             // Capture the pointer on the viewport so dragging continues even when
             // the pointer leaves the floor-plan image/canvas during the gesture.
@@ -446,30 +447,56 @@
         stage.addEventListener('pointercancel', stopMapPreviewDrag);
         stage.addEventListener('lostpointercapture', stopMapPreviewDrag);
         apply();
-        // Expose map focus so a click on the corresponding point-grid row can
-        // highlight the exact saved geometry and center it in the preview.
-        window.inspectionMasterFocusMapPoint = function (pointId) {
-            var panel = document.getElementById('pnlMapPreview');
-            if (panel && panel.scrollIntoView)
-                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
+        // Keep map geometry and point-grid row selection synchronized in both directions.
+        window.inspectionMasterSelectPoint = function (pointId, options) {
+            options = options || {};
             var svg = media.querySelector('.inspection-map-preview-svg');
-            if (!svg) return;
             var target = null;
-            svg.querySelectorAll('[data-point-id]').forEach(function (shape) {
-                if (shape.getAttribute('data-point-id') === String(pointId)) target = shape;
-                shape.classList.remove('inspection-map-preview-shape-selected');
-            });
-            if (!target) return;
-            target.classList.add('inspection-map-preview-shape-selected');
+            if (svg) {
+                svg.querySelectorAll('[data-point-id]').forEach(function (shape) {
+                    var selected = shape.getAttribute('data-point-id') === String(pointId);
+                    shape.classList.toggle('inspection-map-preview-shape-selected', selected);
+                    if (selected) target = shape;
+                });
+            }
+
+            var grid = document.querySelector('.inspection-master-points-column .inspection-master-grid');
+            var selectedRow = null;
+            if (grid) {
+                grid.querySelectorAll('tr.inspection-point-row-selected').forEach(function (row) {
+                    row.classList.remove('inspection-point-row-selected');
+                });
+                grid.querySelectorAll('.inspection-point-row-target[data-point-id]').forEach(function (key) {
+                    if (key.getAttribute('data-point-id') === String(pointId))
+                        selectedRow = key.closest('tr');
+                });
+                if (selectedRow) {
+                    selectedRow.classList.add('inspection-point-row-selected');
+                    if (options.scrollGrid) {
+                        var tableViewport = selectedRow.closest('.inspection-master-point-table');
+                        if (tableViewport) {
+                            var rowTop = selectedRow.offsetTop - tableViewport.offsetTop;
+                            if (rowTop < tableViewport.scrollTop ||
+                                rowTop + selectedRow.offsetHeight > tableViewport.scrollTop + tableViewport.clientHeight)
+                                tableViewport.scrollTop = Math.max(0, rowTop - Math.max(0, (tableViewport.clientHeight - selectedRow.offsetHeight) / 2));
+                        }
+                    }
+                }
+            }
+
+            if (options.focusMap) {
+                var panel = document.getElementById('pnlMapPreview');
+                if (panel && panel.scrollIntoView)
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (!target || !options.focusMap) return;
 
             window.requestAnimationFrame(function () {
                 var bounds;
                 try { bounds = target.getBBox(); } catch (ignore) { return; }
                 var mediaWidth = media.clientWidth, mediaHeight = media.clientHeight;
                 if (!mediaWidth || !mediaHeight) return;
-                // Keep enough context around the selected point while ensuring
-                // small circles/lines are easy to locate in the floor plan.
+                // Center the selected geometry while keeping enough floor-plan context.
                 zoom = Math.max(2.2, Math.min(3.25, zoom));
                 inspectionMapPreviewZoom = zoom;
                 panX = -((bounds.x + bounds.width / 2) / 100 * mediaWidth - mediaWidth / 2) * zoom;
@@ -478,6 +505,20 @@
                 scheduleMapPreviewCanvasRender();
             });
         };
+        // Backwards-compatible alias for any existing caller.
+        window.inspectionMasterFocusMapPoint = function (pointId) {
+            window.inspectionMasterSelectPoint(pointId, { focusMap: true, scrollGrid: true });
+        };
+
+        // Clicking a plotted shape selects it and the matching visible grid row.
+        media.addEventListener('click', function (event) {
+            var shape = event.target && event.target.closest
+                ? event.target.closest('.inspection-map-preview-svg [data-point-id]') : null;
+            if (!shape) return;
+            event.preventDefault();
+            event.stopPropagation();
+            window.inspectionMasterSelectPoint(shape.getAttribute('data-point-id'), { scrollGrid: true });
+        });
     }
     var inspectionPdfRenderVersion = 0;
     var inspectionPdfRenderTask = null;
@@ -682,12 +723,8 @@
             if (!row || !grid.contains(row)) return;
             var pointKey = row.querySelector('.inspection-point-row-target[data-point-id]');
             if (!pointKey) return;
-            grid.querySelectorAll('tr.inspection-point-row-selected').forEach(function (oldRow) {
-                oldRow.classList.remove('inspection-point-row-selected');
-            });
-            row.classList.add('inspection-point-row-selected');
-            if (window.inspectionMasterFocusMapPoint)
-                window.inspectionMasterFocusMapPoint(pointKey.getAttribute('data-point-id'));
+            if (window.inspectionMasterSelectPoint)
+                window.inspectionMasterSelectPoint(pointKey.getAttribute('data-point-id'), { focusMap: true, scrollGrid: false });
         });
 
         var board = document.getElementById('inspectionCoordinateBoard');
