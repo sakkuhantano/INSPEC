@@ -7,7 +7,7 @@ ALTER PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_H_ReportLayout VARCHAR(1)='',
     @p_H_IsActive BIT=1,
     @p_H_GroupingBy VARCHAR(200)='',
-    @p_H_InspectionMode VARCHAR(10)='',
+    @p_H_InspectionMode VARCHAR(10)='STANDARD',
     @p_D_ID INT=0,
     @p_D_CompanyID VARCHAR(10),
     @p_D_LocationID VARCHAR(3),
