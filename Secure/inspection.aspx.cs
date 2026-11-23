@@ -16,54 +16,19 @@ namespace INSPEC.Secure
 {
     public partial class inspection : System.Web.UI.Page
     {
-
-        // Shared dispatcher TVP contract: values are positional (first supplied SqlParameter value -> C1, second -> C2, etc.).
-        // Parameter names are not sent in the TVP; keep the caller's parameter order aligned with the SQL branch mapping.
-        private static SqlParameter[] InspectionQueryParameters(string type, params SqlParameter[] values)
-        {
-            // Parameter order must match the C1-C13 contract for the selected @p_Tipe in spPIP_Inspection_Query.
-            DataTable data = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                data.Columns.Add("C" + i, typeof(string));
-
-            DataRow row = data.NewRow();
-            int valueIndex = 0;
-            if (values != null)
-            {
-                foreach (SqlParameter parameter in values)
-                {
-                    if (parameter == null || String.Equals(parameter.ParameterName, "@p_Tipe", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (valueIndex >= 13)
-                        throw new ArgumentException("Inspection query TVP supports a maximum of 13 values.", "values");
-
-                    object value = parameter.Value;
-                    if (value == null || value == DBNull.Value)
-                        row[valueIndex] = DBNull.Value;
-                    else if (value is DateTime)
-                        row[valueIndex] = ((DateTime)value).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture);
-                    else if (value is bool)
-                        row[valueIndex] = (bool)value ? "1" : "0";
-                    else
-                        row[valueIndex] = Convert.ToString(value, CultureInfo.InvariantCulture);
-                    valueIndex++;
-                }
-            }
-            data.Rows.Add(row);
-
-            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
-            tvp.TypeName = "dbo.Type_N_Tbl_C13";
-            tvp.Value = data;
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
-        }
-
-
         private static bool IsInspectionAdministrator(string employeeId)
         {
             if (String.IsNullOrWhiteSpace(employeeId)) return false;
             using (var br = new WAL.BR.CF())
             {
-                DataTable admin = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("023", new SqlParameter[] { new SqlParameter("@UserID", employeeId) }), true);
+                DataTable admin = br.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.SysWebUser SU
+JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+WHERE SU.EmployeeID=@UserID
+  AND SU.IsActive=1
+  AND UG.UserGroupID='administrator'",
+                    new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
                 return admin != null && admin.Rows.Count > 0;
             }
         }
@@ -111,13 +76,7 @@ namespace INSPEC.Secure
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Trace.TraceError("SyncInspections request conversion failed: " + ex);
-                return new
-                {
-                    success = false,
-                    message = "Data inspeksi tidak dapat diproses. Silakan muat ulang halaman dan coba kembali.",
-                    results = outcomes
-                };
+                return new { success = false, message = ex.Message, results = outcomes };
             }
 
             foreach (JObject record in records.OfType<JObject>())
@@ -414,7 +373,40 @@ namespace INSPEC.Secure
                     using (var br = new WAL.BR.CF())
                     {
                         syncStage = "validate inspection template detail";
-                        DataTable templateDetailCheck = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("014", new SqlParameter[] {
+                        DataTable templateDetailCheck = br.EQueryP(@"
+SELECT T.IDTemplate
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND T.TemplateType='I'
+  
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))
+  AND EXISTS (
+       SELECT 1 FROM dbo.PIP_M_CheckListWOPM_Version V
+       WHERE V.IDTemplate=T.IDTemplate
+         AND V.IDVersion=@IDVersion
+         AND V.Version=@TemplateVersion
+         AND V.Status IN ('Active','Archieved')
+  )
+  AND T.InspectionTypeCode=@InspectionTypeCode
+  AND EXISTS (
+       SELECT 1 FROM dbo.PIP_M_InspectionType IT
+       WHERE IT.InspectionTypeCode=@InspectionTypeCode
+         AND IT.SectionID=@SectionID
+         AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')=@InspectionMode
+  )
+  AND (
+       ISNULL(T.InspectionTypeDetailCode,'')=''
+       OR EXISTS (
+           SELECT 1
+           FROM dbo.SplitStringConvertToTable(T.InspectionTypeDetailCode, ';') AllowedDetail
+           WHERE LTRIM(RTRIM(AllowedDetail.val))=@InspectionTypeDetailCode
+       )
+  )",
+                            new SqlParameter[] {
                                 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                 new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")),
                                 new SqlParameter("@TemplateVersion", Limit(TokenString(record, "TemplateVersion"), 10)),
@@ -425,17 +417,27 @@ namespace INSPEC.Secure
                                 new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                 new SqlParameter("@InspectionMode", inspectionMode),
                                 new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
-                            }), true);
+                            });
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
                             throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
 
                         if (isBatchInspection)
                         {
                             syncStage = "validate batch checklist version rules";
-                            DataTable versionRules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("015", new SqlParameter[] {
+                            DataTable versionRules = br.EQueryP(@"
+SELECT ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement,
+       ISNULL(V.IsSummaryRequired,1) IsSummaryRequired,
+       ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired,
+       ISNULL(V.IsRemark1Required,0) IsRemark1Required,
+       ISNULL(V.IsRemark2Required,0) IsRemark2Required,
+       ISNULL(V.StatusOption,'') StatusOption,
+       ISNULL(V.RemarkRequiredOptions,'') RemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM_Version V
+WHERE V.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion",
+                                new SqlParameter[] {
                                     new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }), true);
+                                });
                             if (versionRules == null || versionRules.Rows.Count != 1)
                                 throw new Exception("Master Checklist Version tidak ditemukan untuk validasi BATCH.");
 
@@ -455,17 +457,53 @@ namespace INSPEC.Secure
                                  String.IsNullOrWhiteSpace(TokenString(record, "FollowUpRemark"))))
                                 throw new Exception("Responsible Section dan Follow Up Remark wajib diisi sesuai Master Checklist Version.");
 
-                            DataTable versionItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("016", new SqlParameter[] {
+                            DataTable versionItems = br.EQueryP(@"
+SELECT I.IDItem, I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       ISNULL(I.IsValueRequired,0) IsValueRequired,
+       ISNULL(I.IsRemark1Required,0) IsRemark1Required,
+       ISNULL(I.IsRemark2Required,0) IsRemark2Required,
+       ISNULL(I.IsRemark1Mandatory,0) IsRemark1Mandatory,
+       ISNULL(I.IsRemark2Mandatory,0) IsRemark2Mandatory,
+       ISNULL(I.IsUseDefaultRemark1,0) IsUseDefaultRemark1,
+       ISNULL(I.IsUseDefaultRemark2,0) IsUseDefaultRemark2,
+       ISNULL(I.IsToleranceRequired,0) IsToleranceRequired,
+       I.MinValue, I.MaxValue, I.MinTolerance, I.MaxTolerance,
+       ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM_Item I
+INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder, I.DisplayOrder",
+                                new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }), true);
+                                });
                             if (versionItems == null || versionItems.Rows.Count == 0)
                                 throw new Exception("Master Checklist Version tidak memiliki item checklist.");
 
-                            DataTable versionGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("017", new SqlParameter[] {
+                            DataTable versionGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+INNER JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+INNER JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                                new SqlParameter[] {
                                     new SqlParameter("@IDVersion", TokenInt(record, "IDVersion"))
-                                }), true);
-                            DataTable versionRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("018", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }), true);
-                            DataTable versionRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("019", new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) }), true);
+                                });
+                            DataTable versionRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
+                            DataTable versionRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.MinValue,F.MaxValue,F.MinInclusive,F.MaxInclusive,F.IsRequired
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder",
+                                new SqlParameter[] { new SqlParameter("@IDVersion", TokenInt(record, "IDVersion")) });
 
                             string versionRemarkOptions = Convert.ToString(versionRule["RemarkRequiredOptions"]);
                             JArray versionPointArray = record["Points"] as JArray ?? new JArray();
@@ -720,12 +758,22 @@ namespace INSPEC.Secure
                             foreach (JObject submittedPoint in submittedPointArray.OfType<JObject>())
                                 submittedPointIDs.Add(TokenLong(submittedPoint, "InspectionPointID"));
 
-                            DataTable coveragePoints = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("020", new SqlParameter[] {
+                            DataTable coveragePoints = br.EQueryP(@"
+SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+       ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
+FROM dbo.PIP_M_InspectionPoint P
+INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND M.InspectionTypeCode=@InspectionTypeCode
+  AND M.InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND P.IsActive=1 AND M.IsCurrentVersion=1 AND M.IsActive=1",
+                                new SqlParameter[] {
                                     new SqlParameter("@CompanyID", companyId),
                                     new SqlParameter("@LocationID", locationId),
                                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                     new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
-                                }), true);
+                                });
                             var validMasterPointIDs = new HashSet<long>();
                             foreach (DataRow masterPoint in coveragePoints.Rows)
                             {
@@ -756,7 +804,12 @@ namespace INSPEC.Secure
                         }
 
                         syncStage = "preflight existing inspection";
-                        DataTable existingRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("021", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) }), true);
+                        DataTable existingRows = br.EQueryP(@"
+SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
+       StartDateTime, EndDateTime, ReasonVoid, IsSubmitted
+FROM dbo.PIP_T_Inspection
+WHERE ClientInspectionID=@ClientInspectionID",
+                            new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
                         if (existingRows != null && existingRows.Rows.Count > 0)
                         {
                             DataRow existing = existingRows.Rows[0];
@@ -785,7 +838,11 @@ namespace INSPEC.Secure
                                 else
                                     record["EndDateTime"] = JToken.FromObject(Convert.ToDateTime(existing["EndDateTime"]));
                             }
-                            oldPhotoRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("022", new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) }), true);
+                            oldPhotoRows = br.EQueryP(@"
+SELECT FileName, FileType, PhotoType, SeqNo
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID",
+                                new SqlParameter[] { new SqlParameter("@InspectionID", existingInspectionId) });
                             if (oldPhotoRows == null)
                                 throw new Exception("Could not load existing Inspection photo records before sync.");
                         }
@@ -869,61 +926,60 @@ namespace INSPEC.Secure
                         syncStage = "read saved inspection identifiers";
                         long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
 
-                            /* Standard and Batch submit their workflow inside the same SQL transaction
-                               as the inspection header and child data. No second EQueryP call is required. */
+                        /* Standard and Batch submit their workflow inside the same SQL transaction
+                           as the inspection header and child data. No second EQueryP call is required. */
 
-                            bool alreadySubmitted = saved.Columns.Contains("WorkflowStatus") &&
-                                String.Equals(Convert.ToString(saved.Rows[0]["WorkflowStatus"]),
-                                    "ALREADY_SUBMITTED", StringComparison.OrdinalIgnoreCase);
+                        bool alreadySubmitted = saved.Columns.Contains("WorkflowStatus") &&
+                            String.Equals(Convert.ToString(saved.Rows[0]["WorkflowStatus"]),
+                                "ALREADY_SUBMITTED", StringComparison.OrdinalIgnoreCase);
 
-                            /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely.
-                               Do not remove the persisted photos when Lightning reports an idempotent retry. */
-                            if (!alreadySubmitted && oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
+                        /* SQL metadata has committed successfully. Old photo files can now be cleaned up safely.
+                           Do not remove the persisted photos when Lightning reports an idempotent retry. */
+                        if (!alreadySubmitted && oldPhotoRows != null && !String.IsNullOrWhiteSpace(oldInspectionNo))
+                        {
+                            foreach (DataRow oldPhoto in oldPhotoRows.Rows)
                             {
-                                foreach (DataRow oldPhoto in oldPhotoRows.Rows)
+                                string oldName = Convert.ToString(oldPhoto["FileName"]);
+                                string oldType = Convert.ToString(oldPhoto["FileType"]);
+                                if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
+                                try
                                 {
-                                    string oldName = Convert.ToString(oldPhoto["FileName"]);
-                                    string oldType = Convert.ToString(oldPhoto["FileType"]);
-                                    if (String.IsNullOrWhiteSpace(oldName) || String.IsNullOrWhiteSpace(oldType)) continue;
-                                    try
-                                    {
-                                        string oldPath = GetInspectionPhotoPath(oldCompanyId, oldLocationId, oldInspectionDate, oldInspectionNo, oldName, oldType);
-                                        if (File.Exists(oldPath)) File.Delete(oldPath);
-                                    }
-                                    catch (Exception cleanupError)
-                                    {
-                                        System.Diagnostics.Trace.TraceWarning("Could not remove superseded Inspection photo file {0}: {1}", oldName, cleanupError.Message);
-                                    }
+                                    string oldPath = GetInspectionPhotoPath(oldCompanyId, oldLocationId, oldInspectionDate, oldInspectionNo, oldName, oldType);
+                                    if (File.Exists(oldPath)) File.Delete(oldPath);
+                                }
+                                catch (Exception cleanupError)
+                                {
+                                    System.Diagnostics.Trace.TraceWarning("Could not remove superseded Inspection photo file {0}: {1}", oldName, cleanupError.Message);
                                 }
                             }
-
-                            outcomes.Add(new
-                            {
-                                ClientInspectionID = clientId,
-                                success = true,
-                                InspectionID = inspectionId,
-                                InspectionNo = saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value
-                                    ? Convert.ToString(saved.Rows[0]["InspectionNo"]) : inspectionNo,
-                                message = ""
-                            });
                         }
 
+                        outcomes.Add(new
+                        {
+                            ClientInspectionID = clientId,
+                            success = true,
+                            InspectionID = inspectionId,
+                            InspectionNo = saved.Columns.Contains("InspectionNo") && saved.Rows[0]["InspectionNo"] != DBNull.Value
+                                ? Convert.ToString(saved.Rows[0]["InspectionNo"]) : inspectionNo,
+                            message = ""
+                        });
                     }
+
+                }
                 catch (Exception ex)
                 {
                     WriteInspectionSyncError(syncStage, clientId, userId, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
-                    // Keep technical diagnostics in server logs only. The client receives
-                    // a short, actionable message and never sees stack traces or code-behind details.
-                    string errorText = ex.ToString();
-                    bool inspectionConflict =
-                        errorText.IndexOf("An inspection already exists for this date, company/location, section, type, detail, schedule, and template.",
-                            StringComparison.OrdinalIgnoreCase) >= 0;
-
-                    string userMessage = inspectionConflict
-                        ? "Inspeksi tidak dapat disimpan karena jadwal dan data inspeksi yang sama sudah tercatat dari perangkat lain. Silakan muat ulang data inspeksi untuk melihat status terbaru."
-                        : "Inspeksi gagal disimpan. Silakan coba kembali. Jika masalah tetap terjadi, hubungi administrator.";
+                    // Return the same diagnostic detail written to App_Data so the user can
+                    // identify the actual failing stage, SQL error, and stack location without
+                    // opening the IIS server log.
+                    string userMessage = String.Format(
+                        CultureInfo.InvariantCulture,
+                        "Tahap: {0}{1}{2}",
+                        syncStage ?? "unknown",
+                        Environment.NewLine,
+                        ex.ToString());
 
                     outcomes.Add(new
                     {
@@ -1043,12 +1099,24 @@ namespace INSPEC.Secure
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable auth = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("030", new SqlParameter[] {
+                DataTable auth = br.EQueryP(@"
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+FROM dbo.SysWebUser SU
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND (
+      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                 WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+  )",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized for Inspection entry.");
@@ -1059,17 +1127,38 @@ namespace INSPEC.Secure
                 if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                     throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
-                DataTable templateAccess = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("066", new SqlParameter[] {
+                DataTable templateAccess = br.EQueryP(@"
+SELECT 1
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
+                    new SqlParameter[] {
 new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@SectionID", sectionId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@EmployeeID", employeeId)
-                    }), true);
+                    });
                 if (templateAccess.Rows.Count == 0)
                     throw new HttpException(403, "This employee is not assigned to the selected Inspection template and company/location.");
 
-                DataTable duplicate = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("031", new SqlParameter[] {
+                DataTable duplicate = br.EQueryP(@"
+SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
+FROM dbo.PIP_T_Inspection
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+  AND InspectionTypeCode=@InspectionTypeCode
+  AND InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND ISNULL(ScheduledTime,'')=ISNULL(@ScheduledTime,'')
+  AND IDTemplate=@IDTemplate
+  AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120)
+  AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
+ORDER BY InspectionID DESC",
+                    new SqlParameter[] {
 new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionID", sectionId),
@@ -1078,7 +1167,7 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@ScheduledTime", scheduledTime ?? ""),
                         new SqlParameter("@IDTemplate", templateId),
                         new SqlParameter("@InspectionDate", ParseDate(inspectionDate, DateTime.Today))
-                    }), true);
+                    });
 
                 return new
                 {
@@ -1101,12 +1190,22 @@ new SqlParameter("@CompanyID", companyId),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable auth = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("032", new SqlParameter[] {
+                DataTable auth = br.EQueryP(@"
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+FROM dbo.SysWebUser SU
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized to view Inspection schedules.");
 
@@ -1116,12 +1215,40 @@ new SqlParameter("@CompanyID", companyId),
                 if (sections.Count == 0)
                     return new { success = true, data = new List<Dictionary<string, object>>() };
 
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("067", new SqlParameter[] {
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
+       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
+       I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
+       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
+       I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName,
+       I.Status, I.IsApproved, I.ReasonVoid
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND I.InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120)
+  AND I.InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120))
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
+ORDER BY I.InspectionDate, I.ScheduledTime, I.InspectionID",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@SectionList", String.Join(";", sections))
-                    }), true);
+                    });
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1138,12 +1265,22 @@ new SqlParameter("@CompanyID", companyId),
             string employeeId, string companyId, string locationId)
         {
             string sectionId = TokenString(record, "SectionID");
-            DataTable auth = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("033", new SqlParameter[] {
+            DataTable auth = br.EQueryP(@"
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO
+FROM dbo.SysWebUser SU
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                  WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID))",
+                new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId)
-                }), true);
+                });
             if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                 throw new HttpException(403, "This account is not authorized to delete Inspection transactions.");
             var sections = auth.Rows[0]["Section"].ToString()
@@ -1152,13 +1289,23 @@ new SqlParameter("@CompanyID", companyId),
             if (!sections.Contains(sectionId, StringComparer.OrdinalIgnoreCase))
                 throw new HttpException(403, "This inspection section is not assigned to the current employee.");
 
-            DataTable templateAccess = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("068", new SqlParameter[] {
+            DataTable templateAccess = br.EQueryP(@"
+SELECT 1
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate
+  AND T.SectionID=@SectionID
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + @EmployeeID + ';%'))",
+                new SqlParameter[] {
 new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
                     new SqlParameter("@SectionID", sectionId),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
                     new SqlParameter("@EmployeeID", employeeId)
-                }), true);
+                });
             if (templateAccess.Rows.Count == 0)
                 throw new HttpException(403, "This employee is not assigned to the Inspection template and company/location.");
         }
@@ -1191,7 +1338,24 @@ new SqlParameter("@IDTemplate", TokenInt(record, "IDTemplate")),
             using (var br = new WAL.BR.CF())
             {
                 ValidateInspectionDeleteAccess(br, record, employeeId, companyId, locationId);
-                br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("034", new SqlParameter[] {
+                br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF NOT EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK) WHERE ClientInspectionID=@ClientInspectionID)
+BEGIN
+    DECLARE @NextDeleteArchiveID BIGINT;
+    SELECT @NextDeleteArchiveID=ISNULL(MAX(DeleteArchiveID),0)+1 FROM dbo.PIP_T_Inspection_Delete WITH (UPDLOCK, HOLDLOCK);
+    INSERT dbo.PIP_T_Inspection_Delete
+    (DeleteArchiveID, ClientInspectionID, CompanyID, LocationID, SectionID,
+     InspectionTypeCode, InspectionTypeDetailCode, IDTemplate, InspectionDate,
+     OriginalStatus, OriginalSyncStatus, ReasonCancel, DeletedBy, OriginalTransactionJson)
+    VALUES
+    (@NextDeleteArchiveID, @ClientInspectionID, @CompanyID, @LocationID, @SectionID,
+     @InspectionTypeCode, @InspectionTypeDetailCode, @IDTemplate, @InspectionDate,
+     @OriginalStatus, @OriginalSyncStatus, @ReasonCancel, @DeletedBy, @OriginalTransactionJson);
+END;
+COMMIT TRANSACTION;",
+                    new SqlParameter[] {
 new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
@@ -1205,8 +1369,13 @@ new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel)),
                         new SqlParameter("@DeletedBy", Limit(employeeId, 50)),
                         new SqlParameter("@OriginalTransactionJson", SqlDbType.NVarChar, -1) { Value = originalTransactionJson }
-                    }), true);
-                DataTable confirmed = br.EQueryP("SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy", new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)), new SqlParameter("@DeletedBy", Limit(employeeId, 50)) });
+                    });
+                DataTable confirmed = br.EQueryP(
+                    "SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection_Delete WHERE ClientInspectionID=@ClientInspectionID AND DeletedBy=@DeletedBy",
+                    new SqlParameter[] {
+new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
+                        new SqlParameter("@DeletedBy", Limit(employeeId, 50))
+                    });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
         }
@@ -1238,7 +1407,39 @@ new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
             using (var br = new WAL.BR.CF())
             {
                 ValidateInspectionDeleteAccess(br, record, employeeId, companyId, locationId);
-                br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("035", new SqlParameter[] {
+                br.EQueryP(@"
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF EXISTS
+(
+    SELECT 1 FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+      AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=0
+)
+BEGIN
+    UPDATE dbo.PIP_T_Inspection SET ReasonCancel=CASE WHEN ISNULL(ReasonCancel,'')='' THEN @ReasonCancel ELSE ReasonCancel END
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID;
+END
+ELSE
+BEGIN
+    UPDATE dbo.PIP_T_Inspection
+    SET IsActive=0, ReasonCancel=@ReasonCancel, UpdateUser=@EmployeeID, UpdateDate=GETDATE(), SyncDate=GETDATE()
+    WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+      AND CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
+      AND OwnerEmployeeID=@EmployeeID AND ISNULL(IsActive,1)=1
+      AND Status='DRAFT' AND ISNULL(IsSubmitted,0)=0
+      AND ISNULL(ReasonVoid,'')<>'';
+    IF @@ROWCOUNT=0
+    BEGIN
+        ROLLBACK TRANSACTION;
+        RAISERROR('The server inspection is not eligible for technician deletion.',16,1);
+        RETURN;
+    END;
+END;
+COMMIT TRANSACTION;",
+                    new SqlParameter[] {
 new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
@@ -1246,14 +1447,18 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@SectionID", Limit(TokenString(record, "SectionID"), 10)),
                         new SqlParameter("@EmployeeID", Limit(employeeId, 50)),
                         new SqlParameter("@ReasonCancel", DbString(reasonCancel))
-                    }), true);
-                DataTable confirmed = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("036", new SqlParameter[] {
+                    });
+                DataTable confirmed = br.EQueryP(@"
+SELECT COUNT(1) AS SavedCount FROM dbo.PIP_T_Inspection
+WHERE InspectionID=@InspectionID AND ClientInspectionID=@ClientInspectionID
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND OwnerEmployeeID=@EmployeeID AND IsActive=0",
+                    new SqlParameter[] {
 new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                         new SqlParameter("@ClientInspectionID", Limit(clientInspectionId, 36)),
                         new SqlParameter("@CompanyID", Limit(companyId, 10)),
                         new SqlParameter("@LocationID", Limit(locationId, 3)),
                         new SqlParameter("@EmployeeID", Limit(employeeId, 50))
-                    }), true);
+                    });
                 return new { success = confirmed.Rows.Count > 0 && Convert.ToInt32(confirmed.Rows[0]["SavedCount"]) > 0 };
             }
         }
@@ -1278,28 +1483,57 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable type = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("037", new SqlParameter[] {
+                DataTable type = br.EQueryP(@"
+SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID
+FROM dbo.PIP_M_InspectionType IT
+WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
+  AND ISNULL(IT.InspectionMode,'STANDARD') IN ('BATCH','LIGHTNING')
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)",
+                    new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@SectionList", sectionList)
-                    }), true);
+                    });
                 if (type == null || type.Rows.Count == 0)
                     throw new HttpException(403, "Inspection Type is not configured for BATCH/LIGHTNING map inspection or not assigned to this inspector.");
 
-                DataTable detail = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("038", new SqlParameter[] {
+                DataTable detail = br.EQueryP(@"
+SELECT InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime
+FROM dbo.PIP_M_InspectionTypeDetail
+WHERE InspectionTypeCode=@TypeCode AND InspectionTypeDetailCode=@DetailCode
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+                    new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@DetailCode", detailCode),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 if (detail == null || detail.Rows.Count == 0)
                     throw new HttpException(404, "Inspection Type Detail is not active for this company/location.");
 
-                DataTable points = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("039", new SqlParameter[] {
+                DataTable points = br.EQueryP(@"
+SELECT P.InspectionPointID, P.PointCode, P.PointName, P.PointObjectType,
+       P.PointDescription, P.ObjectReferenceType, P.ObjectReferenceID,
+       P.ObjectReferenceCode, M.MapID AS MapID, P.MapX, P.MapY,
+       ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,P.DisplayOrder,
+       M.MapCode, M.MapName, M.Description, M.ImagePath AS MapUrl, M.MapVersion,
+       M.MapGroupID, ISNULL(G.GroupCode,'') AS GroupCode, ISNULL(G.GroupName,'') AS GroupName,
+       ISNULL(G.Description,'') AS GroupDescription,
+       ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+       ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired
+FROM dbo.PIP_M_InspectionMap M
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.MapID=M.MapID AND P.IsActive=1
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID AND G.CompanyID=M.CompanyID AND G.LocationID=M.LocationID
+WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+  AND M.InspectionTypeCode=@TypeCode
+  AND M.InspectionTypeDetailCode=@DetailCode
+  AND M.IsCurrentVersion=1 AND M.IsActive=1
+ORDER BY ISNULL(M.MapCode,''), P.DisplayOrder, P.PointCode",
+                    new SqlParameter[] {
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@DetailCode", detailCode)
-                    }), true);
+                    });
 
                 var mapRows = new List<Dictionary<string, object>>();
                 var mapIds = new HashSet<long>();
@@ -1406,12 +1640,26 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable auth = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("040", new SqlParameter[] {
+                DataTable auth = br.EQueryP(@"
+SELECT @SectionList Section, CASE WHEN EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021') THEN 1 ELSE 0 END IsWO,
+       ISNULL(E.Name, SU.EmployeeID) TechnicianName
+FROM dbo.SysWebUser SU
+
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=SU.EmployeeID
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND (
+      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                 WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+  )",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
 
                 if (auth.Rows.Count == 0 || !Convert.ToBoolean(auth.Rows[0]["IsWO"]))
                     throw new HttpException(403, "This account is not authorized to view Inspection entry records.");
@@ -1423,14 +1671,53 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                 if (sections.Count == 0)
                     return new { success = true, technicianName = technicianName, data = new List<Dictionary<string, object>>() };
 
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("069", new SqlParameter[] {
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
+       I.CompanyID, I.LocationID, I.SectionID, I.InspectionTypeCode,
+       I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateName,
+       I.TemplateVersion, I.InspectionDate, I.StartDateTime, I.EndDateTime,
+       I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
+       I.IsSubmitted, I.IsApproved, I.IsApproved1, I.IsApproved2,
+       I.ApprovedDate, I.SyncDate, I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.OwnerEmployeeID=@EmployeeID
+  AND ISNULL(I.IsActive,1)=1
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
+  AND I.SyncDate >= @FromDate AND I.SyncDate < DATEADD(DAY, 1, @ThruDate)
+  -- A supervisor-voided transaction is surfaced in Draft for technician handling,
+  -- not again in Submitted just because its SyncDate falls in the selected range.
+  AND NOT (
+      I.Status='DRAFT'
+      AND ISNULL(I.IsSubmitted,0)=0
+      AND ISNULL(I.ReasonVoid,'')<>''
+  )
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.InspectionID DESC",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId),
                         new SqlParameter("@FromDate", submittedFrom),
                         new SqlParameter("@ThruDate", submittedThru),
                         new SqlParameter("@SectionList", String.Join(";", sections))
-                    }), true);
+                    });
 
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
@@ -1470,6 +1757,82 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
             if (fromDate > thruDate)
                 throw new HttpException(400, "Approved From tidak boleh melewati Approved Thru.");
 
+            string fromWhere = @"
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
+  AND (
+       (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+        AND ISNULL(I.IsApproved,0)=0)
+       OR
+       (I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+        AND ISNULL(I.IsApproved,0)=1
+        AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
+       OR
+       (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>'')
+  )
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.SysWebUser SU
+      WHERE SU.EmployeeID=@EmployeeID
+        AND SU.IsActive=1
+        AND (
+             EXISTS (
+                 SELECT 1
+                 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                 WHERE AM.MenuID='20022'
+             )
+             OR @IsAdministrator=1
+             OR (
+                 EXISTS (
+                     SELECT 1
+                     FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                     WHERE AM.MenuID='20021'
+                 )
+                 AND I.OwnerEmployeeID=SU.EmployeeID
+             )
+        )
+        AND (@IsAdministrator=1 OR EXISTS (
+            SELECT 1 FROM dbo.SysWebCommonValue C
+            WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+              AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+        ))
+        AND (ISNULL(I.IsSubmitted,0)=1 OR (I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>''))
+        AND (
+            EXISTS (
+                SELECT 1
+                FROM dbo.SysWebUserCompanyLocation C
+                WHERE C.UserID=SU.EmployeeID
+                  AND C.AppID='pip'
+                  AND C.CompanyID=I.CompanyID
+                  AND C.LocationID=I.LocationID
+            )
+            OR EXISTS (
+                SELECT 1
+                FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                WHERE L.CompanyID=I.CompanyID
+                  AND L.LocationID=I.LocationID
+            )
+        )
+  )";
+
             SqlParameter[] filterOptionParameters = new SqlParameter[] {
                 new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
@@ -1482,7 +1845,12 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable filterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("075", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate) }), true);
+                DataTable filterRows = br.EQueryP(@"
+SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
+       I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.IDTemplate, I.TemplateNo, I.ScheduledTime" + fromWhere + @"
+ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.ScheduledTime",
+                    filterOptionParameters);
 
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filterRows.Rows)
@@ -1493,7 +1861,39 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                     filters.Add(item);
                 }
 
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("076", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }), true);
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
+       I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
+       I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
+       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       
+       I.ApprovalRemark,I.ReasonVoid,
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+             WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
+             WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
+  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@DateFrom", fromDate),
+                        new SqlParameter("@DateThru", thruDate),
+                        new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
+                        new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
+                        new SqlParameter("@TemplateId", templateId ?? ""),
+                        new SqlParameter("@ScheduleTime", scheduleTime ?? "")
+                    });
 
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
@@ -1519,14 +1919,249 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
             using (var br = new WAL.BR.CF())
             {
 
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("070", new SqlParameter[] {
+                DataTable rows = br.EQueryP(@"
+                ;WITH InspectionData AS
+                (
+                    SELECT
+                        I.Status,
+                        I.IsSubmitted,
+                        I.IsApproved,
+                        I.IsApproved1,
+                        I.IsApproved2,
+                        I.ApprovedDate,
+                        I.ReasonVoid,
+                        I.CompanyID,
+                        I.LocationID,
+                        I.SectionID,
+                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')
+                            AS InspectionMode
+                    FROM dbo.PIP_T_Inspection I
+                    LEFT JOIN dbo.PIP_M_InspectionType IT
+                        ON IT.InspectionTypeCode = I.InspectionTypeCode
+                    WHERE I.CompanyID = @CompanyID
+                      AND I.LocationID = @LocationID
+                      AND ISNULL(I.IsActive, 1) = 1
+
+                      AND EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.PIP_M_CheckListWOPM T
+                          WHERE T.IDTemplate = I.IDTemplate
+                            AND T.SectionID = I.SectionID
+                            AND ISNULL(T.TemplateType, 'W') = 'I'
+                            AND
+                            (
+                                ISNULL(T.CompanyScope, 'S') = 'A'
+                                OR
+                                (
+                                    ';' + ISNULL(T.CompanyLocationList, '') + ';'
+                                    LIKE '%;' + I.CompanyID + I.LocationID + ';%'
+                                )
+                            )
+                            AND
+                            (
+                                ISNULL(T.EmployeeList, '') = ''
+                                OR
+                                (
+                                    ';' + ISNULL(T.EmployeeList, '') + ';'
+                                    LIKE '%;' + I.OwnerEmployeeID + ';%'
+                                )
+                            )
+                      )
+
+                      AND EXISTS
+                      (
+                          SELECT 1
+                          FROM dbo.SysWebUser SU
+                          WHERE SU.EmployeeID = @EmployeeID
+                            AND SU.IsActive = 1
+
+                            AND (
+                                @IsAdministrator=1
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.F_SelectALLMenuAuthorization(
+                                        'inspecfo', @EmployeeID, ''
+                                    ) AM
+                                    WHERE AM.MenuID = '20022'
+                                )
+                            )
+
+                            AND
+                            (
+                                @IsAdministrator=1
+                                OR (
+                                EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';SPV;' + I.SectionID
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';CHIEF_ENG'
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebCommonValue C
+                                    WHERE C.AppID = 'INSPEC'
+                                      AND C.CommonGroup = 'EmailApproval'
+                                      AND C.IsDelete = 0
+                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                      AND C.ID =
+                                          CONVERT(VARCHAR(30), I.CompanyID) +
+                                          CONVERT(VARCHAR(30), I.LocationID) +
+                                          ';CHIEF_SEC'
+                                )
+                            ))
+
+                            AND
+                            (
+                                EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.SysWebUserCompanyLocation C
+                                    WHERE C.UserID = SU.EmployeeID
+                                      AND C.AppID = 'pip'
+                                      AND C.CompanyID = I.CompanyID
+                                      AND C.LocationID = I.LocationID
+                                )
+                                OR EXISTS
+                                (
+                                    SELECT 1
+                                    FROM dbo.F_SelectOneLogin(
+                                        'pip', SU.EmployeeID, ''
+                                    ) L
+                                    WHERE L.CompanyID = I.CompanyID
+                                      AND L.LocationID = I.LocationID
+                                )
+                            )
+                      )
+                ),
+                ApprovalFlags AS
+                (
+                    SELECT
+                        I.*,
+                        CASE
+                            WHEN @IsAdministrator=1
+                                 AND I.InspectionMode<>'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted,0)=1
+                                 AND ISNULL(I.IsApproved,0)=0
+                            THEN 1
+
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 1
+                                 AND ISNULL(I.IsApproved1, 0) = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode = 'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved1, 0) = 1
+                                 AND ISNULL(I.IsApproved2, 0) = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            WHEN I.InspectionMode <> 'LIGHTNING'
+                                 AND ISNULL(I.IsSubmitted, 0) = 1
+                                 AND ISNULL(I.IsApproved, 0) = 0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            ELSE 0
+                        END AS CanApprove
+                    FROM InspectionData I
+                )
+                SELECT
+                    ISNULL(SUM(
+                        CASE
+                            WHEN Status = 'DONE'
+                             AND IsSubmitted = 1
+                             AND CanApprove = 1
+                             AND (InspectionMode = 'LIGHTNING' OR IsApproved = 0)
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS PendingApproval,
+
+                    ISNULL(SUM(
+                        CASE
+                            WHEN IsApproved = 1
+                             AND ApprovedDate >=
+                                 CONVERT(DATETIME,
+                                     CONVERT(VARCHAR(10), GETDATE(), 120),
+                                     120)
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS ApprovedToday,
+
+                    ISNULL(SUM(
+                        CASE
+                            WHEN Status = 'DRAFT'
+                             AND IsSubmitted = 0
+                             AND ISNULL(ReasonVoid, '') <> ''
+                            THEN 1 ELSE 0
+                        END
+                    ), 0) AS VoidCount
+                FROM ApprovalFlags;
+                ",
+                                new SqlParameter[]
+                {
                     new SqlParameter("@EmployeeID", employeeId),
                     new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                     new SqlParameter("@SectionList",
                         GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId)
-                }), true);
+                });
 
                 if (rows.Rows.Count == 0)
                     return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
@@ -1550,13 +2185,39 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                 throw new HttpException(400, "Inspection and technician identity are required.");
             using (var br = new WAL.BR.CF())
             {
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("041", new SqlParameter[] {
+                DataTable rows = br.EQueryP(@"
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, TP.ClientPointID,
+       I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.InspectionDate
+FROM dbo.PIP_T_InspectionPhoto P
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=P.InspectionID
+LEFT JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionPointTransactionID=P.InspectionPointTransactionID
+WHERE I.ClientInspectionID=@ClientInspectionID
+  AND I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND I.Status='DRAFT' AND I.IsApproved=0
+  AND EXISTS (
+      SELECT 1 FROM dbo.SysWebUser SU
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+        AND EXISTS (
+      SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S
+      WHERE S.val=I.SectionID
+  )
+        AND (
+            EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                      AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                       WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+        )
+  )
+ORDER BY P.SeqNo",
+                    new SqlParameter[] {
                         new SqlParameter("@ClientInspectionID", clientInspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1602,7 +2263,67 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable filtersTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("077", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", "") }), true);
+                Func<bool, SqlParameter[]> createParameters = includeScheduleTime => new SqlParameter[] {
+                    new SqlParameter("@EmployeeID", employeeId),
+                    new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
+                    new SqlParameter("@CompanyID", companyId),
+                    new SqlParameter("@LocationID", locationId),
+                    new SqlParameter("@ApprovalTab", approvalTab),
+                    new SqlParameter("@DateFrom", fromDate),
+                    new SqlParameter("@DateThru", thruDate),
+                    new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
+                    new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
+                    new SqlParameter("@TemplateId", templateId ?? ""),
+                    new SqlParameter("@ScheduleTime", includeScheduleTime ? (scheduleTime ?? "") : "")
+                };
+                const string scope = @"
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+WHERE ISNULL(I.InspectionMode,'')='LIGHTNING'
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND (
+      (@ApprovalTab='OUTSTANDING' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
+       AND ((@IsAdministrator=1 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+         OR (ISNULL(I.IsApproved,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+         OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+         OR (ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0 AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))))
+      OR (@ApprovalTab='APPROVED' AND ISNULL(I.IsSubmitted,0)=1
+       AND (
+            @IsAdministrator=1
+            OR (ISNULL(I.IsApproved,0)=1
+             AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+         OR (ISNULL(I.IsApproved1,0)=1
+             AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+         OR (ISNULL(I.IsApproved2,0)=1
+             AND EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)))
+       ))
+      OR (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
+       AND (EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+         OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID))
+         OR EXISTS (SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) OR @IsAdministrator=1)
+  )
+  )
+  AND (@ApprovalTab='OUTSTANDING' OR
+       (I.InspectionDate>=@DateFrom AND I.InspectionDate<DATEADD(DAY,1,@DateThru)))
+  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
+  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
+  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
+  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')='' OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )";
+                DataTable filtersTable = br.EQueryP(@"
+SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo,I.ScheduledTime " + scope + @"
+ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.ScheduledTime", createParameters(false));
                 var filters = new List<Dictionary<string, object>>();
                 foreach (DataRow row in filtersTable.Rows)
                 {
@@ -1610,7 +2331,24 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
                     foreach (DataColumn col in filtersTable.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     filters.Add(item);
                 }
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("078", new SqlParameter[] { new SqlParameter("@EmployeeID", employeeId), new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0), new SqlParameter("@CompanyID", companyId), new SqlParameter("@LocationID", locationId), new SqlParameter("@ApprovalTab", approvalTab), new SqlParameter("@DateFrom", fromDate), new SqlParameter("@DateThru", thruDate), new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""), new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""), new SqlParameter("@TemplateId", templateId ?? ""), new SqlParameter("@ScheduleTime", scheduleTime ?? "") }), true);
+                DataTable rows = br.EQueryP(@"
+SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.SectionID,
+       I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
+       I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
+       I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
+       CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
+       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
+       I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
+       I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
+       'LIGHTNING' InspectionMode,
+       CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+            WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
+            WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
+       CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
+" + scope + @"
+ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
@@ -1735,18 +2473,127 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable header = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("071", new SqlParameter[] {
+                DataTable header = br.EQueryP(@"
+SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
+       I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+       CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
+       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
+            WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
+       I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
+       I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
+       ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
+       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
+       I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,
+       I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
+       I.GPSLatitude,I.GPSLongitude,I.GPSAccuracy,I.GPSCapturedAt
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
+LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+WHERE I.InspectionID=@InspectionID
+  AND EXISTS (
+      SELECT 1
+      FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.IDTemplate=I.IDTemplate
+        AND T.SectionID=I.SectionID
+        AND ISNULL(T.TemplateType,'W')='I'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+        AND (ISNULL(T.EmployeeList,'')=''
+             OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  )
+  AND (
+       ((I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1)
+        OR (I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''))
+  )
+  AND (
+      (@TechnicianView=1
+       AND I.OwnerEmployeeID=@EmployeeID
+       AND I.Status='DONE'
+       AND ISNULL(I.IsSubmitted,0)=1
+       AND EXISTS (
+           SELECT 1
+           FROM dbo.SysWebUser SU
+           WHERE SU.EmployeeID=@EmployeeID
+             AND SU.IsActive=1
+             AND (
+                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+             )
+       )
+      )
+      OR
+      (@TechnicianView=0
+       AND EXISTS (
+           SELECT 1 FROM dbo.SysWebUser SU
+           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+             AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022'))
+             AND (@IsAdministrator=1 OR (
+               (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND EXISTS (
+                   SELECT 1 FROM dbo.SysWebCommonValue C
+                   WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                     AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                     AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+               ))
+               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' AND (
+                   EXISTS (
+                       SELECT 1 FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                   )
+                   OR EXISTS (
+                       SELECT 1 FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+                   )
+                   OR EXISTS (
+                       SELECT 1 FROM dbo.SysWebCommonValue C
+                       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC'
+                   )
+               ))
+             ))
+             AND (
+                 EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                         WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                           AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                 OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                            WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+             )
+       )
+      )
+  )",
+                    new SqlParameter[] {
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@TechnicianView", technicianView ? 1 : 0),
                         new SqlParameter("@IsAdministrator", !technicianView && IsInspectionAdministrator(employeeId) ? 1 : 0)
-                    }), true);
+                    });
                 if (header.Rows.Count == 0)
                     throw new HttpException(404, "Inspection not found or not authorized for approval.");
 
-                DataTable results = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("042", new SqlParameter[] {
-new SqlParameter("@InspectionID", inspectionId) }), true);
+                DataTable results = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali,
+       V.ObjectIndex, V.FieldName, V.Value AS FieldValue, R.DisplayOrder
+FROM dbo.PIP_T_InspectionResult R
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=R.InspectionID
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE I.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NULL
+ORDER BY R.DisplayOrder, V.FieldName",
+                    new SqlParameter[] {
+new SqlParameter("@InspectionID", inspectionId) });
 
                 var groupedItems = new Dictionary<int, Dictionary<string, object>>();
                 foreach (DataRow row in results.Rows)
@@ -1798,9 +2645,30 @@ new SqlParameter("@InspectionID", inspectionId) }), true);
                 if (String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) ||
                     String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                 {
-                    DataTable pointMasterRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("043", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
+                    DataTable pointMasterRows = br.EQueryP(@"
+SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
+       TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
+       P.PointCode, P.PointName, P.PointObjectType,
+       P.PointDescription, P.MapID, P.MapX, P.MapY,
+       P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
+       M.MapCode,M.MapName,M.ImagePath AS MapUrl,M.MapVersion,M.MapGroupID,
+       MG.GroupCode,MG.GroupName,MG.Sequence MapGroupSequence
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup MG ON MG.MapGroupID=M.MapGroupID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY P.DisplayOrder,P.PointCode",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
-                    DataTable pointResultRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("044", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
+                    DataTable pointResultRows = br.EQueryP(@"
+SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
                     var pointItems = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
                     foreach (DataRow row in pointResultRows.Rows)
@@ -1896,7 +2764,15 @@ new SqlParameter("@InspectionID", inspectionId) }), true);
 
                     if (String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
-                        DataTable scheduleRows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("045", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
+                        DataTable scheduleRows = br.EQueryP(@"
+SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID
+ORDER BY D.ScheduleTime",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                         foreach (DataRow scheduleRow in scheduleRows.Rows)
                             batchScheduleRows.Add(new Dictionary<string, object> {
                                 { "ScheduleTime", GF.GetString(scheduleRow["ScheduleTime"]) },
@@ -1910,19 +2786,62 @@ new SqlParameter("@InspectionID", inspectionId) }), true);
                 foreach (DataColumn col in header.Columns)
                     h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
                 object approvalTemplateSnapshot = null;
-                DataTable meta = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("046", new SqlParameter[] {
+                DataTable meta = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+   V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
+                    new SqlParameter[] {
 new SqlParameter("@IDTemplate", Convert.ToInt32(header.Rows[0]["IDTemplate"])),
                         new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"]))
-                    }), true);
+                    });
                 if (meta.Rows.Count > 0)
                 {
                     DataRow m = meta.Rows[0];
-                    DataTable templateItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("047", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
-                    DataTable templateGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("048", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
-                    DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("049", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
-                    DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("050", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }), true);
+                    DataTable templateItems = br.EQueryP(@"
+SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+   I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+   ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+   I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+   I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
+   I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+   I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+FROM dbo.PIP_M_CheckListWOPM_Section S
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+WHERE V.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder,
+     CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+     I.DisplayOrder",
+                        new SqlParameter[] {
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                        new SqlParameter[] {
+new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
+                    DataTable templateRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
+                        new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) });
 
                     var sections = templateItems.AsEnumerable()
                         .GroupBy(row => new
@@ -2015,7 +2934,12 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }),
                         sections = sections
                     };
                 }
-                DataTable photoTable = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("051", new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) }), true);
+                DataTable photoTable = br.EQueryP(@"
+SELECT P.PhotoType, P.FileName, P.FileType, P.SeqNo, P.InspectionPointTransactionID
+FROM dbo.PIP_T_InspectionPhoto P
+WHERE P.InspectionID=@InspectionID
+ORDER BY P.SeqNo",
+                    new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                 var photos = new List<Dictionary<string, object>>();
                 foreach (DataRow photo in photoTable.Rows)
                 {
@@ -2055,18 +2979,55 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header.Rows[0]["IDVersion"])) }),
                 throw new HttpException(403, "Technician identity is required.");
             using (var br = new WAL.BR.CF())
             {
-                DataTable headers = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("052", new SqlParameter[] {
+                DataTable headers = br.EQueryP(@"
+SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName, I.ScheduledTime, I.IDTemplate, I.IDVersion,
+       I.TemplateNo, I.TemplateName, I.TemplateVersion,
+       CONVERT(VARCHAR(10),I.InspectionDate,120) InspectionDate,
+       CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
+       CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,
+       I.Status, I.Summary, I.OwnerEmployeeID,
+       I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
+       I.ReasonVoid, I.UpdateDate,
+       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND I.Status='DRAFT' AND I.IsApproved=0
+  AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
+  AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
+
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
+              AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+              AND (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                            AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                             WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+              ))
+ORDER BY I.UpdateDate DESC",
+                    new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow header in headers.Rows)
                 {
                     long id = Convert.ToInt64(header["InspectionID"]);
-                    DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("053", new SqlParameter[] {
-new SqlParameter("@InspectionID", id) }), true);
+                    DataTable rows = br.EQueryP(@"
+SELECT R.IDItem, R.ItemLabel, R.ItemType, R.Value, R.Remark1, R.Remark2, R.IsAnomali, R.DisplayOrder,
+       V.ObjectIndex,V.FieldName, V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.DisplayOrder, V.FieldName",
+                        new SqlParameter[] {
+new SqlParameter("@InspectionID", id) });
                     var grouped = new Dictionary<int, Dictionary<string, object>>();
                     foreach (DataRow row in rows.Rows)
                     {
@@ -2109,8 +3070,25 @@ new SqlParameter("@InspectionID", id) }), true);
                     if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase) ||
                         String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                     {
-                        DataTable returnedPoints = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("054", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
-                        DataTable returnedPointItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("055", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
+                        DataTable returnedPoints = br.EQueryP(@"
+SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
+       TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
+       P.PointCode,P.PointName,P.PointObjectType,
+       P.PointDescription,P.MapID,P.MapX,P.MapY,
+       P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY P.DisplayOrder,P.PointCode",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", id) });
+                        DataTable returnedPointItems = br.EQueryP(@"
+SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
+       R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder,V.ObjectIndex,V.FieldName,V.Value AS FieldValue
+FROM dbo.PIP_T_InspectionResult R
+LEFT JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+WHERE R.InspectionID=@InspectionID AND R.InspectionPointTransactionID IS NOT NULL
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", id) });
                         var pointGroups = new Dictionary<long, Dictionary<int, Dictionary<string, object>>>();
                         foreach (DataRow pointItemRow in returnedPointItems.Rows)
                         {
@@ -2180,7 +3158,15 @@ new SqlParameter("@InspectionID", id) }), true);
                         record["Points"] = returnedPointList;
                         if (String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
                         {
-                            DataTable returnedSchedules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("056", new SqlParameter[] { new SqlParameter("@InspectionID", id) }), true);
+                            DataTable returnedSchedules = br.EQueryP(@"
+SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D
+  ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID
+ORDER BY D.ScheduleTime",
+                                new SqlParameter[] { new SqlParameter("@InspectionID", id) });
                             record["Schedules"] = returnedSchedules.AsEnumerable().Select(row => new
                             {
                                 ScheduleTime = GF.GetString(row["ScheduleTime"]),
@@ -2193,19 +3179,62 @@ new SqlParameter("@InspectionID", id) }), true);
                         }
                     }
 
-                    DataTable meta = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("057", new SqlParameter[] {
+                    DataTable meta = br.EQueryP(@"
+SELECT T.IDTemplate, T.TemplateNo, T.TemplateName, T.SectionID, T.InspectionTypeCode,
+       V.IDVersion, V.Version, V.StatusOption, ISNULL(V.PhotoRequirement,'NONE') PhotoRequirement, ISNULL(V.SummarySampleText,'') SummarySampleText, ISNULL(V.IsSummaryRequired,1) VersionIsSummaryRequired, ISNULL(V.IsFollowUpRequired,1) VersionIsFollowUpRequired, V.IsRemark1Required VersionIsRemark1Required, V.Remark1Text VersionRemark1Text, V.IsRemark2Required VersionIsRemark2Required, V.Remark2Text VersionRemark2Text, V.RemarkRequiredOptions VersionRemarkRequiredOptions
+FROM dbo.PIP_M_CheckListWOPM T
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate
+WHERE T.IDTemplate=@IDTemplate AND V.IDVersion=@IDVersion AND ISNULL(T.TemplateType,'W')='I'",
+                        new SqlParameter[] {
 new SqlParameter("@IDTemplate", Convert.ToInt32(header["IDTemplate"])),
                             new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"]))
-                        }), true);
+                        });
                     if (meta.Rows.Count > 0)
                     {
                         DataRow m = meta.Rows[0];
-                        DataTable templateItems = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("058", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
-                        DataTable templateGroups = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("059", new SqlParameter[] {
-new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
-                        DataTable templateRepeatConfig = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("060", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
-                        DataTable templateRepeatFields = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("061", new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
+                        DataTable templateItems = br.EQueryP(@"
+SELECT S.IDSection, S.SectionName, S.DisplayOrder AS SectionOrder,
+       I.IDItem, I.IDSubSection, ISNULL(SS.SubSectionName,'') AS SubSectionName,
+       ISNULL(SS.DisplayOrder,0) AS SubSectionOrder,
+       I.ItemLabel, I.ItemType, ISNULL(I.OptionList,'') OptionList,
+       I.MinValue, I.MaxValue, ISNULL(I.Unit,'') Unit, ISNULL(I.ShowUnitInRange,0) ShowUnitInRange, I.IsValueRequired,
+       I.IsRemark1Required, I.IsRemark2Required, I.IsRemark1Mandatory, I.IsRemark2Mandatory, I.Remark1Text, I.Remark2Text, I.IsUseDefaultRemark1, I.IsUseDefaultRemark2, ISNULL(I.RemarkRequiredOptions,'') RemarkRequiredOptions, I.DisplayOrder AS ItemOrder, V.StatusOption,
+       I.ModelCode, I.MinTolerance, I.MaxTolerance, I.IsToleranceRequired
+FROM dbo.PIP_M_CheckListWOPM_Section S
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDSection=S.IDSection
+LEFT JOIN dbo.PIP_M_CheckListWOPM_SubSection SS ON SS.IDSubSection=I.IDSubSection
+JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDVersion=S.IDVersion
+WHERE V.IDVersion=@IDVersion
+ORDER BY S.DisplayOrder,
+         CASE WHEN ISNULL(I.IDSubSection,0)=0 THEN I.DisplayOrder ELSE SS.DisplayOrder END,
+         I.DisplayOrder",
+                            new SqlParameter[] {
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateGroups = br.EQueryP(@"
+SELECT G.IDItem, G.GroupName, G.FieldList, G.Unit, G.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemGroup G
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=G.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY G.DisplayOrder",
+                            new SqlParameter[] {
+new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateRepeatConfig = br.EQueryP(@"
+SELECT R.IDItem,R.RepeatMode,R.ColumnCount,R.ObjectLabel,R.CountMode,R.FixedCount,R.MinCount,R.MaxCount
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeat R
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=R.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
+                        DataTable templateRepeatFields = br.EQueryP(@"
+SELECT F.IDItem,F.IDRepeat,F.FieldLabel,F.FieldType,F.OptionList,F.Unit,F.MinValue,F.MaxValue,
+       F.MinInclusive,F.MaxInclusive,F.IsRequired,F.GroupName,F.DisplayOrder
+FROM dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+JOIN dbo.PIP_M_CheckListWOPM_Item I ON I.IDItem=F.IDItem
+JOIN dbo.PIP_M_CheckListWOPM_Section S ON S.IDSection=I.IDSection
+WHERE S.IDVersion=@IDVersion
+ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
+                            new SqlParameter[] { new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) });
 
                         var sections = templateItems.AsEnumerable()
                             .GroupBy(row => new
@@ -2429,16 +3458,49 @@ new SqlParameter("@IDVersion", Convert.ToInt32(header["IDVersion"])) }), true);
             if (inspectionIds.Length == 0 || inspectionIds.Length > 200)
                 throw new HttpException(400, "Jumlah transaksi tidak valid. Maksimal 200 transaksi.");
 
-using (var br = new WAL.BR.CF())
+            List<SqlParameter> parameters = new List<SqlParameter>();
+            parameters.Add(new SqlParameter("@EmployeeID", employeeId));
+            parameters.Add(new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0));
+            parameters.Add(new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)));
+            parameters.Add(new SqlParameter("@CompanyID", companyId));
+            parameters.Add(new SqlParameter("@LocationID", locationId));
+            List<string> idParameters = new List<string>();
+            for (int i = 0; i < inspectionIds.Length; i++)
             {
-                DataTable rows = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("079", new SqlParameter[] {
-                    new SqlParameter("@EmployeeID", employeeId),
-                    new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
-                    new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
-                    new SqlParameter("@CompanyID", companyId),
-                    new SqlParameter("@LocationID", locationId),
-                    new SqlParameter("@InspectionIDs", String.Join(",", inspectionIds.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray()))
-                }), true);
+                string name = "@InspectionID" + i.ToString(CultureInfo.InvariantCulture);
+                idParameters.Add(name);
+                parameters.Add(new SqlParameter(name, inspectionIds[i]));
+            }
+
+            string sql = @"
+SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID,
+       I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode,
+       I.InspectionTypeDetailName, I.InspectionDate, I.TemplateNo, I.TemplateName,
+       I.OwnerEmployeeID, I.Status, I.IsApproved
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+WHERE I.InspectionID IN (" + String.Join(",", idParameters.ToArray()) + @")
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(I.IsActive,1)=1
+  AND ISNULL(T.TemplateType,'W')='I'
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=I.SectionID)
+  AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                 AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                  WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)
+  )
+ORDER BY I.InspectionID";
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(sql, parameters.ToArray());
                 if (rows == null || rows.Rows.Count != inspectionIds.Length)
                     throw new HttpException(403, "Satu atau lebih transaksi tidak ditemukan atau berada di luar hak akses Supervisor.");
                 List<string> types = rows.AsEnumerable()
@@ -2493,14 +3555,37 @@ using (var br = new WAL.BR.CF())
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable authorized = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("072", new SqlParameter[] {
+                DataTable authorized = br.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+WHERE I.InspectionID=@InspectionID
+  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+  AND ISNULL(T.TemplateType,'W')='I' 
+  AND (ISNULL(T.CompanyScope,'S')='A'
+       OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
+  AND (ISNULL(T.EmployeeList,'')=''
+       OR (';' + ISNULL(T.EmployeeList,'') + ';' LIKE '%;' + I.OwnerEmployeeID + ';%'))
+  AND (@IsAdministrator=1 OR EXISTS (
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+  ))
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0
+  AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') M WHERE M.MenuID='20022'))
+",
+                    new SqlParameter[] {
                         new SqlParameter("@InspectionID", inspectionId),
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
                         new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                         new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@LocationID", locationId)
-                    }), true);
+                    });
                 if (authorized == null || authorized.Rows.Count == 0)
                     throw new HttpException(403, "Inspection is outside the supervisor's authorized section, template, or company/location scope.");
 
@@ -2542,8 +3627,13 @@ using (var br = new WAL.BR.CF())
             {
                 using (var br = new WAL.BR.CF())
                 {
-                    DataTable header = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("024", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }), true);
+                    DataTable header = br.EQueryP(@"
+SELECT I.CompanyID,I.LocationID,I.InspectionDate,I.InspectionNo,I.InspectionTypeName,I.InspectionTypeDetailName,
+       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+WHERE I.InspectionID=@InspectionID",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     if (header.Rows.Count == 0)
                     {
                         html.Append(baseHtml ?? "");
@@ -2557,22 +3647,53 @@ using (var br = new WAL.BR.CF())
                     string inspectionMode = GF.GetString(header.Rows[0]["InspectionMode"]).ToUpperInvariant();
                     DataTable schedules;
                     if (inspectionMode == "LIGHTNING")
-                        schedules = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("025", new SqlParameter[] {
-                            new SqlParameter("@InspectionID", inspectionId) }), true);
+                        schedules = br.EQueryP(@"
+SELECT DISTINCT D.ScheduleTime FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=I.InspectionTypeCode
+ AND D.InspectionTypeDetailCode=I.InspectionTypeDetailCode
+WHERE I.InspectionID=@InspectionID ORDER BY D.ScheduleTime",
+                            new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     else
                     {
                         schedules = new DataTable();
                         schedules.Columns.Add("ScheduleTime", typeof(string));
                         schedules.Rows.Add("");
                     }
-                    DataTable points = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("026", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }), true);
-                    DataTable results = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("027", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }), true);
-                    DataTable resultValues = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("028", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }), true);
-                    DataTable photos = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("029", new SqlParameter[] {
-                        new SqlParameter("@InspectionID", inspectionId) }), true);
+                    DataTable points = br.EQueryP(@"
+SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
+       P.PointCode,P.PointName,P.MapID,P.MapX,P.MapY,P.DisplayOrder,
+       M.MapCode,M.MapName,M.ImagePath,M.MapGroupID,G.GroupName,G.Sequence GroupSequence
+FROM dbo.PIP_T_InspectionPoint TP
+JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
+WHERE TP.InspectionID=@InspectionID
+ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrder,P.PointCode",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable results = br.EQueryP(@"
+SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
+FROM dbo.PIP_T_InspectionResult R
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.InspectionPointTransactionID,R.DisplayOrder",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable resultValues = br.EQueryP(@"
+SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,
+       V.ObjectIndex,V.FieldName,ISNULL(F.FieldLabel,V.FieldName) FieldLabel,V.Value FieldValue
+FROM dbo.PIP_T_InspectionResult R
+JOIN dbo.PIP_T_InspectionResultValue V ON V.InspectionResultID=R.InspectionResultID
+LEFT JOIN dbo.PIP_M_CheckListWOPM_ItemRepeatField F
+  ON F.IDItem=R.IDItem
+ AND F.IDRepeat=CASE WHEN V.FieldName<>'' AND LEN(V.FieldName)<=10 AND V.FieldName NOT LIKE '%[^0-9]%'
+                     THEN CAST(V.FieldName AS INT) ELSE 0 END
+WHERE R.InspectionID=@InspectionID
+ORDER BY R.InspectionResultID,V.ObjectIndex,V.FieldName",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
+                    DataTable photos = br.EQueryP(@"
+SELECT InspectionPointTransactionID,PhotoType,FileName,FileType,SeqNo
+FROM dbo.PIP_T_InspectionPhoto
+WHERE InspectionID=@InspectionID
+ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
+                        new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
                     html.Append(baseHtml ?? "");
                     html.Append("<hr/><h2>").Append(HttpUtility.HtmlEncode(inspectionMode == "LIGHTNING" ? "LIGHTNING DAILY INSPECTION REVIEW" :
@@ -2808,7 +3929,18 @@ using (var br = new WAL.BR.CF())
             bool emailConfigured = false;
             using (var configBr = new WAL.BR.CF())
             {
-                DataTable emailConfig = configBr.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("073", new SqlParameter[] { new SqlParameter("@C", companyId ?? "") }), true);
+                DataTable emailConfig = configBr.EQueryP(@"
+SELECT TOP 1 1 AS IsEnabled
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.SysWebCommonValue C
+  ON C.AppID='INSPEC'
+ AND C.CommonGroup='EmailApproval'
+ AND C.IsDelete=0
+ AND C.Description='1'
+ AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)
+          +';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
+WHERE I.CompanyID=@C",
+                    new SqlParameter[] { new SqlParameter("@C", companyId ?? "") });
                 emailConfigured = emailConfig != null && emailConfig.Rows.Count > 0;
             }
 
@@ -2819,10 +3951,15 @@ using (var br = new WAL.BR.CF())
             string fromName = "";
             using (var senderBr = new WAL.BR.CF())
             {
-                DataTable sender = senderBr.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("062", new SqlParameter[] {
+                DataTable sender = senderBr.EQueryP(@"
+SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') AS EmailAddress, ISNULL(LTRIM(RTRIM(Name)),'') AS EmployeeName
+FROM dbo.M_HRD_Employee
+WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
+  AND ISNULL(LTRIM(RTRIM(emailaddress)),'')<>''",
+                    new SqlParameter[] {
                         new SqlParameter("@E", senderEmployeeId ?? ""),
                         new SqlParameter("@C", companyId ?? "")
-                    }), true);
+                    });
                 if (sender != null && sender.Rows.Count > 0)
                 {
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
@@ -2832,7 +3969,42 @@ using (var br = new WAL.BR.CF())
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable queue = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("063", new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }), true, true);
+                DataTable queue = br.EQueryP(@"
+;WITH EmailQueue AS
+(
+    SELECT TOP (@BatchSize) *
+    FROM dbo.PIP_T_InspectionEmailOutbox O WITH (UPDLOCK,READPAST,ROWLOCK)
+    WHERE O.DeliveryStatus IN ('PENDING','FAILED')
+      AND O.NextAttemptDate<=GETDATE()
+      AND O.AttemptCount<5
+      /* Fail closed: never dispatch queued mail unless the matching
+         inspection email switch is explicitly enabled for its scope. */
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.PIP_T_Inspection I
+          JOIN dbo.SysWebCommonValue C
+            ON C.AppID='INSPEC'
+           AND C.CommonGroup='EmailApproval'
+           AND C.IsDelete=0
+           AND C.Description='1'
+           AND
+           (
+               (O.EntityType='LIGHTNING'
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+               OR
+               (O.EntityType='INSPECTION'
+                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
+           )
+          WHERE I.InspectionID=O.EntityID
+      )
+    ORDER BY EmailOutboxID
+)
+UPDATE EmailQueue
+SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1,LastAttemptDate=GETDATE()
+OUTPUT inserted.EmailOutboxID,inserted.EntityType,inserted.EntityID,
+       inserted.RecipientEmail,inserted.EmailSubject,inserted.HtmlBody,inserted.PlainBody,inserted.AttemptCount;",
+                    new SqlParameter[] { new SqlParameter("@BatchSize", Math.Max(1, Math.Min(batchSize, 50))) }, false, true);
 
                 int sent = 0, failed = 0;
                 foreach (DataRow row in queue.Rows)
@@ -2861,22 +4033,54 @@ using (var br = new WAL.BR.CF())
                                 ""))
                             throw new InvalidOperationException("GF.SendEmail returned false.");
 
-                        br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("064", new SqlParameter[] { new SqlParameter("@ID", outboxId) }), true);
+                        br.EQueryP(@"UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='SENT',SentDate=GETDATE(),LastError=NULL
+WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
+                            new SqlParameter[] { new SqlParameter("@ID", outboxId) });
                         sent++;
                     }
                     catch (Exception ex)
                     {
                         string error = ex.Message ?? "Email send failed.";
                         if (error.Length > 1900) error = error.Substring(0, 1900);
-                        br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("065", new SqlParameter[] {
+                        br.EQueryP(@"
+UPDATE dbo.PIP_T_InspectionEmailOutbox
+SET DeliveryStatus='FAILED',LastError=@Error,
+    NextAttemptDate=DATEADD(MINUTE,
+        CASE WHEN AttemptCount=1 THEN 5 WHEN AttemptCount=2 THEN 10
+             WHEN AttemptCount=3 THEN 20 WHEN AttemptCount=4 THEN 40 ELSE 60 END,GETDATE())
+WHERE EmailOutboxID=@ID AND DeliveryStatus='SENDING'",
+                            new SqlParameter[] {
                                 new SqlParameter("@Error", error),
                                 new SqlParameter("@ID", outboxId)
-                            }), true);
+                            });
                         failed++;
                     }
                 }
 
-                DataTable pending = br.EQueryP("spPIP_Inspection_Query", InspectionQueryParameters("080", new SqlParameter[] {}), true);
+                DataTable pending = br.EQuery(@"
+SELECT COUNT(1) PendingCount
+FROM dbo.PIP_T_InspectionEmailOutbox O
+WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
+  AND EXISTS
+  (
+      SELECT 1
+      FROM dbo.PIP_T_Inspection I
+      JOIN dbo.SysWebCommonValue C
+        ON C.AppID='INSPEC'
+       AND C.CommonGroup='EmailApproval'
+       AND C.IsDelete=0
+       AND C.Description='1'
+       AND
+       (
+           (O.EntityType='LIGHTNING'
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
+           OR
+           (O.EntityType='INSPECTION'
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
+       )
+      WHERE I.InspectionID=O.EntityID
+  )");
                 return new
                 {
                     attempted = queue.Rows.Count,
