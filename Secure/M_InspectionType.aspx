@@ -426,7 +426,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     </itemtemplate>
                 </asp:TemplateColumn >                                        
 
-                <asp:TemplateColumn HeaderText="Schedule Time" HeaderStyle-Width = "45%" ItemStyle-Width="40" HeaderStyle-HorizontalAlign="Left" ItemStyle-HorizontalAlign="Left" ItemStyle-VerticalAlign="Top">
+                <asp:TemplateColumn HeaderText="Mode" HeaderStyle-Width="12%" ItemStyle-Width="12%" HeaderStyle-HorizontalAlign="Left" ItemStyle-HorizontalAlign="Left" ItemStyle-VerticalAlign="Top">
+                    <ItemTemplate>
+                        <span class="small"><%# Convert.ToBoolean(DataBinder.Eval(Container.DataItem, "IsTenantInspection")) ? "Per Tenant" : "Standard" %></span>
+                    </ItemTemplate>
+                </asp:TemplateColumn>
+                <asp:TemplateColumn HeaderText="Schedule Time" HeaderStyle-Width = "33%" ItemStyle-Width="33%" HeaderStyle-HorizontalAlign="Left" ItemStyle-HorizontalAlign="Left" ItemStyle-VerticalAlign="Top">
                 <ItemTemplate>
                     <div class="small text-secondary"><%# GetScheduleSummary(DataBinder.Eval(Container.DataItem, "ScheduleTime")) %></div>
 <%--                    <button type="button"
