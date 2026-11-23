@@ -706,7 +706,7 @@ WHERE M.MapID=@MapID AND M.CompanyID=@CompanyID AND M.LocationID=@LocationID
             DataTable points;
             using (var br = new WAL.BR.CF())
                 points = br.EQueryP(@"
-SELECT P.MapX, P.MapY, P.PointCode, P.PointName,
+SELECT P.InspectionPointID, P.MapX, P.MapY, P.PointCode, P.PointName,
        ISNULL(P.ShapeType,'CIRCLE') AS ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
@@ -735,11 +735,13 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         decimal rw = ShapeAttributeDecimal(attributes, "width", 0m);
                         decimal rh = ShapeAttributeDecimal(attributes, "height", 0m);
                         if (rx >= 0m && ry >= 0m && rw > 0m && rh > 0m && rx + rw <= 100m && ry + rh <= 100m)
-                            paths.Append("<rect x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
+                            paths.Append("<rect class='inspection-map-preview-shape inspection-map-preview-rectangle' data-point-id='")
+                                .Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
+                                .Append("' x='").Append(rx.ToString("0.####", CultureInfo.InvariantCulture))
                                 .Append("' y='").Append(ry.ToString("0.####", CultureInfo.InvariantCulture))
                                 .Append("' width='").Append(rw.ToString("0.####", CultureInfo.InvariantCulture))
                                 .Append("' height='").Append(rh.ToString("0.####", CultureInfo.InvariantCulture))
-                                .Append("' fill='rgba(108,117,125,.20)' stroke='#6c757d' stroke-width='0.65' vector-effect='non-scaling-stroke'><title>")
+                                .Append("' fill='rgba(253,126,20,.20)' stroke='#fd7e14' stroke-width='0.85' vector-effect='non-scaling-stroke'><title>")
                                 .Append(HttpUtility.HtmlEncode(pointLabel)).Append("</title></rect>");
                     }
                     catch { }
@@ -750,10 +752,12 @@ ORDER BY P.DisplayOrder, P.PointCode",
                     string d = Convert.ToString(point["SvgPathData"]);
                     if (!String.IsNullOrWhiteSpace(d) && System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$"))
                     {
-                        paths.Append("<path d='");
+                        paths.Append("<path class='inspection-map-preview-shape inspection-map-preview-path' data-point-id='");
+                        paths.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
+                        paths.Append("' d='");
                         paths.Append(HttpUtility.HtmlAttributeEncode(d));
                         bool isOrthogonalPath = Convert.ToString(point["ShapeAttributes"]).IndexOf("\"renderMode\":\"ORTHOGONAL\"", StringComparison.OrdinalIgnoreCase) >= 0;
-                        paths.Append("' fill='none' stroke='#0d6efd' stroke-width='");
+                        paths.Append("' fill='none' stroke='#fd7e14' stroke-width='");
                         paths.Append((isOrthogonalPath ? 3.5m : (point["StrokeWidth"] == DBNull.Value ? 1.5m : Convert.ToDecimal(point["StrokeWidth"]))).ToString("0.##", CultureInfo.InvariantCulture));
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
@@ -775,7 +779,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
                 }
                 catch { }
                 radius = Math.Max(3.0m, Math.Min(8m, radius));
-                markers.Append("<circle class='inspection-map-preview-circle' cx='");
+                markers.Append("<circle class='inspection-map-preview-shape inspection-map-preview-circle' data-point-id='");
+                markers.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
+                markers.Append("' cx='");
                 markers.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
                 markers.Append("' cy='");
                 markers.Append(cy.ToString("0.####", CultureInfo.InvariantCulture));
