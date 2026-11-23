@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,28 +18,6 @@ namespace INSPEC.Secure
 {
     public partial class workorder : System.Web.UI.Page
     {
-
-        // Positional TVP contract: first supplied value -> C1, second -> C2, etc.
-        private static DataTable BuildWorkOrderQueryData(params string[] values)
-        {
-            DataTable table = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                table.Columns.Add("C" + i, typeof(string));
-            DataRow row = table.NewRow();
-            for (int i = 0; i < values.Length && i < 13; i++)
-                row[i] = values[i] ?? String.Empty;
-            table.Rows.Add(row);
-            return table;
-        }
-
-        private static SqlParameter[] WorkOrderQueryParameters(string type, params string[] values)
-        {
-            SqlParameter data = new SqlParameter("@p_Data", SqlDbType.Structured);
-            data.TypeName = "dbo.Type_N_Tbl_C13";
-            data.Value = BuildWorkOrderQueryData(values);
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), data };
-        }
-
         private static string GetCurrentSessionToken()
         {
             HttpContext context = HttpContext.Current;
@@ -72,9 +50,32 @@ namespace INSPEC.Secure
             {
                 using (var auth = new WAL.BR.CF())
                 {
-                    DataTable allowed = auth.EQueryP(
-                        "spPIP_Inspection_Query",
-                        WorkOrderQueryParameters("201", Convert.ToString(keyhd), userid, GFC.GetEmployeeSection(userid)), true);
+                    DataTable allowed = auth.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_WO W
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+WHERE W.KeyHD=@KeyHD
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012')
+  AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=W.SectionID)
+  AND (
+       EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                 AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                  WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
+  )
+  AND EXISTS (
+      SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+      WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+        AND ISNULL(T.TemplateType,'W')='W'
+        AND (ISNULL(T.CompanyScope,'S')='A'
+             OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
+  )",
+                        new SqlParameter[] {
+                        new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
+                            new SqlParameter("@EmployeeID", userid),
+                            new SqlParameter("@KeyHD", keyhd)
+                        });
                     if (allowed.Rows.Count == 0)
                         throw new HttpException(403, "Work Order is not authorized for this supervisor, section, or template company/location.");
                 }
@@ -94,7 +95,7 @@ namespace INSPEC.Secure
                     success = false,
                     message = ex.ToString()
                 };
-                
+
             }
         }
         [WebMethod]
@@ -108,9 +109,16 @@ namespace INSPEC.Secure
             section = GFC.GetEmployeeSection(employeeID);
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    WorkOrderQueryParameters("205", scope[0], scope[1], section), true);
+                DataTable dt = br.EQuery("SELECT Pending=SUM(CASE WHEN isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND ReasonRespondDC='' THEN 1 ELSE 0 END), " +
+                                       "[Void]=SUM(CASE WHEN isRespondDC=0 AND ReasonRespondDC<>'' THEN 1 ELSE 0 END), " +
+                                       "[Approved]=SUM(CASE WHEN ISNULL(RemarkTechnician,'')<>'' AND isCompleteDC=1 AND CONVERT(VARCHAR(8),ApprovedRespondDCDate,112)=CONVERT(VARCHAR(8),GETDATE(),112) THEN 1 ELSE 0 END) " +
+                                       "FROM PIP_T_WO a WHERE WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation " +
+                                       "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) " +
+                                       "AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.TemplateNo=a.TemplateWOPM AND T.SectionID=a.SectionID " +
+                                       "AND ISNULL(T.TemplateType,'W')='W' AND (ISNULL(T.CompanyScope,'S')='A' " +
+                                       "OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%')))",
+                                       "@CompanyLocation=" + companyLocation + GF.Str2 +
+                                       "@sectionlist=" + section);
                 return new
                 {
                     pending = dt.Rows[0]["Pending"].ToString(),
@@ -121,9 +129,9 @@ namespace INSPEC.Secure
         }
 
         [WebMethod]
-        public static object getWorkOrders(string companyLocation, 
-                                           string section, 
-                                           string lastSync, 
+        public static object getWorkOrders(string companyLocation,
+                                           string section,
+                                           string lastSync,
                                            bool isApprovalMode = false,
                                            string status = "",  // PENDING,APPROVED,VOID
                                            int keyhd = 0, object unused = null)
@@ -178,12 +186,63 @@ namespace INSPEC.Secure
                 string selectedCompanyID = companyLocationParts.Length > 0 ? companyLocationParts[0] : "";
                 string selectedLocationID = companyLocationParts.Length > 1 ? companyLocationParts[1] : "";
                 DataTable dt = br.EQueryP(
-                    "spPIP_Inspection_Query",
-                    WorkOrderQueryParameters("202",
-                        employeeID, sessionToken, companyLocation, section, selectedCompanyID, selectedLocationID,
-                        ParseLastSync(lastSync).ToString("yyyy-MM-ddTHH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture),
-                        isApprovalMode ? "1" : "0", status, Convert.ToString(keyhd),
-                        isTechnician ? "1" : "0", isSupervisor ? "1" : "0"), true);
+@"DECLARE @V_GetDate DATETIME = GETDATE()
+UPDATE UserSession SET LastSyncWO=@V_GetDate
+ WHERE IsActive=1 AND UserID=@EmployeeID AND Token=@SessionToken AND ExpireTime>GETDATE()
+SELECT TOP 10 a.KeyHD,a.WONo,a.WODate,a.EquipmentCode,a.LocationNo,a.[Description], a.SectionID, 
+Status=CASE WHEN ReasonRespondDC<>'' THEN 'DRAFT' WHEN ISNULL(a.RemarkTechnician,'')<>'' THEN 'SYNCED' ELSE 'PENDING' END, 
+ISNULL(a.TemplateWOPM,'') TemplateWOPM, a.ReasonRespondDC ReasonVoid, LastUpdated=@V_GetDate, a.CompanyID, a.LocationID,a.RemarkTechnician,a.IsCompleteDC, ISNULL(a.TemplateVersion,'') TemplateVersion,
+TemplateVersionStatus=ISNULL((SELECT TOP 1 vv.Status
+ FROM PIP_M_CheckListWOPM_Version vv
+ JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
+ WHERE tt.TemplateNo=a.TemplateWOPM AND tt.SectionID=a.SectionID
+   AND ISNULL(tt.TemplateType,'W')='W' AND vv.Version=a.TemplateVersion
+   AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList,'') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
+ ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
+SummarySampleText=ISNULL((SELECT TOP 1 vv.SummarySampleText
+FROM PIP_M_CheckListWOPM_Version vv
+JOIN PIP_M_CheckListWOPM tt ON tt.IDTemplate=vv.IDTemplate
+WHERE tt.TemplateNo=a.TemplateWOPM
+  AND ISNULL(tt.TemplateType,'W')='W'
+  AND tt.SectionID=a.SectionID
+  AND (ISNULL(tt.CompanyScope,'S')='A' OR (';' + ISNULL(tt.CompanyLocationList, '') + ';' LIKE '%;' + a.CompanyID + a.LocationID + ';%'))
+  AND vv.Version=a.TemplateVersion
+ORDER BY CASE WHEN ISNULL(tt.CompanyScope,'S')='S' THEN 0 ELSE 1 END, tt.IDTemplate),''),
+FollowUp=CASE WHEN ISNULL(a.isFollowUp,0)=1 THEN 'Recommend Follow Up' ELSE 'No Follow Up' END, 
+FollowUpSection=ISNULL(FollowUpSection,0), FollowUpRemark=ISNULL(FollowUpRemark,''),
+IsSampling=ISNULL(a.IsSampling,0), RemarkSupervisor=ISNULL(RemarkSupervisor,''),
+StatusSPV=CASE WHEN ISNULL(a.IsSampling,0)=1 AND (a.ReasonRespondDC<>'' OR a.IsCompleteDC=1) THEN 'SYNCED' ELSE '' END,
+ActionSPV=CASE WHEN ISNULL(a.IsSampling,0)=1 THEN CASE WHEN a.ReasonRespondDC<>'' THEN 'VOID' WHEN a.IsCompleteDC=1 THEN 'APPROVED' END ELSE '' END,
+StartTime=(SELECT TOP 1 NULLIF(AA.StartDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA.KeyHD=a.KeyHD),
+EndTime=(SELECT TOP 1 NULLIF(AA.EndDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA.KeyHD=a.KeyHD), ISNULL(eqp.ModelCode,'') ModelCode
+FROM pip_t_wo a JOIN PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON d.KeyHD=h.KeyHD ON h.CompanyID=a.CompanyID AND h.LocationID=a.LocationID 
+JOIN PIP_M_Equipment eqp ON eqp.CompanyID=a.CompanyID AND eqp.LocationID=a.LocationID AND eqp.EquipmentCode=h.EquipmentCode AND a.WONo=d.WONo
+WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation 
+AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)
+AND EXISTS
+(
+    SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+    WHERE T.TemplateNo=a.TemplateWOPM
+      AND T.SectionID=a.SectionID
+      AND ISNULL(T.TemplateType,'W')='W'
+      AND
+      (
+          ISNULL(T.CompanyScope,'S')='A'
+          OR (';' + ISNULL(T.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+      )
+)
+AND " + _condition +
+" ORDER BY a.KeyHD",
+                                new SqlParameter[] 
+                                {
+                                    new SqlParameter("@EmployeeID", employeeID),
+                                     new SqlParameter("@SessionToken", sessionToken),
+                                    new SqlParameter("@CompanyLocation", companyLocation),
+                                    new SqlParameter("@sectionlist", section),
+                                    new SqlParameter("@CompanyID", selectedCompanyID),
+                                    new SqlParameter("@LocationID", selectedLocationID),
+                                    new SqlParameter("@LastSync", ParseLastSync(lastSync))
+                                });
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<object, object>();
@@ -207,30 +266,47 @@ namespace INSPEC.Secure
                     dict["ActionSPV"] = row["ActionSPV"];
                     _modelCode = row["ModelCode"] + "";
                     dict["ModelCode"] = _modelCode;
-                    //DataTable dt1 = br.EQueryP(
-                        "spPIP_Inspection_Query",
-                        WorkOrderQueryParameters("214", companyLocation, Convert.ToString(row["WONo"])),
-                        true);
+                    //DataTable dt1 = br.EQueryP("SELECT d.EmployeeID, mhe.Name, ISNULL(pms.[Description],'') SectionName " +
+                    //                         "FROM PIP_T_D_WO_Employee d JOIN PIP_T_WO h ON h.KeyHD = d.KeyHD " +
+                    //                         "JOIN M_HRD_Employee mhe ON mhe.EmployeeID = d.EmployeeID " +
+                    //                         "LEFT JOIN PIP_M_Section AS pms ON pms.SectionID = mhe.SectionID " +
+                    //                         "WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
+                    //                         new SqlParameter[] 
+                    //                         {
+                    //                            new SqlParameter("@CompanyLocation", companyLocation),
+                    //                            new SqlParameter("@WONo", "2025061656")
+                    //                         });
+                    DataTable dt1 = br.EQueryP(
+@"SELECT mhe.EmployeeID, mhe.Name, ISNULL(pms.[Description],'') SectionName 
+FROM PIP_T_WO h CROSS APPLY dbo.SplitStringConvertToTable(h.EmployeeAssigned,';') a 
+JOIN M_HRD_Employee mhe ON mhe.EmployeeID = a.val 
+LEFT JOIN PIP_M_Section AS pms ON pms.SectionID = mhe.SectionID 
+WHERE h.CompanyID+';'+h.LocationID=@CompanyLocation AND h.WONo=@WONo",
+                                             new SqlParameter[] 
+                                             {
+                                                new SqlParameter("@CompanyLocation", companyLocation),
+                                                new SqlParameter("@WONo", row["WONo"])
+                                             });
 
                     //string sEmployee = "";
                     int colorIndex = 0;
-//                    sEmployee = string.Format(@"
-//<div class='modal-dialog modal-dialog-centered modal-dialog-scrollable'>
-//<div class='modal-content border-0 rounded-4 shadow-lg overflow-hidden'>
-//<div class='modal-header border-0 bg-primary text-white py-3'>
-//	<div>
-//		<h5 class='modal-title fw-bold mb-1'>
-//			Assigned Employee
-//		</h5>
-//		<div class='small opacity-75'>
-//			Work Order #{0}
-//		</div>
-//	</div>
-//	<button type='button' class='btn-close btn-close-white' data-bs-dismiss='modal'>
-//	</button>
-//</div>
-//<div class='modal-body bg-light'>
-//", row["WONo"].ToString());
+                    //                    sEmployee = string.Format(@"
+                    //<div class='modal-dialog modal-dialog-centered modal-dialog-scrollable'>
+                    //<div class='modal-content border-0 rounded-4 shadow-lg overflow-hidden'>
+                    //<div class='modal-header border-0 bg-primary text-white py-3'>
+                    //	<div>
+                    //		<h5 class='modal-title fw-bold mb-1'>
+                    //			Assigned Employee
+                    //		</h5>
+                    //		<div class='small opacity-75'>
+                    //			Work Order #{0}
+                    //		</div>
+                    //	</div>
+                    //	<button type='button' class='btn-close btn-close-white' data-bs-dismiss='modal'>
+                    //	</button>
+                    //</div>
+                    //<div class='modal-body bg-light'>
+                    //", row["WONo"].ToString());
                     if (dt1.Rows.Count > 0)
                     {
                         List<Dictionary<string, object>> listItems = new List<Dictionary<string, object>>();
@@ -262,66 +338,66 @@ namespace INSPEC.Secure
                         dict["EmployeeJSON"] = null;
                     }
 
-//                    foreach (DataRow emp in dt1.Rows)
-//                    {
-//                        string name = emp["Name"].ToString();
-//                        string employeeID = emp["EmployeeID"].ToString();
-//                        string sectionName = emp["SectionName"].ToString();
+                    //                    foreach (DataRow emp in dt1.Rows)
+                    //                    {
+                    //                        string name = emp["Name"].ToString();
+                    //                        string employeeID = emp["EmployeeID"].ToString();
+                    //                        string sectionName = emp["SectionName"].ToString();
 
-//                        // ambil initial
-//                        string initial = "";
+                    //                        // ambil initial
+                    //                        string initial = "";
 
-//                        var splitName = name.Split(' ');
+                    //                        var splitName = name.Split(' ');
 
-//                        foreach (var s in splitName)
-//                        {
-//                            if (!string.IsNullOrWhiteSpace(s))
-//                                initial += s.Substring(0, 1).ToUpper();
-//                        }
+                    //                        foreach (var s in splitName)
+                    //                        {
+                    //                            if (!string.IsNullOrWhiteSpace(s))
+                    //                                initial += s.Substring(0, 1).ToUpper();
+                    //                        }
 
-//                        if (initial.Length > 2)
-//                            initial = initial.Substring(0, 2);
+                    //                        if (initial.Length > 2)
+                    //                            initial = initial.Substring(0, 2);
 
-//                        string color = badgeColors[colorIndex % badgeColors.Length];
+                    //                        string color = badgeColors[colorIndex % badgeColors.Length];
 
-//                        sEmployee += string.Format(@"
-//<div class='card border-0 shadow-sm rounded-4 mb-3'>
-//    <div class='card-body'>
-//        <div class='d-flex align-items-start'>
-//            <div class='me-3'>
-//                <div class='rounded-circle bg-{0} text-white d-flex align-items-center justify-content-center fw-bold'
-//                        style='width:50px;height:50px;'>
-//                    {1}
-//                </div>
-//            </div>
-//            <div class='flex-grow-1'>
-//                <div class='fw-bold fs-6'>
-//                    {2}
-//                </div>
-//                <div class='small text-muted mb-2'>
-//                    {3}
-//                </div>
-//                <span class='badge rounded-pill bg-{0}-subtle text-{0} px-3 py-2'>
-//                    {4}
-//                </span>
-//            </div>
-//        </div>
-//    </div>
-//</div>", color, initial, name, employeeID, sectionName);
+                    //                        sEmployee += string.Format(@"
+                    //<div class='card border-0 shadow-sm rounded-4 mb-3'>
+                    //    <div class='card-body'>
+                    //        <div class='d-flex align-items-start'>
+                    //            <div class='me-3'>
+                    //                <div class='rounded-circle bg-{0} text-white d-flex align-items-center justify-content-center fw-bold'
+                    //                        style='width:50px;height:50px;'>
+                    //                    {1}
+                    //                </div>
+                    //            </div>
+                    //            <div class='flex-grow-1'>
+                    //                <div class='fw-bold fs-6'>
+                    //                    {2}
+                    //                </div>
+                    //                <div class='small text-muted mb-2'>
+                    //                    {3}
+                    //                </div>
+                    //                <span class='badge rounded-pill bg-{0}-subtle text-{0} px-3 py-2'>
+                    //                    {4}
+                    //                </span>
+                    //            </div>
+                    //        </div>
+                    //    </div>
+                    //</div>", color, initial, name, employeeID, sectionName);
 
-//                        colorIndex++;
-//                    }
-//                    sEmployee += string.Format(@"
-//    </div>
-//	<div class='modal-footer border-0 bg-white'>
-//		<button type='button' class='btn btn-light rounded-pill px-4' data-bs-dismiss='modal'>
-//			Close
-//		</button>
-//	</div>
-//</div>
-//</div>");
+                    //                        colorIndex++;
+                    //                    }
+                    //                    sEmployee += string.Format(@"
+                    //    </div>
+                    //	<div class='modal-footer border-0 bg-white'>
+                    //		<button type='button' class='btn btn-light rounded-pill px-4' data-bs-dismiss='modal'>
+                    //			Close
+                    //		</button>
+                    //	</div>
+                    //</div>
+                    //</div>");
 
-//                    dict["EmployeeHTML"] = (dt1.Rows.Count > 0 ? sEmployee.ToString() : "");
+                    //                    dict["EmployeeHTML"] = (dt1.Rows.Count > 0 ? sEmployee.ToString() : "");
                     /*
                     dict["HeaderHTML"] = string.Format(@"
 <div class='d-flex align-items-center justify-content-between gap-2 mt-2 shadow-sm w-100'>
@@ -746,7 +822,7 @@ string.Format(@"
                     */
                     dict["ReasonVoid"] = row["ReasonVoid"];
                     dict["IsCompleteDC"] = row["IsCompleteDC"];
-                    
+
                     // Pin every WorkOrder to the exact version selected when it was created.
                     // This snapshot is cached with the WorkOrder on the client so a later
                     // publish/archive cannot silently replace the checklist with a newer version.
@@ -760,21 +836,11 @@ string.Format(@"
                     var listData = _checkList as List<Dictionary<string, object>>;
                     dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
 
-                    // Load saved checklist, repeat/group values, and photo metadata in one dispatcher call.
-                    DataSet detailData = br.EQueryP_DS(
-                        "spPIP_Inspection_Query",
-                        WorkOrderQueryParameters("213",
-                            Convert.ToString(row["KeyHD"]),
-                            Convert.ToString(row["CompanyID"]),
-                            Convert.ToString(row["LocationID"]),
-                            Convert.ToString(row["WONo"])),
-                        true);
-                    dt1 = detailData != null && detailData.Tables.Count > 0
-                        ? detailData.Tables[0] : new DataTable();
-                    DataTable dtSubValues = detailData != null && detailData.Tables.Count > 1
-                        ? detailData.Tables[1] : new DataTable();
-                    DataTable dtAttachments = detailData != null && detailData.Tables.Count > 2
-                        ? detailData.Tables[2] : new DataTable();
+                    // data saved checklist
+                    dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
+                                    "FROM PIP_T_WO_CheckList A JOIN PIP_M_CheckListWOPM_Item B ON A.IDItem=B.IDItem " +
+                                    "WHERE A.KeyHD=@KeyHD",
+                                    "@KeyHD=" + row["KeyHD"].ToString());
                     Dictionary<string, object> outputJson = new Dictionary<string, object>();
                     if (dt1.Rows.Count > 0)
                     {
@@ -800,21 +866,17 @@ string.Format(@"
                             if (itemType == "GROUP")
                             {
                                 Dictionary<string, object> groupValues = new Dictionary<string, object>();
-                                foreach (DataRow r1 in dtSubValues.AsEnumerable().Where(sv =>
-                                    Convert.ToString(sv["IDResult"]) == Convert.ToString(r["IDResult"]) &&
-                                    (sv["ObjectIndex"] == DBNull.Value || Convert.ToInt32(sv["ObjectIndex"]) == 0)))
+                                foreach (DataRow r1 in br.EQuery("SELECT * FROM PIP_T_WO_CheckList_subvalue WHERE IDResult=@IDResult AND ISNULL(ObjectIndex,0)=0",
+                                    "@IDResult=" + r["IDResult"].ToString()).Rows)
                                     groupValues[r1["FieldName"].ToString()] = r1["Value"];
                                 itemRow["Values"] = groupValues;
                             }
                             else if (itemType == "REPEAT")
                             {
                                 var repeatValues = new List<Dictionary<string, object>>();
-                                var repeatRows = dtSubValues.AsEnumerable()
-                                    .Where(sv => Convert.ToString(sv["IDResult"]) == Convert.ToString(r["IDResult"]))
-                                    .OrderBy(sv => sv["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(sv["ObjectIndex"]))
-                                    .ThenBy(sv => Convert.ToString(sv["FieldName"]), StringComparer.OrdinalIgnoreCase)
-                                    .ToList();
-                                foreach (DataRow repeatValue in repeatRows)
+                                DataTable repeatRows = br.EQuery("SELECT ObjectIndex,FieldName,Value FROM PIP_T_WO_CheckList_SubValue WHERE IDResult=@IDResult ORDER BY ObjectIndex,FieldName",
+                                    "@IDResult=" + r["IDResult"].ToString());
+                                foreach (DataRow repeatValue in repeatRows.Rows)
                                 {
                                     int objectIndex = repeatValue["ObjectIndex"] == DBNull.Value ? 0 : Convert.ToInt32(repeatValue["ObjectIndex"]);
                                     var objectRow = repeatValues.FirstOrDefault(x => Convert.ToInt32(x["ObjectIndex"]) == objectIndex);
@@ -841,10 +903,13 @@ string.Format(@"
                         outputJson = null;
                     }
                     dict["DataCheckListJSON"] = outputJson;
-                    
+
                     // saved foto 
                     outputJson = new Dictionary<string, object>();
-                    dt1 = dtAttachments;
+                    dt1 = br.EQuery("SELECT * FROM PIP_T_DocumentAttachment WHERE type IN ('WO1','WO2') AND CompanyID=@CompanyID AND LocationID=@LocationID AND DocNo=@DocNo",
+                                    "@CompanyID=" + row["CompanyID"].ToString() + GF.Str2 +
+                                    "@LocationID=" + row["LocationID"].ToString() + GF.Str2 +
+                                    "@DocNo=" + row["WONo"].ToString());
                     if (dt1.Rows.Count > 0)
                     {
                         outputJson["KeyHD"] = Convert.ToInt32(row["KeyHD"]);
@@ -879,7 +944,7 @@ string.Format(@"
                     dict["DataPhotoJSON"] = outputJson;
 
                     result.Add(dict);
-                    
+
                 }
                 return new
                 {
@@ -930,9 +995,13 @@ string.Format(@"
                         {
                             using (var followUpBr = new WAL.BR.CF())
                             {
-                                DataTable followUpRule = followUpBr.EQueryP(
-                                    "spPIP_Inspection_Query",
-                                    WorkOrderQueryParameters("203", Convert.ToString(followUpKey)), true);
+                                DataTable followUpRule = followUpBr.EQueryP(@"
+SELECT ISNULL(V.IsFollowUpRequired,1) IsFollowUpRequired
+FROM dbo.PIP_T_WO W
+JOIN dbo.PIP_M_CheckListWOPM T ON T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+LEFT JOIN dbo.PIP_M_CheckListWOPM_Version V ON V.IDTemplate=T.IDTemplate AND V.Version=W.TemplateVersion
+WHERE W.KeyHD=@KeyHD AND ISNULL(T.TemplateType,'W')='W'",
+                                    new SqlParameter[] { new SqlParameter("@KeyHD", followUpKey) });
                                 followUpRequired = followUpRule == null || followUpRule.Rows.Count == 0 ||
                                     Convert.ToBoolean(followUpRule.Rows[0]["IsFollowUpRequired"]);
                             }
@@ -987,16 +1056,58 @@ string.Format(@"
                     string actionSPV = actionByKey.ContainsKey(keyHD) ? actionByKey[keyHD] : "";
                     using (var auth = new WAL.BR.CF())
                     {
-                        DataTable allowed = auth.EQueryP(
-                            "spPIP_Inspection_Query",
-                            WorkOrderQueryParameters("204", userid, GFC.GetEmployeeSection(userid),
-                                Convert.ToString(keyHD), actionSPV, selectedCompanyID, selectedLocationID), true);
+                        DataTable allowed = auth.EQueryP(@"
+SELECT TOP 1 1
+FROM dbo.PIP_T_WO W
+JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+
+WHERE W.KeyHD=@KeyHD
+  AND W.CompanyID=@CompanyID
+  AND W.LocationID=@LocationID
+  AND EXISTS
+      (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S
+       WHERE S.val=W.SectionID)
+  AND
+      (
+          EXISTS (
+              SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
+          )
+          OR EXISTS (
+              SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+              WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
+          )
+      )
+  AND EXISTS
+      (
+          SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+          WHERE T.TemplateNo=W.TemplateWOPM AND T.SectionID=W.SectionID
+            AND ISNULL(T.TemplateType,'W')='W'
+            AND (ISNULL(T.CompanyScope,'S')='A'
+                 OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + W.CompanyID + W.LocationID + ';%'))
+      )
+  AND
+      (
+          (ISNULL(@ActionSPV,'')<>'' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20012') AND ISNULL(W.IsSampling,0)=1)
+          OR
+          (ISNULL(@ActionSPV,'')='' AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20011'))
+      )",
+                            new SqlParameter[]
+                            {
+                                new SqlParameter("@EmployeeID", userid),
+                                new SqlParameter("@SectionList", GFC.GetEmployeeSection(userid)),
+                                new SqlParameter("@KeyHD", keyHD),
+                                new SqlParameter("@ActionSPV", actionSPV),
+                                new SqlParameter("@CompanyID", selectedCompanyID),
+                                new SqlParameter("@LocationID", selectedLocationID)
+                            });
                         if (allowed.Rows.Count == 0)
                             throw new Exception("Work Order " + keyHD + " is not authorized for this employee/section. No data was uploaded.");
                     }
                 }
 
-                using (var br=new BRC.PIP_T_WO())
+                using (var br = new BRC.PIP_T_WO())
                 {
                     br.UpdateUser = userid;
                     br.UpdateWO(dtChecklist, dtChecklistgroups, dtChecklistrepeats, dtPhotos, dtChecklistsummarys);
