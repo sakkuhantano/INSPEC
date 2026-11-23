@@ -1227,6 +1227,8 @@ function refreshInspectionScheduleOptions() {
 }
 
 function resetDetailAndTemplateOptions() {
+    resetInspectionTenantSelection();
+    inspectionTenantSuites = [];
     const detailSelect = document.getElementById("selInspectionDetail");
     detailSelect.innerHTML = '<option value="">Pilih detail...</option>';
     detailSelect.disabled = true;
@@ -1397,7 +1399,8 @@ async function startNewInspection() {
         record.InspectionTypeCode === type.InspectionTypeCode &&
         record.InspectionTypeDetailCode === detail.InspectionTypeDetailCode &&
         String(record.ScheduledTime || "") === String(scheduledTime || "") &&
-        Number(record.IDTemplate) === Number(template.IDTemplate)
+        Number(record.IDTemplate) === Number(template.IDTemplate) &&
+        inspectionTenantMatchesRecord(record, detail)
     );
     if (serverDuplicate) {
         showToast("Jadwal ini sudah terisi di server (" +
