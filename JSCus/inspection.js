@@ -88,6 +88,25 @@ function getSelectedInspectionSuiteNo() {
     return select ? String(select.value || "").trim() : "";
 }
 
+function applyInspectionTenantSearch() {
+    const search = document.getElementById("txtInspectionTenantSearch");
+    const tenantSelect = document.getElementById("selInspectionTenant");
+    if (!search || !tenantSelect) return;
+
+    const keyword = String(search.value || "").trim().toLocaleLowerCase();
+    Array.from(tenantSelect.options).forEach(option => {
+        if (!option.value) {
+            option.hidden = false;
+            return;
+        }
+        // Tenant option labels contain both TenantID and TenantName.
+        // Keep the complete option list intact so lock/availability state is preserved.
+        option.hidden = !!keyword &&
+            String(option.textContent || option.value).toLocaleLowerCase().indexOf(keyword) < 0;
+    });
+}
+
+
 function formatInspectionTenantLabel(tenantId, tenantName) {
     const id = String(tenantId || "").trim();
     const name = String(tenantName || "").trim();
@@ -420,6 +439,11 @@ function wireInspectionEvents() {
         updateInspectionParameterTabGate();
     });
     document.getElementById("selInspectionTenant").addEventListener("change", async function () {
+        const tenantSearch = document.getElementById("txtInspectionTenantSearch");
+        if (tenantSearch) {
+            tenantSearch.value = "";
+            applyInspectionTenantSearch();
+        }
         try {
             await loadInspectionTenantSuites(this.value || "");
         } catch (error) {
@@ -442,6 +466,8 @@ function wireInspectionEvents() {
     });
     const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
+    const tenantSearchInput = document.getElementById("txtInspectionTenantSearch");
+    if (tenantSearchInput) tenantSearchInput.addEventListener("input", applyInspectionTenantSearch);
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
         refreshInspectionScheduleOptions();
         refreshInspectionTenantAvailability();
@@ -965,7 +991,12 @@ async function loadInspectionTenantOptions() {
     const tenantSelect = document.getElementById("selInspectionTenant");
     const suiteSelect = document.getElementById("selInspectionSuite");
     if (!tenantSelect || !suiteSelect) return;
+    const tenantSearch = document.getElementById("txtInspectionTenantSearch");
     tenantSelect.disabled = true;
+    if (tenantSearch) {
+        tenantSearch.value = "";
+        tenantSearch.disabled = true;
+    }
     suiteSelect.disabled = true;
     suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
 
@@ -1003,6 +1034,8 @@ async function loadInspectionTenantOptions() {
         escInspection(String(row.TenantID || "") + " - " + String(row.TenantName || "")) + '</option>'
     ).join("");
     tenantSelect.disabled = inspectionTenants.length === 0;
+    if (tenantSearch) tenantSearch.disabled = inspectionTenants.length === 0;
+    applyInspectionTenantSearch();
     if (!inspectionTenants.length)
         throw new Error("Daftar tenant aktif belum tersedia. Jalankan Sync saat online terlebih dahulu.");
 
@@ -1309,6 +1342,11 @@ function resetInspectionTenantSelection() {
     const tenantSelect = document.getElementById("selInspectionTenant");
     const suiteSelect = document.getElementById("selInspectionSuite");
     if (panel) panel.classList.add("d-none");
+    const tenantSearch = document.getElementById("txtInspectionTenantSearch");
+    if (tenantSearch) {
+        tenantSearch.value = "";
+        tenantSearch.disabled = true;
+    }
     if (tenantSelect) {
         tenantSelect.innerHTML = '<option value="">Pilih tenant...</option>';
         tenantSelect.value = "";
@@ -5410,6 +5448,12 @@ async function openServerSubmittedInspection(inspectionId) {
                     escInspection(formatInspectionTenantLabel(savedTenantID, savedTenantName)) + '</option>'
                 : '<option value="">-</option>';
             tenantSelect.value = savedTenantID;
+            const tenantSearch = document.getElementById("txtInspectionTenantSearch");
+            if (tenantSearch) {
+                tenantSearch.value = "";
+                tenantSearch.disabled = true;
+            }
+            applyInspectionTenantSearch();
             suiteSelect.innerHTML = savedSuiteNo
                 ? '<option value="' + escInspection(savedSuiteNo) + '">' + escInspection(savedSuiteNo) + '</option>'
                 : '<option value="">-</option>';
@@ -5869,6 +5913,12 @@ async function populateInspectionParameters(record) {
                     escInspection(formatInspectionTenantLabel(savedTenantID, savedTenantName)) + '</option>'
                 : '<option value="">-</option>';
             tenantSelect.value = savedTenantID;
+            const tenantSearch = document.getElementById("txtInspectionTenantSearch");
+            if (tenantSearch) {
+                tenantSearch.value = "";
+                tenantSearch.disabled = true;
+            }
+            applyInspectionTenantSearch();
             suiteSelect.innerHTML = savedSuiteNo
                 ? '<option value="' + escInspection(savedSuiteNo) + '">' + escInspection(savedSuiteNo) + '</option>'
                 : '<option value="">-</option>';
@@ -5909,6 +5959,12 @@ async function populateInspectionParameters(record) {
         const suiteSelect = document.getElementById("selInspectionSuite");
         if (tenantSelect && suiteSelect) {
             tenantSelect.value = String(record.TenantID || "");
+            const tenantSearch = document.getElementById("txtInspectionTenantSearch");
+            if (tenantSearch) {
+                tenantSearch.value = "";
+                tenantSearch.disabled = currentInspectionReadOnly;
+            }
+            applyInspectionTenantSearch();
             if (tenantSelect.value) {
                 await loadInspectionTenantSuites(tenantSelect.value);
                 suiteSelect.value = String(record.SuiteNo || "");
