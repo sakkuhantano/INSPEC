@@ -226,6 +226,27 @@
                         </div>
                     </asp:Panel>
 
+                    <div class="row g-2 align-items-start inspection-master-map-points-layout">
+                        <div class="col-lg-6 inspection-master-map-column">
+                    <asp:Panel ID="pnlMapPreview" runat="server" ClientIDMode="Static" CssClass="inspection-map-preview-panel">
+                        <div class="row my-1">
+                            <div class="col border rounded shadow-sm">
+                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
+                                    <div class="col d-flex align-items-center">
+                                        <asp:Label ID="lblMapPreviewTitle" runat="server" ClientIDMode="Static" />
+                                    </div>
+                                    <div class="col-auto d-flex align-items-center">
+                                        <asp:HyperLink ID="lnkMapPdf" runat="server" ClientIDMode="Static" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
+                                    </div>
+                                </div>
+                                <div class="p-2">
+                                    <asp:Literal ID="litMapPreview" runat="server" />
+                                </div>
+                            </div>
+                        </div>
+                    </asp:Panel>
+                        </div>
+                        <div class="col-lg-6 inspection-master-points-column">
                     <div class="row my-1">
                         <div class="col border rounded shadow-sm">
                             <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
@@ -245,14 +266,15 @@
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col">
-                                    <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" BorderColor="#394376" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100" OnRowCommand="gvPoints_RowCommand" EmptyDataText="No Inspection Point">
+                                <div class="col table-responsive inspection-master-point-table">
+                                    <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" BorderColor="#394376" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100 inspection-master-grid" OnRowCommand="gvPoints_RowCommand" EmptyDataText="No Inspection Point">
                                         <HeaderStyle HorizontalAlign="left" CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
                                         <RowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddt-custom1" />
                                         <AlternatingRowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddtalt-custom1" />
                                         <Columns>
                                             <asp:TemplateField HeaderText="" HeaderStyle-Width="1%" ItemStyle-Width="1%">
                                                 <ItemTemplate>
+                                                    <span class="inspection-point-row-target" data-point-id='<%# Eval("InspectionPointID") %>'></span>
                                                     <asp:LinkButton ID="btnEditPointRow" runat="server" CssClass="CUS-lbtn-1" ToolTip="Edit Inspection Point" CommandName="EditPoint" CommandArgument='<%# Eval("InspectionPointID") %>' CausesValidation="false"><i class="far fa-edit"></i></asp:LinkButton>
                                                 </ItemTemplate>
                                             </asp:TemplateField>
@@ -295,24 +317,8 @@
                             </div>
                         </div>
                     </div>
-
-                    <asp:Panel ID="pnlMapPreview" runat="server" ClientIDMode="Static" CssClass="inspection-map-preview-panel">
-                        <div class="row my-1">
-                            <div class="col border rounded shadow-sm">
-                                <div class="row font-weight-bold bg-custom20" style="height:30px;border-bottom:1px solid #dee2e6;">
-                                    <div class="col d-flex align-items-center">
-                                        <asp:Label ID="lblMapPreviewTitle" runat="server" ClientIDMode="Static" />
-                                    </div>
-                                    <div class="col-auto d-flex align-items-center">
-                                        <asp:HyperLink ID="lnkMapPdf" runat="server" ClientIDMode="Static" Target="_blank" CssClass="CUS-lbtn-1">Open PDF</asp:HyperLink>
-                                    </div>
-                                </div>
-                                <div class="p-2">
-                                    <asp:Literal ID="litMapPreview" runat="server" />
-                                </div>
-                            </div>
                         </div>
-                    </asp:Panel>
+                    </div>
 
                 </div>
             </div>
