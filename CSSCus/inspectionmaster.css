@@ -157,13 +157,13 @@
 .inspection-master-point-toolbar-actions>.input-group .form-control{
     min-width:0;
 }
-.inspection-master-point-toolbar-actions>#ddlPointPageSize{
+.inspection-master-point-toolbar-actions>.inspection-master-point-page-size{
     flex:0 0 72px;
     width:72px!important;
     min-width:72px;
     margin:0!important;
 }
-.inspection-master-point-toolbar-actions>#btnNewPointGrid{
+.inspection-master-point-toolbar-actions>.inspection-master-point-add{
     flex:0 0 auto;
     width:auto!important;
     min-width:88px;
@@ -183,7 +183,7 @@
 }
 @media(max-width:575.98px){
  .inspection-master-point-toolbar-actions>.input-group{flex:1 1 100%;max-width:none}
- .inspection-master-point-toolbar-actions>#ddlPointPageSize{flex:0 0 68px;width:68px!important;min-width:68px}
+ .inspection-master-point-toolbar-actions>.inspection-master-point-page-size{flex:0 0 68px;width:68px!important;min-width:68px}
 }
 
 /* Map preview and Inspection Point grid are presented side by side on desktop. */
