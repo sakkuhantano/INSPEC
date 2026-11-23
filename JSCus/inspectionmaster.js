@@ -839,6 +839,28 @@
             var clearPathButton = document.getElementById('btnClearPath');
             var pathStatus = document.getElementById('lblPathDrawStatus');
             var drawMode = false, drawingPath = false, suppressNextClick = false;
+            // Hold Space to temporarily pan the floor plan without changing the selected shape tool.
+            var spacePanHeld = false;
+            document.addEventListener('keydown', function (event) {
+                if (event.code === 'Space' && !event.repeat) {
+                    var target = event.target;
+                    if (!(target && (target.matches('input, textarea, select') || target.isContentEditable))) {
+                        spacePanHeld = true;
+                        board.classList.add('inspection-map-space-pan');
+                        event.preventDefault();
+                    }
+                }
+            });
+            document.addEventListener('keyup', function (event) {
+                if (event.code === 'Space') {
+                    spacePanHeld = false;
+                    board.classList.remove('inspection-map-space-pan');
+                }
+            });
+            window.addEventListener('blur', function () {
+                spacePanHeld = false;
+                board.classList.remove('inspection-map-space-pan');
+            });
             var pathPoints = [], pathPreview = null;
             var rectangleDrawing = false, rectangleStart = null, rectanglePreview = null;
             var orthogonalDrawing = false, orthogonalPreviewPoint = null;
@@ -1321,6 +1343,9 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 // before Rectangle/shape drawing can interpret the toolbar as map
                 // canvas input and clear the geometry being edited.
                 if (event.target.closest && event.target.closest('.inspection-map-toolbar-floating')) return;
+                // Space temporarily suspends the active shape tool so the bubble-phase
+                // map handler can start a pan gesture instead of drawing a new shape.
+                if (spacePanHeld && event.button === 0) return;
                 var genericResizeHandle=event.target.closest&&event.target.closest('.inspection-coordinate-shape-resize-handle');
                 if(genericResizeHandle&&event.button===0){beginShapeTransform(event,genericResizeHandle.getAttribute('data-shape-resize-handle'));return;}
                 var shapeMoveHit=event.target.closest&&event.target.closest('.inspection-coordinate-shape-move-hit');
@@ -1464,8 +1489,9 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                 if(Object.keys(activePointers).length===2&&!drawMode&&!rectangleDrawing&&!rectangleResize){
                     beginPinch(); event.preventDefault(); return;
                 }
-                // Drawing mode owns the pointer; never start map panning while a path is being drawn.
-                if (drawMode || (event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle')) || zoom <= 1 || event.button !== 0) return;
+                // Space temporarily overrides drawing mode. Dragging a shape/handle
+                // still edits that shape; dragging empty map space pans the floor plan.
+                if ((drawMode && !spacePanHeld) || (event.target.closest && event.target.closest('.inspection-coordinate-marker, .inspection-coordinate-circle, .inspection-coordinate-path, .inspection-coordinate-rectangle, .inspection-coordinate-rectangle-resize-handle, .inspection-coordinate-shape-resize-handle')) || zoom <= 1 || event.button !== 0) return;
                 dragging = true; moved = false; startX = event.clientX - panX; startY = event.clientY - panY;
                 board.setPointerCapture(event.pointerId);
             });
