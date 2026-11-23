@@ -87,6 +87,51 @@ function getSelectedInspectionSuiteNo() {
     return select ? String(select.value || "").trim() : "";
 }
 
+function formatInspectionTenantLabel(tenantId, tenantName) {
+    const id = String(tenantId || "").trim();
+    const name = String(tenantName || "").trim();
+    if (id && name) return id + " - " + name;
+    return id || name || "-";
+}
+
+async function resolveInspectionTenantName(tenantId, fallbackName) {
+    const id = String(tenantId || "").trim();
+    const fallback = String(fallbackName || "").trim();
+    if (!id) return fallback;
+    if (fallback) return fallback;
+
+    const loaded = inspectionTenants.find(row =>
+        String(row.TenantID || "").trim() === id &&
+        String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+        String(row.LocationID || "") === String(inspectionLocationID || ""));
+    if (loaded && String(loaded.TenantName || "").trim())
+        return String(loaded.TenantName).trim();
+
+    if (typeof db !== "undefined" && db &&
+        db.objectStoreNames.contains("inspection_tenants")) {
+        try {
+            const cachedRows = await readInspectionStore("inspection_tenants");
+            const cached = cachedRows.find(row =>
+                String(row.TenantID || "").trim() === id &&
+                String(row.CompanyID || "") === String(inspectionCompanyID || "") &&
+                String(row.LocationID || "") === String(inspectionLocationID || ""));
+            if (cached && String(cached.TenantName || "").trim())
+                return String(cached.TenantName).trim();
+        } catch (error) {
+            console.warn("Unable to resolve cached Inspection tenant name:", error);
+        }
+    }
+    return "";
+}
+
+function formatInspectionTenantSuiteInfo(tenantId, tenantName, suiteNo) {
+    const id = String(tenantId || "").trim();
+    const suite = String(suiteNo || "").trim();
+    if (!id && !suite) return "";
+    return "Tenant: " + formatInspectionTenantLabel(id, tenantName) +
+        " / Suite: " + (suite || "-");
+}
+
 function inspectionTenantMatchesRecord(record, detail) {
     if (!isInspectionTenantDetail(detail)) return true;
     const tenantId = getSelectedInspectionTenantID();
@@ -1285,6 +1330,9 @@ async function startNewInspection() {
         : (document.getElementById("selInspectionScheduleTime").value || "");
     const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
     const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
+    const selectedTenant = inspectionTenants.find(row =>
+        String(row.TenantID || "").trim() === tenantId);
+    const tenantName = selectedTenant ? String(selectedTenant.TenantName || "").trim() : "";
 
     if (!type || !detail || !template ||
         !isInspectionTemplateDetailAllowed(template, detail.InspectionTypeDetailCode) ||
@@ -1511,6 +1559,7 @@ async function startNewInspection() {
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
         TenantID: tenantId,
+        TenantName: tenantName,
         SuiteNo: suiteNo,
         ScheduledTime: scheduledTime,
         IDTemplate: Number(template.IDTemplate),
@@ -1984,11 +2033,11 @@ async function renderInspectionForm(record, readOnly, initialTab) {
     const technicianId = record.OwnerEmployeeID || record.InspectionOwnerID || "";
     const technicianName = record.TechnicianName ||
         (technicianId === inspectionLogin.employeeid ? inspectionTechnicianName : "");
+    const tenantName = await resolveInspectionTenantName(record.TenantID, record.TenantName);
+    if (!record.TenantName && tenantName) record.TenantName = tenantName;
     setInspectionFormHeader(transactionNo, [
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
-        record.TenantID || record.SuiteNo
-            ? "Tenant / Suite: " + (record.TenantID || "-") + " / " + (record.SuiteNo || "-")
-            : "",
+        formatInspectionTenantSuiteInfo(record.TenantID, tenantName, record.SuiteNo),
         "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || ""),
@@ -4979,10 +5028,12 @@ async function openServerSubmittedInspection(inspectionId) {
         const suiteSelect = document.getElementById("selInspectionSuite");
         const savedTenantID = String(h.TenantID || "").trim();
         const savedSuiteNo = String(h.SuiteNo || "").trim();
+        const savedTenantName = await resolveInspectionTenantName(savedTenantID, h.TenantName);
         if (tenantPanel && tenantSelect && suiteSelect && (savedTenantID || savedSuiteNo)) {
             tenantPanel.classList.remove("d-none");
             tenantSelect.innerHTML = savedTenantID
-                ? '<option value="' + escInspection(savedTenantID) + '">' + escInspection(savedTenantID) + '</option>'
+                ? '<option value="' + escInspection(savedTenantID) + '">' +
+                    escInspection(formatInspectionTenantLabel(savedTenantID, savedTenantName)) + '</option>'
                 : '<option value="">-</option>';
             tenantSelect.value = savedTenantID;
             suiteSelect.innerHTML = savedSuiteNo
@@ -5005,9 +5056,7 @@ async function openServerSubmittedInspection(inspectionId) {
         document.getElementById("btnCompleteInspection").classList.add("d-none");
         setInspectionFormHeader(h.InspectionNo || ("Inspection #" + inspectionId), [
             (h.InspectionTypeName || "Inspection") + " — " + (h.InspectionTypeDetailName || ""),
-            h.TenantID || h.SuiteNo
-                ? "Tenant / Suite: " + (h.TenantID || "-") + " / " + (h.SuiteNo || "-")
-                : "",
+            formatInspectionTenantSuiteInfo(h.TenantID, savedTenantName, h.SuiteNo),
             "Teknisi: " + formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID),
             (h.TemplateNo || "-") + " / v" + (h.TemplateVersion || "-"),
             "Jadwal " + (h.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(h.InspectionDate) || "-"),
@@ -5437,10 +5486,13 @@ async function populateInspectionParameters(record) {
         const suiteSelect = document.getElementById("selInspectionSuite");
         const savedTenantID = String(record.TenantID || "").trim();
         const savedSuiteNo = String(record.SuiteNo || "").trim();
+        const savedTenantName = await resolveInspectionTenantName(savedTenantID, record.TenantName);
+        if (!record.TenantName && savedTenantName) record.TenantName = savedTenantName;
         if (tenantPanel && tenantSelect && suiteSelect && (savedTenantID || savedSuiteNo)) {
             tenantPanel.classList.remove("d-none");
             tenantSelect.innerHTML = savedTenantID
-                ? '<option value="' + escInspection(savedTenantID) + '">' + escInspection(savedTenantID) + '</option>'
+                ? '<option value="' + escInspection(savedTenantID) + '">' +
+                    escInspection(formatInspectionTenantLabel(savedTenantID, savedTenantName)) + '</option>'
                 : '<option value="">-</option>';
             tenantSelect.value = savedTenantID;
             suiteSelect.innerHTML = savedSuiteNo
@@ -5488,6 +5540,8 @@ async function populateInspectionParameters(record) {
                 suiteSelect.value = String(record.SuiteNo || "");
             }
         }
+        const savedTenantName = await resolveInspectionTenantName(record.TenantID, record.TenantName);
+        if (savedTenantName) record.TenantName = savedTenantName;
     }
     scheduleTimeSelect.value = record.ScheduledTime || "";
     refreshInspectionScheduleOptions();
@@ -5584,8 +5638,15 @@ async function applyInspectionParameters() {
     const inspectionMode = ["BATCH", "LIGHTNING"].includes(
         String(type.InspectionMode || "STANDARD").trim().toUpperCase()
     ) ? String(type.InspectionMode).trim().toUpperCase() : "STANDARD";
+    const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
+    const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
+    const selectedTenant = inspectionTenants.find(row =>
+        String(row.TenantID || "").trim() === tenantId);
+    const tenantName = selectedTenant ? String(selectedTenant.TenantName || "").trim() : "";
     const changed = String(record.SectionID || "") !== String(type.SectionID || "") ||
         String(record.InspectionTypeCode || "") !== String(type.InspectionTypeCode || "") ||
+        String(record.TenantID || "") !== tenantId ||
+        String(record.SuiteNo || "") !== suiteNo ||
         String(record.InspectionMode || "STANDARD").trim().toUpperCase() !== inspectionMode ||
         String(record.InspectionTypeDetailCode || "") !== String(detail.InspectionTypeDetailCode || "") ||
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
@@ -5622,6 +5683,9 @@ async function applyInspectionParameters() {
         InspectionMode: inspectionMode,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
+        TenantID: tenantId,
+        TenantName: tenantName,
+        SuiteNo: suiteNo,
         ScheduledTime: scheduledTime,
         IDTemplate: Number(template.IDTemplate),
         IDVersion: Number(template.IDVersion),
