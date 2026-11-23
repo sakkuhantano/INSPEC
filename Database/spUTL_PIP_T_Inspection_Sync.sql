@@ -590,7 +590,10 @@ BEGIN
               AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120))
         )
         BEGIN
-            RAISERROR('An inspection already exists for this date, company/location, section, type, detail, schedule, and template.', 16, 1);
+            IF ISNULL(@V_IsTenantInspection,0)=1
+                RAISERROR('An inspection already exists for this date, company/location, section, type, detail, tenant, suite, schedule, and template.', 16, 1);
+            ELSE
+                RAISERROR('An inspection already exists for this date, company/location, section, type, detail, schedule, and template.', 16, 1);
         END;
 
         DECLARE @V_InspectionID BIGINT;
