@@ -1999,6 +1999,7 @@ ORDER BY P.DisplayOrder,P.PointCode",
             foreach (DataRow point in points.Rows)
             {
                 string shapeType = Convert.ToString(point["ShapeType"]);
+                bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
                 // Keep editor rendering consistent with Map Preview: legacy or
                 // blank shape values fall back to the default point circle.
                 if (String.IsNullOrWhiteSpace(shapeType)) shapeType = "CIRCLE";
@@ -2021,7 +2022,6 @@ ORDER BY P.DisplayOrder,P.PointCode",
                     }
                     catch { }
                     radius = Math.Max(3.0m, Math.Min(50m, radius));
-                    bool isCurrent = String.Equals(Convert.ToString(point["InspectionPointID"]), hidPointID.Value, StringComparison.Ordinal);
                     pathSvg.Append("<circle class='inspection-coordinate-circle");
                     if (isCurrent) pathSvg.Append(" inspection-coordinate-circle-current");
                     pathSvg.Append("' cx='"); pathSvg.Append(cx.ToString("0.####", CultureInfo.InvariantCulture));
