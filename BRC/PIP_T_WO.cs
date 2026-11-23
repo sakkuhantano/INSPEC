@@ -14,46 +14,43 @@ namespace INSPEC.BRC
 {
     public class PIP_T_WO : WAL.BR.BRInteractionBase
     {
-        private static SqlParameter[] CreateDispatcherParameters(string type, params string[] values)
-        {
-            DataTable data = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                data.Columns.Add("C" + i, typeof(string));
-            DataRow row = data.NewRow();
-            for (int i = 0; i < values.Length && i < 13; i++)
-                row[i] = values[i] ?? String.Empty;
-            data.Rows.Add(row);
-            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
-            tvp.TypeName = "dbo.Type_N_Tbl_C13";
-            tvp.Value = data;
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
-        }
-
         #region " Main Functions "
 
         public DataTable SelectOneByKeyHD(SqlConnection conn = null, SqlTransaction Trans = null)
         {
+            SqlCommand cmdToExecute = new SqlCommand();
+            cmdToExecute.CommandText = @"
+SELECT A.*, 
+StartTime = ISNULL((SELECT StartDate FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME)),
+EndTime = ISNULL((SELECT EndDate FROM PIP_T_H_WO_Employee B WHERE B.KeyHD=A.KeyHD),CAST('' AS DATETIME))
+FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0 
+";
+            cmdToExecute.CommandType = CommandType.Text;
             DataTable toReturn = new DataTable("PIP_T_WO");
+            SqlDataAdapter adapter = new SqlDataAdapter(cmdToExecute);
+
+            SqlConnection _conn;
+            SqlTransaction _trans;
+            if (conn == null)
+            {
+                _mainConnection.Open();
+                _conn = _mainConnection;
+                _trans = _transaction;
+            }
+            else
+            {
+                _conn = conn;
+                _trans = Trans;
+            }
+
             try
             {
-                using (WAL.BR.CF common = new WAL.BR.CF())
-                {
-                    if (conn == null)
-                    {
-                        _mainConnection.Open();
-                        toReturn = common.EQueryP(
-                            "spPIP_Inspection_Query",
-                            CreateDispatcherParameters("219", Convert.ToString(KeyHD)),
-                            true, ref _mainConnection, ref _transaction);
-                    }
-                    else
-                    {
-                        toReturn = common.EQueryP(
-                            "spPIP_Inspection_Query",
-                            CreateDispatcherParameters("219", Convert.ToString(KeyHD)),
-                            true, ref conn, ref Trans);
-                    }
-                }
+                cmdToExecute.Connection = _conn;
+                cmdToExecute.Transaction = _trans;
+                cmdToExecute.Parameters.AddWithValue("@KeyHD", KeyHD);
+
+                // // Execute query.                
+                adapter.Fill(toReturn);
 
                 if (toReturn.Rows.Count > 0)
                 {
@@ -129,8 +126,11 @@ namespace INSPEC.BRC
             }
             finally
             {
+                // // Close connection.                
                 if (conn == null)
                     _mainConnection.Close();
+                cmdToExecute.Dispose();
+                adapter.Dispose();
             }
         }
 
@@ -375,9 +375,13 @@ namespace INSPEC.BRC
                         foreach (string filePath in physicalFiles)
                         {
                             string fileNameWithExt = System.IO.Path.GetFileName(filePath);
-                            DataTable dt = ocf.EQueryP(
-                                "spPIP_Inspection_Query",
-                                CreateDispatcherParameters("212", item.CompanyID, item.LocationID, item.DocNo, fileNameWithExt), true, ref _mainConnection, ref _transaction);
+                            DataTable dt = ocf.EQuery("SELECT * FROM PIP_T_DocumentAttachment " +
+                            "WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND DocNo=@DocNo " +
+                            "AND [FileName]+'.'+[FileType]=@FileNameType AND Type IN ('WO1','WO2','WO3')",
+                            "@CompanyID=" + item.CompanyID + GF.Str2 +
+                            "@LocationID=" + item.LocationID + GF.Str2 +
+                            "@DocNo=" + item.DocNo + GF.Str2 +
+                            "@FileNameType=" + fileNameWithExt, false, ref _mainConnection, ref _transaction);
                             if (dt.Rows.Count == 0)
                             {
                                 try
@@ -398,7 +402,7 @@ namespace INSPEC.BRC
                         var joinMethod = v_dt.AsEnumerable().Join(
                                                     dtPhotos.AsEnumerable(),
                                                     t1 => new { Key1 = t1.Field<int>("KeyHD").ToString(), Key2 = t1.Field<string>("Type"), Key3 = t1.Field<string>("Alias") + "." + t1.Field<string>("FileType") },
-                                                    t2 => new { Key1 = t2.Field<string>("KeyHD"), Key2 = t2.Field<string>("Type"), Key3 = t2.Field<string>("FileName") }, 
+                                                    t2 => new { Key1 = t2.Field<string>("KeyHD"), Key2 = t2.Field<string>("Type"), Key3 = t2.Field<string>("FileName") },
                                                     (t1, t2) => new { t1, t2 })
                                                     .Where(a => a.t1.Field<string>("CompanyID").Equals(item.CompanyID) &&
                                                                 a.t1.Field<string>("LocationID").Equals(item.LocationID) &&
@@ -597,11 +601,18 @@ namespace INSPEC.BRC
                 {
                     using (WAL.BR.CF autoNumCommon = new WAL.BR.CF())
                     {
+                        SqlParameter[] autoNumParameters = new SqlParameter[]
+                        {
+                            new SqlParameter("@AutoNum", "PIPINS" + companyId + locationId)
+                        };
+
                         // Use the same EQueryP gateway, connection and transaction as the
                         // inspection sync procedure. Do not let EQueryP create its own transaction.
-                        DataTable autoNumResult = autoNumCommon.EQueryP(
-                            "spPIP_Inspection_Query",
-                            CreateDispatcherParameters("086", "PIPINS" + companyId + locationId), true, ref _mainConnection, ref _transaction);
+                        DataTable autoNumResult = autoNumCommon.EQueryP(@"
+DECLARE @AutoNumResult TABLE (ID VARCHAR(10), SeqNo INT);
+INSERT INTO @AutoNumResult EXECUTE dbo.sp_GetGenerateAutoNumID 'pip', @AutoNum, 1;
+SELECT ID FROM @AutoNumResult;",
+                            autoNumParameters, false, ref _mainConnection, ref _transaction);
 
                         if (autoNumResult == null || autoNumResult.Rows.Count == 0 ||
                             autoNumResult.Rows[0]["ID"] == DBNull.Value)
