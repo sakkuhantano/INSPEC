@@ -1320,6 +1320,11 @@ function renderGenericShapeResizeHandles(){removeGenericShapeHandles();var el=cu
                     recordPathEditorAction();
                     clearCurrentShapeForReplacement();
                     rectangleDrawing = true;
+                    board.classList.add('rectangle-drawing');
+                    board.style.setProperty('cursor', 'crosshair', 'important');
+                    content.style.setProperty('cursor', 'crosshair', 'important');
+                    board.style.setProperty('touch-action', 'none', 'important');
+                    content.style.setProperty('touch-action', 'none', 'important');
                     rectangleStart = mapPointFromEvent(event);
                     suppressNextClick = true;
                     updateRectanglePreview(rectangleStart);
