@@ -446,6 +446,38 @@
         stage.addEventListener('pointercancel', stopMapPreviewDrag);
         stage.addEventListener('lostpointercapture', stopMapPreviewDrag);
         apply();
+        // Expose map focus so a click on the corresponding point-grid row can
+        // highlight the exact saved geometry and center it in the preview.
+        window.inspectionMasterFocusMapPoint = function (pointId) {
+            var panel = document.getElementById('pnlMapPreview');
+            if (panel && panel.scrollIntoView)
+                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            var svg = media.querySelector('.inspection-map-preview-svg');
+            if (!svg) return;
+            var target = null;
+            svg.querySelectorAll('[data-point-id]').forEach(function (shape) {
+                if (shape.getAttribute('data-point-id') === String(pointId)) target = shape;
+                shape.classList.remove('inspection-map-preview-shape-selected');
+            });
+            if (!target) return;
+            target.classList.add('inspection-map-preview-shape-selected');
+
+            window.requestAnimationFrame(function () {
+                var bounds;
+                try { bounds = target.getBBox(); } catch (ignore) { return; }
+                var mediaWidth = media.clientWidth, mediaHeight = media.clientHeight;
+                if (!mediaWidth || !mediaHeight) return;
+                // Keep enough context around the selected point while ensuring
+                // small circles/lines are easy to locate in the floor plan.
+                zoom = Math.max(2.2, Math.min(3.25, zoom));
+                inspectionMapPreviewZoom = zoom;
+                panX = -((bounds.x + bounds.width / 2) / 100 * mediaWidth - mediaWidth / 2) * zoom;
+                panY = -((bounds.y + bounds.height / 2) / 100 * mediaHeight - mediaHeight / 2) * zoom;
+                apply();
+                scheduleMapPreviewCanvasRender();
+            });
+        };
     }
     var inspectionPdfRenderVersion = 0;
     var inspectionPdfRenderTask = null;
@@ -639,6 +671,25 @@
         window.requestAnimationFrame(renderMapPreviewPdf);
         window.requestAnimationFrame(renderInspectionPdf);
         initMapPreviewInteraction();
+
+        // A normal row click focuses its plotted point. Edit/Delete buttons keep
+        // their existing WebForms postback behaviour.
+        document.addEventListener('click', function (event) {
+            var grid = event.target && event.target.closest
+                ? event.target.closest('.inspection-master-points-column .inspection-master-grid') : null;
+            if (!grid || (event.target.closest && event.target.closest('a,button,input,select,label'))) return;
+            var row = event.target.closest ? event.target.closest('tr') : null;
+            if (!row || !grid.contains(row)) return;
+            var pointKey = row.querySelector('.inspection-point-row-target[data-point-id]');
+            if (!pointKey) return;
+            grid.querySelectorAll('tr.inspection-point-row-selected').forEach(function (oldRow) {
+                oldRow.classList.remove('inspection-point-row-selected');
+            });
+            row.classList.add('inspection-point-row-selected');
+            if (window.inspectionMasterFocusMapPoint)
+                window.inspectionMasterFocusMapPoint(pointKey.getAttribute('data-point-id'));
+        });
+
         var board = document.getElementById('inspectionCoordinateBoard');
         var content = document.getElementById('inspectionCoordinateContent');
         var markerX = document.getElementById('txtMarkerX');
