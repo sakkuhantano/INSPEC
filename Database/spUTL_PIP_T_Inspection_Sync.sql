@@ -24,6 +24,8 @@ ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Sync]
     @p_GPSLongitude DECIMAL(10,7) = NULL,
     @p_GPSAccuracy DECIMAL(10,2) = NULL,
     @p_GPSCapturedAt DATETIME = NULL,
+    @p_TenantID VARCHAR(10) = '',
+    @p_SuiteNo VARCHAR(10) = '',
     @p_InspectionMode VARCHAR(10) = 'STANDARD',
     @p_ApprovalUrl NVARCHAR(1000) = NULL,
     @p_InspectionNo VARCHAR(10),
@@ -451,6 +453,51 @@ BEGIN
         RETURN;
     END;
 
+    DECLARE @V_IsTenantInspection BIT;
+    SELECT @V_IsTenantInspection=ISNULL(D.IsTenantInspection,0)
+    FROM dbo.PIP_M_InspectionTypeDetail D
+    WHERE D.InspectionTypeCode=@p_InspectionTypeCode
+      AND D.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+      AND D.CompanyID=@p_CompanyID
+      AND D.LocationID=@p_LocationID;
+
+    SET @p_TenantID=LTRIM(RTRIM(ISNULL(@p_TenantID,'')));
+    SET @p_SuiteNo=LTRIM(RTRIM(ISNULL(@p_SuiteNo,'')));
+
+    IF ISNULL(@V_IsTenantInspection,0)=1
+    BEGIN
+        IF @p_TenantID='' OR @p_SuiteNo=''
+        BEGIN
+            RAISERROR('Tenant ID and Suite No are required for this Inspection Detail.',16,1);
+            RETURN;
+        END;
+
+        IF NOT EXISTS
+        (
+            SELECT 1
+            FROM dbo.THD_M_GeneralInformation G
+            JOIN dbo.THD_M_AgreementInformation A
+              ON A.CompanyID=G.CompanyID
+             AND A.LocationID=G.LocationID
+             AND A.TenantID=G.TenantID
+            WHERE G.CompanyID=@p_CompanyID
+              AND G.LocationID=@p_LocationID
+              AND G.TenantID=@p_TenantID
+              AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+              AND A.SuiteNo=@p_SuiteNo
+              AND A.LeaseTermDate>=GETDATE()
+        )
+        BEGIN
+            RAISERROR('Selected Tenant ID / Suite No is not an active tenant lease for this company/location.',16,1);
+            RETURN;
+        END;
+    END
+    ELSE
+    BEGIN
+        SET @p_TenantID='';
+        SET @p_SuiteNo='';
+    END;
+
     IF EXISTS
     (
         SELECT 1
@@ -537,6 +584,8 @@ BEGIN
               AND InspectionTypeDetailCode = @p_InspectionTypeDetailCode
               AND ISNULL(ScheduledTime, '') = ISNULL(@p_ScheduledTime, '')
               AND IDTemplate = @p_IDTemplate
+              AND ISNULL(TenantID,'') = CASE WHEN ISNULL(@V_IsTenantInspection,0)=1 THEN @p_TenantID ELSE '' END
+              AND ISNULL(SuiteNo,'') = CASE WHEN ISNULL(@V_IsTenantInspection,0)=1 THEN @p_SuiteNo ELSE '' END
               AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120)
               AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @p_InspectionDate, 120), 120))
         )
@@ -606,6 +655,7 @@ BEGIN
                 InspectionDate=@p_InspectionDate, StartDateTime=@p_StartDateTime,
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
+                TenantID=@p_TenantID, SuiteNo=@p_SuiteNo,
                 IsApproved=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
                 ReasonVoid='',
                 GPSLatitude=@p_GPSLatitude, GPSLongitude=@p_GPSLongitude, GPSAccuracy=@p_GPSAccuracy, GPSCapturedAt=@p_GPSCapturedAt,
@@ -641,7 +691,7 @@ BEGIN
                 InspectionTypeCode, InspectionMode, InspectionTypeName, InspectionTypeDetailCode,
                 InspectionTypeDetailName, ScheduledTime, IDTemplate, IDVersion,
                 TemplateNo, TemplateName, TemplateVersion, InspectionDate,
-                StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, OwnerEmployeeID,
+                StartDateTime, EndDateTime, Status, Summary, FollowUp, FollowUpSection, FollowUpRemark, TenantID, SuiteNo, OwnerEmployeeID,
                 GPSLatitude, GPSLongitude, GPSAccuracy, GPSCapturedAt,
                 EntryUser, EntryDate, UpdateUser, UpdateDate, SyncDate, IsActive
             )
@@ -652,7 +702,7 @@ BEGIN
                 @V_InspectionTypeDetailName, @p_ScheduledTime, @p_IDTemplate, @p_IDVersion,
                 @p_TemplateNo, @V_TemplateName, @p_TemplateVersion, @p_InspectionDate,
                 @p_StartDateTime, @p_EndDateTime, @p_Status, @p_Summary, @p_FollowUp,
-                ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_UpdateUser,
+                ISNULL(@p_FollowUpSection,''), ISNULL(@p_FollowUpRemark,''), @p_TenantID, @p_SuiteNo, @p_UpdateUser,
                 @p_GPSLatitude, @p_GPSLongitude, @p_GPSAccuracy, @p_GPSCapturedAt,
                 @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), GETDATE(), 1
             );
