@@ -1049,10 +1049,17 @@ WHERE InspectionID=@InspectionID",
 
             // A second device may submit the same inspection slot after the first device
             // has already saved it. Treat this as a normal data conflict, not a system error.
-            if (normalized.Contains("an inspection already exists for this date") ||
+            bool duplicateInspection =
+                normalized.Contains("an inspection already exists for this date") ||
                 normalized.Contains("already exists for this date") ||
                 (normalized.Contains("duplicate") && normalized.Contains("inspection") &&
-                 (normalized.Contains("schedule") || normalized.Contains("template"))))
+                 (normalized.Contains("schedule") || normalized.Contains("template")));
+
+            if (duplicateInspection && normalized.Contains("tenant") && normalized.Contains("suite"))
+            {
+                return "Inspeksi untuk Tenant dan Suite yang sama sudah lebih dulu disimpan dari perangkat lain dengan jadwal dan template tersebut. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
+            }
+            if (duplicateInspection)
             {
                 return "Inspeksi dengan pilihan dan jadwal yang sama sudah lebih dulu disimpan dari perangkat lain. Draft ini belum masuk ke data utama. Jika ini duplikat, klik Hapus Draft Ini. Bila ragu, tanyakan ke SPV.";
             }
