@@ -1982,6 +1982,7 @@ async function renderInspectionForm(record, readOnly, initialTab) {
         (technicianId === inspectionLogin.employeeid ? inspectionTechnicianName : "");
     setInspectionFormHeader(transactionNo, [
         (record.InspectionTypeName || "Inspection") + " — " + (record.InspectionTypeDetailName || ""),
+        record.TenantID && record.SuiteNo ? "Tenant: " + record.TenantID + " / Suite " + record.SuiteNo : "",
         "Teknisi: " + formatInspectionEmployeeLabel(technicianName, technicianId),
         (record.TemplateNo || "-") + " / v" + (record.TemplateVersion || "-"),
         "Jadwal " + (record.ScheduledTime || "-") + " • " + (formatInspectionDateDMY(record.InspectionDate) || ""),
@@ -4851,7 +4852,9 @@ function renderInspectionRecordTable(records, host, submitted) {
             '<td data-label="Inspection Date/Time">' + escInspection(inspectionDateTime) + '</td>' +
             '<td data-label="Start/End">' + escInspection(startEnd) + '</td>' +
             '<td data-label="Inspection Type">' + escInspection(record.InspectionTypeName || "—") + '</td>' +
-            '<td data-label="Location/Area">' + escInspection(record.InspectionTypeDetailName || "—") + '</td>' +
+            '<td data-label="Location/Area">' + escInspection(record.InspectionTypeDetailName || "—") +
+                (record.TenantID && record.SuiteNo ? '<div class="small text-muted">Tenant: ' + escInspection(record.TenantID) +
+                    ' / Suite ' + escInspection(record.SuiteNo) + '</div>' : '') + '</td>' +
             '<td data-label="Technician">' + escInspection(technicianName || "—") + deleteHtml + '</td>' +
             '<td data-label="Status">' + statusHtml + '</td>' +
             '</tr>';
@@ -6742,7 +6745,9 @@ function renderInspectionApprovalQueue() {
             selectCell +
             '<td data-label="Transaction No."><button type="button" class="btn btn-link p-0 text-wrap fw-semibold" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
             '<td data-label="Inspection Type">' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
-            '<td data-label="Inspection Detail">' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") + '</td>' +
+            '<td data-label="Inspection Detail">' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") +
+                (row.TenantID && row.SuiteNo ? '<div class="small text-muted">Tenant: ' + escInspection(row.TenantID) +
+                    ' / Suite ' + escInspection(row.SuiteNo) + '</div>' : '') + '</td>' +
             '<td data-label="Date">' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
             '<td data-label="Scheduled">' + escInspection(row.ScheduledTime || "-") + '</td>' +
             '<td data-label="Start – End">' + escInspection(range) + '</td>' +
@@ -7544,6 +7549,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Transaction No.:</strong> ' + escInspection(h.InspectionNo || "-") + '</div>' +
             '<div><strong>Inspection Type:</strong> ' + escInspection(h.InspectionTypeName || "-") + '</div>' +
             '<div><strong>Type Detail:</strong> ' + escInspection(h.InspectionTypeDetailName || "-") + '</div>' +
+            (h.TenantID && h.SuiteNo ? '<div><strong>Tenant / Suite:</strong> ' + escInspection(h.TenantID) + ' / ' + escInspection(h.SuiteNo) + '</div>' : '') +
             '<div><strong>Date:</strong> ' + escInspection(formatInspectionDateDMY(h.InspectionDate) || "-") + '</div>' +
             '<div><strong>Scheduled:</strong> ' + escInspection(scheduledLabel) + '</div>' +
             '<div><strong>Start – End:</strong> ' + escInspection(start) + ' – ' + escInspection(end) + '</div>' +
