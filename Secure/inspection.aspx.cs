@@ -361,6 +361,8 @@ WHERE SU.EmployeeID=@UserID
                         throw new HttpException(403, "Inspection section is not assigned to the logged-in employee.");
                     string inspectionTypeCode = Limit(TokenString(record, "InspectionTypeCode"), 10);
                     string inspectionTypeDetailCode = Limit(TokenString(record, "InspectionTypeDetailCode"), 20);
+                    string tenantId = Limit(TokenString(record, "TenantID"), 10).Trim();
+                    string suiteNo = Limit(TokenString(record, "SuiteNo"), 10).Trim();
                     DateTime inspectionDate = ParseDate(TokenString(record, "InspectionDate"), DateTime.Today);
                     string inspectionNo = "";
                     long existingInspectionId = 0;
@@ -420,6 +422,48 @@ WHERE T.IDTemplate=@IDTemplate
                             });
                         if (templateDetailCheck == null || templateDetailCheck.Rows.Count == 0)
                             throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
+
+                        DataTable tenantDetail = br.EQueryP(@"
+SELECT ISNULL(IsTenantInspection,0) IsTenantInspection
+FROM dbo.PIP_M_InspectionTypeDetail
+WHERE InspectionTypeCode=@InspectionTypeCode
+  AND InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+                            new SqlParameter[] {
+                                new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                                new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode),
+                                new SqlParameter("@CompanyID", companyId),
+                                new SqlParameter("@LocationID", locationId)
+                            });
+                        if (tenantDetail == null || tenantDetail.Rows.Count == 0)
+                            throw new Exception("Inspection Type Detail tidak ditemukan atau sudah tidak aktif.");
+                        bool isTenantInspection = Convert.ToBoolean(tenantDetail.Rows[0]["IsTenantInspection"]);
+                        if (isTenantInspection)
+                        {
+                            if (String.IsNullOrWhiteSpace(tenantId) || String.IsNullOrWhiteSpace(suiteNo))
+                                throw new Exception("Tenant ID dan Suite No wajib dipilih untuk Inspection Detail ini.");
+                            DataTable validTenantSuite = br.EQueryP(@"
+SELECT TOP 1 G.TenantID, A.SuiteNo
+FROM dbo.THD_M_GeneralInformation G
+JOIN dbo.THD_M_AgreementInformation A
+  ON A.CompanyID=G.CompanyID AND A.LocationID=G.LocationID AND A.TenantID=G.TenantID
+WHERE G.CompanyID=@CompanyID AND G.LocationID=@LocationID AND G.TenantID=@TenantID
+  AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+  AND A.SuiteNo=@SuiteNo AND A.LeaseTermDate>=GETDATE()",
+                                new SqlParameter[] {
+                                    new SqlParameter("@CompanyID", companyId),
+                                    new SqlParameter("@LocationID", locationId),
+                                    new SqlParameter("@TenantID", tenantId),
+                                    new SqlParameter("@SuiteNo", suiteNo)
+                                });
+                            if (validTenantSuite == null || validTenantSuite.Rows.Count == 0)
+                                throw new Exception("Tenant ID / Suite No tidak aktif atau tidak sesuai dengan master lease di lokasi ini.");
+                        }
+                        else
+                        {
+                            tenantId = "";
+                            suiteNo = "";
+                        }
 
                         if (isBatchInspection)
                         {
@@ -858,6 +902,8 @@ WHERE InspectionID=@InspectionID",
                             new SqlParameter("@p_SectionID", sectionId),
                             new SqlParameter("@p_InspectionTypeCode", inspectionTypeCode),
                             new SqlParameter("@p_InspectionTypeDetailCode", inspectionTypeDetailCode),
+                            new SqlParameter("@p_TenantID", tenantId),
+                            new SqlParameter("@p_SuiteNo", suiteNo),
                             new SqlParameter("@p_ScheduledTime", Limit(TokenString(record, "ScheduledTime"), 5)),
                             new SqlParameter("@p_IDTemplate", TokenInt(record, "IDTemplate")),
                             new SqlParameter("@p_IDVersion", TokenInt(record, "IDVersion")),
@@ -1090,7 +1136,7 @@ WHERE InspectionID=@InspectionID",
         [WebMethod]
         public static object CheckInspectionDuplicate(string employeeId, string companyId, string locationId,
             string sectionId, string inspectionTypeCode, string inspectionTypeDetailCode,
-            string scheduledTime, int templateId, string inspectionDate)
+            string scheduledTime, int templateId, string inspectionDate, string tenantId, string suiteNo)
         {
             employeeId = GFC.RequireMenuEmployee("20021");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
@@ -1147,6 +1193,50 @@ new SqlParameter("@IDTemplate", templateId),
                 if (templateAccess.Rows.Count == 0)
                     throw new HttpException(403, "This employee is not assigned to the selected Inspection template and company/location.");
 
+                DataTable tenantDetail = br.EQueryP(@"
+SELECT ISNULL(IsTenantInspection,0) IsTenantInspection
+FROM dbo.PIP_M_InspectionTypeDetail
+WHERE InspectionTypeCode=@InspectionTypeCode
+  AND InspectionTypeDetailCode=@InspectionTypeDetailCode
+  AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+                    new SqlParameter[] {
+                        new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                        new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (tenantDetail == null || tenantDetail.Rows.Count == 0)
+                    throw new HttpException(404, "Inspection Type Detail is not active for this company/location.");
+                bool isTenantInspection = Convert.ToBoolean(tenantDetail.Rows[0]["IsTenantInspection"]);
+                tenantId = Limit(tenantId, 10).Trim();
+                suiteNo = Limit(suiteNo, 10).Trim();
+                if (isTenantInspection)
+                {
+                    if (tenantId == "" || suiteNo == "")
+                        throw new HttpException(400, "Tenant ID and Suite No are required.");
+                    DataTable validTenantSuite = br.EQueryP(@"
+SELECT TOP 1 G.TenantID
+FROM dbo.THD_M_GeneralInformation G
+JOIN dbo.THD_M_AgreementInformation A
+  ON A.CompanyID=G.CompanyID AND A.LocationID=G.LocationID AND A.TenantID=G.TenantID
+WHERE G.CompanyID=@CompanyID AND G.LocationID=@LocationID AND G.TenantID=@TenantID
+  AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+  AND A.SuiteNo=@SuiteNo AND A.LeaseTermDate>=GETDATE()",
+                        new SqlParameter[] {
+                            new SqlParameter("@CompanyID", companyId),
+                            new SqlParameter("@LocationID", locationId),
+                            new SqlParameter("@TenantID", tenantId),
+                            new SqlParameter("@SuiteNo", suiteNo)
+                        });
+                    if (validTenantSuite == null || validTenantSuite.Rows.Count == 0)
+                        throw new HttpException(400, "Selected Tenant ID / Suite No is not an active lease for this company/location.");
+                }
+                else
+                {
+                    tenantId = "";
+                    suiteNo = "";
+                }
+
                 DataTable duplicate = br.EQueryP(@"
 SELECT TOP 1 InspectionNo, OwnerEmployeeID, Status
 FROM dbo.PIP_T_Inspection
@@ -1155,6 +1245,8 @@ WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND SectionID=@SectionID
   AND InspectionTypeDetailCode=@InspectionTypeDetailCode
   AND ISNULL(ScheduledTime,'')=ISNULL(@ScheduledTime,'')
   AND IDTemplate=@IDTemplate
+  AND ISNULL(TenantID,'')=CASE WHEN @IsTenantInspection=1 THEN @TenantID ELSE '' END
+  AND ISNULL(SuiteNo,'')=CASE WHEN @IsTenantInspection=1 THEN @SuiteNo ELSE '' END
   AND InspectionDate >= CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120)
   AND InspectionDate < DATEADD(DAY, 1, CONVERT(DATETIME, CONVERT(VARCHAR(10), @InspectionDate, 120), 120))
 ORDER BY InspectionID DESC",
@@ -1166,6 +1258,9 @@ new SqlParameter("@CompanyID", companyId),
                         new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode),
                         new SqlParameter("@ScheduledTime", scheduledTime ?? ""),
                         new SqlParameter("@IDTemplate", templateId),
+                        new SqlParameter("@IsTenantInspection", isTenantInspection ? 1 : 0),
+                        new SqlParameter("@TenantID", tenantId),
+                        new SqlParameter("@SuiteNo", suiteNo),
                         new SqlParameter("@InspectionDate", ParseDate(inspectionDate, DateTime.Today))
                     });
 
@@ -1181,6 +1276,116 @@ new SqlParameter("@CompanyID", companyId),
         }
 
         [WebMethod]
+        [WebMethod]
+        public static object GetInspectionTenantList(string employeeId, string companyId, string locationId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20021");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) || String.IsNullOrWhiteSpace(locationId))
+                throw new HttpException(400, "Employee, company, and location are required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable auth = br.EQueryP(@"
+SELECT 1
+FROM dbo.SysWebUser SU
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20021')
+  AND (
+      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                 WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (auth == null || auth.Rows.Count == 0)
+                    throw new HttpException(403, "This account is not authorized for Inspection tenant lookup.");
+
+                DataTable rows = br.EQueryP(@"
+SELECT G.TenantID,G.TenantName
+FROM dbo.THD_M_GeneralInformation G
+WHERE G.CompanyID=@CompanyID AND G.LocationID=@LocationID
+  AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+ORDER BY G.TenantName,G.TenantID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                    data.Add(new Dictionary<string, object> {
+                        { "TenantID", GF.GetString(row["TenantID"]) },
+                        { "TenantName", GF.GetString(row["TenantName"]) },
+                        { "CompanyID", companyId },
+                        { "LocationID", locationId }
+                    });
+                return new { success = true, data = data };
+            }
+        }
+
+        [WebMethod]
+        public static object GetInspectionTenantSuites(string employeeId, string companyId, string locationId, string tenantId)
+        {
+            employeeId = GFC.RequireMenuEmployee("20021");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            tenantId = Limit(tenantId, 10).Trim();
+            if (String.IsNullOrWhiteSpace(employeeId) || String.IsNullOrWhiteSpace(companyId) ||
+                String.IsNullOrWhiteSpace(locationId) || String.IsNullOrWhiteSpace(tenantId))
+                throw new HttpException(400, "Employee, company, location, and Tenant ID are required.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable auth = br.EQueryP(@"
+SELECT 1
+FROM dbo.SysWebUser SU
+WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+  AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20021')
+  AND (
+      EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
+      OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                 WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
+  )",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+                if (auth == null || auth.Rows.Count == 0)
+                    throw new HttpException(403, "This account is not authorized for Inspection suite lookup.");
+
+                DataTable rows = br.EQueryP(@"
+SELECT A.TenantID,A.SuiteNo
+FROM dbo.THD_M_AgreementInformation A
+JOIN dbo.THD_M_GeneralInformation G
+  ON G.CompanyID=A.CompanyID AND G.LocationID=A.LocationID AND G.TenantID=A.TenantID
+WHERE A.CompanyID=@CompanyID AND A.LocationID=@LocationID AND A.TenantID=@TenantID
+  AND (G.IsStoreClosed=0 OR G.DateClosed>GETDATE())
+  AND A.LeaseTermDate>=GETDATE()
+ORDER BY A.SuiteNo",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@TenantID", tenantId)
+                    });
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                    data.Add(new Dictionary<string, object> {
+                        { "TenantID", GF.GetString(row["TenantID"]) },
+                        { "SuiteNo", GF.GetString(row["SuiteNo"]) },
+                        { "CompanyID", companyId },
+                        { "LocationID", locationId }
+                    });
+                return new { success = true, data = data };
+            }
+        }
+
         public static object GetTodayInspectionSlots(string employeeId, string companyId, string locationId)
         {
             employeeId = GFC.RequireMenuEmployee("20021");
