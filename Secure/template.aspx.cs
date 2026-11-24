@@ -381,6 +381,19 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
                 DataTable dtSubSections = ds.Tables[4];
                 DataTable dtRepeat = ds.Tables[5];
                 DataTable dtRepeatFields = ds.Tables[6];
+
+                // Build indexes once. Re-filtering every DataTable for every Section
+                // and Item made large Version structures scale like Sections x Items.
+                var subSectionsBySection = dtSubSections.AsEnumerable()
+                    .ToLookup(row => Convert.ToInt32(row["IDSection"]));
+                var itemsBySection = dtItems.AsEnumerable()
+                    .ToLookup(row => Convert.ToInt32(row["IDSection"]));
+                var groupsByItem = dtGroups.AsEnumerable()
+                    .ToLookup(row => Convert.ToInt32(row["IDItem"]));
+                var repeatsByItem = dtRepeat.AsEnumerable()
+                    .ToLookup(row => Convert.ToInt32(row["IDItem"]));
+                var repeatFieldsByItem = dtRepeatFields.AsEnumerable()
+                    .ToLookup(row => Convert.ToInt32(row["IDItem"]));
                 var result = new
                 {
                     VersionInfo = new
@@ -417,8 +430,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
                             RuntimeSectionID = idSection,
                             SectionName = secRow["SectionName"].ToString(),
                             DisplayOrder = Convert.ToInt32(secRow["DisplayOrder"]),
-                            SubSections = dtSubSections.AsEnumerable()
-                                .Where(subRow => Convert.ToInt32(subRow["IDSection"]) == idSection)
+                            SubSections = subSectionsBySection[idSection]
                                 .Select(subRow => new
                                 {
                                     IDSubSection = Convert.ToInt32(subRow["IDSubSection"]),
@@ -429,8 +441,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
                                     DisplayOrder = Convert.ToInt32(subRow["DisplayOrder"])
                                 }).ToList(),
 
-                            Items = dtItems.AsEnumerable()
-                                .Where(itemRow => Convert.ToInt32(itemRow["IDSection"]) == idSection)
+                            Items = itemsBySection[idSection]
                                 .Select(itemRow =>
                                 {
                                     int idItem = Convert.ToInt32(itemRow["IDItem"]);
@@ -472,8 +483,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
 
                                         // LOGIKA PENGISIAN GROUPS BERDASARKAN ITEMTYPE
                                         Groups = itemType == "GROUP"
-                                            ? dtGroups.AsEnumerable()
-                                                .Where(gRow => Convert.ToInt32(gRow["IDItem"]) == idItem)
+                                            ? groupsByItem[idItem]
                                                 .Select(gRow => (object)new
                                                 { // <-- Tambahkan (object) di sini
                                                     GroupName = gRow["GroupName"].ToString(),
@@ -484,8 +494,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
                                                 }).ToList()
                                             : new List<object>(),
                                         Repeat = itemType == "REPEAT"
-                                            ? dtRepeat.AsEnumerable()
-                                                .Where(rRow => Convert.ToInt32(rRow["IDItem"]) == idItem)
+                                            ? repeatsByItem[idItem]
                                                 .Select(rRow => new
                                                 {
                                                     RepeatMode = rRow["RepeatMode"].ToString(),
@@ -498,9 +507,7 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat;",
                                                 }).FirstOrDefault()
                                             : null,
                                         RepeatFields = itemType == "REPEAT"
-                                            ? dtRepeatFields.AsEnumerable()
-                                                .Where(fRow => Convert.ToInt32(fRow["IDItem"]) == idItem)
-                                                .OrderBy(fRow => Convert.ToInt32(fRow["DisplayOrder"]))
+                                            ? repeatFieldsByItem[idItem]
                                                 .Select(fRow => (object)new
                                                 {
                                                     IDRepeat = Convert.ToInt32(fRow["IDRepeat"]),
