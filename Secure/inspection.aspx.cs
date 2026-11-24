@@ -2564,8 +2564,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                              AND ISNULL(IsSubmitted, 0) = 1
                              AND
                              (
-                                 /* SA administrator: all sections in this company/location.
-                                    Standard approvals use IsApproved; Lightning is complete at IsApproved2. */
+                                 /* SA administrator: count every approval stage in all sections
+                                    within the selected company/location. */
                                  (
                                      @IsAdministrator = 1
                                      AND
@@ -2576,9 +2576,20 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           AND ApprovedDate < DATEADD(DAY, 1, @Today))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(IsApproved2, 0) = 1
-                                          AND Approved2Date >= @Today
-                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                          AND
+                                          (
+                                              (ISNULL(IsApproved, 0) = 1
+                                               AND ApprovedDate >= @Today
+                                               AND ApprovedDate < DATEADD(DAY, 1, @Today))
+                                              OR
+                                              (ISNULL(IsApproved1, 0) = 1
+                                               AND Approved1Date >= @Today
+                                               AND Approved1Date < DATEADD(DAY, 1, @Today))
+                                              OR
+                                              (ISNULL(IsApproved2, 0) = 1
+                                               AND Approved2Date >= @Today
+                                               AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                          ))
                                      )
                                  )
                                  OR
