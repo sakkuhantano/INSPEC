@@ -2457,12 +2457,32 @@
         <div class="table-responsive">
             <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
                 <thead><tr>
+                    <th class="text-center text-nowrap">No.</th>
                     <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
                     <th role="button" tabindex="0" data-approval-sort="InspectionNo" class="text-nowrap">Transaction No. <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeName">Inspection Type <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeDetailName">Inspection Type Detail <span class="approval-sort-indicator"></span></th>
                     <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th><th>Status</th>
                 </tr></thead>
                 <tbody id="inspectionApprovalQueue"><tr><td colspan="9" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
             </table>
+        </div>
+        <div id="inspectionApprovalPager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+            <div class="d-flex align-items-center gap-2 small text-muted">
+                <span id="inspectionApprovalTotalRows">0 records</span>
+                <label for="inspectionApprovalPageSize" class="mb-0">Rows/page</label>
+                <select id="inspectionApprovalPageSize" class="form-select form-select-sm" style="width: auto;" aria-label="Rows per page">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span id="inspectionApprovalPageInfo" class="small text-muted">Page 1 of 1</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Inspection approval pagination">
+                    <button type="button" id="inspectionApprovalPrevPage" class="btn btn-outline-secondary" disabled aria-label="Previous page"><i class="bi bi-chevron-left"></i></button>
+                    <button type="button" id="inspectionApprovalNextPage" class="btn btn-outline-secondary" disabled aria-label="Next page"><i class="bi bi-chevron-right"></i></button>
+                </div>
+            </div>
         </div>
     </div>
 
