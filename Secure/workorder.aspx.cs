@@ -243,6 +243,7 @@ AND " + _condition +
                                     new SqlParameter("@LocationID", selectedLocationID),
                                     new SqlParameter("@LastSync", ParseLastSync(lastSync))
                                 });
+                var templateSnapshotCache = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<object, object>();
@@ -826,15 +827,31 @@ string.Format(@"
                     // Pin every WorkOrder to the exact version selected when it was created.
                     // This snapshot is cached with the WorkOrder on the client so a later
                     // publish/archive cannot silently replace the checklist with a newer version.
-                    var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
-                                                                    row["TemplateWOPM"].ToString(),
-                                                                    row["TemplateVersion"].ToString(),
-                                                                    _modelCode,
-                                                                    row["CompanyID"].ToString(),
-                                                                    row["LocationID"].ToString(),
-                                                                    "W");
-                    var listData = _checkList as List<Dictionary<string, object>>;
-                    dict["TemplateJSON"] = listData != null && listData.Count > 0 ? listData[0] : null;
+                    string templateCacheKey = String.Join("|", new[]
+                    {
+                        row["SectionID"].ToString(),
+                        row["TemplateWOPM"].ToString(),
+                        row["TemplateVersion"].ToString(),
+                        _modelCode,
+                        row["CompanyID"].ToString(),
+                        row["LocationID"].ToString(),
+                        "W"
+                    });
+                    object cachedTemplate;
+                    if (!templateSnapshotCache.TryGetValue(templateCacheKey, out cachedTemplate))
+                    {
+                        var _checkList = Secure.dashboard.getCheckList(row["SectionID"].ToString(),
+                                                                        row["TemplateWOPM"].ToString(),
+                                                                        row["TemplateVersion"].ToString(),
+                                                                        _modelCode,
+                                                                        row["CompanyID"].ToString(),
+                                                                        row["LocationID"].ToString(),
+                                                                        "W");
+                        var listData = _checkList as List<Dictionary<string, object>>;
+                        cachedTemplate = listData != null && listData.Count > 0 ? listData[0] : null;
+                        templateSnapshotCache[templateCacheKey] = cachedTemplate;
+                    }
+                    dict["TemplateJSON"] = cachedTemplate;
 
                     // data saved checklist
                     dt1 = br.EQuery("SELECT A.IDItem, A.Value, A.Remark1, A.Remark2, B.ItemType, A.IDResult, A.IsAnomali " +
