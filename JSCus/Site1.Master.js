@@ -57,13 +57,15 @@ window.addEventListener("inspectionConflict", function () {
 
 
 function getAuthorizedAppFeatures() {
-    var menus = (getLoginData() || {}).menus || [], ids = {};
+    var loginData = getLoginData() || {};
+    var menus = loginData.menus || [], ids = {};
     menus.forEach(function (m) { var id = String(m.MenuID || "").trim(); if (id) ids[id] = true; });
     return {
         canMyWorkOrder: !!ids["20011"],
         canApproveWorkOrder: !!ids["20012"],
         canInputInspection: !!ids["20021"],
         canApproveInspection: !!ids["20022"],
+        canViewInspectionApprovalDashboard: !!ids["20022"] || loginData.isInspectionAdministrator === true,
         canDailyLogEmployee: !!ids["20031"],
         ELC: !!ids["20041"],
         WTR: !!ids["20042"],
