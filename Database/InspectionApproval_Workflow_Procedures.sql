@@ -226,7 +226,7 @@ BEGIN
   BEGIN
    UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',
     IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
-    IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+    IsApproved=0,ApprovedBy='',ApprovedDate=GETDATE(),
     ApprovalRemark='',ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
