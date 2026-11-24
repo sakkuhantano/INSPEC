@@ -166,8 +166,19 @@ function renderCards() {
 
 
 async function renderInspectionDashboardCards() {
-    const loginData = getLoginData();
+    const loginData = getLoginData() || {};
     const role = getAuthorizedAppFeatures();
+    const authorizedMenus = Array.isArray(loginData.menus) ? loginData.menus : [];
+    const hasApprovalMenu = authorizedMenus.some(menu => {
+        if (!menu) return false;
+        const menuId = menu.MenuID != null ? menu.MenuID :
+            (menu.menuId != null ? menu.menuId :
+            (menu.menuid != null ? menu.menuid : menu.MenuId));
+        return String(menuId || "").trim() === "20022";
+    });
+    const canViewApprovalDashboard = role.canViewInspectionApprovalDashboard === true ||
+        role.canApproveInspection === true || hasApprovalMenu ||
+        loginData.isInspectionAdministrator === true;
     const section = document.getElementById("sectionInspectionDashboard");
     const host = document.getElementById("inspectionDashboardCards");
     if (!section || !host) return;
@@ -181,17 +192,17 @@ async function renderInspectionDashboardCards() {
             '<div class="dashboard-value" id="inspectionPendingSync">0</div></div></a></div>'
         );
     }
-    if (role.canViewInspectionApprovalDashboard) {
+    if (canViewApprovalDashboard) {
         cards.push(
-            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?type=approval" id="inspectionPendingApprovalCard" class="dashboard-card card-pending text-reset text-decoration-none h-100 d-none">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?type=approval" id="inspectionPendingApprovalCard" class="dashboard-card card-pending text-reset text-decoration-none h-100">' +
             '<div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Pending Approval</div>' +
             '<div class="dashboard-value" id="inspectionPendingApproval">0</div></div></a></div>' +
-            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-approved h-100 d-none" id="inspectionApprovedTodayCard">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-approved h-100" id="inspectionApprovedTodayCard">' +
             '<div class="dashboard-icon"><i class="bi bi-check-circle-fill"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Approved Today</div>' +
             '<div class="dashboard-value" id="inspectionApprovedToday">0</div></div></div></div>' +
-            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-void h-100 d-none" id="inspectionVoidCard">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-void h-100" id="inspectionVoidCard">' +
             '<div class="dashboard-icon"><i class="bi bi-x-octagon-fill"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Void</div>' +
             '<div class="dashboard-value" id="inspectionVoidCount">0</div></div></div></div>'
@@ -234,7 +245,7 @@ async function renderInspectionDashboardCards() {
         }
     }
 
-    if (role.canViewInspectionApprovalDashboard && navigator.onLine) {
+    if (canViewApprovalDashboard && navigator.onLine) {
         try {
             const scope = (loginData.curcompany || "").split(";");
             const response = await fetch("inspection.aspx/GetInspectionDashboardSummary", {
@@ -255,13 +266,12 @@ async function renderInspectionDashboardCards() {
             const approvedCard = document.getElementById("inspectionApprovedTodayCard");
             const voided = document.getElementById("inspectionVoidCount");
             const voidCard = document.getElementById("inspectionVoidCard");
-            const showApprovalCards = result.showApprovalCards === true;
             if (pending) pending.textContent = result.pendingApproval || 0;
             if (approved) approved.textContent = result.approvedToday || 0;
             if (voided) voided.textContent = result.voidCount || 0;
-            if (pendingCard) pendingCard.classList.toggle("d-none", !showApprovalCards);
-            if (approvedCard) approvedCard.classList.toggle("d-none", !showApprovalCards);
-            if (voidCard) voidCard.classList.toggle("d-none", !showApprovalCards);
+            // Visibility is controlled by the authenticated menu above.
+            // The summary endpoint only supplies counts; a transient API error
+            // must not hide cards from an employee who has menu 20022.
         } catch (err) {
             console.warn("Unable to load Inspection dashboard summary:", err);
         }
