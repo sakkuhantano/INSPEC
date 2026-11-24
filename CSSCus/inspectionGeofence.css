@@ -8,7 +8,7 @@
 }
 #geofenceMap {
     width: 100%;
-    height: 560px;
+    height: 640px;
     min-height: 360px;
     border: 1px solid #dee2e6;
     border-radius: .5rem;
@@ -50,7 +50,7 @@
 }
 @media (max-width: 1199.98px) {
     #geofenceMap {
-        height: 500px;
+        height: 540px;
     }
 }
 @media (max-width: 767.98px) {
@@ -59,10 +59,15 @@
         padding-right: 0;
     }
     #geofenceMap {
-        height: 430px;
+        height: 460px;
         min-height: 340px;
     }
     .inspection-geofence-grid-wrap {
         max-height: 300px;
     }
+}
+
+#geofenceMap .leaflet-control-layers {
+    font-size: .82rem;
+    line-height: 1.5;
 }
