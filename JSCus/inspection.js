@@ -7061,27 +7061,33 @@ function wireInspectionApprovalEvents() {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = this.checked; });
         updateInspectionApprovalSelectAll();
     });
-    addInspectionApprovalListener("inspectionApprovalPageSize", "change", function () {
-        const size = Number(this.value);
-        if (!Number.isFinite(size) || size <= 0) return;
-        inspectionApprovalPageSize = size;
-        inspectionApprovalPage = 1;
-        try { localStorage.setItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY, String(size)); } catch (e) {}
-        renderInspectionApprovalQueue();
-    });
-    addInspectionApprovalListener("inspectionApprovalPrevPage", "click", function () {
-        if (inspectionApprovalPage > 1) {
-            inspectionApprovalPage--;
+    ["inspectionApprovalPageSize", "inspectionApprovalPageSizeTop"].forEach(id =>
+        addInspectionApprovalListener(id, "change", function () {
+            const size = Number(this.value);
+            if (!Number.isFinite(size) || size <= 0) return;
+            inspectionApprovalPageSize = size;
+            inspectionApprovalPage = 1;
+            document.querySelectorAll("#inspectionApprovalPageSize, #inspectionApprovalPageSizeTop").forEach(select => {
+                select.value = String(size);
+            });
+            try { localStorage.setItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY, String(size)); } catch (e) {}
             renderInspectionApprovalQueue();
-        }
-    });
-    addInspectionApprovalListener("inspectionApprovalNextPage", "click", function () {
-        const pageCount = getInspectionApprovalPageCount();
-        if (inspectionApprovalPage < pageCount) {
-            inspectionApprovalPage++;
-            renderInspectionApprovalQueue();
-        }
-    });
+        }));
+    ["inspectionApprovalPrevPage", "inspectionApprovalPrevPageTop"].forEach(id =>
+        addInspectionApprovalListener(id, "click", function () {
+            if (inspectionApprovalPage > 1) {
+                inspectionApprovalPage--;
+                renderInspectionApprovalQueue();
+            }
+        }));
+    ["inspectionApprovalNextPage", "inspectionApprovalNextPageTop"].forEach(id =>
+        addInspectionApprovalListener(id, "click", function () {
+            const pageCount = getInspectionApprovalPageCount();
+            if (inspectionApprovalPage < pageCount) {
+                inspectionApprovalPage++;
+                renderInspectionApprovalQueue();
+            }
+        }));
     addInspectionApprovalListener("btnBatchApproveInspection", "click", () => openInspectionApprovalAction("APPROVE", true));
     addInspectionApprovalListener("btnBatchVoidInspection", "click", () => openInspectionApprovalAction("VOID", true));
     addInspectionApprovalListener("btnApproveInspection", "click", () => processInspectionApproval("APPROVE"));
@@ -7092,8 +7098,9 @@ function wireInspectionApprovalEvents() {
         const savedPageSize = Number(localStorage.getItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY));
         if ([10, 25, 50, 100].includes(savedPageSize)) inspectionApprovalPageSize = savedPageSize;
     } catch (e) {}
-    const pageSizeSelect = document.getElementById("inspectionApprovalPageSize");
-    if (pageSizeSelect) pageSizeSelect.value = String(inspectionApprovalPageSize);
+    document.querySelectorAll("#inspectionApprovalPageSize, #inspectionApprovalPageSizeTop").forEach(select => {
+        select.value = String(inspectionApprovalPageSize);
+    });
 
     const today = localDateString(new Date());
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
@@ -7308,14 +7315,19 @@ function getInspectionApprovalPageCount() {
 }
 
 function updateInspectionApprovalPager(totalRows, pageCount) {
-    const info = document.getElementById("inspectionApprovalPageInfo");
-    const prev = document.getElementById("inspectionApprovalPrevPage");
-    const next = document.getElementById("inspectionApprovalNextPage");
-    const total = document.getElementById("inspectionApprovalTotalRows");
-    if (info) info.textContent = totalRows ? ("Page " + inspectionApprovalPage + " of " + pageCount) : "Page 1 of 1";
-    if (total) total.textContent = totalRows + " record" + (totalRows === 1 ? "" : "s");
-    if (prev) prev.disabled = inspectionApprovalPage <= 1 || totalRows === 0;
-    if (next) next.disabled = inspectionApprovalPage >= pageCount || totalRows === 0;
+    [
+        ["inspectionApprovalPageInfo", "inspectionApprovalPrevPage", "inspectionApprovalNextPage", "inspectionApprovalTotalRows"],
+        ["inspectionApprovalPageInfoTop", "inspectionApprovalPrevPageTop", "inspectionApprovalNextPageTop", "inspectionApprovalTotalRowsTop"]
+    ].forEach(ids => {
+        const info = document.getElementById(ids[0]);
+        const prev = document.getElementById(ids[1]);
+        const next = document.getElementById(ids[2]);
+        const total = document.getElementById(ids[3]);
+        if (info) info.textContent = totalRows ? ("Page " + inspectionApprovalPage + " of " + pageCount) : "Page 1 of 1";
+        if (total) total.textContent = totalRows + " record" + (totalRows === 1 ? "" : "s");
+        if (prev) prev.disabled = inspectionApprovalPage <= 1 || totalRows === 0;
+        if (next) next.disabled = inspectionApprovalPage >= pageCount || totalRows === 0;
+    });
 }
 
 function renderInspectionApprovalQueue() {
