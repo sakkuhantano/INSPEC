@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -19,22 +19,6 @@ namespace INSPEC
 {
     public partial class Login : WAL.PB
     {
-        // Positional TVP: the first value maps to C1, then C2, etc.; names are not serialized.
-        private static SqlParameter[] LoginQueryParameters(string type, params string[] values)
-        {
-            DataTable data = new DataTable();
-            for (int i = 1; i <= 13; i++)
-                data.Columns.Add("C" + i, typeof(string));
-            DataRow row = data.NewRow();
-            for (int i = 0; i < values.Length && i < 13; i++)
-                row[i] = values[i] ?? String.Empty;
-            data.Rows.Add(row);
-            SqlParameter tvp = new SqlParameter("@p_Data", SqlDbType.Structured);
-            tvp.TypeName = "dbo.Type_N_Tbl_C13";
-            tvp.Value = data;
-            return new SqlParameter[] { new SqlParameter("@p_Tipe", type), tvp };
-        }
-
         #region Control Event
         protected void Page_Load(object sender, System.EventArgs e)
         {
@@ -42,8 +26,7 @@ namespace INSPEC
             {
                 using (var ocf = new WAL.BR.CF())
                 {
-                    if (ocf.EQueryP("spPIP_Inspection_Query",
-                        LoginQueryParameters("229", Context.Request.Url.Host), true).Rows.Count > 0)
+                    if (ocf.EQuery("SELECT * FROM SysWebCommonValue v WHERE v.AppID = 'ALL' AND v.ID = '" + Context.Request.Url.Host + "' AND v.CommonGroup = 'DomainNonWWW' ").Rows.Count > 0)
                     {
                         Response.Redirect(HttpContext.Current.Request.Url.AbsoluteUri.Replace("://", "://www."));
                     }
@@ -52,7 +35,7 @@ namespace INSPEC
                 //lit_Title.Text = WAL.PB.AppID + " -> Login";
 
                 _PrepareScreen();
-                
+
             }
 
             //if (!Page.ClientScript.IsClientScriptBlockRegistered("openfullscreen"))
@@ -112,10 +95,20 @@ namespace INSPEC
             string serverGuid,
             string token)
         {
-            using (var br=new WAL.BR.CF())
+            using (var br = new WAL.BR.CF())
             {
-                bool valid = br.EQueryP("spPIP_Inspection_Query",
-                    LoginQueryParameters("225", browserGuid, serverGuid, token), true).Rows.Count > 0;
+                bool valid = br.EQuery(@"SELECT TOP 1 S.UserID
+                    FROM UserSession S
+                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
+                    WHERE S.BrowserGuid = @BrowserGuid
+                      AND S.ServerGuid = @ServerGuid
+                      AND S.Token = @Token
+                      AND S.IsActive = 1
+                      AND S.ExpireTime > GETDATE()
+                      AND U.IsActive = 1",
+                    "@BrowserGuid=" + browserGuid + GF.Str2 +
+                    "@ServerGuid=" + serverGuid + GF.Str2 +
+                    "@Token=" + token).Rows.Count > 0;
                 if (!valid)
                     return false;
 
@@ -162,8 +155,14 @@ namespace INSPEC
 
             using (var br = new WAL.BR.CF())
             {
-                return br.EQueryP("spPIP_Inspection_Query",
-                    LoginQueryParameters("226", token), true).Rows.Count > 0;
+                return br.EQuery(@"SELECT TOP 1 S.UserID
+                    FROM UserSession S
+                    INNER JOIN SysWebUser U ON U.EmployeeID = S.UserID
+                    WHERE S.Token = @Token
+                      AND S.IsActive = 1
+                      AND S.ExpireTime > GETDATE()
+                      AND U.IsActive = 1",
+                    "@Token=" + token).Rows.Count > 0;
             }
         }
 
@@ -172,8 +171,16 @@ namespace INSPEC
         {
             using (var br = new WAL.BR.CF())
             {
-                br.EQueryP("spPIP_Inspection_Query",
-                    LoginQueryParameters("220", browserGuid, serverGuid, token), true);
+                br.EQuery(
+                    @"UPDATE UserSession
+                      SET IsActive = 0
+                      WHERE BrowserGuid = @BrowserGuid
+                        AND ServerGuid = @ServerGuid
+                        AND Token = @Token
+                        AND IsActive = 1",
+                    "@BrowserGuid=" + browserGuid + GF.Str2 +
+                    "@ServerGuid=" + serverGuid + GF.Str2 +
+                    "@Token=" + token);
                 GFC.ClearCookie();
                 return true;
             }
@@ -201,9 +208,16 @@ namespace INSPEC
                 using (var oUser = new WAL.BR.CF())
                 {
                     // Consume the short-lived portal ticket atomically to prevent replay.
-                    DataTable dtTicket = oUser.EQueryP(
-                        "spPIP_Inspection_Query",
-                        LoginQueryParameters("221", infoID), true);
+                    DataTable dtTicket = oUser.EQuery(
+                        @"UPDATE SysWebInfo
+                          SET ExpiredDate = GETDATE(), UpdateDate = GETDATE()
+                          OUTPUT deleted.Description1 AS EmployeeID,
+                                 deleted.Description2 AS PasswordHash
+                          WHERE ID = @InfoID
+                            AND Type = 'LinkApp'
+                            AND AppID = 'WebApp'
+                            AND ExpiredDate > GETDATE()",
+                        "@InfoID=" + infoID);
 
                     if (dtTicket.Rows.Count != 1)
                         return new { success = false, message = "Portal login ticket is invalid, expired, or already used." };
@@ -213,9 +227,14 @@ namespace INSPEC
                     if (String.IsNullOrWhiteSpace(employeeID) || String.IsNullOrWhiteSpace(passwordHash))
                         return new { success = false, message = "Portal login ticket does not contain valid user credentials." };
 
-                    DataTable dtUser = oUser.EQueryP(
-                        "spPIP_Inspection_Query",
-                        LoginQueryParameters("228", employeeID, passwordHash), true);
+                    DataTable dtUser = oUser.EQuery(
+                        @"SELECT TOP 2 UserID
+                          FROM SysWebUser
+                          WHERE employeeid = @EmployeeID
+                            AND [Password] = @Password
+                            AND IsActive = 1",
+                        "@EmployeeID=" + employeeID + GF.Str2 +
+                        "@Password=" + passwordHash);
 
                     if (dtUser.Rows.Count != 1)
                         return new { success = false, message = "INSPEC account not found or inactive." };
@@ -245,9 +264,27 @@ namespace INSPEC
         {
             using (var oUser = new WAL.BR.CF())
             {
-                DataTable dt = oUser.EQueryP(
-                    "spPIP_Inspection_Query",
-                    LoginQueryParameters("222", p_employeeid, p_browserGuid), true);
+                DataTable dt = oUser.EQuery(
+                    @"SELECT U.UserID, U.UserName, U.employeeid AS EmployeeID, U.Password,
+                             ISNULL(L.SectionList, '') AS Section,
+                             ISNULL(NULLIF(L.Theme, ''), 'L') AS Theme,
+                             a.JobTitleName, a.EmailAddress, a.ProfitCenterNo,
+                             ISNULL(us.LastSyncMaster, CAST('' AS SMALLDATETIME)) AS LastSyncMaster,
+                             a.UserName AS UserName1,
+                             ISNULL(us.LastSyncWO, CAST('' AS SMALLDATETIME)) AS LastSyncWO
+                      FROM SysWebUser U
+                      LEFT JOIN INSPEC_User L ON L.UserID = U.employeeid
+                      OUTER APPLY
+                      (
+                          SELECT TOP 1 LastSyncMaster, LastSyncWO
+                          FROM UserSession
+                          WHERE UserID = U.EmployeeID AND BrowserGuid = @BrowserGuid
+                          ORDER BY LoginTime DESC, ID DESC
+                      ) us
+                      CROSS APPLY dbo.F_SelectOneLogin('pip', U.employeeid, '') a
+                      WHERE U.employeeid = @EmployeeID AND U.IsActive = 1",
+                    "@EmployeeID=" + p_employeeid + GF.Str2 +
+                     "@BrowserGuid=" + p_browserGuid);
                 var _arrList = new ArrayList();
                 if (dt.Rows.Count == 0) return new { success = false, message = "user not found..." };
                 if (Convert.ToString(dt.Rows[0]["Password"]).Trim() != V_Pwd.Trim())
@@ -265,9 +302,13 @@ namespace INSPEC
 
                 // Load the authorized INSPEC front-end menu from SysWeb2.
                 // EmployeeID is the NIK used by SysWebUserUserGroup and the authorization function.
-                DataTable dtMenus = oUser.EQueryP(
-                    "spPIP_Inspection_Query",
-                    LoginQueryParameters("227", V_EmpID), true);
+                DataTable dtMenus = oUser.EQuery(
+                    @"SELECT MenuID, ParentMenuID, Caption, URL, AppID, IsReport,
+                             [COUNTER], Line, ImageUrl, [DESCRIPTION], isActive, HeaderDetail
+                      FROM dbo.F_SelectALLMenuAuthorization(@AppID, @EmployeeID, '')
+                      ORDER BY [COUNTER], MenuID",
+                    "@AppID=inspecfo" + GF.Str2 +
+                    "@EmployeeID=" + V_EmpID);
 
                 // Match the same authorized child-menu set required by dashboard.aspx.
                 // Parent menus or unrelated INSPEC menus alone must not create a session.
@@ -296,9 +337,13 @@ namespace INSPEC
                     menu["HeaderDetail"] = menuRow["HeaderDetail"];
                     menus.Add(menu);
                 }
-                foreach (DataRow row in oUser.EQueryP(
-                    "spPIP_Inspection_Query",
-                    LoginQueryParameters("223", V_EmpID), true).Rows)
+                foreach (DataRow row in oUser.EQuery(
+                    "select companylocation, companyname from (" +
+                    "select companylocation, companyname, sourcepriority, ROW_NUMBER() OVER (PARTITION BY companylocation ORDER BY sourcepriority) rn from (" +
+                    "SELECT a.companyid+';'+a.locationid companylocation, a.alias companyname, 0 sourcepriority FROM dbo.F_SelectOneLogin('pip', @userid, '') a " +
+                    "union all select a.companyid+';'+a.locationid, b.alias, 1 from syswebusercompanylocation a join syswebcompany b on a.companyid=b.companyid where a.userid=@userid and a.appid='pip' " +
+                    ") sources ) ranked where rn=1 order by sourcepriority, companylocation",
+                    "@userid=" + V_EmpID).Rows)
                 {
                     Dictionary<string, object> dict = new Dictionary<string, object>();
                     dict["companylocation"] = row["companylocation"]; dict["companyname"] = row["companyname"];
@@ -307,16 +352,69 @@ namespace INSPEC
                 }
                 try
                 {
-                    oUser.EQueryP(
-                        "spPIP_Inspection_Query",
-                        LoginQueryParameters("224", V_EmpID, p_browserGuid, v_serverguid, v_token, p_deviceName), true);
+                    oUser.EQuery(
+@"SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+DECLARE @NewID INT;
+DECLARE @SessionID INT;
+SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
+SELECT TOP 1 @SessionID = ID
+FROM UserSession
+WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid
+ORDER BY LoginTime DESC, ID DESC;
+
+-- A login refreshes only this browser's session. Other devices remain active.
+UPDATE UserSession
+SET IsActive = 0
+WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid AND IsActive = 1;
+
+IF @SessionID IS NULL
+BEGIN
+    -- New browser/device: do not inherit another device's sync watermark.
+    DELETE FROM UserSession
+    WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
+
+    SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
+    INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
+    VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
+END
+ELSE
+BEGIN
+    -- Reuse this device's row so its own sync watermarks survive re-login.
+    UPDATE UserSession
+    SET ServerGuid = @ServerGuid,
+        Token = @Token,
+        LoginTime = GETDATE(),
+        ExpireTime = DATEADD(DAY,2,GETDATE()),
+        IsActive = 1,
+        DeviceName = @DeviceName
+    WHERE ID = @SessionID;
+END
+COMMIT TRANSACTION;",
+                    "@EmployeeID=" + V_EmpID + GF.Str2 + "@BrowserGuid=" + p_browserGuid + GF.Str2 +
+                    "@ServerGuid=" + v_serverguid + GF.Str2 + "@Token=" + v_token + GF.Str2 + "@DeviceName=" + p_deviceName);
                     GFC.SetCookie(v_token);
-                    return new { success = true, message = "ok", token = v_token, serverguid = v_serverguid,
-                        companylist = _arrList, menus = menus, userid = V_UserID, username = v_username, curcompany = v_currcompany,
-                        curcompanyname = v_currcompanyname, employeeid = V_EmpID, jobtitle = v_jobtitle,
-                        email = v_email, profitcenter = v_profitcenter, theme = v_theme, section = v_section,
+                    return new
+                    {
+                        success = true,
+                        message = "ok",
+                        token = v_token,
+                        serverguid = v_serverguid,
+                        companylist = _arrList,
+                        menus = menus,
+                        userid = V_UserID,
+                        username = v_username,
+                        curcompany = v_currcompany,
+                        curcompanyname = v_currcompanyname,
+                        employeeid = V_EmpID,
+                        jobtitle = v_jobtitle,
+                        email = v_email,
+                        profitcenter = v_profitcenter,
+                        theme = v_theme,
+                        section = v_section,
                         lastsyncm = Convert.ToDateTime(dt.Rows[0]["LastSyncMaster"]).ToString(GF.FormatDate2),
-                        lastsyncw = Convert.ToDateTime(dt.Rows[0]["LastSyncWO"]).ToString(GF.FormatDate2) };
+                        lastsyncw = Convert.ToDateTime(dt.Rows[0]["LastSyncWO"]).ToString(GF.FormatDate2)
+                    };
                 }
                 catch (Exception ex) { return new { success = false, message = ex.Message }; }
             }
