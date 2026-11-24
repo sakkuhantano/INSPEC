@@ -6975,6 +6975,10 @@ let inspectionApprovalRows = [];
 let currentInspectionApprovalTab = "OUTSTANDING";
 let inspectionApprovalLoadSequence = 0;
 let inspectionApprovalSort = { key: "InspectionDate", direction: "asc" };
+const INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE = 25;
+const INSPECTION_APPROVAL_PAGE_SIZE_KEY = "inspectionApprovalPageSize";
+let inspectionApprovalPage = 1;
+let inspectionApprovalPageSize = INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE;
 // Excel preview is generated server-side and opened with a short-lived Session token.
 
 function addInspectionApprovalListener(id, eventName, handler) {
@@ -7019,6 +7023,7 @@ function wireInspectionApprovalEvents() {
         const key = header.dataset.approvalSort;
         if (inspectionApprovalSort.key === key) inspectionApprovalSort.direction = inspectionApprovalSort.direction === "asc" ? "desc" : "asc";
         else { inspectionApprovalSort.key = key; inspectionApprovalSort.direction = "asc"; }
+        inspectionApprovalPage = 1;
         renderInspectionApprovalQueue();
     });
     addInspectionApprovalListener("inspectionApprovalTable", "keydown", function (event) {
@@ -7056,11 +7061,39 @@ function wireInspectionApprovalEvents() {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]").forEach(box => { box.checked = this.checked; });
         updateInspectionApprovalSelectAll();
     });
+    addInspectionApprovalListener("inspectionApprovalPageSize", "change", function () {
+        const size = Number(this.value);
+        if (!Number.isFinite(size) || size <= 0) return;
+        inspectionApprovalPageSize = size;
+        inspectionApprovalPage = 1;
+        try { localStorage.setItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY, String(size)); } catch (e) {}
+        renderInspectionApprovalQueue();
+    });
+    addInspectionApprovalListener("inspectionApprovalPrevPage", "click", function () {
+        if (inspectionApprovalPage > 1) {
+            inspectionApprovalPage--;
+            renderInspectionApprovalQueue();
+        }
+    });
+    addInspectionApprovalListener("inspectionApprovalNextPage", "click", function () {
+        const pageCount = getInspectionApprovalPageCount();
+        if (inspectionApprovalPage < pageCount) {
+            inspectionApprovalPage++;
+            renderInspectionApprovalQueue();
+        }
+    });
     addInspectionApprovalListener("btnBatchApproveInspection", "click", () => openInspectionApprovalAction("APPROVE", true));
     addInspectionApprovalListener("btnBatchVoidInspection", "click", () => openInspectionApprovalAction("VOID", true));
     addInspectionApprovalListener("btnApproveInspection", "click", () => processInspectionApproval("APPROVE"));
     addInspectionApprovalListener("btnVoidInspection", "click", () => openInspectionApprovalAction("VOID", false));
     addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
+
+    try {
+        const savedPageSize = Number(localStorage.getItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY));
+        if ([10, 25, 50, 100].includes(savedPageSize)) inspectionApprovalPageSize = savedPageSize;
+    } catch (e) {}
+    const pageSizeSelect = document.getElementById("inspectionApprovalPageSize");
+    if (pageSizeSelect) pageSizeSelect.value = String(inspectionApprovalPageSize);
 
     const today = localDateString(new Date());
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id => {
@@ -7148,6 +7181,7 @@ async function loadInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
     host.innerHTML = '<tr><td colspan="9" class="text-muted py-2">Memuat dari server...</td></tr>';
+    inspectionApprovalPage = 1;
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
         showToast("Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.", "warning");
@@ -7264,6 +7298,26 @@ function populateInspectionApprovalFilters(filterRows) {
     document.getElementById("selApprovalTemplate").disabled = !selectedType;
 }
 
+function getInspectionApprovalPageCount() {
+    const rows = inspectionApprovalRows.filter(row => {
+        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
+        if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
+        return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
+    });
+    return Math.max(1, Math.ceil(rows.length / inspectionApprovalPageSize));
+}
+
+function updateInspectionApprovalPager(totalRows, pageCount) {
+    const info = document.getElementById("inspectionApprovalPageInfo");
+    const prev = document.getElementById("inspectionApprovalPrevPage");
+    const next = document.getElementById("inspectionApprovalNextPage");
+    const total = document.getElementById("inspectionApprovalTotalRows");
+    if (info) info.textContent = totalRows ? ("Page " + inspectionApprovalPage + " of " + pageCount) : "Page 1 of 1";
+    if (total) total.textContent = totalRows + " record" + (totalRows === 1 ? "" : "s");
+    if (prev) prev.disabled = inspectionApprovalPage <= 1 || totalRows === 0;
+    if (next) next.disabled = inspectionApprovalPage >= pageCount || totalRows === 0;
+}
+
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
@@ -7273,8 +7327,11 @@ function renderInspectionApprovalQueue() {
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
     });
     const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING" || currentInspectionApprovalTab === "APPROVED";
+    const pageCount = Math.max(1, Math.ceil(rows.length / inspectionApprovalPageSize));
+    if (inspectionApprovalPage > pageCount) inspectionApprovalPage = pageCount;
+    updateInspectionApprovalPager(rows.length, pageCount);
     if (!rows.length) {
-        host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "9" : "8") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
+        host.innerHTML = '<tr><td colspan="' + (hasSelectionColumn ? "10" : "9") + '" class="text-muted py-3 text-center">Tidak ada inspeksi untuk filter ini.</td></tr>';
         const selectAll = document.getElementById("chkAllInspectionApproval");
         if (selectAll) selectAll.checked = false;
         updateInspectionApprovalSelectAll();
@@ -7311,8 +7368,11 @@ function renderInspectionApprovalQueue() {
         }
         th.setAttribute("aria-sort", active ? (inspectionApprovalSort.direction === "asc" ? "ascending" : "descending") : "none");
     });
-    host.innerHTML = sortedRows.map(row => {
+    const pageStart = (inspectionApprovalPage - 1) * inspectionApprovalPageSize;
+    const pageRows = sortedRows.slice(pageStart, pageStart + inspectionApprovalPageSize);
+    host.innerHTML = pageRows.map((row, pageIndex) => {
         const id = Number(row.InspectionID);
+        const rowNumber = pageStart + pageIndex + 1;
         const start = formatInspectionClock(row.StartDateTime);
         const end = formatInspectionClock(row.EndDateTime);
         const range = (start && start !== "-" ? start : "-") + " – " + (end && end !== "-" ? end : "-");
@@ -7322,6 +7382,7 @@ function renderInspectionApprovalQueue() {
         const statusLabel = row.WorkflowStatus || (isInspectionApprovalVoided(row) ? "VOID" : (isInspectionApprovalApproved(row) ? "APPROVED" : "PENDING"));
         const statusHtml = '<span class="badge rounded-pill ' + (statusLabel === "VOID" ? "text-bg-warning" : (statusLabel === "APPROVED" || statusLabel === "ACKNOWLEDGE 2" ? "text-bg-success" : "text-bg-primary")) + '">' + escInspection(statusLabel) + '</span>';
         return '<tr>' +
+            '<td data-label="No." class="text-center text-muted fw-semibold">' + rowNumber + '</td>' +
             selectCell +
             '<td data-label="Transaction No."><button type="button" class="btn btn-link p-0 text-wrap fw-semibold" data-approval-id="' + id + '">' + escInspection(row.InspectionNo || ("Inspection #" + id)) + '</button></td>' +
             '<td data-label="Inspection Type">' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
