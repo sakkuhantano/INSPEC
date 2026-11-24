@@ -70,11 +70,11 @@ namespace INSPEC.Secure
                             AND (
                                 EXISTS (
                                     SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='inspec'
                                       AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
                                 )
                                 OR EXISTS (
-                                    SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                                    SELECT 1 FROM dbo.F_SelectOneLogin('inspec', SU.EmployeeID, '') L
                                     WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
                                 )
                             )",
@@ -409,9 +409,9 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
                           WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
                         AND (
                             EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                                    WHERE C.UserID=SU.EmployeeID AND C.AppID='inspec'
                                       AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID)
-                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+                            OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('inspec', SU.EmployeeID, '') L
                                        WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID)
                         )",
                     new SqlParameter[] {
