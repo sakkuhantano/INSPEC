@@ -3306,6 +3306,7 @@ async function cloneVersionToExistingTemplate(sourceSectionId, sourceRuntimeTemp
         return;
     }
 
+    targetNode.VersionsLoaded = true;
     const existingDraft = Object.values(targetNode.Versions || {}).find(function(node) {
         return String(node.VersionInfo && node.VersionInfo.Status) === "Draft";
     });
@@ -9365,6 +9366,7 @@ async function cloneTemplateToSection(sourceSectionId, sourceRuntimeTemplateId, 
                     };
                 }
             });
+            sourceNode.VersionsLoaded = true;
         } catch (err) {
             console.error("Could not load Version list for Template copy:", err);
             showToast("Gagal memuat daftar Version Template. Silakan coba lagi.", "warning");
