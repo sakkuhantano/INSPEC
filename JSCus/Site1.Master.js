@@ -1541,106 +1541,78 @@ async function refreshDashboardCounts(summary = null) {
 
 }
 else {
-// ===============================
-// DELTA - INSERT
-// ===============================
-        for (let m of inserts) {
-// m.Status = "NEW";
-            m.BarcodeNo = getBarcodeNo(m.MeterNo);
-await putMeter(normalizeMeter(m));
-}
+    // Apply the entire delta in one IndexedDB transaction. Every lookup and
+    // corresponding write stays in this transaction, avoiding a round-trip
+    // transaction per meter while preserving draft/reopened behavior.
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(["meter"], "readwrite");
+        const store = tx.objectStore("meter");
 
-// ===============================
-// DELTA - UPDATE
-// ===============================
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Meter delta update failed"));
+        tx.onabort = () => reject(tx.error || new Error("Meter delta update aborted"));
 
-for (const m of updates) {
+        // INSERT
+        inserts.forEach(function (meter) {
+            meter.BarcodeNo = getBarcodeNo(meter.MeterNo);
+            store.put(normalizeMeter(meter));
+        });
 
-    const local = await getMeterByKey(
-        m.CompanyID,
-        m.LocationID,
-        m.Type,
-        m.MeterNo
-    );
-    m.BarcodeNo = getBarcodeNo(m.MeterNo);
-    //----------------------------------
-    // belum ada
-    //----------------------------------
+        // UPDATE
+        updates.forEach(function (meter) {
+            const request = store.get([
+                meter.CompanyID,
+                meter.LocationID,
+                meter.Type,
+                meter.MeterNo
+            ]);
+            request.onsuccess = function () {
+                const local = request.result;
+                meter.BarcodeNo = getBarcodeNo(meter.MeterNo);
 
-    if (!local) {
+                if (!local) {
+                    store.put(normalizeMeter(meter));
+                    return;
+                }
 
-    // m.Status = "NEW";
+                if (meter.Status === "REOPENED") {
+                    store.put(meter);
+                    return;
+                }
 
-        await putMeter(
-            normalizeMeter(m)
-        );
+                Object.assign(local, meter);
+                resetMeterReading(local);
+                store.put(normalizeMeter(local));
+            };
+        });
 
-        continue;
+        // DELETE
+        deletes.forEach(function (meter) {
+            const request = store.get([
+                meter.CompanyID,
+                meter.LocationID,
+                meter.Type,
+                meter.MeterNo
+            ]);
+            request.onsuccess = function () {
+                const local = request.result;
+                if (!local) return;
 
-}
+                if (local.Status === "DRAFT") {
+                    store.put(markMeterTerminated(local));
+                    return;
+                }
 
-    if (m.Status === "REOPENED") {
-        await putMeter(m);
-        continue;
-}
-
-    //----------------------------------
-    // master berubah
-    //----------------------------------
-
-    Object.assign(local, m);
-
-    //----------------------------------
-    // reset data hasil input teknisi
-    //----------------------------------
-    resetMeterReading(local);
-
-    await putMeter(
-        normalizeMeter(local)
-    );
-
-}
-
-    // ===============================
-    // DELTA - DELETE
-    // ===============================
-
-for (const d of deletes) {
-
-    const local = await getMeterByKey(
-        d.CompanyID,
-        d.LocationID,
-        d.Type,
-        d.MeterNo
-    );
-
-    if (!local)
-        continue;
-
-    //----------------------------------
-    // draft jangan dihapus
-    //----------------------------------
-
-    if (local.Status == "DRAFT") {
-        markMeterTerminated(local);
-        await putMeter(local);
-        continue;
-}
-
-    //----------------------------------
-    // selain draft boleh delete
-    //----------------------------------
-
-    await deleteMeterByKey(
-        d.CompanyID,
-        d.LocationID,
-        d.Type,
-        d.MeterNo,
-        d.Period
-    );
-
-}
-
+                // IndexedDB meter keyPath is [CompanyID, LocationID, Type, MeterNo].
+                store.delete([
+                    meter.CompanyID,
+                    meter.LocationID,
+                    meter.Type,
+                    meter.MeterNo
+                ]);
+            };
+        });
+    });
 }
 
 await refreshMeterUI();
@@ -1778,16 +1750,17 @@ function getMeterByKey(companyId, locationId, type, meterNo) {
 }
 
 function deleteMeterByKey(companyId, locationId, type, meterNo, period) {
+    // Meter object store keyPath contains four fields; Period is a data field,
+    // not part of the primary key.
     return new Promise((resolve, reject) => {
         const tx = db.transaction(["meter"], "readwrite");
-    const store = tx.objectStore("meter");
-
-    const req = store.delete([companyId, locationId, type, meterNo, period]);
-
-    req.onsuccess = () => resolve();
-    req.onerror = e => reject(e.target.error);
-});
+        tx.objectStore("meter").delete([companyId, locationId, type, meterNo]);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error("Meter delete failed"));
+        tx.onabort = () => reject(tx.error || new Error("Meter delete aborted"));
+    });
 }
+
 async function downloadWorkOrder() {
     let data = getLoginData();
     let newLastSync = null;
