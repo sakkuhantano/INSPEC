@@ -243,7 +243,7 @@ AND " + _condition +
                                     new SqlParameter("@LocationID", selectedLocationID),
                                     new SqlParameter("@LastSync", ParseLastSync(lastSync))
                                 });
-                var templateSnapshotCache = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+                var templateSnapshotCache = new Dictionary<string, object>(StringComparer.Ordinal);
                 foreach (DataRow row in dt.Rows)
                 {
                     var dict = new Dictionary<object, object>();
