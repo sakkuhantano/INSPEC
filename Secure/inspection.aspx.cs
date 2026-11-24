@@ -2494,7 +2494,21 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  )
                                  OR
                                  (
-                                     @IsChiefSecurity = 1
+                                     EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.SysWebCommonValue C
+                                         WHERE C.AppID='INSPEC'
+                                           AND C.CommonGroup='EmailApproval'
+                                           AND C.IsDelete=0
+                                           AND C.ID=CONVERT(VARCHAR(30),AF.CompanyID)
+                                                  + CONVERT(VARCHAR(30),AF.LocationID)
+                                                  + ';CHIEF_SEC'
+                                           AND EXISTS
+                                           (
+                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                                           )
+                                     )
                                      AND
                                      (
                                          (AF.InspectionMode <> 'LIGHTNING'
