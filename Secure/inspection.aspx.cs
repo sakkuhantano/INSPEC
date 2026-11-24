@@ -2940,6 +2940,7 @@ ORDER BY P.SeqNo",
                 Func<bool, SqlParameter[]> createParameters = includeScheduleTime => new SqlParameter[] {
                     new SqlParameter("@EmployeeID", employeeId),
                     new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
+                    new SqlParameter("@SectionList", GFC.GetEmployeeSection(employeeId)),
                     new SqlParameter("@CompanyID", companyId),
                     new SqlParameter("@LocationID", locationId),
                     new SqlParameter("@ApprovalTab", approvalTab),
