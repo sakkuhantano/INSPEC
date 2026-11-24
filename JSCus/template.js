@@ -36,6 +36,15 @@ let isReadonlyMode = false;
 // Prevent slower, earlier version loads from overwriting a more recent selection.
 let versionStructureLoadRequestId = 0;
 let templateVersionsLoadRequestId = 0;
+let templatePropertiesLoadRequestId = 0;
+
+// Share one Version metadata request per Template. A request may finish after
+// the user has selected another Template; its result is still cached for reuse.
+const templateVersionsLoadPromises = new WeakMap();
+
+function isTemplatePropertiesRequestCurrent(requestId) {
+    return requestId == null || requestId === templatePropertiesLoadRequestId;
+}
 
 // Undo/Redo is an in-memory history for edits that have not been committed by Save All.
 let templateUndoStack = [];
@@ -683,226 +692,148 @@ document.addEventListener("visibilitychange", function () {
 
 async function onTemplateClick(event,idTemplate, sectionId)
 {
+    // The Bootstrap header invokes this handler for both expand and collapse.
+    // Collapsing an already-open Template must not clear selection or reload data.
+    if (event && event.currentTarget) {
+        const target = event.currentTarget.getAttribute("data-bs-target");
+        const collapse = target ? document.querySelector(target) : null;
+        if (collapse && collapse.classList.contains("show"))
+            return;
+    }
+
     event?.stopPropagation();
     const versionsRequestId = ++templateVersionsLoadRequestId;
 
-    // Opening another Template invalidates any Version load still waiting on
-    // an async properties request. Otherwise the older request can resume and
-    // render the new Template's cleared currentVersionData (null).
+    // Invalidate any earlier Version-structure load when another Template opens.
     ++versionStructureLoadRequestId;
 
     if(!sectionId) {
-        console.error(
-            "Section ID tidak ditemukan saat klik template",
-            { idTemplate, templateElement }
-        );
+        console.error("Section ID tidak ditemukan saat klik template", { idTemplate, event });
         return;
     }
 
-    const templateNode =
-        getTemplateCache(sectionId, idTemplate);
-
-    if(!templateNode) {
-        console.error(
-            "Template tidak ditemukan di cache",
-            { sectionId, idTemplate }
-        );
+    const templateNode = getTemplateCache(sectionId, idTemplate);
+    if(!templateNode || !templateNode.Template) {
+        console.error("Template tidak ditemukan di cache", { sectionId, idTemplate });
         return;
     }
 
-    currentTemplate = templateNode.Template;
+    const template = templateNode.Template;
+    const container = document.querySelector(
+        '.template-version-container[data-section-id="' + sectionId +
+        '"][data-template-id="' + idTemplate + '"]'
+    );
+
+    if(!container) {
+        console.error("Version container tidak ditemukan", { sectionId, idTemplate });
+        return;
+    }
+
+    currentTemplate = template;
     currentVersions = [];
     currentVersion = null;
     currentVersionData = null;
     isReadonlyMode = false;
 
-    //----------------------------------
-    // Get cache
-    //----------------------------------
-    const cache =
-        getTemplateCache(
-            sectionId,
-            idTemplate
-        );
+    const isCurrentSelection = function() {
+        return versionsRequestId === templateVersionsLoadRequestId &&
+            currentTemplate === template;
+    };
 
-    const container =
-        document.querySelector(
-            '.template-version-container[data-section-id="' +
-            sectionId +
-            '"][data-template-id="' +
-            idTemplate +
-            '"]'
-        );
+    // Draft Template versions exist only in the local editor cache.
+    if(Number(template.IDTemplate) === 0) {
+        currentVersions = getTemplateVersionNodes(templateNode);
+        const versionNode = currentVersions.find(function(node) {
+            return node.VersionInfo &&
+                String(node.VersionInfo.Status || "").toUpperCase() === "DRAFT";
+        }) || currentVersions[0];
 
-    if(!container) {
-        console.error("Version container tidak ditemukan", {
-            sectionId,
-            idTemplate
-        });
-        return;
-    }
-    //----------------------------------
-    // Draft Template
-    //----------------------------------
-    if(currentTemplate.IDTemplate == 0)
-    {
-        currentVersions = getTemplateVersionNodes(cache);
-
-        const versionNode =
-            currentVersions.find(
-                x =>
-                    x.VersionInfo &&
-                    String(x.VersionInfo.Status || "").toUpperCase() === "DRAFT"
-            ) || currentVersions[0];
-
-        currentVersion =
-            versionNode?.VersionInfo || null;
-
-        currentVersionData =
-            versionNode?.Structure || null;
-
-        if(event)
-            await showTemplateRootProperties(
-                currentTemplate,
-                currentVersion
-            );
-        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
-            return;
-
-        renderTemplateVersions(
-            currentVersions,
-            container
-        );
+        currentVersion = versionNode ? versionNode.VersionInfo : null;
+        currentVersionData = versionNode ? versionNode.Structure : null;
         isReadonlyMode = false;
+        templateNode.VersionsLoaded = true;
+
+        renderTemplateVersions(currentVersions, container);
+        container.dataset.loaded = "1";
+
+        if (event) {
+            showTemplateRootProperties(template, currentVersion)
+                .catch(function(ex) {
+                    if (isCurrentSelection())
+                        console.error("Template properties load error:", ex);
+                });
+        }
         evaluateDirtyState();
         return;
     }
 
-    //----------------------------------
-    // Loading
-    //----------------------------------
-    container.innerHTML =
-    `
-    <div class="
-        text-muted
-        text-xs
-        fst-italic
-        p-2
-    ">
-        Loading versions...
-    </div>
-    `;
+    const cachedVersions = getTemplateVersionNodes(templateNode);
+    const hasCachedVersions = cachedVersions.length > 0;
 
-    try
-    {
-        const result =
-            await promisifyPageMethod(
-                PageMethods
-                .GetTemplateVersions,
-                idTemplate
-            );
+    // Cache-first: re-opening a Template with known Version metadata is immediate.
+    // If only a partial cache exists, show it now and refresh quietly in background.
+    if (templateNode.VersionsLoaded === true || hasCachedVersions) {
+        setCurrentTemplateVersionList(cachedVersions);
+        renderTemplateVersions(currentVersions, container);
+        container.dataset.loaded = "1";
+    } else {
+        container.innerHTML =
+            '<div class="text-muted text-xs fst-italic p-2">Loading versions...</div>';
+    }
 
-        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
-            return;
-        const data =
-            JSON.parse(
-                result || "[]"
-            );
+    // The right Properties panel can load its own metadata independently.
+    // Never make the Version list wait for these additional requests.
+    if (event) {
+        showTemplateRootProperties(template, null)
+            .catch(function(ex) {
+                if (isCurrentSelection())
+                    console.error("Template properties load error:", ex);
+            });
+    }
 
-        //----------------------------------
-        // Merge DB -> Cache
-        //----------------------------------
-        data.forEach(version =>
-        {
-            //--------------------------------
-            // Cari berdasarkan IDVersion
-            //--------------------------------
-            let cacheNode =
-                getTemplateVersionNodes(cache)
-                .find(x =>
-                    x.VersionInfo &&
-                    x.VersionInfo.IDVersion == version.IDVersion
-                );
+    if (templateNode.VersionsLoaded === true) {
+        if (isCurrentSelection())
+            evaluateDirtyState();
+        return;
+    }
 
-            //--------------------------------
-            // Belum ada di cache
-            //--------------------------------
-            if(!cacheNode)
-            {
-                cache.Versions[
-                    version.RuntimeVersionID
-                ] =
-                {
-                    VersionInfo: version,
-                    Structure: null
-                };
+    try {
+        // In-flight requests are shared per Template. Even when selection changes,
+        // a successful response is merged and rendered into its own hidden container.
+        const loadedVersions = await ensureTemplateVersionMetadata(templateNode, idTemplate);
+        const sortedVersions = sortTemplateVersionNodes(loadedVersions);
 
-                return;
-            }
+        if (document.documentElement.contains(container)) {
+            renderTemplateVersions(sortedVersions, container);
+            container.dataset.loaded = "1";
+        }
 
-            //--------------------------------
-            // Preserve RuntimeVersionID
-            //--------------------------------
-            const runtimeID =
-                cacheNode.VersionInfo.RuntimeVersionID;
-
-            cacheNode.VersionInfo =
-                version;
-
-            cacheNode.VersionInfo.RuntimeVersionID =
-                runtimeID;
+        if (isCurrentSelection()) {
+            setCurrentTemplateVersionList(sortedVersions);
+            evaluateDirtyState();
+        }
+    }
+    catch(ex) {
+        console.error("Template Version metadata load error:", {
+            sectionId: sectionId,
+            templateId: idTemplate,
+            error: ex
         });
 
-        //----------------------------------
-        // Merge Result
-        //----------------------------------
-        currentVersions = getTemplateVersionNodes(cache);
-        isReadonlyMode = !(
-            currentVersions.length === 1 &&
-            currentVersions[0].VersionInfo &&
-            currentVersions[0].VersionInfo.Status === "Draft"
-        );
-
-        if(event)
-            await showTemplateRootProperties(
-                currentTemplate,
-                null
-            );
-        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
-            return;
-
-        currentVersions.sort(
-            (a,b)=>
-                Number(a.VersionInfo.IDVersion || 0) -
-                Number(b.VersionInfo.IDVersion || 0)
-        );
-
-        renderTemplateVersions(
-            currentVersions,
-            container
-        );
-
-        evaluateDirtyState();
-    }
-    catch(ex)
-    {
-        if (versionsRequestId !== templateVersionsLoadRequestId || currentTemplate !== templateNode.Template)
-            return;
-        console.error(ex);
-
-        const errorMessage = ex && ex.message ? ex.message : String(ex || 'Unknown error');
-        container.innerHTML =
-        `
-        <div class="
-            text-danger
-            text-xs
-            p-2
-        " title="${escapeHtml(errorMessage)}">
-            Failed load versions: ${escapeHtml(errorMessage)}
-        </div>
-        `;
+        // Do not replace a usable cached list with an error message.
+        if (!hasCachedVersions && document.documentElement.contains(container)) {
+            const errorMessage = ex && ex.message
+                ? ex.message : String(ex || "Unknown error");
+            container.innerHTML =
+                '<div class="text-danger text-xs p-2" title="' +
+                escapeHtml(errorMessage) + '">' +
+                'Failed load versions: ' + escapeHtml(errorMessage) +
+                '</div>';
+            container.dataset.loaded = "0";
+        }
     }
 }
+
 document.body.addEventListener('click', function (e) {
     const title =
         e.target.closest('.section-title-text');
@@ -1144,6 +1075,112 @@ function getTemplateCache(sectionId,idTemplate)
     if (templateNode)
         getTemplateVersionNodes(templateNode);
     return templateNode;
+}
+
+function mergeTemplateVersionMetadata(templateNode, data)
+{
+    if (!templateNode || !Array.isArray(data))
+        throw new Error("GetTemplateVersions returned an invalid response.");
+
+    getTemplateVersionNodes(templateNode);
+    const versions = templateNode.Versions;
+
+    data.forEach(function(info) {
+        if (!info || typeof info !== "object" || info.IDVersion == null)
+            return;
+
+        let node = Object.values(versions).find(function(existing) {
+            return !!(existing && existing.VersionInfo &&
+                Number(existing.VersionInfo.IDVersion) === Number(info.IDVersion));
+        });
+
+        if (!node) {
+            const runtimeId = info.RuntimeVersionID || info.IDVersion;
+            const versionInfo = Object.assign({}, info, {
+                RuntimeVersionID: runtimeId
+            });
+            versions[runtimeId] = {
+                VersionInfo: versionInfo,
+                Structure: null
+            };
+            return;
+        }
+
+        const existingInfo = node.VersionInfo || {};
+        const runtimeId = existingInfo.RuntimeVersionID ||
+            info.RuntimeVersionID || info.IDVersion;
+        const structureInfo = node.Structure && node.Structure.VersionInfo;
+        const hasLocalChanges = !!(existingInfo.Dirty ||
+            (structureInfo && structureInfo.Dirty));
+
+        // Do not overwrite an unsaved Version edit with server metadata.
+        if (!hasLocalChanges) {
+            node.VersionInfo = Object.assign({}, existingInfo, info, {
+                RuntimeVersionID: runtimeId
+            });
+        } else if (node.VersionInfo.RuntimeVersionID == null) {
+            node.VersionInfo.RuntimeVersionID = runtimeId;
+        }
+
+        // Keep the Version list and structure pointing to the same metadata object.
+        if (node.Structure && typeof node.Structure === "object" && structureInfo)
+            node.Structure.VersionInfo = node.VersionInfo;
+    });
+
+    templateNode.VersionsLoaded = true;
+    return getTemplateVersionNodes(templateNode);
+}
+
+function ensureTemplateVersionMetadata(templateNode, idTemplate)
+{
+    if (!templateNode)
+        return Promise.reject(new Error("Template cache tidak ditemukan."));
+
+    if (templateNode.VersionsLoaded === true)
+        return Promise.resolve(getTemplateVersionNodes(templateNode));
+
+    let pending = templateVersionsLoadPromises.get(templateNode);
+    if (!pending) {
+        pending = (async function() {
+            const result = await promisifyPageMethod(
+                PageMethods.GetTemplateVersions,
+                idTemplate
+            );
+            const data = typeof result === "string"
+                ? JSON.parse(result || "[]")
+                : (result || []);
+            if (!Array.isArray(data))
+                throw new Error("GetTemplateVersions returned an invalid response.");
+
+            return mergeTemplateVersionMetadata(templateNode, data);
+        })();
+
+        templateVersionsLoadPromises.set(templateNode, pending);
+    }
+
+    return pending.finally(function() {
+        if (templateVersionsLoadPromises.get(templateNode) === pending)
+            templateVersionsLoadPromises.delete(templateNode);
+    });
+}
+
+function sortTemplateVersionNodes(nodes)
+{
+    return (Array.isArray(nodes) ? nodes.slice() : []).sort(function(a, b) {
+        return Number(a && a.VersionInfo && a.VersionInfo.IDVersion || 0) -
+            Number(b && b.VersionInfo && b.VersionInfo.IDVersion || 0);
+    });
+}
+
+function setCurrentTemplateVersionList(nodes)
+{
+    currentVersions = sortTemplateVersionNodes(nodes);
+    isReadonlyMode = !(
+        currentVersions.length === 1 &&
+        currentVersions[0].VersionInfo &&
+        String(currentVersions[0].VersionInfo.Status || "") === "Draft"
+    );
+    return currentVersions;
 }
 function getVersionCache(sectionId,idTemplate,idVersion)
 {
@@ -3694,119 +3731,58 @@ function showVersionProperties(version, isNewTemplate)
 async function loadTemplateVersions(idTemplate)
 {
     const versionsRequestId = ++templateVersionsLoadRequestId;
-    // This alternate Template-opening path must cancel an older Version load too.
     ++versionStructureLoadRequestId;
-    // const ok = await confirmDiscardChanges();
 
-    // if (!ok)
-    //  return;
-    try
-    {
-        // =========================
-        // ACTIVE UI
-        // =========================
-        clearBuilderPanel();
-        clearPropertiesPanel();
-        // =========================
-        // SHOW TEMPLATE ROOT PROPERTIES
-        // =========================
-        // const templateName =
-            // btn.querySelector('.fw-semibold')?.innerText || '';
-        // const templateNo =
-            // btn.querySelector('.text-muted')?.innerText || '';
-        currentSelectedSection = null;
-        currentSelectedItem = null;
-        //isReadonlyMode = false;
-        isDirty = false;
-        // updateDirtyIndicator();
-        // =========================
-        // FIND VERSION CONTAINER
-        // =========================
-        const versionContainer =
-                document.querySelector(
-                    `.template-version-container[data-template-id="${idTemplate}"]`
-                );      
-        // const versionContainer =
-            // btn.closest('.accordion-item')
-               // .querySelector('.template-version-container');
-        currentTemplate =
-            currentTemplates.find(
-                x => x.Template.RuntimeTemplateID == idTemplate
-            );    
-
-        // selectedDocument.Template = currentTemplate;
-        // selectedDocument.Version = null;
-        // selectedDocument.Section = null;
-        // selectedDocument.Item = null;
-            
-        // =========================
-        // PREVENT RELOAD
-        // =========================
-        if(versionContainer.dataset.loaded === '1') {
-            showTemplateRootProperties(currentTemplate.Template, null)
-                .catch(ex => console.error("Template properties load error:", ex));
+    try {
+        const versionContainer = document.querySelector(
+            '.template-version-container[data-template-id="' + idTemplate + '"]'
+        );
+        const templateEntry = Object.values(templateCache.sections || {}).reduce(function(found, section) {
+            if (found) return found;
+            return Object.values(section.Templates || {}).find(function(node) {
+                return node && node.Template &&
+                    String(node.Template.RuntimeTemplateID) === String(idTemplate);
+            }) || null;
+        }, null);
+        if (!templateEntry || !templateEntry.Template || !versionContainer)
             return;
+
+        currentTemplate = templateEntry.Template;
+        currentVersions = getTemplateVersionNodes(templateEntry);
+
+        if (templateEntry.VersionsLoaded === true || currentVersions.length) {
+            setCurrentTemplateVersionList(currentVersions);
+            renderTemplateVersions(currentVersions, versionContainer);
+            versionContainer.dataset.loaded = "1";
+        } else {
+            versionContainer.innerHTML = '<div class="text-muted text-xs p-2">Loading versions...</div>';
         }
 
-        // Show the versions immediately after the single versions request.
-        // Template Properties performs its own dropdown/metadata loading, so
-        // it must not block the Version list from appearing.
-        versionContainer.innerHTML = `
-            <div class="text-muted text-xs p-2">
-                Loading versions...
-            </div>
-        `;
+        showTemplateRootProperties(currentTemplate, null)
+            .catch(function(ex) { console.error("Template properties load error:", ex); });
 
-        const result = await promisifyPageMethod(
-            PageMethods.GetTemplateVersions, idTemplate
-        );
-
-        if (versionsRequestId !== templateVersionsLoadRequestId ||
-            !currentTemplate || String(currentTemplate.Template.RuntimeTemplateID) !== String(idTemplate))
+        if (templateEntry.VersionsLoaded === true)
             return;
-        // Always render the versions returned for the selected template.
-        // Using the previous global currentVersions value can leave this panel
-        // empty/stale, especially after a Save All validation or metadata error.
-        currentVersions = typeof result === 'string'
-            ? JSON.parse(result || '[]')
-            : (result || []);
-        if (!Array.isArray(currentVersions))
-            throw new Error('GetTemplateVersions returned an invalid response.');
 
-        // =========================
-        // RENDER
-        // =========================
-        renderTemplateVersions(
-            currentVersions,
-            versionContainer
-        );
-        // const collapseEl =
-            // document.querySelector(btn.dataset.bsTarget);
+        const loaded = await ensureTemplateVersionMetadata(templateEntry, idTemplate);
+        if (!document.documentElement.contains(versionContainer))
+            return;
 
-        // if (collapseEl) {
+        renderTemplateVersions(loaded, versionContainer);
+        versionContainer.dataset.loaded = "1";
 
-            // const bsCollapse =
-                // bootstrap.Collapse.getOrCreateInstance(
-                    // collapseEl,
-                    // { toggle: false }
-                // );
-
-            // bsCollapse.show();
-        // }
-        versionContainer.dataset.loaded = '1';
-
-        // Populate Properties in the background. Do not keep the Version
-        // selection handler waiting for metadata/dropdown requests to finish.
-        showTemplateRootProperties(currentTemplate.Template, null)
-            .catch(ex => console.error("Template properties load error:", ex));
-    }
-    catch(ex)
-    {
+        if (versionsRequestId === templateVersionsLoadRequestId &&
+            currentTemplate === templateEntry.Template) {
+            setCurrentTemplateVersionList(loaded);
+            evaluateDirtyState();
+        }
+    } catch(ex) {
         if (versionsRequestId !== templateVersionsLoadRequestId) return;
         console.error(ex);
-        alert('Failed load versions');
+        alert("Failed load versions: " + getPageMethodErrorMessage(ex));
     }
 }
+
 function renderTemplateVersions(data,container)
 {
     const templateRuntimeID = container.dataset.templateId;
@@ -6733,7 +6709,7 @@ function selectSection(sectionBox)
     switchMobileTab('builder');
 }
 
-async function refreshInspectionTypeDropdown(template)
+async function refreshInspectionTypeDropdown(template, requestId)
 {
     const select = document.getElementById('propInspectionType');
     if (!select || !template || !template.SectionID) return;
@@ -6741,6 +6717,8 @@ async function refreshInspectionTypeDropdown(template)
     const selectedCode = template.InspectionTypeCode || '';
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypes, template.SectionID);
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('propInspectionType') !== select) return;
         const types = JSON.parse(raw || '[]');
         select.innerHTML = '';
         select.add(new Option('-- Select Inspection Type --', ''));
@@ -6753,6 +6731,8 @@ async function refreshInspectionTypeDropdown(template)
         // Inspection Type is template metadata, independent of version read-only state.
         select.disabled = false;
     } catch (ex) {
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('propInspectionType') !== select) return;
         select.innerHTML = '';
         select.add(new Option('Failed to load inspection types', ''));
         console.error(ex);
@@ -6838,7 +6818,7 @@ function renderTemplateInspectionDetailTags(template, details) {
     if (!host.children.length) host.innerHTML = '<div class="small text-muted">Tidak ada detail yang cocok.</div>';
 }
 
-async function refreshInspectionDetailDropdown(template) {
+async function refreshInspectionDetailDropdown(template, requestId) {
     const host = document.getElementById("propInspectionDetailList");
     if (!host || !template) return;
     const typeCode = template.InspectionTypeCode || "";
@@ -6855,6 +6835,8 @@ async function refreshInspectionDetailDropdown(template) {
     if (unselectAll) unselectAll.disabled = false;
     try {
         const raw = await promisifyPageMethod(PageMethods.GetInspectionTypeDetails, typeCode);
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById("propInspectionDetailList") !== host) return;
         const details = JSON.parse(raw || "[]");
         renderTemplateInspectionDetailTags(template, details);
         if (selectAll) selectAll.disabled = !details.length;
@@ -6879,12 +6861,15 @@ async function refreshInspectionDetailDropdown(template) {
             };
         }
     } catch (ex) {
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById("propInspectionDetailList") !== host) return;
         host.innerHTML = '<div class="small text-danger">Failed to load inspection details.</div>';
         console.error(ex);
     }
 }
 async function showTemplateRootProperties(template, version)
 {
+    const propertiesRequestId = ++templatePropertiesLoadRequestId;
     const panel =
         document.querySelector(
             '#panel-properties .panel-content'
@@ -6988,16 +6973,19 @@ async function showTemplateRootProperties(template, version)
         await bindGroupEquipmentDropdown(
             template.GroupEquipment
         );
-        document.getElementById("propTemplateNo").focus();
+        if (!isTemplatePropertiesRequestCurrent(propertiesRequestId)) return;
+        const templateNoInput = document.getElementById("propTemplateNo");
+        if (templateNoInput) templateNoInput.focus();
     }
-    await appendTemplateMetadataControls(template);
+    await appendTemplateMetadataControls(template, propertiesRequestId);
+    if (!isTemplatePropertiesRequestCurrent(propertiesRequestId)) return;
 
     if (rightPanelSub != "") {
         showVersionPropertiesEvent(version);
         refreshTemplateTypeDependentFields(template);
     }
 }
-async function appendTemplateMetadataControls(template)
+async function appendTemplateMetadataControls(template, requestId)
 {
     const body = document.querySelector('#panel-properties .panel-content .prop-group-body');
     if (!body || document.getElementById('propTemplateType')) return;
@@ -7088,8 +7076,10 @@ async function appendTemplateMetadataControls(template)
             await renderTemplateEmployeeAssignments(template);
     });
 
-    await refreshInspectionTypeDropdown(template);
-    await refreshInspectionDetailDropdown(template);
+    await refreshInspectionTypeDropdown(template, requestId);
+    if (!isTemplatePropertiesRequestCurrent(requestId)) return;
+    await refreshInspectionDetailDropdown(template, requestId);
+    if (!isTemplatePropertiesRequestCurrent(requestId)) return;
 
     inspectionSelect.addEventListener('change', async function() {
         template.InspectionTypeCode = this.value;
@@ -7108,7 +7098,7 @@ async function appendTemplateMetadataControls(template)
         });
     }
 
-    await appendTemplateMetadataRefresh(template);
+    await appendTemplateMetadataRefresh(template, requestId);
 }
 function refreshTemplateTypeDependentFields(template)
 {
@@ -7119,7 +7109,7 @@ function refreshTemplateTypeDependentFields(template)
         groupField.style.display = isPMWO ? "" : "none";
 }
 
-async function appendTemplateMetadataRefresh(template)
+async function appendTemplateMetadataRefresh(template, requestId)
 {
     const isInspection = template.TemplateType === 'I';
     const inspectionField = document.getElementById('inspectionTypeField');
@@ -7136,10 +7126,11 @@ async function appendTemplateMetadataRefresh(template)
             bootstrap.Tab.getOrCreateInstance(generalTab).show();
     }
 
-    await renderTemplateCompanyAssignments(template);
-    if (isInspection) await renderTemplateEmployeeAssignments(template);
+    await renderTemplateCompanyAssignments(template, requestId);
+    if (!isTemplatePropertiesRequestCurrent(requestId)) return;
+    if (isInspection) await renderTemplateEmployeeAssignments(template, requestId);
 }
-async function renderTemplateCompanyAssignments(template)
+async function renderTemplateCompanyAssignments(template, requestId)
 {
     const host = document.getElementById('templateCompanyAssignments');
     if (!host) return;
@@ -7154,6 +7145,8 @@ async function renderTemplateCompanyAssignments(template)
     }
     try {
         const raw = await promisifyPageMethod(PageMethods.GetTemplateCompanyLocations, String(template.IDTemplate), companyId, locationId, getLoginData().employeeid);
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('templateCompanyAssignments') !== host) return;
         const rows = JSON.parse(raw || '[]');
         host.innerHTML = '';
         if (!rows.length) {
@@ -7222,11 +7215,13 @@ async function renderTemplateCompanyAssignments(template)
         });
         host.appendChild(table);
     } catch (ex) {
+        if (!isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('templateCompanyAssignments') !== host) return;
         host.textContent = 'Failed to load company/location assignments.';
         console.error(ex);
     }
 }
-async function renderTemplateEmployeeAssignments(template)
+async function renderTemplateEmployeeAssignments(template, requestId)
 {
     const host = document.getElementById('templateEmployeeAssignments');
     const renderTemplateId = String(template && template.IDTemplate || '');
@@ -7249,7 +7244,8 @@ async function renderTemplateEmployeeAssignments(template)
     try {
         const raw = await promisifyPageMethod(PageMethods.GetTemplateEmployees, String(template.IDTemplate), template.SectionID, companyId, locationId, getLoginData().employeeid);
         const rows = JSON.parse(raw || '[]');
-        if (!isCurrentTemplate()) return;
+        if (!isCurrentTemplate() || !isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('templateEmployeeAssignments') !== host) return;
         host.innerHTML = '';
         if (!rows.length) {
             host.textContent = 'No active employees found for this SectionID and company/location scope.';
@@ -7472,6 +7468,8 @@ async function renderTemplateEmployeeAssignments(template)
         });
         host.appendChild(table);
     } catch (ex) {
+        if (!isCurrentTemplate() || !isTemplatePropertiesRequestCurrent(requestId) ||
+            document.getElementById('templateEmployeeAssignments') !== host) return;
         host.textContent = 'Failed to load employee assignments.';
         console.error(ex);
     }
