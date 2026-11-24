@@ -3006,6 +3006,44 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
         }
 
         [WebMethod]
+        public static object GetInspectionApprovalCounts(string employeeId, string companyId, string locationId,
+            string dateFrom, string dateThru)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            if (String.IsNullOrWhiteSpace(employeeId))
+                throw new HttpException(403, "Approver identity is required.");
+
+            // Use the same queue queries as the dashboard, in count-only mode.
+            // No email dispatch and no type/template/schedule filters are applied.
+            int outstandingStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+            int outstandingLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+
+            // Approved follows the date range shown by the Approved tab (default: today).
+            int approvedStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false));
+            int approvedLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false));
+
+            int voidStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
+            int voidLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
+
+            return new
+            {
+                success = true,
+                outstanding = outstandingStandard + outstandingLightning,
+                approved = approvedStandard + approvedLightning,
+                voided = voidStandard + voidLightning
+            };
+        }
+
+        [WebMethod]
         public static object ProcessLightningInspectionApproval(long inspectionId, string action, string employeeId,
             string companyId, string locationId, string remark, string approvalToken)
         {
