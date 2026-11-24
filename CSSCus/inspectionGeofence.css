@@ -1,0 +1,68 @@
+.inspection-geofence-page {
+    padding: .75rem .25rem 1.5rem;
+}
+.inspection-geofence-scope {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+#geofenceMap {
+    width: 100%;
+    height: 560px;
+    min-height: 360px;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    z-index: 1;
+    background: #eef2f5;
+}
+.inspection-geofence-map-note {
+    color: #6c757d;
+    font-size: .8rem;
+    line-height: 1.5;
+}
+.inspection-geofence-grid-wrap {
+    max-height: 510px;
+    overflow: auto;
+}
+.inspection-geofence-grid-wrap table {
+    min-width: 100%;
+}
+.inspection-geofence-grid-wrap td,
+.inspection-geofence-grid-wrap th {
+    padding: .5rem .4rem;
+    vertical-align: middle;
+}
+.inspection-geofence-empty {
+    padding: 2rem 1rem;
+    color: #6c757d;
+    text-align: center;
+    font-size: .875rem;
+}
+.inspection-geofence-footer-note {
+    color: #6c757d;
+    font-size: .8rem;
+}
+.leaflet-container {
+    font-family: inherit;
+}
+.leaflet-draw-toolbar a {
+    background-size: 300px 30px;
+}
+@media (max-width: 1199.98px) {
+    #geofenceMap {
+        height: 500px;
+    }
+}
+@media (max-width: 767.98px) {
+    .inspection-geofence-page {
+        padding-left: 0;
+        padding-right: 0;
+    }
+    #geofenceMap {
+        height: 430px;
+        min-height: 340px;
+    }
+    .inspection-geofence-grid-wrap {
+        max-height: 300px;
+    }
+}
