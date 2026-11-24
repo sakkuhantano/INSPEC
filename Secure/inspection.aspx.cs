@@ -2451,96 +2451,10 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         END AS CanApprove
                     FROM InspectionData I
                 )
-                SELECT
-                    ISNULL(SUM(
-                        CASE
-                            WHEN AF.Status = 'DONE'
-                             AND ISNULL(AF.IsSubmitted, 0) = 1
-                             AND
-                             (
-                                 (
-                                     @IsAdministrator = 1
-                                     AND
-                                     (
-                                         (AF.InspectionMode <> 'LIGHTNING' AND ISNULL(AF.IsApproved, 0) = 0)
-                                         OR
-                                         (AF.InspectionMode = 'LIGHTNING' AND ISNULL(AF.IsApproved2, 0) = 0)
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     @IsSPV = 1
-                                     AND ISNULL(AF.IsApproved, 0) = 0
-                                     AND EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.SysWebCommonValue C
-                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
-                                                  + CONVERT(VARCHAR(30), AF.LocationID)
-                                                  + ';SPV;' + AF.SectionID
-                                           AND EXISTS
-                                           (
-                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                                           )
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     @IsChiefEngineer = 1
-                                     AND EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.PIP_M_Section S
-                                         WHERE S.SectionID = AF.SectionID
-                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
-                                     )
-                                     AND
-                                     (
-                                         (AF.InspectionMode <> 'LIGHTNING' AND ISNULL(AF.IsApproved, 0) = 0)
-                                         OR
-                                         (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.IsApproved, 0) = 1
-                                          AND ISNULL(AF.IsApproved1, 0) = 0)
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.SysWebCommonValue C
-                                         WHERE C.AppID='INSPEC'
-                                           AND C.CommonGroup='EmailApproval'
-                                           AND C.IsDelete=0
-                                           AND C.ID=CONVERT(VARCHAR(30),AF.CompanyID)
-                                                  + CONVERT(VARCHAR(30),AF.LocationID)
-                                                  + ';CHIEF_SEC'
-                                           AND EXISTS
-                                           (
-                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
-                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                                           )
-                                     )
-                                     AND
-                                     (
-                                         (AF.InspectionMode <> 'LIGHTNING'
-                                          AND ISNULL(AF.IsApproved, 0) = 0
-                                          AND EXISTS
-                                          (
-                                              SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
-                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
-                                          ))
-                                         OR
-                                         (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.IsApproved1, 0) = 1
-                                          AND ISNULL(AF.IsApproved2, 0) = 0)
-                                     )
-                                 )
-                             )
-                            THEN 1 ELSE 0
-                        END
-                    ), 0) AS PendingApproval,
 
-                    ISNULL(SUM(
+                , DashboardFlags AS
+                (
+                    SELECT
                         CASE
                             WHEN Status = 'DONE'
                              AND ISNULL(IsSubmitted, 0) = 1
@@ -2645,21 +2559,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  )
                              )
                             THEN 1 ELSE 0
-                        END
-                    ), 0) AS ApprovedToday,
-
-                    CASE
-                        WHEN @IsAdministrator = 1
-                          OR EXISTS
-                          (
-                              SELECT 1
-                              FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
-                              WHERE AM.MenuID='20022'
-                          )
-                        THEN 1 ELSE 0
-                    END AS ShowApprovalCards,
-
-                    ISNULL(SUM(
+                        END AS ApprovedTodayFlag,
                         CASE
                             WHEN AF.Status = 'DRAFT'
                              AND ISNULL(AF.IsSubmitted, 0) = 0
@@ -2852,9 +2752,23 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  )
                              )
                             THEN 1 ELSE 0
-                        END
-                    ), 0) AS VoidCount
-                FROM ApprovalFlags AF;
+                        END AS VoidCountFlag
+                    FROM ApprovalFlags AF
+                )
+                SELECT
+                    ISNULL(SUM(ApprovedTodayFlag), 0) AS ApprovedToday,
+                    CASE
+                        WHEN @IsAdministrator = 1
+                          OR EXISTS
+                          (
+                              SELECT 1
+                              FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                              WHERE AM.MenuID='20022'
+                          )
+                        THEN 1 ELSE 0
+                    END AS ShowApprovalCards,
+                    ISNULL(SUM(VoidCountFlag), 0) AS VoidCount
+                FROM DashboardFlags;
                 ",
                                 new SqlParameter[]
                 {
