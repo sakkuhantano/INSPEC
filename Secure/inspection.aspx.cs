@@ -2233,6 +2233,50 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
             {
 
                 DataTable rows = br.EQueryP(@"
+                DECLARE @Today DATETIME;
+                SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120);
+
+                DECLARE @IsSPV BIT;
+                DECLARE @IsChiefEngineer BIT;
+                DECLARE @IsChiefSecurity BIT;
+
+                SET @IsSPV = CASE WHEN EXISTS
+                (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND LEFT(C.ID, LEN(CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';SPV;'))
+                          = CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';SPV;'
+                      AND EXISTS
+                      (
+                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                      )
+                ) THEN 1 ELSE 0 END;
+
+                SET @IsChiefEngineer = CASE WHEN EXISTS
+                (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';CHIEF_ENG'
+                      AND EXISTS
+                      (
+                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                      )
+                ) THEN 1 ELSE 0 END;
+
+                SET @IsChiefSecurity = CASE WHEN EXISTS
+                (
+                    SELECT 1 FROM dbo.SysWebCommonValue C
+                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                      AND C.ID=CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';CHIEF_SEC'
+                      AND EXISTS
+                      (
+                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                      )
+                ) THEN 1 ELSE 0 END;
+
                 ;WITH InspectionData AS
                 (
                     SELECT
@@ -2242,6 +2286,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.IsApproved1,
                         I.IsApproved2,
                         I.ApprovedDate,
+                        I.Approved1Date,
+                        I.Approved2Date,
                         I.ReasonVoid,
                         I.CompanyID,
                         I.LocationID,
@@ -2447,14 +2493,106 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
 
                     ISNULL(SUM(
                         CASE
-                            WHEN IsApproved = 1
-                             AND ApprovedDate >=
-                                 CONVERT(DATETIME,
-                                     CONVERT(VARCHAR(10), GETDATE(), 120),
-                                     120)
+                            WHEN Status = 'DONE'
+                             AND ISNULL(IsSubmitted, 0) = 1
+                             AND
+                             (
+                                 /* SA administrator: all sections in this company/location.
+                                    Standard approvals use IsApproved; Lightning is complete at IsApproved2. */
+                                 (
+                                     @IsAdministrator = 1
+                                     AND
+                                     (
+                                         (InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(IsApproved, 0) = 1
+                                          AND ApprovedDate >= @Today
+                                          AND ApprovedDate < DATEADD(DAY, 1, @Today))
+                                         OR
+                                         (InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(IsApproved2, 0) = 1
+                                          AND Approved2Date >= @Today
+                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                     )
+                                 )
+                                 OR
+                                 /* Chief Engineer: PENG profit center. For Lightning, the Chief Engineer
+                                    stage is IsApproved1 / Approved1Date. */
+                                 (
+                                     @IsChiefEngineer = 1
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.PIP_M_Section S
+                                         WHERE S.SectionID = AF.SectionID
+                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
+                                     )
+                                     AND
+                                     (
+                                         (InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(IsApproved, 0) = 1
+                                          AND ApprovedDate >= @Today
+                                          AND ApprovedDate < DATEADD(DAY, 1, @Today))
+                                         OR
+                                         (InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(IsApproved1, 0) = 1
+                                          AND Approved1Date >= @Today
+                                          AND Approved1Date < DATEADD(DAY, 1, @Today))
+                                     )
+                                 )
+                                 OR
+                                 /* Chief Security: own sections for standard inspections;
+                                    all company/location Lightning inspections at stage 2. */
+                                 (
+                                     @IsChiefSecurity = 1
+                                     AND
+                                     (
+                                         (InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(IsApproved, 0) = 1
+                                          AND ApprovedDate >= @Today
+                                          AND ApprovedDate < DATEADD(DAY, 1, @Today)
+                                          AND EXISTS
+                                          (
+                                              SELECT 1
+                                              FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
+                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
+                                          ))
+                                         OR
+                                         (InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(IsApproved2, 0) = 1
+                                          AND Approved2Date >= @Today
+                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                     )
+                                 )
+                                 OR
+                                 /* SPV: only sections explicitly assigned to this SPV. */
+                                 (
+                                     @IsSPV = 1
+                                     AND ISNULL(IsApproved, 0) = 1
+                                     AND ApprovedDate >= @Today
+                                     AND ApprovedDate < DATEADD(DAY, 1, @Today)
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.SysWebCommonValue C
+                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
+                                                  + CONVERT(VARCHAR(30), AF.LocationID)
+                                                  + ';SPV;' + AF.SectionID
+                                           AND EXISTS
+                                           (
+                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                                           )
+                                     )
+                                 )
+                             )
                             THEN 1 ELSE 0
                         END
                     ), 0) AS ApprovedToday,
+
+                    CASE
+                        WHEN @IsAdministrator = 1 OR @IsSPV = 1
+                          OR @IsChiefEngineer = 1 OR @IsChiefSecurity = 1
+                        THEN 1 ELSE 0
+                    END AS ShowApprovedToday,
 
                     ISNULL(SUM(
                         CASE
@@ -2464,7 +2602,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                             THEN 1 ELSE 0
                         END
                     ), 0) AS VoidCount
-                FROM ApprovalFlags;
+                FROM ApprovalFlags AF;
                 ",
                                 new SqlParameter[]
                 {
@@ -2477,13 +2615,14 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                 });
 
                 if (rows.Rows.Count == 0)
-                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0 };
+                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0, showApprovedToday = false };
                 DataRow row = rows.Rows[0];
                 return new
                 {
                     success = true,
                     pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
                     approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
+                    showApprovedToday = row["ShowApprovedToday"] != DBNull.Value && Convert.ToInt32(row["ShowApprovedToday"]) == 1,
                     voidCount = row["VoidCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["VoidCount"])
                 };
             }
