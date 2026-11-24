@@ -261,11 +261,8 @@ async function renderInspectionDashboardCards() {
             if (!response.ok) throw new Error("Inspection dashboard summary request failed");
             const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
             const pending = document.getElementById("inspectionPendingApproval");
-            const pendingCard = document.getElementById("inspectionPendingApprovalCard");
             const approved = document.getElementById("inspectionApprovedToday");
-            const approvedCard = document.getElementById("inspectionApprovedTodayCard");
             const voided = document.getElementById("inspectionVoidCount");
-            const voidCard = document.getElementById("inspectionVoidCard");
             if (pending) pending.textContent = result.pendingApproval || 0;
             if (approved) approved.textContent = result.approvedToday || 0;
             if (voided) voided.textContent = result.voidCount || 0;
