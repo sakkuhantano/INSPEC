@@ -7180,12 +7180,12 @@ async function loadInspectionApprovalQueue() {
     const requestSequence = ++inspectionApprovalLoadSequence;
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    host.innerHTML = '<tr><td colspan="9" class="text-muted py-2">Memuat dari server...</td></tr>';
+    host.innerHTML = '<tr><td colspan="10" class="text-muted py-2">Memuat dari server...</td></tr>';
     inspectionApprovalPage = 1;
     selectedInspectionApproval = null;
     if (!navigator.onLine) {
         showToast("Approval Supervisor memerlukan koneksi ke server. Mode approval offline belum didukung.", "warning");
-        host.innerHTML = '<tr><td colspan="9" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
+        host.innerHTML = '<tr><td colspan="10" class="text-muted py-2">Hubungkan internet lalu tekan Refresh.</td></tr>';
         document.getElementById("inspectionApprovalDetail").innerHTML = '<div class="text-muted">Detail approval hanya dapat dibuka saat online.</div>';
         return;
     }
