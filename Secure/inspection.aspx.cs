@@ -2624,8 +2624,13 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     ), 0) AS ApprovedToday,
 
                     CASE
-                        WHEN @IsAdministrator = 1 OR @IsSPV = 1
-                          OR @IsChiefEngineer = 1 OR @IsChiefSecurity = 1
+                        WHEN @IsAdministrator = 1
+                          OR EXISTS
+                          (
+                              SELECT 1
+                              FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
+                              WHERE AM.MenuID='20022'
+                          )
                         THEN 1 ELSE 0
                     END AS ShowApprovalCards,
 
