@@ -181,7 +181,7 @@ async function renderInspectionDashboardCards() {
             '<div class="dashboard-value" id="inspectionPendingSync">0</div></div></a></div>'
         );
     }
-    if (role.canApproveInspection) {
+    if (role.canViewInspectionApprovalDashboard) {
         cards.push(
             '<div class="col-12 col-sm-6 col-lg-3"><a href="inspection.aspx?type=approval" class="dashboard-card card-pending text-reset text-decoration-none h-100">' +
             '<div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>' +
@@ -234,7 +234,7 @@ async function renderInspectionDashboardCards() {
         }
     }
 
-    if (role.canApproveInspection && navigator.onLine) {
+    if (role.canViewInspectionApprovalDashboard && navigator.onLine) {
         try {
             const scope = (loginData.curcompany || "").split(";");
             const response = await fetch("inspection.aspx/GetInspectionDashboardSummary", {
