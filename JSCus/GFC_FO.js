@@ -1256,6 +1256,11 @@ async function downloadReturnedInspections() {
                     const req = tx.objectStore("inspection_types_scoped").getAll();
                     req.onsuccess = () => resolve(req.result || []);
                     req.onerror = () => reject(req.error);
+                }).catch(function (cacheError) {
+                    // A lookup-cache issue must not prevent the returned server
+                    // draft from being restored. Preserve any existing map setup.
+                    console.warn("BATCH map cache lookup for returned inspection failed:", cacheError);
+                    return [];
                 })
                 : Promise.resolve([])
         ]);
