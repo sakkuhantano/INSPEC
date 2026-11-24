@@ -65,7 +65,7 @@
                     <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
                         <div>
                             <div class="fw-semibold">Draw inspection area</div>
-                            <div class="small text-muted">Cari alamat, lalu gambar polygon mengelilingi area yang diizinkan.</div>
+                            <div class="small text-muted">Gunakan citra satelit untuk melihat bangunan, parkiran, jalan internal, dan batas area inspeksi.</div>
                         </div>
                         <span id="mapVertexBadge" class="badge text-bg-info">0 titik</span>
                     </div>
@@ -84,7 +84,7 @@
                         <div id="geofenceMap" role="application" aria-label="Peta untuk menggambar geofence"></div>
                         <div class="inspection-geofence-map-note mt-2">
                             <i class="bi bi-info-circle me-1"></i>
-                            Gunakan tool polygon di sisi kanan atas peta. Klik minimal 3 titik untuk membentuk batas area, lalu klik titik pertama atau double-click untuk menyelesaikan.
+                            Layer Satelit (Esri) aktif secara default. Pilih Street (OpenStreetMap) di kiri bawah bila perlu melihat nama jalan. Zoom lebih dekat untuk memeriksa area gedung/parkiran, lalu gunakan tool polygon di sisi kanan atas. Klik minimal 3 titik untuk membentuk batas area.
                             Gunakan tool edit untuk menggeser titik dan tool delete untuk menghapus polygon.
                         </div>
                         <div id="mapMessage" class="small mt-2 text-muted" aria-live="polite">Peta siap. Cari gedung atau geser peta ke area yang akan diatur.</div>
