@@ -133,7 +133,7 @@
                 // for high-zoom tiles in areas without imagery at that resolution.
                 // Cap native requests at level 19; Leaflet will upscale those tiles
                 // when the user zooms further, instead of requesting missing tiles.
-                maxNativeZoom: 19,
+                maxNativeZoom: 18,
                 maxZoom: 23,
                 attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"
             }
@@ -224,7 +224,8 @@
         if (button) button.disabled = true;
         setMessage("Mencari lokasi di OpenStreetMap...", false);
 
-        var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=id&q=" + encodeURIComponent(query);
+        var searchQuery = /jakarta|indonesia/i.test(query) ? query : query + ", Jakarta, Indonesia";
+        var url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=id&accept-language=id&q=" + encodeURIComponent(searchQuery);
         fetch(url, { headers: { "Accept": "application/json" } })
             .then(function (response) {
                 if (!response.ok) throw new Error("Layanan pencarian lokasi tidak merespons.");
@@ -236,16 +237,17 @@
                     return;
                 }
 
-                var item = items[0];
+                var item = items.filter(function (candidate) { return /jakarta/i.test(candidate.display_name || ""); })[0] || items[0];
                 var lat = Number(item.lat);
                 var lon = Number(item.lon);
                 if (!isFinite(lat) || !isFinite(lon)) throw new Error("Koordinat hasil pencarian tidak valid.");
 
-                map.setView([lat, lon], 20);
+                map.setView([lat, lon], 18);
+                window.setTimeout(function () { map.invalidateSize(); }, 100);
                 if (searchMarker) map.removeLayer(searchMarker);
                 searchMarker = L.marker([lat, lon]).addTo(map)
                     .bindPopup(item.display_name || query).openPopup();
-                setMessage("Lokasi ditemukan. Zoom dan geser peta untuk menyesuaikan batas area sebelum menggambar polygon.", false);
+                setMessage("Lokasi ditemukan. Peta dibuka pada zoom aman agar citra satelit tersedia. Zoom manual untuk memeriksa detail area sebelum menggambar polygon.", false);
             })
             .catch(function (error) {
                 setMessage(error && error.message ? error.message : "Pencarian lokasi gagal.", true);
