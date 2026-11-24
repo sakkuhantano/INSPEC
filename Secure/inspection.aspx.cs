@@ -2049,11 +2049,21 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
+            return GetInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, true);
+        }
+
+        private static object GetInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
+            string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
+            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox)
+        {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
             if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
-            try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
-            catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
+            if (dispatchOutbox)
+            {
+                try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
+                catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
+            }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
@@ -2114,6 +2124,13 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
 
             using (var br = new WAL.BR.CF())
             {
+                if (countOnly)
+                {
+                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS Total " + fromWhere, filterOptionParameters);
+                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["Total"] == DBNull.Value
+                        ? 0 : Convert.ToInt32(countRows.Rows[0]["Total"]);
+                }
+
                 DataTable filterRows = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
        I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
@@ -2855,13 +2872,20 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                     new SqlParameter("@LocationID", locationId)
                 });
 
+                // Count with the same SQL scope used by both Approval OUTSTANDING queries.
+                int pendingStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
+                    employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+                int pendingLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
+                    employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+                int pendingApprovalCount = pendingStandard + pendingLightning;
+
                 if (rows.Rows.Count == 0)
-                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0, showApprovalCards = false };
+                    return new { success = true, pendingApproval = pendingApprovalCount, approvedToday = 0, voidCount = 0, showApprovalCards = false };
                 DataRow row = rows.Rows[0];
                 return new
                 {
                     success = true,
-                    pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
+                    pendingApproval = pendingApprovalCount,
                     approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
                     showApprovalCards = row["ShowApprovalCards"] != DBNull.Value && Convert.ToInt32(row["ShowApprovalCards"]) == 1,
                     voidCount = row["VoidCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["VoidCount"])
@@ -2936,11 +2960,21 @@ ORDER BY P.SeqNo",
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
+            return GetLightningInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, true);
+        }
+
+        private static object GetLightningInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
+            string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
+            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox)
+        {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
             if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
-            try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
-            catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
+            if (dispatchOutbox)
+            {
+                try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
+                catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
+            }
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Chief Engineering / Chief Security identity is required.");
@@ -3020,6 +3054,13 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
+
+                if (countOnly)
+                {
+                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS Total " + scope, createParameters(false));
+                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["Total"] == DBNull.Value
+                        ? 0 : Convert.ToInt32(countRows.Rows[0]["Total"]);
+                }
 
                 DataTable filtersTable = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
