@@ -299,6 +299,14 @@ namespace INSPEC
                 string v_profitcenter = Convert.ToString(dt.Rows[0]["ProfitCenterNo"]);
                 string v_theme = String.IsNullOrWhiteSpace(Convert.ToString(dt.Rows[0]["Theme"])) ? "L" : Convert.ToString(dt.Rows[0]["Theme"]);
                 string V_UserID = Convert.ToString(dt.Rows[0]["UserID"]).Trim();
+                 bool v_isInspectionAdministrator = oUser.EQuery(
+                     @"SELECT TOP 1 1
+                       FROM dbo.SysWebUser SU
+                       JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+                       WHERE SU.EmployeeID=@EmployeeID
+                         AND SU.IsActive=1
+                         AND UG.UserGroupID='administrator'",
+                     "@EmployeeID=" + V_EmpID).Rows.Count > 0;
 
                 // Load the authorized INSPEC front-end menu from SysWeb2.
                 // EmployeeID is the NIK used by SysWebUserUserGroup and the authorization function.
@@ -414,6 +422,7 @@ COMMIT TRANSACTION;",
                         curcompany = v_currcompany,
                         curcompanyname = v_currcompanyname,
                         employeeid = V_EmpID,
+                        isInspectionAdministrator = v_isInspectionAdministrator,
                         jobtitle = v_jobtitle,
                         email = v_email,
                         profitcenter = v_profitcenter,
