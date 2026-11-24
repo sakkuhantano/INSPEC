@@ -2280,6 +2280,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                 ;WITH InspectionData AS
                 (
                     SELECT
+                        I.InspectionID,
                         I.Status,
                         I.IsSubmitted,
                         I.IsApproved,
@@ -2289,6 +2290,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.Approved1Date,
                         I.Approved2Date,
                         I.ReasonVoid,
+                        I.ReasonVoid1,
+                        I.ReasonVoid2,
                         I.CompanyID,
                         I.LocationID,
                         I.SectionID,
@@ -2483,10 +2486,74 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                 SELECT
                     ISNULL(SUM(
                         CASE
-                            WHEN Status = 'DONE'
-                             AND IsSubmitted = 1
-                             AND CanApprove = 1
-                             AND (InspectionMode = 'LIGHTNING' OR IsApproved = 0)
+                            WHEN AF.Status = 'DONE'
+                             AND ISNULL(AF.IsSubmitted, 0) = 1
+                             AND
+                             (
+                                 (
+                                     @IsAdministrator = 1
+                                     AND
+                                     (
+                                         (AF.InspectionMode <> 'LIGHTNING' AND ISNULL(AF.IsApproved, 0) = 0)
+                                         OR
+                                         (AF.InspectionMode = 'LIGHTNING' AND ISNULL(AF.IsApproved2, 0) = 0)
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsSPV = 1
+                                     AND ISNULL(AF.IsApproved, 0) = 0
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.SysWebCommonValue C
+                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
+                                                  + CONVERT(VARCHAR(30), AF.LocationID)
+                                                  + ';SPV;' + AF.SectionID
+                                           AND EXISTS
+                                           (
+                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                                           )
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsChiefEngineer = 1
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.PIP_M_Section S
+                                         WHERE S.SectionID = AF.SectionID
+                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
+                                     )
+                                     AND
+                                     (
+                                         (AF.InspectionMode <> 'LIGHTNING' AND ISNULL(AF.IsApproved, 0) = 0)
+                                         OR
+                                         (AF.InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(AF.IsApproved, 0) = 1
+                                          AND ISNULL(AF.IsApproved1, 0) = 0)
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsChiefSecurity = 1
+                                     AND
+                                     (
+                                         (AF.InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(AF.IsApproved, 0) = 0
+                                          AND EXISTS
+                                          (
+                                              SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
+                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
+                                          ))
+                                         OR
+                                         (AF.InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(AF.IsApproved1, 0) = 1
+                                          AND ISNULL(AF.IsApproved2, 0) = 0)
+                                     )
+                                 )
+                             )
                             THEN 1 ELSE 0
                         END
                     ), 0) AS PendingApproval,
@@ -2592,13 +2659,200 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         WHEN @IsAdministrator = 1 OR @IsSPV = 1
                           OR @IsChiefEngineer = 1 OR @IsChiefSecurity = 1
                         THEN 1 ELSE 0
-                    END AS ShowApprovedToday,
+                    END AS ShowApprovalCards,
 
                     ISNULL(SUM(
                         CASE
-                            WHEN Status = 'DRAFT'
-                             AND IsSubmitted = 0
-                             AND ISNULL(ReasonVoid, '') <> ''
+                            WHEN AF.Status = 'DRAFT'
+                             AND ISNULL(AF.IsSubmitted, 0) = 0
+                             AND ISNULL(AF.IsApproved, 0) = 0
+                             AND ISNULL(AF.IsApproved1, 0) = 0
+                             AND ISNULL(AF.IsApproved2, 0) = 0
+                             AND
+                             (
+                                 ISNULL(AF.ReasonVoid, '') <> ''
+                                 OR ISNULL(AF.ReasonVoid1, '') <> ''
+                                 OR ISNULL(AF.ReasonVoid2, '') <> ''
+                             )
+                             AND
+                             (
+                                 (
+                                     @IsAdministrator = 1
+                                     AND
+                                     (
+                                         (ISNULL(AF.ReasonVoid, '') <> ''
+                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                         OR
+                                         (ISNULL(AF.ReasonVoid1, '') <> ''
+                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                         OR
+                                         (ISNULL(AF.ReasonVoid2, '') <> ''
+                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsSPV = 1
+                                     AND ISNULL(AF.ReasonVoid, '') <> ''
+                                     AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                          OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             ))
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.SysWebCommonValue C
+                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
+                                                  + CONVERT(VARCHAR(30), AF.LocationID)
+                                                  + ';SPV;' + AF.SectionID
+                                           AND EXISTS
+                                           (
+                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
+                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
+                                           )
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsChiefEngineer = 1
+                                     AND EXISTS
+                                     (
+                                         SELECT 1 FROM dbo.PIP_M_Section S
+                                         WHERE S.SectionID = AF.SectionID
+                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
+                                     )
+                                     AND
+                                     (
+                                         (AF.InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(AF.ReasonVoid, '') <> ''
+                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                         OR
+                                         (AF.InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(AF.ReasonVoid1, '') <> ''
+                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                     )
+                                 )
+                                 OR
+                                 (
+                                     @IsChiefSecurity = 1
+                                     AND
+                                     (
+                                         (AF.InspectionMode <> 'LIGHTNING'
+                                          AND ISNULL(AF.ReasonVoid, '') <> ''
+                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             ))
+                                          AND EXISTS
+                                          (
+                                              SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
+                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
+                                          ))
+                                         OR
+                                         (AF.InspectionMode = 'LIGHTNING'
+                                          AND ISNULL(AF.ReasonVoid2, '') <> ''
+                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                               OR EXISTS
+                                             (
+                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED'
+                                                   AND NOT EXISTS
+                                                   (
+                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
+                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
+                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                                                         AND R.ActionDate > H.ActionDate
+                                                   )
+                                             )))
+                                     )
+                                 )
+                             )
                             THEN 1 ELSE 0
                         END
                     ), 0) AS VoidCount
@@ -2615,14 +2869,14 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                 });
 
                 if (rows.Rows.Count == 0)
-                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0, showApprovedToday = false };
+                    return new { success = true, pendingApproval = 0, approvedToday = 0, voidCount = 0, showApprovalCards = false };
                 DataRow row = rows.Rows[0];
                 return new
                 {
                     success = true,
                     pendingApproval = row["PendingApproval"] == DBNull.Value ? 0 : Convert.ToInt32(row["PendingApproval"]),
                     approvedToday = row["ApprovedToday"] == DBNull.Value ? 0 : Convert.ToInt32(row["ApprovedToday"]),
-                    showApprovedToday = row["ShowApprovedToday"] != DBNull.Value && Convert.ToInt32(row["ShowApprovedToday"]) == 1,
+                    showApprovalCards = row["ShowApprovalCards"] != DBNull.Value && Convert.ToInt32(row["ShowApprovalCards"]) == 1,
                     voidCount = row["VoidCount"] == DBNull.Value ? 0 : Convert.ToInt32(row["VoidCount"])
                 };
             }
