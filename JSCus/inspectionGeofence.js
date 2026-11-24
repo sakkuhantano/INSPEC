@@ -84,7 +84,7 @@
                 fillOpacity: 0.16
             });
             drawnItems.addLayer(polygon);
-            map.fitBounds(polygon.getBounds(), { padding: [24, 24], maxZoom: 19 });
+            map.fitBounds(polygon.getBounds(), { padding: [24, 24], maxZoom: 21 });
         } else if (points.length > 0) {
             var previewLatLngs = [];
             points.forEach(function (point) {
@@ -118,10 +118,40 @@
             return;
         }
 
-        map = L.map(mapElement, { zoomControl: true }).setView([-6.2000, 106.8167], 15);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            maxZoom: 19,
-            attribution: "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>OpenStreetMap contributors</a>"
+        // Satellite imagery is the default to make building and parking areas easier to identify.
+        // Actual image detail still depends on imagery coverage at each location.
+        map = L.map(mapElement, {
+            zoomControl: false,
+            zoomSnap: 0.5,
+            maxZoom: 23
+        }).setView([-6.2000, 106.8167], 15);
+
+        var satelliteLayer = L.tileLayer(
+            "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                minZoom: 1,
+                maxNativeZoom: 23,
+                maxZoom: 23,
+                attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"
+            }
+        );
+
+        var streetLayer = L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                minZoom: 1,
+                maxNativeZoom: 19,
+                maxZoom: 23,
+                attribution: "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>OpenStreetMap contributors</a>"
+            }
+        );
+
+        satelliteLayer.addTo(map);
+        L.control.zoom({ position: "bottomright" }).addTo(map);
+        L.control.layers({
+            "Satelit (Esri)": satelliteLayer,
+            "Street (OpenStreetMap)": streetLayer
+        }, null, {
+            position: "bottomleft",
+            collapsed: false
         }).addTo(map);
 
         drawnItems = new L.FeatureGroup();
@@ -174,7 +204,7 @@
 
         restorePoints(readPoints());
         window.setTimeout(function () { map.invalidateSize(); }, 150);
-        setMessage("Peta siap. Gunakan tool polygon untuk menggambar batas area inspeksi.", false);
+        setMessage("Peta satelit siap. Pilih Satelit/Street di kiri bawah; zoom untuk memeriksa batas gedung dan parkiran sebelum menggambar polygon.", false);
     }
 
     function searchAddress() {
@@ -207,7 +237,7 @@
                 var lon = Number(item.lon);
                 if (!isFinite(lat) || !isFinite(lon)) throw new Error("Koordinat hasil pencarian tidak valid.");
 
-                map.setView([lat, lon], 18);
+                map.setView([lat, lon], 20);
                 if (searchMarker) map.removeLayer(searchMarker);
                 searchMarker = L.marker([lat, lon]).addTo(map)
                     .bindPopup(item.display_name || query).openPopup();
@@ -230,7 +260,7 @@
         navigator.geolocation.getCurrentPosition(function (position) {
             var lat = position.coords.latitude;
             var lon = position.coords.longitude;
-            map.setView([lat, lon], 19);
+            map.setView([lat, lon], 21);
             if (searchMarker) map.removeLayer(searchMarker);
             searchMarker = L.marker([lat, lon]).addTo(map).bindPopup("Posisi perangkat").openPopup();
             setMessage("Peta dipusatkan ke posisi perangkat. Titik ini hanya membantu navigasi peta, bukan otomatis menjadi polygon.", false);
