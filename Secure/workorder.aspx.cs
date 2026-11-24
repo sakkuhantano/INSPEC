@@ -59,9 +59,9 @@ WHERE W.KeyHD=@KeyHD
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=W.SectionID)
   AND (
        EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-               WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+               WHERE C.UserID=SU.EmployeeID AND C.AppID='inspec'
                  AND C.CompanyID=W.CompanyID AND C.LocationID=W.LocationID)
-       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+       OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('inspec', SU.EmployeeID, '') L
                   WHERE L.CompanyID=W.CompanyID AND L.LocationID=W.LocationID)
   )
   AND EXISTS (
@@ -112,7 +112,7 @@ WHERE W.KeyHD=@KeyHD
                 DataTable dt = br.EQuery("SELECT Pending=SUM(CASE WHEN isRespondDC=0 AND ISNULL(RemarkTechnician,'')<>'' AND ReasonRespondDC='' THEN 1 ELSE 0 END), " +
                                        "[Void]=SUM(CASE WHEN isRespondDC=0 AND ReasonRespondDC<>'' THEN 1 ELSE 0 END), " +
                                        "[Approved]=SUM(CASE WHEN ISNULL(RemarkTechnician,'')<>'' AND isCompleteDC=1 AND CONVERT(VARCHAR(8),ApprovedRespondDCDate,112)=CONVERT(VARCHAR(8),GETDATE(),112) THEN 1 ELSE 0 END) " +
-                                       "FROM PIP_T_WO a WHERE WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation " +
+                                       "FROM PIP_T_WO a WHERE WOType='p' AND ISNULL(a.TemplateWOPM,'')<>'' AND ISNULL(a.TemplateVersion,'')<>'' AND a.CompanyID+';'+a.LocationID=@CompanyLocation " +
                                        "AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid) " +
                                        "AND EXISTS (SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.TemplateNo=a.TemplateWOPM AND T.SectionID=a.SectionID " +
                                        "AND ISNULL(T.TemplateType,'W')='W' AND (ISNULL(T.CompanyScope,'S')='A' " +
@@ -217,7 +217,7 @@ StartTime=(SELECT TOP 1 NULLIF(AA.StartDate,'') FROM PIP_T_H_WO_Employee AA WHER
 EndTime=(SELECT TOP 1 NULLIF(AA.EndDate,'') FROM PIP_T_H_WO_Employee AA WHERE AA.KeyHD=a.KeyHD), ISNULL(eqp.ModelCode,'') ModelCode
 FROM pip_t_wo a JOIN PIP_M_D_SchedulePM d JOIN PIP_M_H_SchedulePM h ON d.KeyHD=h.KeyHD ON h.CompanyID=a.CompanyID AND h.LocationID=a.LocationID 
 JOIN PIP_M_Equipment eqp ON eqp.CompanyID=a.CompanyID AND eqp.LocationID=a.LocationID AND eqp.EquipmentCode=h.EquipmentCode AND a.WONo=d.WONo
-WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation 
+WHERE a.WOType='p' AND a.CompanyID+';'+a.LocationID=@CompanyLocation and ISNULL(a.TemplateWOPM,'')<>'' AND ISNULL(a.TemplateVersion,'')<>''
 AND EXISTS (SELECT * FROM dbo.SplitStringConvertToTable(@sectionlist,';') b WHERE b.val=a.sectionid)
 AND EXISTS
 (
@@ -1063,7 +1063,7 @@ JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
 
 WHERE W.KeyHD=@KeyHD
   AND W.CompanyID=@CompanyID
-  AND W.LocationID=@LocationID
+  AND W.LocationID=@LocationID AND ISNULL(W.TemplateWOPM,'')<>'' AND ISNULL(W.TemplateVersion,'')<>''
   AND EXISTS
       (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S
        WHERE S.val=W.SectionID)
@@ -1071,11 +1071,11 @@ WHERE W.KeyHD=@KeyHD
       (
           EXISTS (
               SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-              WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+              WHERE C.UserID=SU.EmployeeID AND C.AppID='inspec'
                 AND C.CompanyID=@CompanyID AND C.LocationID=@LocationID
           )
           OR EXISTS (
-              SELECT 1 FROM dbo.F_SelectOneLogin('pip', SU.EmployeeID, '') L
+              SELECT 1 FROM dbo.F_SelectOneLogin('inspec', SU.EmployeeID, '') L
               WHERE L.CompanyID=@CompanyID AND L.LocationID=@LocationID
           )
       )
