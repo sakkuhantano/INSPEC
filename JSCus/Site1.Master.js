@@ -1840,204 +1840,178 @@ async function downloadWorkOrder() {
         // =================================================================
         // PROSES 1: SIMPAN/UPDATE WORKORDERS UTAMA
         // =================================================================
-        for (let wo of workorders) {
-            serverKeys.add(wo.KeyHD);
+        // One transaction reads local headers and applies all safe server
+        // updates. Reuse this local snapshot to protect unfinished records.
+        const protectedLocalKeys = await new Promise((resolve, reject) => {
+            const tx = db.transaction("workorder", "readwrite");
+            const store = tx.objectStore("workorder");
+            const protectedKeys = new Set();
+            const readRequest = store.getAll();
 
-            await new Promise((resolve, reject) => {
-                let txWO = db.transaction("workorder", "readwrite");
-                let storeWO = txWO.objectStore("workorder");
+            readRequest.onsuccess = function () {
+                const localByKey = new Map();
+                (readRequest.result || []).forEach(function (localWO) {
+                    localByKey.set(String(localWO.KeyHD), localWO);
+                    if (localWO.Status === "DRAFT" || localWO.Status === "DONE")
+                        protectedKeys.add(Number(localWO.KeyHD));
+                });
 
-                let getRequest = storeWO.get(wo.KeyHD);
-                getRequest.onsuccess = function(event) {
-                    let existingData = event.target.result;
-            // if (existingData && existingData.Status != "SYNCED" && 
-            //                      wo.Status === "PENDING") {
+                workorders.forEach(function (wo) {
+                    serverKeys.add(wo.KeyHD);
+                    const existingData = localByKey.get(String(wo.KeyHD));
                     if (existingData && (
                         wo.Status === "PENDING" ||
                         existingData.Status === "DRAFT" ||
                         existingData.Status === "DONE"
-                    )) {
-            // Never overwrite an unsynced local draft/completion with server refresh data.
-                        resolve();
-                        return;
-        }
-            // if (existingData && wo.StatusSPV != "" && 
-            //     existingData.StatusSPV != "") {
-            //     resolve();
-            //     return;
-            // }
-            // if (existingData && existingData.Status === "" && wo.Status != "" && existingData.StatusSPV != "") {
-            //     resolve();
-            //     return;
-            // }
+                    )) return;
 
+                    store.put({
+                        KeyHD: wo.KeyHD,
+                        CompanyID: wo.CompanyID,
+                        LocationID: wo.LocationID,
+                        WONo: wo.WONo,
+                        WODate: wo.WODate,
+                        EquipmentCode: wo.EquipmentCode,
+                        LocationNo: wo.LocationNo,
+                        Description: wo.Description,
+                        Status: wo.Status,
+                        TemplateWOPM: wo.TemplateWOPM,
+                        ReasonVoid: wo.ReasonVoid,
+                        IsCompleteDC: wo.IsCompleteDC,
+                        IsSampling: wo.IsSampling,
+                        TemplateJSON: wo.TemplateJSON,
+                        DataCheckListJSON: wo.DataCheckListJSON,
+                        DataPhotoJSON: wo.DataPhotoJSON,
+                        EmployeeJSON: wo.EmployeeJSON,
+                        SectionID: wo.SectionID,
+                        LastUpdated: wo.LastUpdated,
+                        StatusSPV: "",
+                        ActionSPV: "",
+                        InspectionOwnerID: (existingData && existingData.InspectionOwnerID) || "",
+                        SupervisorActionOwnerID: (existingData && existingData.SupervisorActionOwnerID) || "",
+                        ModelCode: wo.ModelCode
+                    });
+                });
+            };
 
-                    let putRequest = storeWO.put({
-            KeyHD: wo.KeyHD,
-            CompanyID: wo.CompanyID,
-            LocationID: wo.LocationID,
-            WONo: wo.WONo,
-            WODate: wo.WODate,
-            EquipmentCode: wo.EquipmentCode,
-            LocationNo: wo.LocationNo,
-            Description: wo.Description,
-            Status: wo.Status,
-            TemplateWOPM: wo.TemplateWOPM,
-            ReasonVoid: wo.ReasonVoid, 
-            IsCompleteDC: wo.IsCompleteDC,
-            IsSampling: wo.IsSampling,
-            TemplateJSON: wo.TemplateJSON,
-            DataCheckListJSON: wo.DataCheckListJSON,
-            DataPhotoJSON: wo.DataPhotoJSON,
-            EmployeeJSON: wo.EmployeeJSON,
-            SectionID: wo.SectionID,
-            LastUpdated: wo.LastUpdated,
-            StatusSPV: "",
-            ActionSPV: "",
-            // Preserve offline ownership when refreshing server WO data.
-            InspectionOwnerID: (existingData && existingData.InspectionOwnerID) || "",
-            SupervisorActionOwnerID: (existingData && existingData.SupervisorActionOwnerID) || "",
-            ModelCode: wo.ModelCode
+            readRequest.onerror = () => reject(readRequest.error);
+            tx.oncomplete = () => resolve(protectedKeys);
+            tx.onerror = () => reject(tx.error || new Error("WorkOrder header cache update failed"));
+            tx.onabort = () => reject(tx.error || new Error("WorkOrder header cache update aborted"));
         });
 
-                    putRequest.onsuccess = () => resolve();
-                    putRequest.onerror = (e) => reject(e.target.error);
-        };
-                getRequest.onerror = (e) => reject(e.target.error);
-    });
-}
+        // =================================================================
+        // PROSES 2: PROSES FOTO
+        // =================================================================
+        if (appFeatures.canApproveWorkOrder || appFeatures.canMyWorkOrder) {
+            const photoTasksByKey = new Map();
 
-// Protect locally edited/completed WOs from all server-side cache refreshes.
-// The header may already be protected above, but checklist and photo stores
-// must be protected separately because uploadPendingWO reads those stores.
-const protectedLocalKeys = await new Promise((resolve, reject) => {
-    const tx = db.transaction("workorder", "readonly");
-const req = tx.objectStore("workorder").getAll();
-req.onsuccess = () => resolve(new Set((req.result || [])
-    .filter(localWO => localWO.Status === "DRAFT" || localWO.Status === "DONE")
-    .map(localWO => Number(localWO.KeyHD))));
-req.onerror = () => reject(req.error);
-});
+            workorders.forEach(function (wo) {
+                const photoData = wo.DataPhotoJSON;
+                if (!photoData || protectedLocalKeys.has(Number(photoData.KeyHD))) return;
 
-// =================================================================
-// PROSES 2: PROSES FOTO (KHUSUS SPV)
-// =================================================================
-if (appFeatures.canApproveWorkOrder || appFeatures.canMyWorkOrder) {
-    for (let wo of workorders) {
-        let photoData = wo.DataPhotoJSON; 
-        if (!photoData) continue;
+                const keyHD = photoData.KeyHD;
+                (photoData.PhotoBefore || []).forEach(function (item) {
+                    const key = [keyHD, "BEFORE", item.SeqNo].join("|");
+                    if (!photoTasksByKey.has(key))
+                        photoTasksByKey.set(key, { keyHD: keyHD, type: "BEFORE", item: item });
+                });
+                (photoData.PhotoAfter || []).forEach(function (item) {
+                    const key = [keyHD, "AFTER", item.SeqNo].join("|");
+                    if (!photoTasksByKey.has(key))
+                        photoTasksByKey.set(key, { keyHD: keyHD, type: "AFTER", item: item });
+                });
+            });
 
-        let keyHD = photoData.KeyHD;
-        if (protectedLocalKeys.has(Number(keyHD))) continue;
-        let tasks = [];
-        if (photoData.PhotoBefore) {
-            photoData.PhotoBefore.forEach(p => tasks.push({ item: p, type: "BEFORE" }));
-}
-if (photoData.PhotoAfter) {
-    photoData.PhotoAfter.forEach(p => tasks.push({ item: p, type: "AFTER" }));
-}
+            const photoTasks = Array.from(photoTasksByKey.values());
+            if (photoTasks.length) {
+                const missingPhotoTasks = await new Promise((resolve, reject) => {
+                    const tx = db.transaction(["wo_photos"], "readonly");
+                    const index = tx.objectStore("wo_photos").index("compositeKey");
+                    const missing = [];
+                    let remaining = photoTasks.length;
 
-for (let task of tasks) {
-    let item = task.item;
-    let type = task.type;
+                    photoTasks.forEach(function (task) {
+                        const request = index.get([task.keyHD, task.type, task.item.SeqNo]);
+                        request.onsuccess = function () {
+                            if (!request.result) missing.push(task);
+                            remaining--;
+                            if (remaining === 0) resolve(missing);
+                        };
+                        request.onerror = () => reject(request.error);
+                    });
 
-    // Cek duplikasi dengan transaksi jangka pendek
-    // let isDuplicate = await new Promise((resolve) => {
-    //     let txCheck = db.transaction(["wo_photos"], "readonly");
-    //     let storeCheck = txCheck.objectStore("wo_photos");
-    //     let index = storeCheck.index("compositeKey");
-    //     let req = index.get([keyHD, type, item.SeqNo]);
-    //     req.onsuccess = () => resolve(req.result !== undefined);
-    //     req.onerror = () => resolve(false);
-    // });
-    let isDuplicate = await new Promise((resolve) => {
-        let txCheck = db.transaction(["wo_photos"], "readonly");
-        let storeCheck = txCheck.objectStore("wo_photos");
-                        
-    // Asumsi Anda punya index biasa bernama "KeyHD"
-        let index = storeCheck.index("KeyHD"); 
-        let request = index.openCursor(IDBKeyRange.only(keyHD));
+                    tx.onerror = () => reject(tx.error || new Error("WorkOrder photo duplicate check failed"));
+                    tx.onabort = () => reject(tx.error || new Error("WorkOrder photo duplicate check aborted"));
+                });
 
-        let found = false;
-        request.onsuccess = function(event) {
-            let cursor = event.target.result;
-            if (cursor) {
-                let data = cursor.value;
-    // Cocokkan manual di JavaScript
-                if (data.Type === type && data.OrderNo === item.SeqNo) {
-                    found = true;
-                    resolve(true); // Ketemu duplikat, stop pencarian
-                    return;
-}
-                cursor.continue();
-} else {
-                if (!found) resolve(false); // Sampai data habis tidak ketemu
-}
-};
-        request.onerror = () => resolve(false);
-});
+                const photoWrites = [];
+                let nextPhotoIndex = 0;
+                const workerCount = Math.min(4, missingPhotoTasks.length);
+                const workers = Array.from({ length: workerCount }, async function () {
+                    while (nextPhotoIndex < missingPhotoTasks.length) {
+                        const task = missingPhotoTasks[nextPhotoIndex++];
+                        const blob = await urlToBlob(task.item.imgSrc);
+                        if (!blob) continue;
 
-if (isDuplicate) continue;
+                        photoWrites.push({
+                            KeyHD: task.keyHD,
+                            Type: task.type,
+                            Blob: blob,
+                            OrderNo: task.item.SeqNo,
+                            FileName: task.item.FileName || ""
+                        });
+                    }
+                });
+                await Promise.all(workers);
 
-// Download di luar transaksi agar aman
-let blob = await urlToBlob(item.imgSrc);
-if (!blob) continue; 
+                if (photoWrites.length) {
+                    await new Promise((resolve, reject) => {
+                        const tx = db.transaction(["wo_photos"], "readwrite");
+                        const store = tx.objectStore("wo_photos");
+                        photoWrites.forEach(photo => store.put(photo));
+                        tx.oncomplete = resolve;
+                        tx.onerror = () => reject(tx.error || new Error("WorkOrder photo cache update failed"));
+                        tx.onabort = () => reject(tx.error || new Error("WorkOrder photo cache update aborted"));
+                    });
+                }
+            }
+        }
 
-// Simpan dengan transaksi baru yang segar
-try {
-    await new Promise((resolve, reject) => {
-        let txWrite = db.transaction(["wo_photos"], "readwrite");
-    let storeWrite = txWrite.objectStore("wo_photos");
-    let req = storeWrite.put({
-        KeyHD: keyHD,
-        Type: type,         
-        Blob: blob,         
-        OrderNo: item.SeqNo,
-        FileName: item.FileName || "" 
-    });
-    req.onsuccess = () => resolve();
-    req.onerror = (e) => reject(e.target.error);
-});
-} catch (err) {
-    console.error("Gagal simpan foto:", err);
-}
-}
-}
+        // =================================================================
+        // PROSES 3: TIMPA DATA CHECKLIST
+        // =================================================================
+        const checklistSnapshots = workorders
+            .filter(wo => wo.DataCheckListJSON &&
+                !protectedLocalKeys.has(Number(wo.DataCheckListJSON.KeyHD)))
+            .map(wo => {
+                const data = wo.DataCheckListJSON;
+                return {
+                    KeyHD: data.KeyHD,
+                    FollowUp: data.FollowUp,
+                    FollowUpSection: data.FollowUpSection,
+                    FollowUpRemark: data.FollowUpRemark,
+                    Summary: data.Summary,
+                    Items: data.Items,
+                    RemarkSPV: data.RemarkSPV,
+                    StartTime: data.StartTime ?? "",
+                    EndTime: data.EndTime ?? ""
+                };
+            });
 
-// =================================================================
-// PROSES 3: TIMPA DATA CHECKLIST
-// =================================================================
-for (let wo of workorders) {
-    let checkListData = wo.DataCheckListJSON; 
-    if (!checkListData) continue;
-    if (protectedLocalKeys.has(Number(checkListData.KeyHD))) continue;
+        if (checklistSnapshots.length) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(["wo_checklist"], "readwrite");
+                const store = tx.objectStore("wo_checklist");
+                checklistSnapshots.forEach(snapshot => store.put(snapshot));
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error("WorkOrder checklist cache update failed"));
+                tx.onabort = () => reject(tx.error || new Error("WorkOrder checklist cache update aborted"));
+            });
+        }
 
-    try {
-        await new Promise((resolve, reject) => {
-            let txChk = db.transaction(["wo_checklist"], "readwrite");
-            let storeChk = txChk.objectStore("wo_checklist");
-            let req = storeChk.put({
-    KeyHD: checkListData.KeyHD,
-    FollowUp: checkListData.FollowUp,
-    FollowUpSection: checkListData.FollowUpSection,
-    FollowUpRemark: checkListData.FollowUpRemark,
-    Summary: checkListData.Summary,
-    Items: checkListData.Items,
-    RemarkSPV: checkListData.RemarkSPV,
-    StartTime: checkListData.StartTime ?? "",
-    EndTime: checkListData.EndTime ?? ""
-});
-            req.onsuccess = () => resolve();
-            req.onerror = (e) => reject(e.target.error);
-});
-} catch (err) {
-        console.error("Gagal simpan checklist:", err);
-}
-}
-}
-
-    // =================================================================
-    // PROSES 4: CLEANUP / DELETE LOCAL YANG TIDAK ADA DI SERVER
+        // =================================================================
+        // PROSES 4: CLEANUP / DELETE LOCAL YANG TIDAK ADA DI SERVER
     // =================================================================
 await new Promise((resolve, reject) => {
     // Buka transaksi untuk ketiga store sekaligus agar bisa didelete bersamaan
@@ -2178,25 +2152,36 @@ const login = getLoginData();
 if (!login || !workOrders || !workOrders.length) return;
 
 const rawItems = [];
-for (const wo of workOrders) {
-    const checklist = await new Promise((resolve, reject) => {
-        const tx = db.transaction("wo_checklist", "readonly");
-        const req = tx.objectStore("wo_checklist").get(wo.KeyHD);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+const checklistByKey = await new Promise((resolve, reject) => {
+    const tx = db.transaction("wo_checklist", "readonly");
+    const store = tx.objectStore("wo_checklist");
+    const result = new Map();
+
+    workOrders.forEach(function (wo) {
+        const request = store.get(wo.KeyHD);
+        request.onsuccess = () => result.set(String(wo.KeyHD), request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+
+    tx.oncomplete = () => resolve(result);
+    tx.onerror = () => reject(tx.error || new Error("Failed reading local WorkOrder checklists"));
+    tx.onabort = () => reject(tx.error || new Error("Local WorkOrder checklist read aborted"));
 });
 
-if (!checklist || !Array.isArray(checklist.Items)) {
-    showToast("WO " + (wo.WONo || wo.KeyHD) + " belum memiliki data checklist lokal. Data tetap tersimpan dan tidak di-upload.", "warning");
-    continue;
-}
-if (mode === "TECHNICIAN" && checklist.Items.length === 0) {
-    // The stored procedure infers SPV mode when the entire checklist table is empty.
-    // Do not let an empty technician payload be misinterpreted as an SPV action.
-    showToast("WO " + (wo.WONo || wo.KeyHD) + " tidak memiliki item checklist. Data tetap pending untuk diperiksa.", "warning");
-    continue;
-}
-rawItems.push({ wo, checklist });
+for (const wo of workOrders) {
+    const checklist = checklistByKey.get(String(wo.KeyHD));
+
+    if (!checklist || !Array.isArray(checklist.Items)) {
+        showToast("WO " + (wo.WONo || wo.KeyHD) + " belum memiliki data checklist lokal. Data tetap tersimpan dan tidak di-upload.", "warning");
+        continue;
+    }
+    if (mode === "TECHNICIAN" && checklist.Items.length === 0) {
+        // The stored procedure infers SPV mode when the entire checklist table is empty.
+        // Do not let an empty technician payload be misinterpreted as an SPV action.
+        showToast("WO " + (wo.WONo || wo.KeyHD) + " tidak memiliki item checklist. Data tetap pending untuk diperiksa.", "warning");
+        continue;
+    }
+    rawItems.push({ wo, checklist });
 }
 if (!rawItems.length) return;
 
