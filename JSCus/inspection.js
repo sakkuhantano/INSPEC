@@ -91,19 +91,43 @@ function getSelectedInspectionSuiteNo() {
 function applyInspectionTenantSearch() {
     const search = document.getElementById("txtInspectionTenantSearch");
     const tenantSelect = document.getElementById("selInspectionTenant");
-    if (!search || !tenantSelect) return;
+    const optionHost = document.getElementById("inspectionTenantDropdownOptions");
+    const dropdownButton = document.getElementById("selInspectionTenantDropdownButton");
+    if (!tenantSelect) return;
 
-    const keyword = String(search.value || "").trim().toLocaleLowerCase();
-    Array.from(tenantSelect.options).forEach(option => {
-        if (!option.value) {
-            option.hidden = false;
-            return;
-        }
-        // Tenant option labels contain both TenantID and TenantName.
-        // Keep the complete option list intact so lock/availability state is preserved.
-        option.hidden = !!keyword &&
-            String(option.textContent || option.value).toLocaleLowerCase().indexOf(keyword) < 0;
-    });
+    const keyword = String(search && search.value || "").trim().toLocaleLowerCase();
+    const options = Array.from(tenantSelect.options);
+
+    // Keep the hidden native select as the source of truth. The visible Bootstrap
+    // dropdown is only the searchable presentation layer, so all existing
+    // tenant-lock/availability logic can continue using selInspectionTenant.
+    if (dropdownButton) {
+        const selected = tenantSelect.options[tenantSelect.selectedIndex];
+        dropdownButton.textContent = selected && selected.value
+            ? selected.textContent
+            : "Pilih tenant...";
+        dropdownButton.disabled = tenantSelect.disabled;
+    }
+
+    if (!optionHost) return;
+    const matches = options.filter(option =>
+        !option.value ||
+        !keyword ||
+        String(option.textContent || option.value).toLocaleLowerCase().indexOf(keyword) >= 0
+    );
+
+    optionHost.innerHTML = matches.length
+        ? matches.map(option => {
+            const selected = String(option.value || "") === String(tenantSelect.value || "");
+            return '<button type="button" class="dropdown-item rounded small' +
+                (selected ? ' active' : '') +
+                (option.disabled ? ' disabled' : '') +
+                '" data-inspection-tenant-value="' + escInspection(option.value) + '"' +
+                (option.disabled ? ' disabled aria-disabled="true"' : '') + '>' +
+                escInspection(option.textContent || option.value) +
+                '</button>';
+        }).join("")
+        : '<div class="dropdown-item-text small text-muted py-2">Tenant tidak ditemukan.</div>';
 }
 
 
@@ -468,6 +492,30 @@ function wireInspectionEvents() {
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
     const tenantSearchInput = document.getElementById("txtInspectionTenantSearch");
     if (tenantSearchInput) tenantSearchInput.addEventListener("input", applyInspectionTenantSearch);
+
+    const tenantDropdown = document.getElementById("inspectionTenantDropdown");
+    if (tenantDropdown) {
+        tenantDropdown.addEventListener("click", function (event) {
+            const option = event.target.closest("[data-inspection-tenant-value]");
+            if (!option || option.disabled) return;
+            const tenantSelect = document.getElementById("selInspectionTenant");
+            if (!tenantSelect) return;
+            tenantSelect.value = option.getAttribute("data-inspection-tenant-value") || "";
+            tenantSelect.dispatchEvent(new Event("change", { bubbles: true }));
+            const dropdownButton = document.getElementById("selInspectionTenantDropdownButton");
+            if (dropdownButton && window.bootstrap && bootstrap.Dropdown) {
+                bootstrap.Dropdown.getOrCreateInstance(dropdownButton).hide();
+            }
+        });
+        tenantDropdown.addEventListener("shown.bs.dropdown", function () {
+            const search = document.getElementById("txtInspectionTenantSearch");
+            if (search && !search.disabled) {
+                search.focus();
+                search.select();
+            }
+        });
+    }
+
     document.getElementById("selInspectionScheduleTime").addEventListener("change", function () {
         refreshInspectionScheduleOptions();
         refreshInspectionTenantAvailability();
@@ -1352,6 +1400,7 @@ function resetInspectionTenantSelection() {
         tenantSelect.value = "";
         tenantSelect.disabled = true;
     }
+    applyInspectionTenantSearch();
     if (suiteSelect) {
         suiteSelect.innerHTML = '<option value="">Pilih tenant terlebih dahulu...</option>';
         suiteSelect.value = "";
