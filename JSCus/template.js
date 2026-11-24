@@ -769,32 +769,36 @@ async function onTemplateClick(event,idTemplate, sectionId)
 
     const cachedVersions = getTemplateVersionNodes(templateNode);
     const hasCachedVersions = cachedVersions.length > 0;
+    const versionsAlreadyLoaded = templateNode.VersionsLoaded === true;
 
-    // Cache-first: re-opening a Template with known Version metadata is immediate.
-    // If only a partial cache exists, show it now and refresh quietly in background.
-    if (templateNode.VersionsLoaded === true || hasCachedVersions) {
+    // Fully loaded cache: render immediately, with no server round-trip.
+    if (versionsAlreadyLoaded) {
         setCurrentTemplateVersionList(cachedVersions);
+        renderTemplateVersions(currentVersions, container);
+        container.dataset.loaded = "1";
+
+        if (event) {
+            showTemplateRootProperties(template, null)
+                .catch(function(ex) {
+                    if (isCurrentSelection())
+                        console.error("Template properties load error:", ex);
+                });
+        }
+        if (isCurrentSelection())
+            evaluateDirtyState();
+        return;
+    }
+
+    // Partial local cache is still useful for an instant preview, but until the
+    // server confirms the complete Version list keep Template properties read-only.
+    if (hasCachedVersions) {
+        currentVersions = sortTemplateVersionNodes(cachedVersions);
+        isReadonlyMode = true;
         renderTemplateVersions(currentVersions, container);
         container.dataset.loaded = "1";
     } else {
         container.innerHTML =
             '<div class="text-muted text-xs fst-italic p-2">Loading versions...</div>';
-    }
-
-    // The right Properties panel can load its own metadata independently.
-    // Never make the Version list wait for these additional requests.
-    if (event) {
-        showTemplateRootProperties(template, null)
-            .catch(function(ex) {
-                if (isCurrentSelection())
-                    console.error("Template properties load error:", ex);
-            });
-    }
-
-    if (templateNode.VersionsLoaded === true) {
-        if (isCurrentSelection())
-            evaluateDirtyState();
-        return;
     }
 
     try {
@@ -810,6 +814,13 @@ async function onTemplateClick(event,idTemplate, sectionId)
 
         if (isCurrentSelection()) {
             setCurrentTemplateVersionList(sortedVersions);
+            if (event) {
+                showTemplateRootProperties(template, null)
+                    .catch(function(ex) {
+                        if (isCurrentSelection())
+                            console.error("Template properties load error:", ex);
+                    });
+            }
             evaluateDirtyState();
         }
     }
@@ -830,6 +841,15 @@ async function onTemplateClick(event,idTemplate, sectionId)
                 'Failed load versions: ' + escapeHtml(errorMessage) +
                 '</div>';
             container.dataset.loaded = "0";
+        }
+
+        // Keep Template properties safe/read-only if metadata could not be loaded.
+        if (isCurrentSelection() && event) {
+            isReadonlyMode = true;
+            showTemplateRootProperties(template, null)
+                .catch(function(propertiesError) {
+                    console.error("Template properties load error:", propertiesError);
+                });
         }
     }
 }
