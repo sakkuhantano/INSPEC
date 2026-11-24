@@ -1199,6 +1199,7 @@ async function downloadReturnedInspections() {
     const login = getLoginData();
     if (!login || !login.employeeid) return;
     const scope = (login.curcompany || "").split(";");
+
     try {
         const response = await fetch("inspection.aspx/GetReturnedInspections", {
             method: "POST",
@@ -1212,40 +1213,102 @@ async function downloadReturnedInspections() {
         const payload = await response.json();
         if (!response.ok) throw new Error((payload && payload.Message) || "Returned Inspection download failed");
         const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
-        const returned = result.data || [];
+        const returned = Array.isArray(result && result.data) ? result.data : [];
         if (!returned.length) return;
 
+        // Read local inspection records once and use O(1) lookups for each server row.
         const existing = await new Promise((resolve, reject) => {
             const tx = db.transaction("inspection_records", "readonly");
             const req = tx.objectStore("inspection_records").getAll();
             req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => reject(req.error);
         });
-        const updates = [];
-        const photoUpdates = [];
-        const parseDateOnly = value => {
-            if (!value) return "";
-            const match = String(value).match(/\/Date\((\d+)/);
-            if (match) return new Date(Number(match[1])).toISOString().slice(0, 10);
-            return String(value).slice(0, 10);
-        };
-        for (const serverRecord of returned) {
-            let local = existing.find(x => x.LocalInspectionID === serverRecord.ClientInspectionID);
-            // Never overwrite edits waiting to sync; the returned server copy is only a baseline.
-            if (local && local.SyncStatus !== "SYNCED") continue;
-            if (!local) {
-                const template = serverRecord.TemplateSnapshot || (await new Promise((resolve, reject) => {
+        const existingById = new Map(existing.map(record => [
+            String(record.LocalInspectionID || ""),
+            record
+        ]));
+
+        // The exact template and type masters are shared by all returned rows.
+        // Load each store at most once instead of issuing getAll() per inspection.
+        const needsTemplateCache = returned.some(serverRecord => {
+            const local = existingById.get(String(serverRecord.ClientInspectionID || ""));
+            return (!local || local.SyncStatus === "SYNCED") &&
+                !serverRecord.TemplateSnapshot;
+        });
+        const needsTypeCache = returned.some(serverRecord =>
+            ["BATCH", "LIGHTNING"].includes(
+                String(serverRecord.InspectionMode || "STANDARD").toUpperCase()
+            )
+        );
+
+        const [templateRows, typeRows] = await Promise.all([
+            needsTemplateCache
+                ? new Promise((resolve, reject) => {
                     const tx = db.transaction("inspection_templates", "readonly");
                     const req = tx.objectStore("inspection_templates").getAll();
-                    req.onsuccess = () => resolve((req.result || []).find(x =>
-                        Number(x.IDTemplate) === Number(serverRecord.IDTemplate) &&
-                        Number(x.IDVersion) === Number(serverRecord.IDVersion)));
+                    req.onsuccess = () => resolve(req.result || []);
                     req.onerror = () => reject(req.error);
-                }));
+                })
+                : Promise.resolve([]),
+            needsTypeCache
+                ? new Promise((resolve, reject) => {
+                    const tx = db.transaction("inspection_types_scoped", "readonly");
+                    const req = tx.objectStore("inspection_types_scoped").getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                })
+                : Promise.resolve([])
+        ]);
+
+        const templateByKey = new Map(templateRows.map(template => [
+            [Number(template.IDTemplate), Number(template.IDVersion)].join("|"),
+            template
+        ]));
+        const typeByKey = new Map(typeRows.map(type => [
+            [
+                String(type.InspectionTypeCode || ""),
+                String(type.SectionID || ""),
+                String(type.CompanyID || ""),
+                String(type.LocationID || "")
+            ].join("|"),
+            type
+        ]));
+
+        const updates = [];
+        const photoCandidates = [];
+        const parseDateOnly = value => {
+            if (!value) return "";
+            const text = String(value);
+            const marker = "/Date(";
+            const markerIndex = text.indexOf(marker);
+            if (markerIndex >= 0) {
+                const numberStart = markerIndex + marker.length;
+                const numberEnd = text.indexOf(")", numberStart);
+                const timestamp = Number(text.slice(numberStart, numberEnd >= 0 ? numberEnd : undefined));
+                if (Number.isFinite(timestamp))
+                    return new Date(timestamp).toISOString().slice(0, 10);
+            }
+            return text.slice(0, 10);
+        };
+
+        for (const serverRecord of returned) {
+            const localId = String(serverRecord.ClientInspectionID || "");
+            let local = existingById.get(localId);
+
+            // Never overwrite edits waiting to sync; the returned server copy is only a baseline.
+            if (local && local.SyncStatus !== "SYNCED") continue;
+
+            if (!local) {
+                const templateKey = [
+                    Number(serverRecord.IDTemplate),
+                    Number(serverRecord.IDVersion)
+                ].join("|");
+                const template = serverRecord.TemplateSnapshot || templateByKey.get(templateKey);
                 if (!template) {
                     console.warn("Returned Inspection needs its exact template version, which is not cached:", serverRecord.ClientInspectionID);
                     continue;
                 }
+
                 local = {
                     LocalInspectionID: serverRecord.ClientInspectionID,
                     ServerInspectionID: Number(serverRecord.InspectionID || 0),
@@ -1270,6 +1333,7 @@ async function downloadReturnedInspections() {
                     TemplateSnapshot: template
                 };
             }
+
             local.ServerInspectionID = Number(serverRecord.InspectionID || local.ServerInspectionID || 0);
             local.InspectionNo = serverRecord.InspectionNo || local.InspectionNo || "";
             local.InspectionMode = String(serverRecord.InspectionMode || local.InspectionMode || "STANDARD").toUpperCase();
@@ -1278,27 +1342,21 @@ async function downloadReturnedInspections() {
             local.TenantID = serverRecord.TenantID || local.TenantID || "";
             local.TenantName = serverRecord.TenantName || local.TenantName || "";
             local.SuiteNo = serverRecord.SuiteNo || local.SuiteNo || "";
+
             if (["BATCH", "LIGHTNING"].includes(local.InspectionMode)) {
                 local.Points = Array.isArray(serverRecord.Points) ? serverRecord.Points : (local.Points || []);
-                try {
-                    const typeRows = await new Promise((resolve, reject) => {
-                        const tx = db.transaction("inspection_types_scoped", "readonly");
-                        const req = tx.objectStore("inspection_types_scoped").getAll();
-                        req.onsuccess = () => resolve(req.result || []);
-                        req.onerror = () => reject(req.error);
-                    });
-                    const cachedType = typeRows.find(type =>
-                        String(type.InspectionTypeCode || "") === String(local.InspectionTypeCode || "") &&
-                        String(type.SectionID || "") === String(local.SectionID || "") &&
-                        String(type.CompanyID || "") === String(local.CompanyID || "") &&
-                        String(type.LocationID || "") === String(local.LocationID || ""));
-                    local.BatchMapSetup = cachedType && cachedType.BatchMapSetups
-                        ? cachedType.BatchMapSetups[String(local.InspectionTypeDetailCode || "").toUpperCase()] || null
-                        : (local.BatchMapSetup || null);
-                } catch (cacheError) {
-                    console.warn("BATCH map cache lookup for returned inspection failed:", cacheError);
-                }
+                const typeKey = [
+                    String(local.InspectionTypeCode || ""),
+                    String(local.SectionID || ""),
+                    String(local.CompanyID || ""),
+                    String(local.LocationID || "")
+                ].join("|");
+                const cachedType = typeByKey.get(typeKey);
+                local.BatchMapSetup = cachedType && cachedType.BatchMapSetups
+                    ? cachedType.BatchMapSetups[String(local.InspectionTypeDetailCode || "").toUpperCase()] || null
+                    : (local.BatchMapSetup || null);
             }
+
             local.Status = "DRAFT";
             local.SyncStatus = "SYNCED";
             local.Items = serverRecord.Items || [];
@@ -1308,73 +1366,97 @@ async function downloadReturnedInspections() {
             local.EndDateTime = serverRecord.EndDateTime || local.EndDateTime || "";
             local.ReasonVoid = serverRecord.ReasonVoid || "";
             local.UpdatedAt = new Date().toISOString();
+
             updates.push(local);
-            try {
-                const photoResponse = await fetch("inspection.aspx/GetReturnedInspectionPhotos", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json; charset=utf-8" },
-                    body: JSON.stringify({
-                        clientInspectionId: serverRecord.ClientInspectionID,
-                        employeeId: login.employeeid,
-                        companyId: scope[0] || "",
-                        locationId: scope[1] || ""
-                    })
-                });
-                const photoPayload = await photoResponse.json();
-                if (!photoResponse.ok) throw new Error((photoPayload && photoPayload.Message) || "Inspection photo download failed");
-                const photoResult = photoPayload && Object.prototype.hasOwnProperty.call(photoPayload, "d") ? photoPayload.d : photoPayload;
-                if (photoResult && photoResult.success === false) throw new Error(photoResult.message || "Inspection photo download failed");
-                photoUpdates.push({ LocalInspectionID: local.LocalInspectionID, Photos: Array.isArray(photoResult.data) ? photoResult.data : [] });
-            } catch (photoError) {
-                console.warn("Unable to download returned Inspection photos:", serverRecord.ClientInspectionID, photoError);
-            }
+            photoCandidates.push(serverRecord);
         }
-        if (updates.length) {
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction("inspection_records", "readwrite");
-                const store = tx.objectStore("inspection_records");
-                updates.forEach(record => store.put(record));
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-                tx.onabort = () => reject(tx.error || new Error("Returned Inspection update aborted"));
-            });
-        }
-        for (const photoUpdate of photoUpdates) {
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction("inspection_photos", "readwrite");
-                const store = tx.objectStore("inspection_photos");
-                const index = store.index("LocalInspectionID");
-                const req = index.getAll(IDBKeyRange.only(photoUpdate.LocalInspectionID));
-                req.onsuccess = () => {
-                    (req.result || []).forEach(photo => store.delete(photo.ID));
-                    (photoUpdate.Photos || []).forEach(photo => {
-                        const parts = String(photo.Data || "").split(",");
-                        if (parts.length < 2) return;
-                        try {
-                            const mimeMatch = parts[0].match(/^data:([^;]+);base64$/i);
-                            const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-                            const binary = atob(parts[1]);
-                            const bytes = new Uint8Array(binary.length);
-                            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                            const blob = new Blob([bytes], { type: mimeType });
-                            store.add({
-                                LocalInspectionID: photoUpdate.LocalInspectionID,
-                                PointID: String(photo.PointID || ""),
-                                Type: String(photo.Type || "").toUpperCase(),
-                                FileName: photo.FileName || "",
-                                SeqNo: Number(photo.SeqNo || photo.OrderNo || 0),
-                                Blob: blob,
-                                DownloadedAt: new Date().toISOString()
-                            });
-                        } catch (decodeError) {
-                            console.warn("Invalid downloaded Inspection photo was skipped:", decodeError);
-                        }
+
+        // Fetch returned-inspection photo manifests in parallel with a small
+        // concurrency cap. A failed photo request leaves existing local photos untouched.
+        const photoUpdates = [];
+        let nextPhotoIndex = 0;
+        const photoWorkerCount = Math.min(3, photoCandidates.length);
+        const photoWorkers = Array.from({ length: photoWorkerCount }, async function () {
+            while (nextPhotoIndex < photoCandidates.length) {
+                const serverRecord = photoCandidates[nextPhotoIndex++];
+                try {
+                    const photoResponse = await fetch("inspection.aspx/GetReturnedInspectionPhotos", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json; charset=utf-8" },
+                        body: JSON.stringify({
+                            clientInspectionId: serverRecord.ClientInspectionID,
+                            employeeId: login.employeeid,
+                            companyId: scope[0] || "",
+                            locationId: scope[1] || ""
+                        })
                     });
-                };
-                req.onerror = () => reject(req.error);
+                    const photoPayload = await photoResponse.json();
+                    if (!photoResponse.ok) throw new Error((photoPayload && photoPayload.Message) || "Inspection photo download failed");
+                    const photoResult = photoPayload && Object.prototype.hasOwnProperty.call(photoPayload, "d") ? photoPayload.d : photoPayload;
+                    if (photoResult && photoResult.success === false) throw new Error(photoResult.message || "Inspection photo download failed");
+
+                    photoUpdates.push({
+                        LocalInspectionID: serverRecord.ClientInspectionID,
+                        Photos: Array.isArray(photoResult.data) ? photoResult.data : []
+                    });
+                } catch (photoError) {
+                    console.warn("Unable to download returned Inspection photos:", serverRecord.ClientInspectionID, photoError);
+                }
+            }
+        });
+        await Promise.all(photoWorkers);
+
+        // Decode image payloads before opening IndexedDB. No async work is done
+        // while the combined read/write transaction is active.
+        const photoRows = [];
+        const downloadedAt = new Date().toISOString();
+        photoUpdates.forEach(photoUpdate => {
+            (photoUpdate.Photos || []).forEach(photo => {
+                const parts = String(photo.Data || "").split(",");
+                if (parts.length < 2) return;
+                try {
+                    const mimeMatch = parts[0].match(/^data:([^;]+);base64$/i);
+                    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+                    const binary = atob(parts[1]);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    photoRows.push({
+                        LocalInspectionID: photoUpdate.LocalInspectionID,
+                        PointID: String(photo.PointID || ""),
+                        Type: String(photo.Type || "").toUpperCase(),
+                        FileName: photo.FileName || "",
+                        SeqNo: Number(photo.SeqNo || photo.OrderNo || 0),
+                        Blob: new Blob([bytes], { type: mimeType }),
+                        DownloadedAt: downloadedAt
+                    });
+                } catch (decodeError) {
+                    console.warn("Invalid downloaded Inspection photo was skipped:", decodeError);
+                }
+            });
+        });
+
+        if (updates.length || photoUpdates.length) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(["inspection_records", "inspection_photos"], "readwrite");
+                const recordStore = tx.objectStore("inspection_records");
+                const photoStore = tx.objectStore("inspection_photos");
+
+                updates.forEach(record => recordStore.put(record));
+                photoUpdates.forEach(photoUpdate => {
+                    const request = photoStore.index("LocalInspectionID")
+                        .openCursor(IDBKeyRange.only(photoUpdate.LocalInspectionID));
+                    request.onsuccess = function () {
+                        const cursor = request.result;
+                        if (!cursor) return;
+                        cursor.delete();
+                        cursor.continue();
+                    };
+                });
+                photoRows.forEach(photo => photoStore.add(photo));
+
                 tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-                tx.onabort = () => reject(tx.error || new Error("Inspection photo IndexedDB update aborted"));
+                tx.onerror = () => reject(tx.error || new Error("Returned Inspection cache update failed"));
+                tx.onabort = () => reject(tx.error || new Error("Returned Inspection cache update aborted"));
             });
         }
     } catch (err) {
