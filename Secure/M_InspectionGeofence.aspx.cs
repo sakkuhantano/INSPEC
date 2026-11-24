@@ -109,7 +109,7 @@ namespace INSPEC.Secure
             {
                 header = br.EQueryP(@"SELECT GeofenceID, GeofenceName, Description, IsActive
 FROM dbo.PIP_M_InspectionGeofence
-WHERE GeofenceID=@GeofenceID AND CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1",
+WHERE GeofenceID=@GeofenceID AND CompanyID=@CompanyID AND LocationID=@LocationID",
                     new SqlParameter[] {
                         new SqlParameter("@GeofenceID", geofenceID),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -161,10 +161,11 @@ ORDER BY SequenceNo",
         {
             using (var br = new WAL.BR.CF())
             {
-                DataTable dt = br.EQueryP(@"SELECT GeofenceID, GeofenceName
+                DataTable dt = br.EQueryP(@"SELECT GeofenceID,
+       CASE WHEN IsActive=1 THEN GeofenceName ELSE GeofenceName + N' (Inactive)' END AS GeofenceName
 FROM dbo.PIP_M_InspectionGeofence
-WHERE CompanyID=@CompanyID AND LocationID=@LocationID AND IsActive=1
-ORDER BY GeofenceName",
+WHERE CompanyID=@CompanyID AND LocationID=@LocationID
+ORDER BY IsActive DESC, GeofenceName",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID)
@@ -334,17 +335,24 @@ ORDER BY GeofenceName",
                 message = "Geofence Name cannot be empty.";
             else
             {
-                points = _ReadPoints();
-                if (points.Count < 3)
-                    message = "Draw a polygon with at least 3 points before saving.";
-                else if (points.Any(x => Double.IsNaN(x.Latitude) || Double.IsInfinity(x.Latitude) ||
-                                         Double.IsNaN(x.Longitude) || Double.IsInfinity(x.Longitude) ||
-                                         x.Latitude < -90 || x.Latitude > 90 ||
-                                         x.Longitude < -180 || x.Longitude > 180))
-                    message = "Polygon coordinates are invalid.";
-                else if (points.Select(x => x.Latitude.ToString("F7", CultureInfo.InvariantCulture) + "," +
-                                           x.Longitude.ToString("F7", CultureInfo.InvariantCulture)).Distinct().Count() < 3)
-                    message = "Polygon must contain at least 3 different coordinates.";
+                try
+                {
+                    points = _ReadPoints();
+                    if (points.Count < 3)
+                        message = "Draw a polygon with at least 3 points before saving.";
+                    else if (points.Any(x => Double.IsNaN(x.Latitude) || Double.IsInfinity(x.Latitude) ||
+                                             Double.IsNaN(x.Longitude) || Double.IsInfinity(x.Longitude) ||
+                                             x.Latitude < -90 || x.Latitude > 90 ||
+                                             x.Longitude < -180 || x.Longitude > 180))
+                        message = "Polygon coordinates are invalid.";
+                    else if (points.Select(x => x.Latitude.ToString("F7", CultureInfo.InvariantCulture) + "," +
+                                               x.Longitude.ToString("F7", CultureInfo.InvariantCulture)).Distinct().Count() < 3)
+                        message = "Polygon must contain at least 3 different coordinates.";
+                }
+                catch
+                {
+                    message = "Polygon coordinates could not be read. Please redraw the polygon.";
+                }
             }
 
             if (message != "")
