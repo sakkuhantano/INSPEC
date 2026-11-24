@@ -1411,95 +1411,40 @@ function updateNumbers() {
 }
 function updateItemCounts()
 {
-    document.querySelectorAll(".section-box")
-    .forEach(sectionEl =>
-    {
-        const sectionId =
-            sectionEl.dataset.id;
+    const sectionDataById = new Map(
+        ((currentVersionData && Array.isArray(currentVersionData.Sections)) ? currentVersionData.Sections : [])
+            .map(section => [String(section.RuntimeSectionID), section])
+    );
 
-        const section =
-            currentVersionData.Sections.find(
-                x=>x.RuntimeSectionID==sectionId
-            );
+    document.querySelectorAll(".section-box").forEach(sectionEl => {
+        const section = sectionDataById.get(String(sectionEl.dataset.id));
+        if (!section) return;
 
-        if(!section)
-            return;
+        const items = Array.isArray(section.Items) ? section.Items : [];
+        const models = new Set();
+        let hasGeneral = false;
 
-        //--------------------------------
-        // Item Count
-        //--------------------------------
-
-        const itemCount =
-            section.Items.length;
-
-        //--------------------------------
-        // Model Summary
-        //--------------------------------
-
-        const models =
-            [];
-
-        let hasGeneral=false;
-
-        section.Items.forEach(item=>
-        {
-            const m=
-                (item.ModelCode||"").trim();
-
-            if(m=="")
-            {
-                hasGeneral=true;
-            }
-            else
-            {
-                if(models.indexOf(m)<0)
-                    models.push(m);
-            }
+        items.forEach(item => {
+            const model = String(item.ModelCode || "").trim();
+            if (!model) hasGeneral = true;
+            else models.add(model);
         });
 
-        models.sort();
-
-        let summary="";
-
-        if(hasGeneral)
-            summary="General";
-
-        if(models.length>0)
-        {
-            if(summary!="")
-            {
-                summary+=" +"+models.length;
-            }
-            else
-            {
-                summary=models.length+" Models";
-            }
+        const sortedModels = Array.from(models).sort();
+        let summary = hasGeneral ? "General" : "";
+        if (sortedModels.length) {
+            summary += (summary ? " +" : "") + sortedModels.length +
+                (summary ? "" : " Models");
         }
 
-        //--------------------------------
-        // Badge
-        //--------------------------------
+        const badge = sectionEl.querySelector(".item-count");
+        if (!badge) return;
 
-        const badge=
-            sectionEl.querySelector(".item-count");
-
-        if(!badge)
-            return;
-
-        badge.innerHTML=
-            `
-            ${itemCount} items
-            ${
-                summary
-                ?
-                `<br>
-                 <span class="text-xs opacity-75">
-                    ${summary}
-                 </span>`
-                :
-                ""
-            }
-            `;
+        badge.innerHTML =
+            items.length + " items" +
+            (summary
+                ? '<br><span class="text-xs opacity-75">' + escapeHtml(summary) + '</span>'
+                : "");
     });
 }
 function resetDirty() {
@@ -4042,6 +3987,21 @@ function normalizeVersionStructure(data)
 
     });
 }
+function startTemplateRootPropertiesLoad(template, version)
+{
+    // Properties contain unrelated async lookups (metadata/assignments). Start them
+    // immediately, but never make the checklist renderer wait for those lookups.
+    try {
+        const task = showTemplateRootProperties(template, version);
+        if (task && typeof task.catch === "function") {
+            task.catch(function (error) {
+                console.warn("Template Properties background load failed:", error);
+            });
+        }
+    } catch (error) {
+        console.warn("Template Properties could not be started:", error);
+    }
+}
 async function loadVersionStructure(templateId, versionId, el)
 {
     const loadRequestId = ++versionStructureLoadRequestId;
@@ -4168,10 +4128,7 @@ async function loadVersionStructure(templateId, versionId, el)
             currentVersionData = structureToRender;
             currentVersion = structureToRender.VersionInfo;
 
-            await showTemplateRootProperties(
-                currentTemplate,
-                currentVersion
-            );
+            startTemplateRootPropertiesLoad(currentTemplate, currentVersion);
 
             if (loadRequestId !== versionStructureLoadRequestId) return;
             renderVersionStructure(structureToRender);
@@ -4194,10 +4151,7 @@ async function loadVersionStructure(templateId, versionId, el)
             cache.Info = versionNode.VersionInfo;
             cache.Structure = currentVersionData;
 
-            await showTemplateRootProperties(
-                currentTemplate,
-                currentVersion
-            );
+            startTemplateRootPropertiesLoad(currentTemplate, currentVersion);
 
             if (loadRequestId !== versionStructureLoadRequestId) return;
             renderVersionStructure(currentVersionData, true);
@@ -4250,10 +4204,7 @@ async function loadVersionStructure(templateId, versionId, el)
         isReadonlyMode =
             String(currentVersion.Status).toLowerCase() !== 'draft';
 
-        await showTemplateRootProperties(
-            currentTemplate,
-            currentVersion
-        );
+        startTemplateRootPropertiesLoad(currentTemplate, currentVersion);
 
         if (loadRequestId !== versionStructureLoadRequestId) return;
         renderVersionStructure(res);
@@ -6132,17 +6083,40 @@ function buildSectionHtml(section)
     section.SubSections = section.SubSections || [];
     section.Items = section.Items || [];
     const sectionElements = [];
-    section.Items.filter(item => !item.RuntimeSubSectionID || Number(item.RuntimeSubSectionID) === 0).forEach(item => sectionElements.push({ type:'item', order:Number(item.DisplayOrder || 0), item }));
-    section.SubSections.forEach(sub => sectionElements.push({ type:'subsection', order:Number(sub.DisplayOrder || 0), sub }));
-    sectionElements.sort((a,b) => a.order-b.order);
-    let itemsHtml = '';
+    const itemsBySubSection = new Map();
+
+    // Index each item once. The old renderer rescanned and sorted all Section
+    // items for every Sub-section, which became expensive on large templates.
+    section.Items.forEach(item => {
+        const rawSubSectionId = item.RuntimeSubSectionID;
+        if (!rawSubSectionId || Number(rawSubSectionId) === 0) {
+            sectionElements.push({ type: 'item', order: Number(item.DisplayOrder || 0), item: item });
+            return;
+        }
+
+        const subSectionId = Number(rawSubSectionId);
+        let bucket = itemsBySubSection.get(subSectionId);
+        if (!bucket) {
+            bucket = [];
+            itemsBySubSection.set(subSectionId, bucket);
+        }
+        bucket.push(item);
+    });
+
+    section.SubSections.forEach(sub => {
+        sectionElements.push({ type: 'subsection', order: Number(sub.DisplayOrder || 0), sub: sub });
+    });
+    sectionElements.sort((a, b) => a.order - b.order);
+
+    const itemsHtml = [];
     sectionElements.forEach(entry => {
         if (entry.type === 'item') {
-            itemsHtml += buildItemHtml(entry.item, section);
+            itemsHtml.push(buildItemHtml(entry.item, section));
         } else {
             const sub = entry.sub;
-            const subItems = section.Items.filter(item => Number(item.RuntimeSubSectionID || 0) === Number(sub.RuntimeSubSectionID)).sort((a,b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
-            itemsHtml += buildSubSectionHtml(sub, section, subItems);
+            const subItems = itemsBySubSection.get(Number(sub.RuntimeSubSectionID)) || [];
+            subItems.sort((a, b) => Number(a.DisplayOrder || 0) - Number(b.DisplayOrder || 0));
+            itemsHtml.push(buildSubSectionHtml(sub, section, subItems));
         }
     });
     return `
@@ -6224,7 +6198,7 @@ function buildSectionHtml(section)
             <div class="collapse show"
                  id="${collapseId}">
                 <div class="items-container">
-                    ${itemsHtml}
+                    ${itemsHtml.join('')}
                 </div>
                 <div class="
                         p-1
@@ -7968,6 +7942,18 @@ function initSortable() {
     if (sectionSortable) {
         sectionSortable.destroy();
         sectionSortable = null;
+    }
+
+    // Read-only versions have no drag operations. Avoid creating a disabled
+    // Sortable instance for every Section and Sub-section on each Version click.
+    if (isReadonlyMode) {
+        document.querySelectorAll('.items-container').forEach(function (container) {
+            if (container._sortable) {
+                container._sortable.destroy();
+                container._sortable = null;
+            }
+        });
+        return;
     }
 
     // Category/Section cards contain their own nested Sortable instances for
