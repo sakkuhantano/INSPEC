@@ -2465,7 +2465,26 @@
                 <tbody id="inspectionApprovalQueue"><tr><td colspan="9" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
             </table>
         </div>
-        <div id="inspectionApprovalPager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+        <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+    <div class="d-flex align-items-center gap-2 small text-muted">
+        <span id="inspectionApprovalTotalRowsTop">0 records</span>
+        <label for="inspectionApprovalPageSizeTop" class="mb-0">Rows/page</label>
+        <select id="inspectionApprovalPageSizeTop" class="form-select form-select-sm" style="width: auto;" aria-label="Rows per page">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <span id="inspectionApprovalPageInfoTop" class="small text-muted">Page 1 of 1</span>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Inspection approval pagination top">
+            <button type="button" id="inspectionApprovalPrevPageTop" class="btn btn-outline-secondary" disabled aria-label="Previous page"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" id="inspectionApprovalNextPageTop" class="btn btn-outline-secondary" disabled aria-label="Next page"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </div>
+</div>
+<div id="inspectionApprovalPager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
             <div class="d-flex align-items-center gap-2 small text-muted">
                 <span id="inspectionApprovalTotalRows">0 records</span>
                 <label for="inspectionApprovalPageSize" class="mb-0">Rows/page</label>
@@ -2659,12 +2678,23 @@
         <div id="inspectionTenantPanel" class="mb-3 d-none">
             <div class="row g-2">
                 <div class="col-12">
-                    <label for="selInspectionTenant" class="form-label small fw-semibold">Tenant</label>
-                    <input type="search" id="txtInspectionTenantSearch"
-                           class="form-control form-control-sm mb-2"
-                           placeholder="Ketik Tenant ID atau nama tenant..."
-                           autocomplete="off" disabled />
-                    <select id="selInspectionTenant" class="form-select form-select-sm">
+                    <label for="selInspectionTenantDropdownButton" class="form-label small fw-semibold">Tenant</label>
+                    <div id="inspectionTenantDropdown" class="dropdown">
+                        <button type="button" id="selInspectionTenantDropdownButton"
+                                class="form-select form-select-sm text-start"
+                                data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                                aria-expanded="false" disabled>
+                            Pilih tenant...
+                        </button>
+                        <div class="dropdown-menu w-100 p-2" aria-labelledby="selInspectionTenantDropdownButton">
+                            <input type="search" id="txtInspectionTenantSearch"
+                                   class="form-control form-control-sm mb-2"
+                                   placeholder="Cari Tenant ID atau nama tenant..."
+                                   autocomplete="off" disabled />
+                            <div id="inspectionTenantDropdownOptions" class="overflow-auto" style="max-height: 280px;"></div>
+                        </div>
+                    </div>
+                    <select id="selInspectionTenant" class="d-none" aria-hidden="true" tabindex="-1">
                         <option value="">Pilih tenant...</option>
                     </select>
                 </div>
