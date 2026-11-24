@@ -1583,16 +1583,37 @@ function clearRightPanel()
     `;
 }
 function initTooltips(root = document) {
-    const tooltipTriggerList =
-        [].slice.call(
-            root.querySelectorAll(
-                '[data-bs-toggle="tooltip"]'
-            )
-        );
+    const builderContainer = document.getElementById("sectionsContainer");
+
+    // The builder can contain hundreds of item labels. A single delegated
+    // Bootstrap Tooltip instance handles current and future descendants,
+    // instead of creating one Tooltip object for every rendered row.
+    if (builderContainer && (root === document || root === builderContainer)) {
+        if (builderContainer.dataset.tooltipDelegationBound !== "1") {
+            new bootstrap.Tooltip(builderContainer, {
+                selector: '[data-bs-toggle="tooltip"]'
+            });
+            builderContainer.dataset.tooltipDelegationBound = "1";
+        }
+
+        // Preserve normal tooltips elsewhere on the page.
+        if (root === document) {
+            Array.from(root.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                .filter(el => !builderContainer.contains(el))
+                .forEach(el => {
+                    if (!bootstrap.Tooltip.getInstance(el))
+                        new bootstrap.Tooltip(el);
+                });
+        }
+        return;
+    }
+
+    const tooltipTriggerList = Array.from(
+        root.querySelectorAll('[data-bs-toggle="tooltip"]')
+    );
     tooltipTriggerList.forEach(el => {
-        if (bootstrap.Tooltip.getInstance(el))
-            return;
-        new bootstrap.Tooltip(el);
+        if (!bootstrap.Tooltip.getInstance(el))
+            new bootstrap.Tooltip(el);
     });
 }
 function findItemById(id)
