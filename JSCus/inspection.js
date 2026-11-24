@@ -7102,16 +7102,14 @@ function setInspectionApprovalTab(tab, reload) {
     else loadInspectionApprovalQueue();
 }
 
-function updateInspectionApprovalCounts() {
-    const outstandingCount = inspectionApprovalRows.filter(row => !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row)).length;
-    const approvedCount = inspectionApprovalRows.filter(isInspectionApprovalApproved).length;
-    const voidCount = inspectionApprovalRows.filter(isInspectionApprovalVoided).length;
+function updateInspectionApprovalCounts(counts) {
+    if (!counts) return;
     const outstandingElement = document.getElementById("inspectionApprovalOutstandingCount");
     const approvedElement = document.getElementById("inspectionApprovalApprovedCount");
     const voidElement = document.getElementById("inspectionApprovalVoidCount");
-    if (outstandingElement) outstandingElement.textContent = String(outstandingCount);
-    if (approvedElement) approvedElement.textContent = String(approvedCount);
-    if (voidElement) voidElement.textContent = String(voidCount);
+    if (outstandingElement) outstandingElement.textContent = String(Number(counts.outstanding) || 0);
+    if (approvedElement) approvedElement.textContent = String(Number(counts.approved) || 0);
+    if (voidElement) voidElement.textContent = String(Number(counts.voided) || 0);
 }
 
 function isInspectionApprovalApproved(row) {
@@ -7183,21 +7181,37 @@ async function loadInspectionApprovalQueue() {
             templateId: document.getElementById("selApprovalTemplate").value,
             scheduleTime: document.getElementById("selApprovalScheduleTime").value
         };
-        const queueResults = await Promise.all([
+        // Refresh all tab badges independently from the active grid tab.
+        // Counts intentionally ignore Type/Detail/Template/Schedule filters so
+        // they remain total counts for the current employee and location.
+        const countParameters = {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID,
+            dateFrom: dateFrom ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
+            dateThru: dateThru ? (parseInspectionDateFilter(dateThru.value) || "") : ""
+        };
+        const countRequest = inspectionApprovalPost("GetInspectionApprovalCounts", countParameters)
+            .catch(countError => {
+                console.warn("Unable to refresh Inspection approval tab counts:", countError);
+                return null;
+            });
+        const queueRequests = Promise.all([
             inspectionApprovalPost("GetInspectionApprovalQueue", queueParameters),
             inspectionApprovalPost("GetLightningInspectionApprovalQueue", queueParameters)
         ]);
+        const [queueResults, countResult] = await Promise.all([queueRequests, countRequest]);
         if (requestSequence !== inspectionApprovalLoadSequence) return;
         const standardResult = queueResults[0] || {};
         const lightningResult = queueResults[1] || {};
         inspectionApprovalRows = (standardResult.data || []).concat(lightningResult.data || []);
+        if (countResult) updateInspectionApprovalCounts(countResult);
         const filterMap = new Map();
         (standardResult.filters || []).concat(lightningResult.filters || []).forEach(row => {
             const key = [row.InspectionTypeCode,row.InspectionTypeDetailCode,row.IDTemplate,row.ScheduledTime].join("|");
             if (!filterMap.has(key)) filterMap.set(key, row);
         });
         populateInspectionApprovalFilters(Array.from(filterMap.values()));
-        updateInspectionApprovalCounts();
         renderInspectionApprovalQueue();
         if (!approvalInspectionDeepLinkHandled && window.location && window.location.search) {
             const query = new URLSearchParams(window.location.search);
