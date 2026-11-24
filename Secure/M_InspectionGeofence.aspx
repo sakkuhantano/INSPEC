@@ -34,16 +34,16 @@
 
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-4 col-md-6">
-                        <label class="form-label small fw-semibold" for="<%= ddlSavedGeofence.ClientID %>">Open saved geofence</label>
+                        <label class="form-label small fw-semibold" >Open saved geofence</label>
                         <asp:DropDownList ID="ddlSavedGeofence" runat="server" CssClass="form-select form-select-sm"
                             AutoPostBack="true" OnSelectedIndexChanged="ddlSavedGeofence_SelectedIndexChanged" />
                     </div>
                     <div class="col-lg-2 col-md-3">
-                        <label class="form-label small fw-semibold" for="<%= txtGeofenceID.ClientID %>">Geofence ID</label>
+                        <label class="form-label small fw-semibold" >Geofence ID</label>
                         <asp:TextBox ID="txtGeofenceID" runat="server" CssClass="form-control form-control-sm" ReadOnly="true" />
                     </div>
                     <div class="col-lg-4 col-md-6">
-                        <label class="form-label small fw-semibold" for="<%= txtGeofenceName.ClientID %>">Geofence Name <span class="text-danger">*</span></label>
+                        <label class="form-label small fw-semibold" for="txtGeofenceName">Geofence Name <span class="text-danger">*</span></label>
                         <asp:TextBox ID="txtGeofenceName" runat="server" ClientIDMode="Static" MaxLength="100"
                             CssClass="form-control form-control-sm" placeholder="Contoh: Area Lift" />
                     </div>
@@ -51,7 +51,7 @@
                         <asp:CheckBox ID="chkIsActive" runat="server" Text="Active" CssClass="form-check-input me-2" Checked="true" />
                     </div>
                     <div class="col-12">
-                        <label class="form-label small fw-semibold" for="<%= txtDescription.ClientID %>">Description</label>
+                        <label class="form-label small fw-semibold" >Description</label>
                         <asp:TextBox ID="txtDescription" runat="server" MaxLength="500" TextMode="MultiLine" Rows="2"
                             CssClass="form-control form-control-sm" placeholder="Keterangan area (opsional)" />
                     </div>
