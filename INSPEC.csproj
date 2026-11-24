@@ -85,6 +85,7 @@
     <Content Include="CSSCus\assignwoemployee.css" />
     <Content Include="CSSCus\template.css" />
     <Content Include="CSSCus\inspectionmaster.css" />
+    <Content Include="CSSCus\inspectionGeofence.css" />
     <Content Include="Default.aspx" />
     <Content Include="Login.aspx" />
     <Content Include="MasterPages\Site1.Master" />
@@ -94,6 +95,7 @@
     <Content Include="Secure\workorder.aspx" />
     <Content Include="Secure\inspection.aspx" />
     <Content Include="Secure\inspectionmaster.aspx" />
+    <Content Include="Secure\M_InspectionGeofence.aspx" />
     <Content Include="Secure\inspectionemailsetup.aspx" />
     <Content Include="Secure\profilesetting.aspx" />
     <Content Include="JSCus\GFC_FO.js" />
@@ -107,6 +109,7 @@
     <Content Include="JSCus\inspection.js" />
     <Content Include="JSCus\inspectionMapWorkspace.js" />
     <Content Include="JSCus\inspectionmaster.js" />
+    <Content Include="JSCus\inspectionGeofence.js" />
     <Content Include="JSCus\inspectionApprovalOffline.js" />
     <Content Include="JSCus\inspectionApprovalSync.js" />
     <Content Include="CSSCus\Site1.Master.css" />
@@ -174,6 +177,13 @@
     <Compile Include="Secure\inspectionmaster.aspx.cs">
       <DependentUpon>inspectionmaster.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_InspectionGeofence.aspx.cs">
+      <DependentUpon>M_InspectionGeofence.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Secure\M_InspectionGeofence.aspx.designer.cs">
+      <DependentUpon>M_InspectionGeofence.aspx</DependentUpon>
     </Compile>
     <Compile Include="Secure\inspectionmaster.aspx.designer.cs">
       <DependentUpon>inspectionmaster.aspx</DependentUpon>
