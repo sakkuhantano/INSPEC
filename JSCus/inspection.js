@@ -8090,10 +8090,12 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const end = formatInspectionClock(h.EndDateTime);
         const scheduleSummary = (result.schedules || []).map(item => String(item.ScheduleTime || item)).join(", ");
         const scheduledLabel = String(h.InspectionMode || "").toUpperCase() === "LIGHTNING"
-            ? (scheduleSummary || h.ScheduledTime || "-") : (h.ScheduledTime || "-");
+            ? (scheduleSummary || h.ScheduledTime || "") : (h.ScheduledTime || "");
         document.getElementById("inspectionApprovalDetailSubtitle").textContent =
             (h.InspectionNo || ("Inspection #" + h.InspectionID)) + " • " +
-            formatInspectionDateDMY(h.InspectionDate) + " • " + scheduledLabel + " • " + start + " – " + end;
+            formatInspectionDateDMY(h.InspectionDate) +
+            (scheduledLabel ? " • " + scheduledLabel : "") +
+            " • " + start + " – " + end;
         const gpsLatitude = Number(h.GPSLatitude);
         const gpsLongitude = Number(h.GPSLongitude);
         const hasGps = String(h.GPSLatitude == null ? "" : h.GPSLatitude).trim() !== "" &&
@@ -8115,9 +8117,9 @@ async function loadInspectionApprovalDetail(inspectionId) {
             '<div><strong>Transaction No.:</strong> ' + escInspection(h.InspectionNo || "-") + '</div>' +
             '<div><strong>Inspection Type:</strong> ' + escInspection(h.InspectionTypeName || "-") + '</div>' +
             '<div><strong>Type Detail:</strong> ' + escInspection(h.InspectionTypeDetailName || "-") + '</div>' +
-            (h.TenantID && h.SuiteNo ? '<div><strong>Tenant / Suite:</strong> ' + escInspection(h.TenantID) + ' / ' + escInspection(h.SuiteNo) + '</div>' : '') +
+            (h.TenantID && h.SuiteNo ? '<div><strong>Tenant / Suite:</strong> ' + escInspection(formatInspectionTenantLabel(h.TenantID, h.TenantName)) + ' / ' + escInspection(h.SuiteNo) + '</div>' : '') +
             '<div><strong>Date:</strong> ' + escInspection(formatInspectionDateDMY(h.InspectionDate) || "-") + '</div>' +
-            '<div><strong>Scheduled:</strong> ' + escInspection(scheduledLabel) + '</div>' +
+            (String(scheduledLabel || "").trim() ? '<div><strong>Scheduled:</strong> ' + escInspection(scheduledLabel) + '</div>' : '') +
             '<div><strong>Start – End:</strong> ' + escInspection(start) + ' – ' + escInspection(end) + '</div>' +
             '<div><strong>Technician:</strong> ' + escInspection(formatInspectionEmployeeLabel(h.TechnicianName || h.OwnerEmployeeName, h.OwnerEmployeeID)) + '</div>' +
             '<div><strong>Section:</strong> ' + escInspection(h.SectionID || "-") + '</div></div></div>' +
