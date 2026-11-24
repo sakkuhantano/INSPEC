@@ -3597,9 +3597,17 @@ BEGIN
             DECLARE @LoginNewID INT;
             DECLARE @LoginSessionID INT;
 
+            -- Serialize login/cleanup and remove stale rows on EVERY successful login.
+            -- Expired IsActive=1 rows must also be deleted (e.g. abandoned incognito sessions).
             SELECT @LoginNewID=ISNULL(MAX(ID),0)
             FROM dbo.UserSession WITH (TABLOCKX,HOLDLOCK);
 
+            DELETE FROM dbo.UserSession
+            WHERE ISNULL(IsActive,0)=0
+               OR ExpireTime<=GETDATE();
+
+            -- Look up a reusable row only after cleanup, so an expired session
+            -- cannot be revived by logging in again from the same BrowserGuid.
             SELECT TOP 1 @LoginSessionID=ID
             FROM dbo.UserSession
             WHERE UserID=@C1 AND BrowserGuid=@C2
@@ -3611,9 +3619,6 @@ BEGIN
 
             IF @LoginSessionID IS NULL
             BEGIN
-                DELETE FROM dbo.UserSession
-                WHERE ISNULL(IsActive,0)=0 OR ExpireTime<=GETDATE();
-
                 SELECT @LoginNewID=ISNULL(MAX(ID),0)+1 FROM dbo.UserSession;
 
                 INSERT dbo.UserSession
