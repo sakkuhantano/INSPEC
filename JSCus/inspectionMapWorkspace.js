@@ -427,6 +427,40 @@
         });
     }
 
+    function getPointPlateSearchText(point) {
+        var values = [
+            point && point.PlateNumber,
+            point && point.PlateNo,
+            point && point.LicensePlate,
+            point && point.VehiclePlate,
+            point && point.NoPol,
+            point && point.Nopol
+        ].filter(function (value) { return String(value || "").trim(); });
+
+        var transaction = getPointTransaction(point);
+        var template = currentMapRecord && currentMapRecord.TemplateSnapshot;
+        var items = [];
+        (template && Array.isArray(template.sections) ? template.sections : []).forEach(function (section) {
+            (section.items || []).forEach(function (item) { items.push(item); });
+        });
+        items.forEach(function (item) {
+            var label = [
+                item && item.label, item && item.Label,
+                item && item.name, item && item.Name,
+                item && item.code, item && item.Code
+            ].join(" ");
+            if (!/(plat|plate|nopol|no\s*pol|nomor\s*polisi|license)/i.test(label)) return;
+            var answer = transaction && Array.isArray(transaction.Items)
+                ? transaction.Items.find(function (entry) {
+                    return Number(entry.IDItem) === Number(item.idItem || item.IDItem);
+                })
+                : null;
+            if (answer && String(answer.Value || "").trim())
+                values.push(String(answer.Value).trim());
+        });
+        return values.join(" ");
+    }
+
     function renderList() {
         var host = document.getElementById("inspectionPointList");
         if (!host) return;
@@ -437,7 +471,7 @@
             return !keyword ||
                 String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
                 String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0 ||
-                false;
+                getPointPlateSearchText(point).toLowerCase().indexOf(keyword) >= 0;
         });
         var pageCount = Math.max(1, Math.ceil(filtered.length / listPageSize));
         listPage = Math.min(Math.max(1, listPage), pageCount);
@@ -456,7 +490,7 @@
             '<div class="inspection-point-list-tools">' +
                 '<div class="d-flex gap-2 align-items-center mb-2">' +
                     '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
-                    'placeholder="Cari Point Code / Name..." value="' + esc(listKeyword) + '">' +
+                    'placeholder="Cari Point Code / No. Plat..." value="' + esc(listKeyword) + '">' +
                     '<select id="inspectionPointPageSize" class="form-select form-select-sm" style="width:82px">' +
                         '<option value="10"' + (listPageSize === 10 ? ' selected' : '') + '>10</option>' +
                         '<option value="20"' + (listPageSize === 20 ? ' selected' : '') + '>20</option>' +
