@@ -686,6 +686,11 @@ async function onTemplateClick(event,idTemplate, sectionId)
     event?.stopPropagation();
     const versionsRequestId = ++templateVersionsLoadRequestId;
 
+    // Opening another Template invalidates any Version load still waiting on
+    // an async properties request. Otherwise the older request can resume and
+    // render the new Template's cleared currentVersionData (null).
+    ++versionStructureLoadRequestId;
+
     if(!sectionId) {
         console.error(
             "Section ID tidak ditemukan saat klik template",
@@ -2539,6 +2544,7 @@ async function deleteTemplate(sectionId,idTemplate)
         templateNode.Template.IsActive = false;
         templateNode.Template.CanDeleted = false;
         if (currentTemplate && Number(currentTemplate.IDTemplate) === templateId) {
+            ++versionStructureLoadRequestId;
             currentTemplate.IsActive = false;
             currentTemplate = null;
             currentVersions = [];
@@ -3688,6 +3694,8 @@ function showVersionProperties(version, isNewTemplate)
 async function loadTemplateVersions(idTemplate)
 {
     const versionsRequestId = ++templateVersionsLoadRequestId;
+    // This alternate Template-opening path must cancel an older Version load too.
+    ++versionStructureLoadRequestId;
     // const ok = await confirmDiscardChanges();
 
     // if (!ok)
@@ -4153,10 +4161,15 @@ async function loadVersionStructure(templateId, versionId, el)
         {
             versionNode.Structure = cachedStructure;
 
-            currentVersionData = cachedStructure;
-            currentVersion =
-                cachedStructure.VersionInfo ||
-                versionNode.VersionInfo;
+            const structureToRender = cachedStructure;
+            if (!structureToRender.VersionInfo)
+                structureToRender.VersionInfo = versionNode.VersionInfo;
+            if (!Array.isArray(structureToRender.Sections))
+                structureToRender.Sections = [];
+
+            versionNode.Structure = structureToRender;
+            currentVersionData = structureToRender;
+            currentVersion = structureToRender.VersionInfo;
 
             await showTemplateRootProperties(
                 currentTemplate,
@@ -4164,7 +4177,7 @@ async function loadVersionStructure(templateId, versionId, el)
             );
 
             if (loadRequestId !== versionStructureLoadRequestId) return;
-            renderVersionStructure(currentVersionData);
+            renderVersionStructure(structureToRender);
             switchMobileTab('builder');
             return;
         }
@@ -5599,6 +5612,13 @@ function syncItemTypeBadge(itemData)
 }
 function renderVersionStructure(data, isNewTemplate=false)
 {
+    // A stale async operation must never be allowed to render an empty selection.
+    if (!data || typeof data !== "object" ||
+        !data.VersionInfo || typeof data.VersionInfo !== "object") {
+        console.warn("[Template Builder] renderVersionStructure ignored invalid/stale data.", data);
+        return false;
+    }
+
     currentVersionData = data;
     currentVersion =
         data.VersionInfo;
@@ -5629,6 +5649,7 @@ function renderVersionStructure(data, isNewTemplate=false)
     if (!templateHistoryRestoring)
         templateHistorySnapshot = captureTemplateHistoryState();
     updateTemplateHistoryButtons();
+    return true;
 }
 function applyVersionReadonlyState(status)
 {
@@ -9024,6 +9045,7 @@ async function deleteDraftVersion(idVersion)
             idVersion
         )
         {
+            ++versionStructureLoadRequestId;
             currentVersion=null;
             currentVersionData=null;
             clearBuilderPanel();
