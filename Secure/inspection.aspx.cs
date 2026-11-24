@@ -2124,13 +2124,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
 
             using (var br = new WAL.BR.CF())
             {
-                if (countOnly)
-                {
-                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS Total " + fromWhere, filterOptionParameters);
-                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["Total"] == DBNull.Value
-                        ? 0 : Convert.ToInt32(countRows.Rows[0]["Total"]);
-                }
-
                 DataTable filterRows = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
        I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
@@ -2148,6 +2141,7 @@ ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.Sched
                 }
 
                 DataTable rows = br.EQueryP(@"
+                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.TenantID, I.SuiteNo, I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
@@ -3055,13 +3049,6 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
 
-                if (countOnly)
-                {
-                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS Total " + scope, createParameters(false));
-                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["Total"] == DBNull.Value
-                        ? 0 : Convert.ToInt32(countRows.Rows[0]["Total"]);
-                }
-
                 DataTable filtersTable = br.EQueryP(@"
 SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
        I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo,I.ScheduledTime " + scope + @"
@@ -3074,6 +3061,7 @@ ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.Schedule
                     filters.Add(item);
                 }
                 DataTable rows = br.EQueryP(@"
+                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
 SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.TenantID,I.SuiteNo,I.SectionID,
        I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
