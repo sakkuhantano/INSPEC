@@ -1447,17 +1447,37 @@ async function downloadReturnedInspections() {
                 const photoStore = tx.objectStore("inspection_photos");
 
                 updates.forEach(record => recordStore.put(record));
-                photoUpdates.forEach(photoUpdate => {
-                    const request = photoStore.index("LocalInspectionID")
-                        .openCursor(IDBKeyRange.only(photoUpdate.LocalInspectionID));
-                    request.onsuccess = function () {
-                        const cursor = request.result;
-                        if (!cursor) return;
-                        cursor.delete();
-                        cursor.continue();
-                    };
-                });
-                photoRows.forEach(photo => photoStore.add(photo));
+
+                // Finish every old-photo cursor before queuing the replacement
+                // photo rows. This prevents newly inserted rows from being seen
+                // by a cursor that is still deleting the old snapshot.
+                let pendingPhotoCleanup = photoUpdates.length;
+                const queueNewPhotos = function () {
+                    if (pendingPhotoCleanup !== 0) return;
+                    photoRows.forEach(photo => photoStore.add(photo));
+                };
+
+                if (pendingPhotoCleanup === 0) {
+                    queueNewPhotos();
+                } else {
+                    photoUpdates.forEach(photoUpdate => {
+                        const request = photoStore.index("LocalInspectionID")
+                            .openCursor(IDBKeyRange.only(photoUpdate.LocalInspectionID));
+                        request.onsuccess = function () {
+                            const cursor = request.result;
+                            if (cursor) {
+                                cursor.delete();
+                                cursor.continue();
+                                return;
+                            }
+                            pendingPhotoCleanup--;
+                            queueNewPhotos();
+                        };
+                        request.onerror = () => {
+                            try { tx.abort(); } catch (_) {}
+                        };
+                    });
+                }
 
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error || new Error("Returned Inspection cache update failed"));
