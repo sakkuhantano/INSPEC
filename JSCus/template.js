@@ -741,14 +741,13 @@ async function onTemplateClick(event,idTemplate, sectionId)
     //----------------------------------
     if(currentTemplate.IDTemplate == 0)
     {
-        currentVersions =
-            Object.values(cache.Versions);
+        currentVersions = getTemplateVersionNodes(cache);
 
         const versionNode =
             currentVersions.find(
                 x =>
-                    x.VersionInfo.Status?.toUpperCase() ==
-                    "DRAFT"
+                    x.VersionInfo &&
+                    String(x.VersionInfo.Status || "").toUpperCase() === "DRAFT"
             ) || currentVersions[0];
 
         currentVersion =
@@ -814,10 +813,10 @@ async function onTemplateClick(event,idTemplate, sectionId)
             // Cari berdasarkan IDVersion
             //--------------------------------
             let cacheNode =
-                Object.values(cache.Versions)
+                getTemplateVersionNodes(cache)
                 .find(x =>
-                    x.VersionInfo.IDVersion ==
-                    version.IDVersion
+                    x.VersionInfo &&
+                    x.VersionInfo.IDVersion == version.IDVersion
                 );
 
             //--------------------------------
@@ -852,12 +851,10 @@ async function onTemplateClick(event,idTemplate, sectionId)
         //----------------------------------
         // Merge Result
         //----------------------------------
-        currentVersions =
-            Object.values(
-                cache.Versions
-            );
+        currentVersions = getTemplateVersionNodes(cache);
         isReadonlyMode = !(
             currentVersions.length === 1 &&
+            currentVersions[0].VersionInfo &&
             currentVersions[0].VersionInfo.Status === "Draft"
         );
 
@@ -871,8 +868,8 @@ async function onTemplateClick(event,idTemplate, sectionId)
 
         currentVersions.sort(
             (a,b)=>
-                a.VersionInfo.IDVersion -
-                b.VersionInfo.IDVersion
+                Number(a.VersionInfo.IDVersion || 0) -
+                Number(b.VersionInfo.IDVersion || 0)
         );
 
         renderTemplateVersions(
@@ -1061,13 +1058,87 @@ function getSectionCache(sectionId)
     }
     return templateCache.sections[sectionId];
 }
+function getTemplateVersionNodes(templateNode)
+{
+    if (!templateNode)
+        return [];
+
+    if (!templateNode.Versions ||
+        typeof templateNode.Versions !== "object" ||
+        Array.isArray(templateNode.Versions)) {
+        templateNode.Versions = {};
+    }
+
+    const versions = templateNode.Versions;
+    const invalidKeys = [];
+
+    Object.keys(versions).forEach(function(key) {
+        const node = versions[key];
+
+        // A stale/partially restored browser draft can contain null or
+        // incomplete Version entries. Remove those entries instead of letting
+        // one bad cache row break every subsequent Template selection.
+        if (!node || typeof node !== "object" || Array.isArray(node)) {
+            delete versions[key];
+            invalidKeys.push(key);
+            return;
+        }
+
+        let info = node.VersionInfo;
+        if (!info || typeof info !== "object" || Array.isArray(info))
+            info = node.Info;
+        if ((!info || typeof info !== "object" || Array.isArray(info)) &&
+            node.Structure && node.Structure.VersionInfo) {
+            info = node.Structure.VersionInfo;
+        }
+
+        if (!info || typeof info !== "object" || Array.isArray(info)) {
+            delete versions[key];
+            invalidKeys.push(key);
+            return;
+        }
+
+        node.VersionInfo = info;
+
+        // Older local cache entries may not carry RuntimeVersionID on the
+        // nested metadata, while their cache key still contains the ID.
+        if (node.VersionInfo.RuntimeVersionID == null ||
+            node.VersionInfo.RuntimeVersionID === "") {
+            const keyId = Number(key);
+            if (Number.isFinite(keyId) && keyId > 0)
+                node.VersionInfo.RuntimeVersionID = keyId;
+        }
+
+        if (node.Structure && typeof node.Structure === "object" &&
+            !node.Structure.VersionInfo) {
+            node.Structure.VersionInfo = node.VersionInfo;
+        }
+    });
+
+    if (invalidKeys.length) {
+        console.warn("[Template Builder] Invalid Version cache entries removed.", {
+            templateId: templateNode.Template && templateNode.Template.RuntimeTemplateID,
+            keys: invalidKeys
+        });
+    }
+
+    return Object.keys(versions).map(function(key) {
+        return versions[key];
+    }).filter(function(node) {
+        return !!(node && node.VersionInfo && typeof node.VersionInfo === "object");
+    });
+}
+
 function getTemplateCache(sectionId,idTemplate)
 {
     const sec =
         getSectionCache(
             sectionId
         );
-    return sec.Templates[idTemplate];
+    const templateNode = sec.Templates[idTemplate];
+    if (templateNode)
+        getTemplateVersionNodes(templateNode);
+    return templateNode;
 }
 function getVersionCache(sectionId,idTemplate,idVersion)
 {
@@ -3732,8 +3803,13 @@ function renderTemplateVersions(data,container)
 {
     const templateRuntimeID = container.dataset.templateId;
     const sectionId = container.dataset.sectionId;
+    const versionItems = Array.isArray(data)
+        ? data.filter(function(node) {
+            return !!(node && node.VersionInfo && typeof node.VersionInfo === "object");
+        })
+        : [];
 
-    if (!Array.isArray(data) || data.length === 0) {
+    if (versionItems.length === 0) {
         container.innerHTML = `
             <div class="text-muted text-xs fst-italic p-2">
                 No versions
@@ -3746,7 +3822,7 @@ function renderTemplateVersions(data,container)
     // Keep the row data available to delegated menu/drag handlers.
     // This avoids creating multiple event-handler closures for every Version node.
     const versionDataById = Object.create(null);
-    const html = data.map(function(versionNode) {
+    const html = versionItems.map(function(versionNode) {
         const version = versionNode.VersionInfo || {};
         const versionId = String(version.RuntimeVersionID);
         const status = String(version.Status || "").trim();
@@ -4011,14 +4087,13 @@ async function loadVersionStructure(templateId, versionId, el)
 
         currentTemplate = templateNode.Template;
 
-        currentVersions =
-            Object.values(templateNode.Versions || {});
+        currentVersions = getTemplateVersionNodes(templateNode);
 
         const versionNode =
             currentVersions.find(
                 x =>
-                String(x.VersionInfo.RuntimeVersionID) ===
-                String(versionId)
+                    x.VersionInfo &&
+                    String(x.VersionInfo.RuntimeVersionID) === String(versionId)
             );
 
         if(!versionNode) {
@@ -4029,7 +4104,7 @@ async function loadVersionStructure(templateId, versionId, el)
                     templateId,
                     versionId,
                     availableVersions: currentVersions.map(
-                        x => x.VersionInfo.RuntimeVersionID
+                        x => x.VersionInfo && x.VersionInfo.RuntimeVersionID
                     )
                 }
             );
@@ -4304,13 +4379,15 @@ function evaluateDirtyState()
     {
         let secDirty = false;
 
-        Object.values(sec.Templates)
+        Object.values(sec.Templates || {})
         .forEach(tpl =>
         {
-            let tplDirty = !!(tpl.Template && tpl.Template.MetadataDirty);
+            if (!tpl || !tpl.Template)
+                return;
 
-            Object.values(tpl.Versions)
-            .forEach(ver =>
+            let tplDirty = !!tpl.Template.MetadataDirty;
+
+            getTemplateVersionNodes(tpl).forEach(ver =>
             {
                 if (ver.VersionInfo && ver.VersionInfo.Dirty)
                     tplDirty = true;
@@ -4318,7 +4395,7 @@ function evaluateDirtyState()
                     tplDirty = true;
             });
 
-            if (tpl.Template) tpl.Template.Dirty = tplDirty;
+            tpl.Template.Dirty = tplDirty;
 
             if(tplDirty)
             {
