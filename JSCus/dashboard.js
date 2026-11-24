@@ -187,7 +187,7 @@ async function renderInspectionDashboardCards() {
             '<div class="dashboard-icon"><i class="bi bi-hourglass-split"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Pending Approval</div>' +
             '<div class="dashboard-value" id="inspectionPendingApproval">0</div></div></a></div>' +
-            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-approved h-100">' +
+            '<div class="col-12 col-sm-6 col-lg-3"><div class="dashboard-card card-approved h-100 d-none" id="inspectionApprovedTodayCard">' +
             '<div class="dashboard-icon"><i class="bi bi-check-circle-fill"></i></div>' +
             '<div class="dashboard-content"><div class="dashboard-title">Approved Today</div>' +
             '<div class="dashboard-value" id="inspectionApprovedToday">0</div></div></div></div>' +
@@ -251,9 +251,11 @@ async function renderInspectionDashboardCards() {
             const result = payload && Object.prototype.hasOwnProperty.call(payload, "d") ? payload.d : payload;
             const pending = document.getElementById("inspectionPendingApproval");
             const approved = document.getElementById("inspectionApprovedToday");
+            const approvedCard = document.getElementById("inspectionApprovedTodayCard");
             const voided = document.getElementById("inspectionVoidCount");
             if (pending) pending.textContent = result.pendingApproval || 0;
             if (approved) approved.textContent = result.approvedToday || 0;
+            if (approvedCard) approvedCard.classList.toggle("d-none", result.showApprovedToday !== true);
             if (voided) voided.textContent = result.voidCount || 0;
         } catch (err) {
             console.warn("Unable to load Inspection dashboard summary:", err);
