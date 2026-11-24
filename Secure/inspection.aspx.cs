@@ -2141,7 +2141,6 @@ ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.Sched
                 }
 
                 DataTable rows = br.EQueryP(@"
-                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
 SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID,
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.TenantID, I.SuiteNo, I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
@@ -2175,6 +2174,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         new SqlParameter("@TemplateId", templateId ?? ""),
                         new SqlParameter("@ScheduleTime", scheduleTime ?? "")
                     });
+                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
 
                 var result = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
@@ -3061,7 +3061,6 @@ ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.Schedule
                     filters.Add(item);
                 }
                 DataTable rows = br.EQueryP(@"
-                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
 SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.TenantID,I.SuiteNo,I.SectionID,
        I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
@@ -3079,6 +3078,8 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
+                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
+
                 var data = new List<Dictionary<string, object>>();
                 foreach (DataRow row in rows.Rows)
                 {
