@@ -38,6 +38,10 @@ let versionStructureLoadRequestId = 0;
 let templateVersionsLoadRequestId = 0;
 let templatePropertiesLoadRequestId = 0;
 
+// Share in-flight Version structure requests by persisted IDVersion. A request
+// can finish after navigation and still populate its owning Version cache.
+const versionStructureLoadPromises = new Map();
+
 // Share one Version metadata request per Template. A request may finish after
 // the user has selected another Template; its result is still cached for reuse.
 const templateVersionsLoadPromises = new WeakMap();
@@ -3987,6 +3991,50 @@ function normalizeVersionStructure(data)
 
     });
 }
+function getVersionStructureLoadPromise(idVersion)
+{
+    const key = String(idVersion || "").trim();
+    if (!key) return Promise.reject(new Error("Invalid IDVersion."));
+
+    const existing = versionStructureLoadPromises.get(key);
+    if (existing) return existing;
+
+    const request = promisifyPageMethod(
+        PageMethods.GetVersionStructure,
+        key
+    ).then(function (result) {
+        const data = typeof result === "string"
+            ? JSON.parse(result || "{}")
+            : result;
+
+        if (!data || typeof data !== "object" ||
+            !data.VersionInfo || !Array.isArray(data.Sections)) {
+            throw new Error("Invalid Version structure response.");
+        }
+
+        normalizeVersionStructure(data);
+        data.VersionInfo.GroupEquipment = data.VersionInfo.GroupEquipment || "";
+        return data;
+    });
+
+    versionStructureLoadPromises.set(key, request);
+
+    // Remove only this request. Failed requests can be retried; successful
+    // results are retained by the owning Version node's Structure cache.
+    request.then(
+        function () {
+            if (versionStructureLoadPromises.get(key) === request)
+                versionStructureLoadPromises.delete(key);
+        },
+        function () {
+            if (versionStructureLoadPromises.get(key) === request)
+                versionStructureLoadPromises.delete(key);
+        }
+    );
+
+    return request;
+}
+
 function startTemplateRootPropertiesLoad(template, version)
 {
     // Properties contain unrelated async lookups (metadata/assignments). Start them
@@ -4165,30 +4213,24 @@ async function loadVersionStructure(templateId, versionId, el)
 
         showLoading();
 
-        const result =
-            await promisifyPageMethod(
-                PageMethods.GetVersionStructure,
-                versionNode.VersionInfo.IDVersion
-            );
-
-        // A later click takes priority; ignore this stale response.
-        if (loadRequestId !== versionStructureLoadRequestId) return;
-
-        const res = JSON.parse(result);
-        normalizeVersionStructure(res);
-
-        res.VersionInfo.GroupEquipment =
-            res.VersionInfo.GroupEquipment || "";
+        const res = await getVersionStructureLoadPromise(
+            versionNode.VersionInfo.IDVersion
+        );
 
         //--------------------------------
         // SAVE CACHE
         //--------------------------------
-
+        // Cache a successful response even if the user has already navigated
+        // elsewhere. Returning to this Version can then render without a
+        // second server request.
         cache.Info = res.VersionInfo;
         cache.Structure = res;
 
         versionNode.VersionInfo = res.VersionInfo;
         versionNode.Structure = res;
+
+        // Only the latest click may change the active editor state.
+        if (loadRequestId !== versionStructureLoadRequestId) return;
 
         //--------------------------------
         // CURRENT
