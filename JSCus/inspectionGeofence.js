@@ -129,7 +129,11 @@
         var satelliteLayer = L.tileLayer(
             "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
                 minZoom: 1,
-                maxNativeZoom: 23,
+                // Esri may return a "Map data not yet available" placeholder
+                // for high-zoom tiles in areas without imagery at that resolution.
+                // Cap native requests at level 19; Leaflet will upscale those tiles
+                // when the user zooms further, instead of requesting missing tiles.
+                maxNativeZoom: 19,
                 maxZoom: 23,
                 attribution: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community"
             }
