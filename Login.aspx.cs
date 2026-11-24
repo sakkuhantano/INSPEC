@@ -357,7 +357,16 @@ namespace INSPEC
 BEGIN TRANSACTION;
 DECLARE @NewID INT;
 DECLARE @SessionID INT;
+-- Serialize session cleanup and ID allocation with concurrent logins.
 SELECT @NewID = ISNULL(MAX(ID), 0) FROM UserSession WITH (TABLOCKX, HOLDLOCK);
+
+-- Clean stale sessions on every successful login, regardless of the logging-in user.
+-- Expired rows are removed even when IsActive is still 1 (e.g. abandoned incognito sessions).
+DELETE FROM UserSession
+WHERE ISNULL(IsActive, 0) = 0
+   OR ExpireTime <= GETDATE();
+
+-- Find this browser's reusable session only after stale rows have been removed.
 SELECT TOP 1 @SessionID = ID
 FROM UserSession
 WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid
@@ -371,10 +380,8 @@ WHERE UserID = @EmployeeID AND BrowserGuid = @BrowserGuid AND IsActive = 1;
 IF @SessionID IS NULL
 BEGIN
     -- New browser/device: do not inherit another device's sync watermark.
-    DELETE FROM UserSession
-    WHERE ISNULL(IsActive, 0) = 0 OR ExpireTime <= GETDATE();
-
     SELECT @NewID = ISNULL(MAX(ID), 0) + 1 FROM UserSession;
+
     INSERT UserSession (ID, UserID, BrowserGuid, ServerGuid, Token, LoginTime, ExpireTime, IsActive, DeviceName, LastSyncMaster, LastSyncWO)
     VALUES (@NewID, @EmployeeID, @BrowserGuid, @ServerGuid, @Token, GETDATE(), DATEADD(DAY,2,GETDATE()),1,@DeviceName,'','');
 END
