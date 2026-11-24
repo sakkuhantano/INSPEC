@@ -1179,6 +1179,7 @@ function refreshInspectionTenantAvailability() {
     if (!type || !isInspectionTenantDetail(detail) ||
         selectedDate !== today || !templates.length) {
         resetOptions();
+        applyInspectionTenantSearch();
         return;
     }
 
@@ -1188,6 +1189,7 @@ function refreshInspectionTenantAvailability() {
     // Without a complete Suite master snapshot we cannot safely declare a tenant fully used.
     if (!suiteMasterRows.length) {
         resetOptions();
+        applyInspectionTenantSearch();
         return;
     }
 
@@ -1271,6 +1273,7 @@ function refreshInspectionTenantAvailability() {
         }
         inspectionTenantSuites = [];
     }
+    applyInspectionTenantSearch();
 }
 
 function isCurrentInspectionSlotRecord(record) {
