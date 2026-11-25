@@ -618,6 +618,49 @@ function wireInspectionEvents() {
     });
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
+    const addDynamicPointButton = document.getElementById("btnAddInspectionDynamicPoint");
+    const dynamicPointNameInput = document.getElementById("txtInspectionDynamicPointName");
+    if (addDynamicPointButton && dynamicPointNameInput) {
+        const addDynamicPoint = async function () {
+            const record = currentInspectionRecord;
+            if (!record || record.PointSource !== "DYNAMIC" ||
+                !isInspectionMapMode(record.InspectionMode) || record.Status === "DONE") return;
+            const plate = String(dynamicPointNameInput.value || "").trim().toUpperCase();
+            if (!plate) { showToast("Nomor Polisi wajib diisi.", "warning"); dynamicPointNameInput.focus(); return; }
+            const setup = record.BatchMapSetup || (record.BatchMapSetup = { success: true, maps: [], points: [] });
+            setup.points = Array.isArray(setup.points) ? setup.points : [];
+            if (setup.points.some(point => String(point.PointName || "").trim().toUpperCase() === plate)) {
+                showToast("Nopol " + plate + " sudah ada di daftar inspeksi ini.", "warning");
+                dynamicPointNameInput.focus();
+                return;
+            }
+            const sequence = setup.points.reduce((max, point) => Math.max(max, Number(String(point.PointCode || "").replace(/^M/i, "")) || 0), 0) + 1;
+            const point = {
+                InspectionPointID: -sequence,
+                ClientPointID: newInspectionId(),
+                PointSource: "DYNAMIC",
+                PointCode: "M" + String(sequence).padStart(3, "0"),
+                PointName: plate,
+                Nopol: plate,
+                DisplayOrder: sequence,
+                MapID: 0,
+                Status: "PENDING",
+                IsNormalAbnormalRequired: false
+            };
+            setup.points.push(point);
+            record.Points = record.Points || [];
+            await persistInspectionRecord(record);
+            dynamicPointNameInput.value = "";
+            if (typeof showInspectionMapWorkspace === "function")
+                showInspectionMapWorkspace(record, true);
+            await openBatchInspectionPointChecklist(point);
+            showToast("Motor " + plate + " ditambahkan. Lengkapi checklist dan foto kendaraan ini.", "success");
+        };
+        addDynamicPointButton.addEventListener("click", addDynamicPoint);
+        dynamicPointNameInput.addEventListener("keydown", event => {
+            if (event.key === "Enter") { event.preventDefault(); addDynamicPoint(); }
+        });
+    }
     document.getElementById("selSubmittedType").addEventListener("change", function () {
         document.getElementById("selSubmittedDetail").value = "";
         document.getElementById("selSubmittedScheduleTime").value = "";
@@ -1996,7 +2039,9 @@ async function startNewInspection() {
     }
 
     let batchMapSetup = null;
-    if (isInspectionMapMode(inspectionMode)) {
+    if (isInspectionMapMode(inspectionMode) && pointSource === "DYNAMIC") {
+        batchMapSetup = { success: true, maps: [], points: [] };
+    } else if (isInspectionMapMode(inspectionMode)) {
         if (navigator.onLine) {
             try {
                 const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
@@ -2027,7 +2072,8 @@ async function startNewInspection() {
             batchMapSetup = cachedSetups[String(detail.InspectionTypeDetailCode || "").toUpperCase()] || null;
         }
 
-        if (!batchMapSetup || !Array.isArray(batchMapSetup.points) || !batchMapSetup.points.length) {
+        if (!batchMapSetup || !Array.isArray(batchMapSetup.points) ||
+            (pointSource === "MASTER" && !batchMapSetup.points.length)) {
             showToast("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
@@ -3477,11 +3523,12 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         String(item.ScheduleTime || "") === scheduleTime);
     if (!point) {
         point = {
-            ClientPointID: newInspectionId(),
+            ClientPointID: String(masterPoint.ClientPointID || newInspectionId()),
             InspectionPointID: Number(masterPoint.InspectionPointID),
-            ScheduleTime: scheduleTime,
+            PointSource: String(masterPoint.PointSource || currentInspectionRecord.PointSource || "MASTER"),
             PointCode: String(masterPoint.PointCode || ""),
             PointName: String(masterPoint.PointName || ""),
+            ScheduleTime: scheduleTime,
             InspectionDateTime: localDateTimeString(new Date()),
             Status: "PENDING",
             PointCondition: "",
@@ -3491,6 +3538,24 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         };
         currentInspectionRecord.Points = currentInspectionRecord.Points || [];
         currentInspectionRecord.Points.push(point);
+    }
+    if (currentInspectionRecord.PointSource === "DYNAMIC") {
+        const templateItems = [];
+        (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.sections || []).forEach(section =>
+            (section.items || []).forEach(item => templateItems.push(item)));
+        const plateTemplate = templateItems.find(item =>
+            String(item.type || item.ItemType || "").toUpperCase() === "TEXT" &&
+            /(nopol|no\\s*pol|plat|nomor polisi|license)/i.test(String(item.label || item.ItemLabel || item.name || "")));
+        if (plateTemplate) {
+            const plateId = Number(plateTemplate.idItem || plateTemplate.IDItem);
+            let plateAnswer = (point.Items || []).find(item => Number(item.IDItem) === plateId);
+            if (!plateAnswer) {
+                plateAnswer = { IDItem: plateId, ItemLabel: String(plateTemplate.label || plateTemplate.ItemLabel || "Nopol"), Type: "TEXT", Value: String(masterPoint.PointName || ""), Remark1: "", Remark2: "", IsAnomali: false };
+                point.Items.push(plateAnswer);
+            } else if (!String(plateAnswer.Value || "").trim()) {
+                plateAnswer.Value = String(masterPoint.PointName || "");
+            }
+        }
     }
 
     currentInspectionRecord.ActiveInspectionPointID = Number(masterPoint.InspectionPointID);
