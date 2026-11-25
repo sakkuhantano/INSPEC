@@ -291,6 +291,44 @@
             </div>
             <div class="row mt-1">
                 <div class="col-sm-4 d-flex align-items-center">
+            <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">Inspection Layout</div>
+                <div class="col-sm-8">
+                    <asp:DropDownList ID="ddlInspectionLayoutCode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="Standard Form" Value="STANDARD" Selected="True"></asp:ListItem>
+                        <asp:ListItem Text="Map / Denah" Value="MAP"></asp:ListItem>
+                        <asp:ListItem Text="Dynamic List" Value="DYNAMIC_LIST"></asp:ListItem>
+                    </asp:DropDownList>
+                </div>
+            </div>
+            <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">Point Source</div>
+                <div class="col-sm-8">
+                    <asp:DropDownList ID="ddlPointSource" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="Master Points" Value="MASTER" Selected="True"></asp:ListItem>
+                        <asp:ListItem Text="Dynamic Points" Value="DYNAMIC"></asp:ListItem>
+                    </asp:DropDownList>
+                </div>
+            </div>
+            <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">Schedule Selection</div>
+                <div class="col-sm-8">
+                    <asp:DropDownList ID="ddlScheduleSelectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="At Param" Value="PARAM" Selected="True"></asp:ListItem>
+                        <asp:ListItem Text="At Inspection" Value="AT_INSPECTION"></asp:ListItem>
+                    </asp:DropDownList>
+                </div>
+            </div>
+            <div class="row mt-1">
+                <div class="col-sm-4 d-flex align-items-center">Approval Workflow</div>
+                <div class="col-sm-8">
+                    <asp:DropDownList ID="ddlApprovalWorkflowCode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
+                        <asp:ListItem Text="SPV → Chief Engineering" Value="SPV_CHIEF_ENG"></asp:ListItem>
+                        <asp:ListItem Text="Lightning 4 Steps" Value="LIGHTNING_4_STEP"></asp:ListItem>
+                    </asp:DropDownList>
+                </div>
+            </div>
                     Grouping By
                 </div>
                 <div class="col-sm-8 grouping-by-editor">
