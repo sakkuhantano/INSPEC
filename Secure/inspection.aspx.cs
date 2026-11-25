@@ -93,6 +93,15 @@ WHERE SU.EmployeeID=@UserID
                     if (inspectionMode == "") inspectionMode = "STANDARD";
                     bool isLightningInspection = String.Equals(inspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase);
                     bool isBatchInspection = String.Equals(inspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) || isLightningInspection;
+                    string pointSource = TokenString(record, "PointSource").Trim().ToUpperInvariant();
+                    if (pointSource == "")
+                        pointSource = String.Equals(TokenString(record, "InspectionLayoutCode"), "DYNAMIC_LIST", StringComparison.OrdinalIgnoreCase)
+                            ? "DYNAMIC" : "MASTER";
+                    if (isLightningInspection) pointSource = "MASTER";
+                    if (pointSource != "MASTER" && pointSource != "DYNAMIC")
+                        throw new Exception("Inspection PointSource must be MASTER or DYNAMIC.");
+                    if (pointSource == "DYNAMIC" && !isBatchInspection)
+                        throw new Exception("Dynamic inspection points are supported only for BATCH inspections.");
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
@@ -262,30 +271,58 @@ WHERE ClientInspectionID=@ClientInspectionID",
 
                         var clientPointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var masterPointIDs = new HashSet<long>();
+                        var dynamicPointCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var schedulePointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        int dynamicPointSequence = 0;
                         foreach (JObject point in pointArray.OfType<JObject>())
                         {
                             string clientPointID = Limit(TokenString(point, "ClientPointID"), 36);
                             long masterPointID = TokenLong(point, "InspectionPointID");
                             string pointStatus = TokenString(point, "Status").ToUpperInvariant();
                             string pointScheduleTime = isLightningInspection ? TokenString(point, "ScheduleTime").Trim() : "";
-                            bool duplicateMasterPoint = isLightningInspection
-                                ? !schedulePointIDs.Add(pointScheduleTime + "|" + masterPointID.ToString(CultureInfo.InvariantCulture))
-                                : !masterPointIDs.Add(masterPointID);
-                            if (String.IsNullOrWhiteSpace(clientPointID) || masterPointID <= 0 ||
-                                !clientPointIDs.Add(clientPointID) || duplicateMasterPoint)
+                            string pointCode = Limit(TokenString(point, "PointCode").Trim(), 30);
+                            string pointName = Limit(TokenString(point, "PointName").Trim(), 100);
+                            if (pointSource == "DYNAMIC")
+                            {
+                                dynamicPointSequence++;
+                                if (pointCode == "")
+                                    pointCode = "M" + dynamicPointSequence.ToString("000", CultureInfo.InvariantCulture);
+                                if (pointName == "")
+                                    pointName = TokenString(point, "Nopol").Trim();
+                                if (pointName == "")
+                                    throw new Exception("Nopol / PointName wajib diisi untuk setiap kendaraan Motor.");
+                                if (masterPointID > 0)
+                                    throw new Exception("Dynamic Motor point must not reference a master InspectionPointID.");
+                            }
+                            else
+                            {
+                                if (masterPointID <= 0)
+                                    throw new Exception("Master-map InspectionPointID is required.");
+                                if (pointCode == "") pointCode = "P" + masterPointID.ToString(CultureInfo.InvariantCulture);
+                                if (pointName == "") pointName = pointCode;
+                            }
+                            bool duplicatePoint = pointSource == "DYNAMIC"
+                                ? !dynamicPointCodes.Add(pointCode)
+                                : (isLightningInspection
+                                    ? !schedulePointIDs.Add(pointScheduleTime + "|" + masterPointID.ToString(CultureInfo.InvariantCulture))
+                                    : !masterPointIDs.Add(masterPointID));
+                            if (String.IsNullOrWhiteSpace(clientPointID) ||
+                                !clientPointIDs.Add(clientPointID) || duplicatePoint)
                                 throw new Exception("BATCH/LIGHTNING Inspection Point identity is invalid or duplicated.");
                             if (pointStatus != "DONE" && pointStatus != "ABNORMAL")
                                 throw new Exception("Every selected BATCH Inspection Point must be DONE or ABNORMAL.");
 
                             DataRow pointRow = batchPoints.NewRow();
                             pointRow["C1"] = clientPointID;
-                            pointRow["C2"] = masterPointID.ToString(CultureInfo.InvariantCulture);
+                            pointRow["C2"] = pointSource == "MASTER" ? masterPointID.ToString(CultureInfo.InvariantCulture) : "";
                             pointRow["C3"] = TokenString(point, "InspectionDateTime");
                             pointRow["C4"] = pointStatus;
                             pointRow["C5"] = DbString(Limit(TokenString(point, "AbnormalRemark").Trim(), 500));
                             pointRow["C6"] = TokenString(point, "PointCondition").ToUpperInvariant();
                             pointRow["C7"] = pointScheduleTime;
+                            pointRow["C8"] = pointSource;
+                            pointRow["C9"] = pointCode;
+                            pointRow["C10"] = pointName;
                             batchPoints.Rows.Add(pointRow);
 
                             JArray pointItems = point["Items"] as JArray ?? new JArray();
@@ -858,6 +895,8 @@ ORDER BY F.IDItem,F.DisplayOrder",
 
                         if (isBatchInspection)
                         {
+                            if (pointSource == "MASTER")
+                            {
                             syncStage = "validate batch map coverage";
                             JArray submittedPointArray = record["Points"] as JArray ?? new JArray();
                             var submittedPointIDs = new HashSet<long>();
@@ -907,6 +946,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                                 if (!validMasterPointIDs.Contains(submittedPointID))
                                     throw new Exception("Inspection Point " + submittedPointID +
                                         " tidak termasuk master point aktif untuk Inspection Type dan Detail ini.");
+                            }
                         }
 
                         syncStage = "preflight existing inspection";
