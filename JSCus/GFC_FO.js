@@ -1748,7 +1748,8 @@ async function uploadPendingInspections() {
                 const pointPhotos = photos.filter(photo => String(photo.PointID || "") === String(point.ClientPointID || ""));
                 pointPayloads.push({
                     ClientPointID: point.ClientPointID,
-                    InspectionPointID: point.InspectionPointID,
+                    InspectionPointID: String(point.PointSource || record.PointSource || "MASTER").toUpperCase() === "DYNAMIC"
+                        ? null : point.InspectionPointID,
                     PointSource: String(point.PointSource || record.PointSource || "MASTER").toUpperCase(),
                     PointCode: point.PointCode || "",
                     PointName: point.PointName || "",
