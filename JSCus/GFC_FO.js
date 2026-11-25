@@ -89,9 +89,12 @@ function setInputValue(input, value) {
 }
 
 function showLogin() {
-    if (!window.location.href.includes("Login.aspx")) {
-        //window.location.replace("Login.aspx");
-        window.location.href="../Login.aspx";
+    if (!window.location.href.toLowerCase().includes("login.aspx")) {
+        var returnUrl = window.location.pathname + window.location.search + window.location.hash;
+        var loginUrl = new URL("../Login.aspx", window.location.href);
+        loginUrl.searchParams.set("session", "expired");
+        if (returnUrl) loginUrl.searchParams.set("ReturnUrl", returnUrl);
+        window.location.href = loginUrl.toString();
     }
 }
 async function validateSession(browserGuid, serverGuid, token) {
