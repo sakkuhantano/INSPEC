@@ -3853,9 +3853,9 @@ SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
        P.PointDescription,P.MapID,P.MapX,P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_T_InspectionPoint TP
-JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
 WHERE TP.InspectionID=@InspectionID
-ORDER BY P.DisplayOrder,P.PointCode",
+ORDER BY ISNULL(P.DisplayOrder,0),TP.PointCode",
                             new SqlParameter[] { new SqlParameter("@InspectionID", id) });
                         DataTable returnedPointItems = br.EQueryP(@"
 SELECT R.InspectionPointTransactionID,R.IDItem,R.ItemLabel,R.ItemType,R.Value,
