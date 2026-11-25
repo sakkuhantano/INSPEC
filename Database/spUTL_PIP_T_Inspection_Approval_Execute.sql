@@ -19,13 +19,14 @@ BEGIN
       or ROLLBACK that caller-owned transaction.
     */
     BEGIN TRY
-        IF NOT EXISTS
+        IF EXISTS
         (
             SELECT 1
             FROM dbo.PIP_T_Inspection I
             JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
             WHERE I.InspectionID=@p_InspectionID
-              AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG'
+              AND (ISNULL(IT.ApprovalWorkflowCode,'')<>'SPV_CHIEF_ENG'
+                   OR (ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0))
         )
         BEGIN
             EXEC dbo.spUTL_PIP_T_Inspection_Approval
