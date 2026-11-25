@@ -80,7 +80,7 @@ function applyInspectionDetailSearch() {
         : '<div class="dropdown-item-text small text-muted py-2">Detail tidak ditemukan.</div>';
 }
 
-function isInspectionMapMode(mode)function isInspectionMapMode(mode) {
+function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
 }
 
