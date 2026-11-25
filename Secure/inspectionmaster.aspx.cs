@@ -849,20 +849,10 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
                         paths.Append("</title></path>");
-                        // Open paths use a wide stroke hit target. Closed paths (Z/z)
-                        // also receive a transparent interior hit area, so clicking inside
-                        // a square/room outline selects that point rather than a neighbour.
-                        bool isClosedPath = System.Text.RegularExpressions.Regex.IsMatch(d, @"[Zz]");
-                        paths.Append("<path class='inspection-map-preview-path-hit")
-                            .Append(isClosedPath ? " inspection-map-preview-path-hit-closed" : "")
-                            .Append("' data-point-id='")
-                            .Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
-                            .Append("' d='").Append(HttpUtility.HtmlAttributeEncode(d))
-                            .Append("' fill='").Append(isClosedPath ? "#000" : "none")
-                            .Append("' fill-opacity='").Append(isClosedPath ? "0.001" : "0")
-                            .Append("' stroke='#000' stroke-opacity='0.001' stroke-width='14' pointer-events='")
-                            .Append(isClosedPath ? "all" : "stroke")
-                            .Append("' vector-effect='non-scaling-stroke'></path>");
+                        // PATH selection is resolved client-side from the actual
+                        // visible SVG geometry and click coordinates. Do not add a
+                        // transparent hit-path here: overlapping hit-paths can make the
+                        // browser target a neighbouring PATH based on DOM paint order.
                     }
                     continue;
                 }
