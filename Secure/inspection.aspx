@@ -883,6 +883,16 @@
         #inspectionMapWorkspace .inspection-map-pdf-stage{max-width:none!important;max-height:none!important}
     }
 
+    #inspectionMapWorkspace.inspection-dynamic-list-mode{height:calc(100dvh - 148px);min-height:420px}
+    #inspectionMapWorkspace.inspection-dynamic-list-mode .inspection-map-content{display:block!important;overflow-y:auto}
+    #inspectionMapWorkspace.inspection-dynamic-list-mode .inspection-map-content>#inspectionPointList{display:block!important;width:100%;height:auto;min-height:180px;max-height:none;overflow:visible;padding:.6rem}
+    #inspectionMapWorkspace.inspection-dynamic-list-mode .inspection-point-list-entry{border:1px solid var(--bs-border-color);border-radius:.65rem;padding:.45rem;margin-bottom:.45rem;background:var(--bs-body-bg)}
+    #inspectionDynamicPointEntry{background:var(--bs-body-bg)}
+    @media(max-width:767.98px){
+        #inspectionMapWorkspace.inspection-dynamic-list-mode{height:calc(100dvh - 142px);min-height:0}
+        #inspectionMapWorkspace.inspection-dynamic-list-mode .inspection-map-content{height:100%;overflow-y:auto}
+        #inspectionMapWorkspace.inspection-dynamic-list-mode .inspection-map-content>#inspectionPointList{display:block!important;max-height:none;padding:.5rem}
+    }
     .inspection-map-svg-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
     .inspection-map-svg-path{pointer-events:visiblePainted;cursor:pointer;stroke-linejoin:round;stroke-linecap:round}
     .inspection-map-svg-path.pending{fill:rgba(100,116,139,.16);stroke:#64748b}
