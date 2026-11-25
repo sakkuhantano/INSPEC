@@ -489,6 +489,16 @@
                 }
             }
 
+            if (!selectedRow && options.scrollGrid) {
+                var selectedPointField = document.getElementById("hidMapSelectedPointID");
+                var selectPointButton = document.getElementById("btnSelectPointFromMap");
+                if (selectedPointField && selectPointButton) {
+                    selectedPointField.value = String(pointId);
+                    selectPointButton.click();
+                    return;
+                }
+            }
+
             if (options.focusMap) {
                 var panel = document.getElementById('pnlMapPreview');
                 if (panel && panel.scrollIntoView)
