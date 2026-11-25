@@ -2331,6 +2331,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.IsApproved,
                         I.IsApproved1,
                         I.IsApproved2,
+                        I.IsApprovedFinal,
+                        I.ApprovedFinalDate,
                         I.ApprovedDate,
                         I.Approved1Date,
                         I.Approved2Date,
@@ -2340,8 +2342,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.CompanyID,
                         I.LocationID,
                         I.SectionID,
-                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')
-                            AS InspectionMode
+                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD') AS InspectionMode,
+                        ISNULL(NULLIF(IT.ApprovalWorkflowCode, ''), 'STANDARD') AS ApprovalWorkflowCode
                     FROM dbo.PIP_T_Inspection I
                     LEFT JOIN dbo.PIP_M_InspectionType IT
                         ON IT.InspectionTypeCode = I.InspectionTypeCode
@@ -2494,7 +2496,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  (
                                      SELECT 1 FROM dbo.SysWebCommonValue C
                                      WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
                                        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                  )
                             THEN 1
@@ -2507,7 +2509,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  (
                                      SELECT 1 FROM dbo.SysWebCommonValue C
                                      WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
+                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
                                        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
                                  )
                             THEN 1
