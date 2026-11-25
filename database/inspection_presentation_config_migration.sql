@@ -111,4 +111,37 @@ IF NOT EXISTS (
         ADD CONSTRAINT CK_PIP_M_InspectionType_ApprovalWorkflowCode
         CHECK (ApprovalWorkflowCode IN ('STANDARD', 'SPV_CHIEF_ENG', 'LIGHTNING_4_STEP'));
 
+IF NOT EXISTS (
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id = OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name = 'CK_PIP_M_InspectionType_PresentationCombination'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
+        ADD CONSTRAINT CK_PIP_M_InspectionType_PresentationCombination
+        CHECK (
+            (InspectionMode = 'LIGHTNING'
+             AND InspectionLayoutCode = 'MAP'
+             AND PointSource = 'MASTER'
+             AND ScheduleSelectionMode = 'AT_INSPECTION'
+             AND ApprovalWorkflowCode = 'LIGHTNING_4_STEP')
+            OR
+            (InspectionMode = 'BATCH'
+             AND InspectionLayoutCode = 'MAP'
+             AND PointSource = 'MASTER'
+             AND ScheduleSelectionMode = 'PARAM'
+             AND ApprovalWorkflowCode IN ('STANDARD', 'SPV_CHIEF_ENG'))
+            OR
+            (InspectionMode = 'BATCH'
+             AND InspectionLayoutCode = 'DYNAMIC_LIST'
+             AND PointSource = 'DYNAMIC'
+             AND ScheduleSelectionMode = 'PARAM'
+             AND ApprovalWorkflowCode IN ('STANDARD', 'SPV_CHIEF_ENG'))
+            OR
+            (InspectionMode = 'STANDARD'
+             AND InspectionLayoutCode = 'STANDARD'
+             AND PointSource = 'MASTER'
+             AND ScheduleSelectionMode = 'PARAM'
+             AND ApprovalWorkflowCode = 'STANDARD')
+        );
+
 COMMIT TRANSACTION;
