@@ -398,7 +398,9 @@ ORDER BY InspectionTypeDetailCode, ScheduleTime",
                     p_MaxRecord = "1";
                 }
 
-                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy, ISNULL(InspectionMode,'STANDARD') InspectionMode " +
+                _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy, ISNULL(InspectionMode,'STANDARD') InspectionMode, " +
+                "ISNULL(InspectionLayoutCode,'STANDARD') InspectionLayoutCode, ISNULL(PointSource,'MASTER') PointSource, " +
+                "ISNULL(ScheduleSelectionMode,'PARAM') ScheduleSelectionMode, ISNULL(ApprovalWorkflowCode,'STANDARD') ApprovalWorkflowCode " +
                 "FROM pip_m_inspectiontype h WHERE h.isActive=1 " +
                 (p_Condition != string.Empty ? " AND " + p_Condition : "") + _Condition +
                 " Order By InspectionTypeCode"));
