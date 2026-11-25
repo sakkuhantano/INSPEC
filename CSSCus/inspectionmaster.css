@@ -197,6 +197,7 @@
 .inspection-map-preview-svg{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
 .inspection-map-preview-svg .inspection-map-preview-path{stroke-width:2!important;stroke-linecap:round;stroke-linejoin:round}
 .inspection-map-preview-svg .inspection-map-preview-path-hit{fill:none!important;stroke:#000!important;stroke-opacity:.001!important;stroke-width:14!important;pointer-events:stroke!important}
+.inspection-map-preview-svg .inspection-map-preview-path-hit-closed{fill:#000!important;fill-opacity:.001!important;pointer-events:all!important}
 .inspection-map-preview-svg [data-point-id]{pointer-events:visiblePainted;cursor:pointer}
 .inspection-map-preview-svg .inspection-map-preview-circle{fill:#fd7e14;stroke:#fff;stroke-width:1.05;vector-effect:non-scaling-stroke}
 .inspection-map-preview-svg .inspection-map-preview-rectangle{fill:rgba(253,126,20,.20)!important;stroke:#fd7e14!important;stroke-width:.85}
