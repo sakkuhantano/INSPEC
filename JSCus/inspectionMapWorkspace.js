@@ -249,10 +249,9 @@
     }
 
     function getVisiblePoints() {
+        if (currentMapRecord && String(currentMapRecord.InspectionLayoutCode || '').toUpperCase() === 'DYNAMIC_LIST' && String(currentMapRecord.PointSource || '').toUpperCase() === 'DYNAMIC') return currentPoints.slice();
         if (!currentMapId) return [];
-        return currentPoints.filter(function (point) {
-            return Number(point.MapID || 0) === Number(currentMapId);
-        });
+        return currentPoints.filter(function (point) { return Number(point.MapID || 0) === Number(currentMapId); });
     }
 
     function findNextPendingPoint() {
@@ -2031,7 +2030,46 @@
             return Number(map.MapID) === Number(currentMapId);
         }) || null;
 
-        if (activate) {
+        var dynamicListMode = String(record.InspectionLayoutCode || "").toUpperCase() === "DYNAMIC_LIST" &&
+            String(record.PointSource || "").toUpperCase() === "DYNAMIC";
+        if (activate && dynamicListMode) {
+            document.body.classList.add("inspection-map-tab-active");
+            document.body.classList.remove("inspection-map-mobile-active");
+            workspace.classList.remove("d-none");
+            var paramPane = document.getElementById("inspectionParamsPane");
+            var checklistPane = document.getElementById("inspectionChecklistPane");
+            if (paramPane) paramPane.classList.add("d-none");
+            if (checklistPane) checklistPane.classList.add("d-none");
+            var picker = document.getElementById("inspectionMapPicker");
+            var content = document.getElementById("inspectionMapContent");
+            var mapPanel = workspace.querySelector(".inspection-map-panel");
+            var list = document.getElementById("inspectionPointList");
+            var entry = document.getElementById("inspectionDynamicPointEntry");
+            var submitBar = document.getElementById("inspectionMapSubmitBar");
+            var summary = document.getElementById("inspectionMapSummaryHost");
+            var toolbar = workspace.querySelector(".inspection-map-toolbar");
+            if (picker) picker.classList.add("d-none");
+            if (content) { content.classList.remove("d-none"); content.classList.add("no-map"); }
+            if (mapPanel) mapPanel.classList.add("d-none");
+            if (list) { list.classList.remove("d-none"); list.style.display = "block"; }
+            if (entry) entry.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
+            if (submitBar) submitBar.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
+            if (summary) summary.classList.remove("d-none");
+            if (toolbar) toolbar.classList.remove("d-none");
+            var mapTab = document.getElementById("btnInspectionMapTab");
+            var paramTab = document.getElementById("btnInspectionParamTab");
+            var checklistTab = document.getElementById("btnInspectionChecklistTab");
+            if (mapTab) mapTab.classList.add("active");
+            if (paramTab) paramTab.classList.remove("active");
+            if (checklistTab) checklistTab.classList.remove("active");
+            setInspectionSectionNavForTab("map");
+            currentMapId = "";
+            selectedPoint = null;
+            renderList();
+            updateSummary();
+            if (typeof window.updateInspectionParameterTabGate === "function")
+                window.updateInspectionParameterTabGate();
+        } else if (activate) {
             // Apply the mobile full-height layout before revealing the map so PDF.js measures a real viewport.
             document.body.classList.add("inspection-map-tab-active");
             var mobileMapViewport = window.matchMedia &&
