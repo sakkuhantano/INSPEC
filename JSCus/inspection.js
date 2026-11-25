@@ -4045,7 +4045,7 @@ async function persistInspectionBeforePointNavigatorSwitch() {
             silent: true,
             preserveCompletedStatus: unchanged && photosUnchanged
         });
-        if (Number(record.ActiveInspectionPointID || 0) > 0) return false;
+        if (Number(record.ActiveInspectionPointID || 0) !== 0) return false;
     } else {
         const summary = document.getElementById("txtInspectionSummary");
         if (summary) record.Summary = summary.value || "";
@@ -4936,7 +4936,7 @@ async function saveInspection(status) {
     if (inspectionPhotoWritePromise) await inspectionPhotoWritePromise;
 
     if (currentInspectionRecord && isInspectionMapMode(currentInspectionRecord.InspectionMode)) {
-        if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0) {
+        if (Number(currentInspectionRecord.ActiveInspectionPointID || 0) !== 0) {
             await saveBatchInspectionPoint(status);
             return;
         }
