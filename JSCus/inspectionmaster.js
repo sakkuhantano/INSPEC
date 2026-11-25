@@ -489,12 +489,33 @@
                 }
             }
 
-            if (!selectedRow && options.scrollGrid) {
+            if (!selectedRow && options.scrollGrid && options.allowPostback !== false) {
                 var selectedPointField = document.getElementById("hidMapSelectedPointID");
                 var selectPointButton = document.getElementById("btnSelectPointFromMap");
                 if (selectedPointField && selectPointButton) {
                     selectedPointField.value = String(pointId);
-                    selectPointButton.click();
+
+                    // Cancel any pending debounced search postback. Otherwise a
+                    // search and a map selection can race and navigate to a
+                    // different grid position.
+                    if (window.__inspectionPointSearchTimer) {
+                        window.clearTimeout(window.__inspectionPointSearchTimer);
+                        window.__inspectionPointSearchTimer = null;
+                    }
+                    var pointSearch = document.getElementById("txtPointSearch");
+                    if (pointSearch) pointSearch.value = "";
+
+                    // Wait for any local map-draft write before posting back.
+                    // Mark this synthetic click ready so the document-level
+                    // postback guard does not enqueue a second click.
+                    Promise.all([inspectionDraftWritePromise, inspectionDraftRestorePromise]).then(function () {
+                        selectPointButton.setAttribute("data-inspection-click-ready", "1");
+                        selectPointButton.click();
+                        selectPointButton.removeAttribute("data-inspection-click-ready");
+                    }).catch(function (error) {
+                        if (window.console && console.error)
+                            console.error("Cannot navigate to selected Inspection Point:", error);
+                    });
                     return;
                 }
             }
@@ -525,14 +546,133 @@
             window.inspectionMasterSelectPoint(pointId, { focusMap: true, scrollGrid: true });
         };
 
-        // Clicking a plotted shape selects it and the matching visible grid row.
+        function getInspectionPreviewPathDistance(path, svg, clientX, clientY) {
+            var length = 0;
+            var matrix = null;
+            try {
+                length = path.getTotalLength();
+                matrix = path.getScreenCTM();
+            } catch (ignore) { }
+            if (!length || !matrix) return Infinity;
+
+            var localPoint = svg.createSVGPoint();
+            function distanceAt(distanceAlongPath) {
+                try {
+                    var position = path.getPointAtLength(distanceAlongPath);
+                    localPoint.x = position.x;
+                    localPoint.y = position.y;
+                    var screenPoint = localPoint.matrixTransform(matrix);
+                    var dx = screenPoint.x - clientX;
+                    var dy = screenPoint.y - clientY;
+                    return dx * dx + dy * dy;
+                } catch (ignore) {
+                    return Infinity;
+                }
+            }
+
+            // Hit-stroke paths are deliberately wider than the visible PATH.
+            // When two hit strokes overlap, resolve the click against the
+            // nearest visible path geometry instead of SVG paint order.
+            var samples = Math.max(24, Math.min(180, Math.ceil(length / 1.5)));
+            var step = length / samples;
+            var bestAt = 0;
+            var bestDistance = Infinity;
+            for (var i = 0; i <= samples; i++) {
+                var at = i * step;
+                var distance = distanceAt(at);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    bestAt = at;
+                }
+            }
+
+            var left = Math.max(0, bestAt - step);
+            var right = Math.min(length, bestAt + step);
+            for (var refine = 0; refine < 7; refine++) {
+                var first = left + (right - left) / 3;
+                var second = right - (right - left) / 3;
+                if (distanceAt(first) <= distanceAt(second)) right = second;
+                else left = first;
+            }
+            bestDistance = Math.min(bestDistance, distanceAt((left + right) / 2));
+            return Math.sqrt(bestDistance);
+        }
+
+        function resolveInspectionPreviewPointId(svg, shape, event) {
+            var clickedId = shape.getAttribute('data-point-id') || '';
+            if (!clickedId) return '';
+
+            var isPathTarget = shape.classList.contains('inspection-map-preview-path') ||
+                shape.classList.contains('inspection-map-preview-path-hit');
+            if (!isPathTarget) return clickedId;
+
+            // An interior click on a closed PATH should select the smallest
+            // containing closed region, not a neighbouring outline painted later.
+            if (shape.classList.contains('inspection-map-preview-path-hit-closed')) {
+                try {
+                    var inverse = svg.getScreenCTM().inverse();
+                    var clickPoint = svg.createSVGPoint();
+                    clickPoint.x = event.clientX;
+                    clickPoint.y = event.clientY;
+                    clickPoint = clickPoint.matrixTransform(inverse);
+                    var containing = [];
+                    svg.querySelectorAll('path.inspection-map-preview-path[data-point-id]').forEach(function (path) {
+                        if (!/[Zz]/.test(path.getAttribute('d') || '') ||
+                            typeof path.isPointInFill !== 'function' ||
+                            !path.isPointInFill(clickPoint)) return;
+                        var bounds = path.getBBox();
+                        containing.push({
+                            id: path.getAttribute('data-point-id'),
+                            area: Math.max(0, bounds.width) * Math.max(0, bounds.height)
+                        });
+                    });
+                    if (containing.length) {
+                        containing.sort(function (a, b) { return a.area - b.area; });
+                        return containing[0].id || clickedId;
+                    }
+                } catch (ignore) { }
+                return clickedId;
+            }
+
+            var paths = svg.querySelectorAll('path.inspection-map-preview-path[data-point-id]');
+            if (paths.length < 2) return clickedId;
+
+            var closestId = clickedId;
+            var closestDistance = Infinity;
+            paths.forEach(function (path) {
+                var distance = getInspectionPreviewPathDistance(path, svg, event.clientX, event.clientY);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestId = path.getAttribute('data-point-id') || clickedId;
+                }
+            });
+
+            // Stay within the wider hit stroke. If no actual path is nearby,
+            // retain the SVG hit target as a safe fallback.
+            return closestDistance <= 18 ? closestId : clickedId;
+        }
+
+        // Clicking a plotted shape selects its matching point. PATH hit zones
+        // can overlap, so resolve PATH clicks by geometry rather than DOM order.
         media.addEventListener('click', function (event) {
             var shape = event.target && event.target.closest
                 ? event.target.closest('.inspection-map-preview-svg [data-point-id]') : null;
             if (!shape) return;
             event.preventDefault();
-            event.stopPropagation();
-            window.inspectionMasterSelectPoint(shape.getAttribute('data-point-id'), { scrollGrid: true });
+            event.stopImmediatePropagation();
+
+            var svg = media.querySelector('.inspection-map-preview-svg');
+            if (!svg) return;
+
+            var pointSearchTimer = window.__inspectionPointSearchTimer;
+            if (pointSearchTimer) {
+                window.clearTimeout(pointSearchTimer);
+                window.__inspectionPointSearchTimer = null;
+            }
+
+            var pointId = resolveInspectionPreviewPointId(svg, shape, event);
+            if (pointId && window.inspectionMasterSelectPoint)
+                window.inspectionMasterSelectPoint(pointId, { scrollGrid: true });
         });
     }
     var inspectionPdfRenderVersion = 0;
