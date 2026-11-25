@@ -2584,7 +2584,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  )
                                  OR
                                  /* Chief Engineer: PENG profit center. For Lightning, the Chief Engineer
-                                    stage is IsApproved1 / Approved1Date. */
+                                    stage is IsApproved2 / Approved2Date. */
                                  (
                                      @IsChiefEngineer = 1
                                      AND EXISTS
