@@ -3236,6 +3236,10 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
        I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+       ISNULL(NULLIF(IT.InspectionLayoutCode,''),'STANDARD') AS InspectionLayoutCode,
+       ISNULL(NULLIF(IT.PointSource,''),'MASTER') AS PointSource,
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
+       ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') AS ApprovalWorkflowCode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
