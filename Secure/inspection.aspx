@@ -1847,6 +1847,12 @@
         pointer-events:visiblePainted!important;
         cursor:pointer!important;
     }
+    #inspectionMapPoints > .inspection-map-svg-overlay .inspection-map-svg-path-hit-area{
+        pointer-events:all!important;
+        fill:transparent!important;
+        stroke:none!important;
+        cursor:pointer!important;
+    }
     #inspectionMapPoints > .inspection-map-svg-overlay .inspection-map-svg-rect{
         pointer-events:all!important;
         cursor:pointer!important;
