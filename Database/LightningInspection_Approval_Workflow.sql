@@ -5,9 +5,10 @@
     Database/LightningInspection_Transaction_Migration.sql.
 
     Lightning stages:
-      TECHNICIAN SUBMITTED -> CHECKED / CHIEF_ENG
-      CHIEF_ENG APPROVED   -> ACKNOWLEDGE 1 / CHIEF_SEC
-      CHIEF_SEC APPROVED   -> ACKNOWLEDGE / COMPLETED
+      TECHNICIAN SUBMITTED -> CHECKED / SPV
+      SPV APPROVED         -> VERIFIED / CHIEF_SEC
+      CHIEF_SEC APPROVED   -> ACKNOWLEDGE 1 / CHIEF_ENG
+      CHIEF_ENG APPROVED   -> ACKNOWLEDGE 2 / COMPLETED
       CHIEF_ENG or CHIEF_SEC VOID -> VOID / TECHNICIAN correction
 
     This procedure only queues email in the outbox. SMTP is dispatched after
@@ -313,8 +314,8 @@ BEGIN
        The token must belong to the current approver and to the latest workflow event
        that created the current approval email:
          SPV       -> TECHNICIAN SUBMITTED/RESUBMITTED event
-         CHIEF_ENG -> SPV APPROVED event
-         CHIEF_SEC -> CHIEF_ENG APPROVED event
+         CHIEF_SEC -> SPV APPROVED event
+         CHIEF_ENG -> CHIEF_SEC APPROVED event
        Therefore a token from an earlier stage cannot be replayed after the workflow
        has advanced, even when the old email is delivered later by SMTP retry.
     */
