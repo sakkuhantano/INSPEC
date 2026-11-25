@@ -2427,8 +2427,8 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
           date: record.SubmittedDate, color: "primary" },
         { label: "VERIFIED BY", role: "Supervisor (SPV)", flag: "IsApproved",
           by: record.ApprovedByName || record.ApprovedBy, date: record.ApprovedDate, color: "warning" },
-        { label: "ACKNOWLEDGED BY", role: "Chief Engineering", flag: "IsApprovedFinal",
-          by: record.ApprovedFinalByName || record.ApprovedFinalBy, date: record.ApprovedFinalDate, color: "success" }
+        { label: "ACKNOWLEDGED BY", role: "Chief Engineering", flag: "IsApproved1",
+          by: record.Approved1ByName || record.Approved1By, date: record.Approved1Date, color: "success" }
     ] : [
         { label: "CHECKED BY", role: "Technician / Submit", flag: "IsSubmitted",
           by: record.SubmittedByName || record.TechnicianName || record.SubmittedBy || record.OwnerEmployeeID,
