@@ -2590,11 +2590,15 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                     stage is IsApproved2 / Approved2Date. */
                                  (
                                      @IsChiefEngineer = 1
-                                     AND EXISTS
+                                     AND
                                      (
-                                         SELECT 1 FROM dbo.PIP_M_Section S
-                                         WHERE S.SectionID = AF.SectionID
-                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
+                                         AF.ApprovalWorkflowCode='SPV_CHIEF_ENG'
+                                         OR EXISTS
+                                         (
+                                             SELECT 1 FROM dbo.PIP_M_Section S
+                                             WHERE S.SectionID = AF.SectionID
+                                               AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
+                                         )
                                      )
                                      AND
                                      (
