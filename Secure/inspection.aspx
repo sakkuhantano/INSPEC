@@ -375,7 +375,7 @@
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
     .modal { z-index: 1100 !important; }
-    #inspectionApprovalTableWrap > #inspectionApprovalPagerTop {
+    #inspectionApprovalPagerTop {
         display: flex !important;
         width: 100%;
         position: relative;
@@ -2467,8 +2467,7 @@
                 </div>
             </div>
         
-        <div class="table-responsive" id="inspectionApprovalTableWrap">
-            <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
     <div class="d-flex align-items-center gap-2 small text-muted">
         <span id="inspectionApprovalTotalRowsTop">0 records</span>
         <label for="inspectionApprovalPageSizeTop" class="mb-0">Rows/page</label>
@@ -2487,6 +2486,8 @@
         </div>
     </div>
 </div>
+        <div class="table-responsive">
+            
             <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
                 <thead><tr>
                     <th class="text-center text-nowrap">No.</th>
