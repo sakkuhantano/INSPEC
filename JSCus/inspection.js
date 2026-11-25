@@ -4163,14 +4163,14 @@ function wireInspectionPointNavigator() {
             renderInspectionPointNavigatorList();
             return;
         }
-        const optionButton = event.target.closest("[data-open-inspection-option]");
-        if (optionButton) {
+        const openOptionButton = event.target.closest("[data-open-inspection-option]");
+        if (openOptionButton) {
             event.preventDefault();
             event.stopPropagation();
             if (typeof window.openInspectionPointNavigator === "function")
                 window.openInspectionPointNavigator({
                     mapId: "all",
-                    optionFilter: optionButton.getAttribute("data-open-inspection-option") || ""
+                    optionFilter: openOptionButton.getAttribute("data-open-inspection-option") || ""
                 });
             return;
         }
