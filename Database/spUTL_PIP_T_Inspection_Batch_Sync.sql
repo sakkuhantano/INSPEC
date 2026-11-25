@@ -88,27 +88,48 @@ BEGIN
         RETURN;
     END;
 
-    IF EXISTS
-    (
-        SELECT 1
-        FROM @p_Points P
-        WHERE ISNULL(P.C1,'')=''
-           OR ISNUMERIC(P.C2)=0
-           OR NOT EXISTS
-             (SELECT 1 FROM dbo.PIP_M_InspectionPoint M
-              INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
-              WHERE M.InspectionPointID=CAST(P.C2 AS BIGINT)
-                AND MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
-                AND MAP.InspectionTypeCode=@p_InspectionTypeCode
-                AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
-                AND M.IsActive=1)
-    )
+    DECLARE @V_PointSource VARCHAR(10);
+    SELECT @V_PointSource=UPPER(ISNULL(NULLIF(PointSource,''),'MASTER'))
+    FROM dbo.PIP_M_InspectionType
+    WHERE InspectionTypeCode=@p_InspectionTypeCode AND SectionID=@p_SectionID;
+
+    IF @V_PointSource NOT IN ('MASTER','DYNAMIC')
     BEGIN
-        RAISERROR('One or more Inspection Point records are invalid or inactive.',16,1);
+        RAISERROR('Inspection Type PointSource configuration is invalid.',16,1);
         RETURN;
     END;
 
     IF EXISTS
+    (
+        SELECT 1 FROM @p_Points P
+        WHERE ISNULL(P.C1,'')=''
+           OR ISNULL(P.C8,'')<>@V_PointSource
+           OR ISNULL(LTRIM(RTRIM(P.C9)),'')=''
+           OR ISNULL(LTRIM(RTRIM(P.C10)),'')=''
+           OR (@V_PointSource='MASTER' AND
+               (ISNUMERIC(P.C2)=0 OR NOT EXISTS
+                 (SELECT 1 FROM dbo.PIP_M_InspectionPoint M
+                  INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
+                  WHERE M.InspectionPointID=CAST(P.C2 AS BIGINT)
+                    AND MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+                    AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+                    AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+                    AND M.IsActive=1)))
+           OR (@V_PointSource='DYNAMIC' AND
+               (ISNULL(P.C2,'')<>'' OR LEN(P.C9)>30 OR LEN(P.C10)>100))
+    )
+    BEGIN
+        RAISERROR('One or more Inspection Point records are invalid for the configured PointSource.',16,1);
+        RETURN;
+    END;
+
+    IF EXISTS (SELECT C9 FROM @p_Points GROUP BY C9 HAVING COUNT(1)>1)
+    BEGIN
+        RAISERROR('Duplicate PointCode in inspection point list.',16,1);
+        RETURN;
+    END;
+
+    IF @V_PointSource='MASTER' AND EXISTS
     (
         SELECT 1
         FROM dbo.PIP_M_InspectionPoint M
@@ -128,7 +149,7 @@ BEGIN
         RETURN;
     END;
 
-    IF EXISTS
+    IF @V_PointSource='MASTER' AND EXISTS
     (
         SELECT 1
         FROM @p_Points P
@@ -386,7 +407,10 @@ BEGIN
         );
 
         UPDATE T
-        SET T.InspectionPointID=CAST(P.C2 AS BIGINT),
+        SET T.InspectionPointID=CASE WHEN @V_PointSource='MASTER' THEN CAST(P.C2 AS BIGINT) ELSE NULL END,
+            T.PointSource=@V_PointSource,
+            T.PointCode=P.C9,
+            T.PointName=P.C10,
             T.InspectionDateTime=ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()),
             T.Status=P.C4,
             T.AbnormalRemark=NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),''),
@@ -402,7 +426,9 @@ BEGIN
 
         ;WITH NewPoints AS
         (
-            SELECT P.C1 ClientPointID, CAST(P.C2 AS BIGINT) InspectionPointID,
+            SELECT P.C1 ClientPointID,
+                   CASE WHEN @V_PointSource='MASTER' THEN CAST(P.C2 AS BIGINT) ELSE NULL END InspectionPointID,
+                   P.C8 PointSource,P.C9 PointCode,P.C10 PointName,
                    ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()) InspectionDateTime,
                    P.C4 Status,
                    NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),'') AbnormalRemark,
@@ -417,12 +443,14 @@ BEGIN
         INSERT dbo.PIP_T_InspectionPoint
         (
             InspectionPointTransactionID,InspectionID,ClientPointID,InspectionPointID,
-            InspectionDateTime,Status,AbnormalRemark,EntryUser,EntryDate,UpdateUser,UpdateDate
+            PointSource,PointCode,PointName,InspectionDateTime,Status,AbnormalRemark,
+            EntryUser,EntryDate,UpdateUser,UpdateDate
         )
         OUTPUT inserted.ClientPointID, inserted.InspectionPointTransactionID
             INTO @V_PointMap(ClientPointID,InspectionPointTransactionID)
         SELECT N.NewID,@V_InspectionID,N.ClientPointID,N.InspectionPointID,
-               N.InspectionDateTime,N.Status,N.AbnormalRemark,@p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
+               N.PointSource,N.PointCode,N.PointName,N.InspectionDateTime,N.Status,N.AbnormalRemark,
+               @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM NewPoints N;
 
         INSERT @V_PointMap(ClientPointID,InspectionPointTransactionID)
