@@ -2476,6 +2476,10 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                  AND ISNULL(I.IsApproved,0)=0
                             THEN 1
 
+                            WHEN @IsAdministrator=1 AND I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
+                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+                            THEN 1
+
                             WHEN I.InspectionMode = 'LIGHTNING'
                                  AND ISNULL(I.IsSubmitted, 0) = 1
                                  AND ISNULL(I.IsApproved, 0) = 0
@@ -2511,6 +2515,17 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
                                        AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
                                        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
+                                 )
+                            THEN 1
+
+                            WHEN I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
+                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+                                 AND EXISTS
+                                 (
+                                     SELECT 1 FROM dbo.SysWebCommonValue C
+                                     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                                       AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
                                  )
                             THEN 1
 
