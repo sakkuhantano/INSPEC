@@ -9,16 +9,25 @@ BEGIN
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(4000),
-         @Mode VARCHAR(10),@EmailEnabled BIT,@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
+         @Mode VARCHAR(10),@WorkflowCode VARCHAR(30),@ChiefEng VARCHAR(4000),@IsChiefEngStage BIT,@StageCode VARCHAR(20),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
          @EventID BIGINT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
-        @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')
+        @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
+        @WorkflowCode=ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD'),
+        @IsChiefEngStage=CASE WHEN ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN 1 ELSE 0 END
  FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
-  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0;
+  AND ISNULL(I.IsSubmitted,0)=1 AND (ISNULL(I.IsApproved,0)=0 OR (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0));
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for SPV approval.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
+ SET @StageCode=CASE WHEN @IsChiefEngStage=1 THEN 'CHIEF_ENG' ELSE 'SPV' END;
+ IF @WorkflowCode='SPV_CHIEF_ENG'
+ BEGIN
+  SELECT @ChiefEng=NULLIF(LTRIM(RTRIM(C.Description)),'') FROM dbo.SysWebCommonValue C
+  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=@ConfigScope+';CHIEF_ENG';
+  IF ISNULL(@ChiefEng,'')='' BEGIN RAISERROR('Chief Engineering approver setup is missing.',16,1); RETURN; END;
+ END;
  SELECT @EmailEnabled=CASE WHEN ISNULL(C.Description,'0')='1' THEN 1 ELSE 0 END
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -31,19 +40,15 @@ BEGIN
  /* Administrator group may approve any Standard/Batch section; workflow state and company/location checks remain enforced by the caller and this procedure. */
  IF NOT EXISTS
  (
-  SELECT 1
-  FROM dbo.SysWebUser SU
-  JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
-  WHERE SU.EmployeeID=@p_ActorEmployeeID
-    AND SU.IsActive=1
-    AND UG.UserGroupID='administrator'
+  SELECT 1 FROM dbo.SysWebUser SU JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+  WHERE SU.EmployeeID=@p_ActorEmployeeID AND SU.IsActive=1 AND UG.UserGroupID='administrator'
  )
  AND NOT EXISTS
  (
-  SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
+  SELECT 1 FROM dbo.SplitStringConvertToTable(CASE WHEN @IsChiefEngStage=1 THEN @ChiefEng ELSE @SPV END,';') X
   WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID
  )
- BEGIN RAISERROR('You are not a configured SPV for this Section.',16,1); RETURN; END;
+ BEGIN RAISERROR('You are not configured as an approver for the current Inspection stage.',16,1); RETURN; END;
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),@TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,''))) FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
  SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID),
         @ActorEmail=LTRIM(RTRIM(ISNULL(emailaddress,'')))
@@ -51,11 +56,11 @@ BEGIN
  IF @EmailEnabled=1
  BEGIN
   IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
-  IF ISNULL(@ActorEmail,'')='' BEGIN RAISERROR('SPV email is missing from M_HRD_Employee.emailaddress; it is used as the outbox sender address.',16,1); RETURN; END;
+  IF ISNULL(@ActorEmail,'')='' BEGIN RAISERROR('Approver email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
  BEGIN TRY
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
-   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SPV',CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
+   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,@StageCode,CASE WHEN @p_Action='APPROVE' THEN 'APPROVED' ELSE 'VOIDED' END,
     @p_ActorEmployeeID,GETDATE(),NULLIF(@p_Remark,N''));
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
   IF @p_Action='VOID'
@@ -63,6 +68,7 @@ BEGIN
    UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',
     IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
     IsApproved=0,ApprovedBy='',ApprovedDate=GETDATE(),
+    IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
     ApprovalRemark='',ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
@@ -80,9 +86,14 @@ BEGIN
   END
   ELSE
   BEGIN
-   UPDATE dbo.PIP_T_Inspection SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
-    ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
-   WHERE InspectionID=@p_InspectionID;
+   IF @IsChiefEngStage=1
+    UPDATE dbo.PIP_T_Inspection SET IsApprovedFinal=1,ApprovedFinalBy=@p_ActorEmployeeID,ApprovedFinalDate=GETDATE(),
+     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+    WHERE InspectionID=@p_InspectionID;
+   ELSE
+    UPDATE dbo.PIP_T_Inspection SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
+     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
+    WHERE InspectionID=@p_InspectionID;
    IF @EmailEnabled=1
    BEGIN
        INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
