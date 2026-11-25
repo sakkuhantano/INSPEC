@@ -2400,8 +2400,9 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     );
     const inspectionMode = recordMode || String(typeMaster && typeMaster.InspectionMode || "").trim().toUpperCase();
 
-    // Approval Workflow is exclusive to LIGHTNING inspections.
-    if (!record || inspectionMode !== "LIGHTNING") {
+    const isBatchTwoStage = !!record && inspectionMode === "BATCH" &&
+        String(record.ApprovalWorkflowCode || (typeMaster && typeMaster.ApprovalWorkflowCode) || "").toUpperCase() === "SPV_CHIEF_ENG";
+    if (!record || (inspectionMode !== "LIGHTNING" && !isBatchTwoStage)) {
         host.innerHTML = "";
         panel.classList.add("d-none");
         panel.setAttribute("aria-hidden", "true");
@@ -2409,6 +2410,8 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
         panel.style.removeProperty("flex");
         return;
     }
+    const workflowModeLabel = panel.querySelector(".inspection-approval-workflow-mode");
+    if (workflowModeLabel) workflowModeLabel.textContent = isBatchTwoStage ? "BATCH INSPECTION" : "LIGHTNING DAILY";
 
     // Keep the workflow visible before submit, but render it as one compact strip
     // so it does not consume the vertical space needed by the floor plan.
