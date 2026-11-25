@@ -1735,6 +1735,10 @@ async function uploadPendingInspections() {
             FollowUpSection: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpSection || "") : "",
             FollowUpRemark: record.FollowUp === "Recommend Follow Up" ? (record.FollowUpRemark || "") : "",
             InspectionMode: String(record.InspectionMode || "STANDARD").toUpperCase(),
+            InspectionLayoutCode: String(record.InspectionLayoutCode || "STANDARD").toUpperCase(),
+            PointSource: String(record.PointSource || "MASTER").toUpperCase(),
+            ScheduleSelectionMode: String(record.ScheduleSelectionMode || "PARAM").toUpperCase(),
+            ApprovalWorkflowCode: String(record.ApprovalWorkflowCode || "STANDARD").toUpperCase(),
             PhotoRequirement: requirement
         };
 
@@ -1745,8 +1749,10 @@ async function uploadPendingInspections() {
                 pointPayloads.push({
                     ClientPointID: point.ClientPointID,
                     InspectionPointID: point.InspectionPointID,
+                    PointSource: String(point.PointSource || record.PointSource || "MASTER").toUpperCase(),
                     PointCode: point.PointCode || "",
                     PointName: point.PointName || "",
+                    MapID: Number(point.MapID || 0),
                     InspectionDateTime: inspectionWallClockDateTime(point.InspectionDateTime),
                     Status: point.Status,
                     PointCondition: point.PointCondition || "",
