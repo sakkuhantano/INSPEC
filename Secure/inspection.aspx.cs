@@ -500,6 +500,8 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
 
                         if (serverInspectionMode != inspectionMode)
                             throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
+                        if (serverPointSource != pointSource)
+                            throw new Exception("Point Source pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
                         if (serverPointSource != "MASTER" && serverPointSource != "DYNAMIC")
                             throw new Exception("Point Source pada Master Inspection Type tidak valid.");
                         if (serverInspectionMode == "LIGHTNING" &&
