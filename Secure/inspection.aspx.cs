@@ -2560,10 +2560,13 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      @IsAdministrator = 1
                                      AND
                                      (
-                                         (InspectionMode <> 'LIGHTNING'
-                                          AND ISNULL(IsApproved, 0) = 1
-                                          AND ApprovedDate >= @Today
-                                          AND ApprovedDate < DATEADD(DAY, 1, @Today))
+                                         (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
+                                          AND ISNULL(IsApprovedFinal,0)=1
+                                          AND ApprovedFinalDate >= @Today AND ApprovedFinalDate < DATEADD(DAY,1,@Today))
+                                         OR
+                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
+                                          AND ISNULL(IsApproved,0)=1
+                                          AND ApprovedDate >= @Today AND ApprovedDate < DATEADD(DAY,1,@Today))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
                                           AND
@@ -2595,10 +2598,13 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      )
                                      AND
                                      (
-                                         (InspectionMode <> 'LIGHTNING'
-                                          AND ISNULL(IsApproved, 0) = 1
-                                          AND ApprovedDate >= @Today
-                                          AND ApprovedDate < DATEADD(DAY, 1, @Today))
+                                         (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
+                                          AND ISNULL(IsApprovedFinal,0)=1
+                                          AND ApprovedFinalDate >= @Today AND ApprovedFinalDate < DATEADD(DAY,1,@Today))
+                                         OR
+                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
+                                          AND ISNULL(IsApproved,0)=1
+                                          AND ApprovedDate >= @Today AND ApprovedDate < DATEADD(DAY,1,@Today))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
                                           AND ISNULL(IsApproved2, 0) = 1
