@@ -22,6 +22,33 @@ namespace INSPEC.Secure {
         protected global::System.Web.UI.ScriptManager smLighting;
         
         /// <summary>
+        /// lblDispatchLightingEmail control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Label lblDispatchLightingEmail;
+        
+        /// <summary>
+        /// fuLightingPhoto control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.FileUpload fuLightingPhoto;
+        
+        /// <summary>
+        /// hfApprovalRowVer control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfApprovalRowVer;
+        
+        /// <summary>
         /// hfLightingPayload control.
         /// </summary>
         /// <remarks>
@@ -38,6 +65,42 @@ namespace INSPEC.Secure {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HiddenField hfLightingDate;
+        
+        /// <summary>
+        /// hfLightingPhotoLight control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfLightingPhotoLight;
+        
+        /// <summary>
+        /// hfLightingPhotoSchedule control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hfLightingPhotoSchedule;
+        
+        /// <summary>
+        /// btnLightingApplyWithPhoto control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.LinkButton btnLightingApplyWithPhoto;
+        
+        /// <summary>
+        /// btnLightingApprove control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.LinkButton btnLightingApprove;
         
         /// <summary>
         /// btnLightingSave control.
@@ -63,9 +126,9 @@ namespace INSPEC.Secure {
         /// <remarks>
         /// Auto-generated property.
         /// </remarks>
-        public new WAL.Site_BS_5 Master {
+        public new INSPEC.MasterPages.Site1 Master {
             get {
-                return ((WAL.Site_BS_5)(base.Master));
+                return ((INSPEC.MasterPages.Site1)(base.Master));
             }
         }
     }
