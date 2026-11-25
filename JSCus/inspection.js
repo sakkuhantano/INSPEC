@@ -7994,8 +7994,8 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
         const stages = [
             { status: "CHECKED", label: "CHECKED BY", description: "Technician submitted", by: workflowData.SubmittedByName || workflowData.SubmittedBy, date: workflowData.SubmittedDate },
             { status: "VERIFIED", label: "VERIFIED BY", description: "SPV approved", by: workflowData.ApprovedByName || workflowData.ApprovedBy, date: workflowData.ApprovedDate },
-            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Engineering approved", by: workflowData.Approved1ByName || workflowData.Approved1By, date: workflowData.Approved1Date },
-            { status: "ACKNOWLEDGE 2", label: "ACKNOWLEDGE 2", description: "Chief Security approved", by: workflowData.Approved2ByName || workflowData.Approved2By, date: workflowData.Approved2Date }
+            { status: "ACKNOWLEDGE 1", label: "ACKNOWLEDGE 1", description: "Chief Security approved", by: workflowData.Approved1ByName || workflowData.Approved1By, date: workflowData.Approved1Date },
+            { status: "ACKNOWLEDGE 2", label: "ACKNOWLEDGE 2", description: "Chief Engineering approved", by: workflowData.Approved2ByName || workflowData.Approved2By, date: workflowData.Approved2Date }
         ];
         const completed = workflow === "ACKNOWLEDGE 2" ? 4 : workflow === "ACKNOWLEDGE 1" ? 3 : workflow === "VERIFIED" ? 2 : workflow === "CHECKED" ? 1 : 0;
         return '<div class="row g-2 mb-3">' + stages.map((stage, index) => {
