@@ -375,6 +375,12 @@
     /* Bootstrap modal defaults sit below the sticky inspection header (z-index 1080). Keep dialogs and their backdrop above it. */
     .modal-backdrop { z-index: 1090 !important; }
     .modal { z-index: 1100 !important; }
+    #inspectionApprovalTableWrap > #inspectionApprovalPagerTop {
+        display: flex !important;
+        width: 100%;
+        position: relative;
+        margin-bottom: .5rem !important;
+    }
     #inspectionApprovalTable [data-approval-sort] { cursor: pointer; user-select: none; }
     .inspection-date-picker-trigger { position: relative; cursor: pointer; color: var(--bs-secondary-color); }
     .inspection-native-date-overlay { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0; }
@@ -2460,7 +2466,9 @@
             </div>
                 </div>
             </div>
-        <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        
+        <div class="table-responsive" id="inspectionApprovalTableWrap">
+            <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
     <div class="d-flex align-items-center gap-2 small text-muted">
         <span id="inspectionApprovalTotalRowsTop">0 records</span>
         <label for="inspectionApprovalPageSizeTop" class="mb-0">Rows/page</label>
@@ -2479,7 +2487,6 @@
         </div>
     </div>
 </div>
-        <div class="table-responsive">
             <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
                 <thead><tr>
                     <th class="text-center text-nowrap">No.</th>
