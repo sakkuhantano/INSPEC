@@ -380,7 +380,7 @@
                 var strokeWidth = isOrthogonal ? 2.0 : 1.25;
                 var pathFill = 'none';
                 var pathStroke = '#0d6efd';
-                svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + '" d="' +
+                svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + (selectedPoint && String(selectedPoint.InspectionPointID) === String(point.InspectionPointID) ? " selected" : "") + '" d="' +
                     esc(pointPathData) + '" fill="' + pathFill + '" stroke="' + pathStroke +
                     '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth +
                     '" vector-effect="non-scaling-stroke" data-point-id="' +
@@ -626,14 +626,25 @@
                     window.openBatchInspectionPointChecklist(point);
             });
         });
-        var search = document.getElementById("inspectionPointSearch");
-        if (search) search.addEventListener("input", function () {
-            listKeyword = this.value;
-            listPage = 1;
-            renderList();
-            var next = document.getElementById("inspectionPointSearch");
-            if (next) { next.focus(); next.setSelectionRange(listKeyword.length, listKeyword.length); }
-        });
+        // Delegate from the stable list host so live search keeps working
+        // even though renderList() rebuilds the search input on each keystroke.
+        if (host.getAttribute("data-point-search-wired") !== "1") {
+            host.addEventListener("input", function (event) {
+                var search = event.target && event.target.closest
+                    ? event.target.closest("#inspectionPointSearch") : null;
+                if (!search) return;
+                listKeyword = String(search.value || "");
+                listPage = 1;
+                var cursor = search.selectionStart;
+                renderList();
+                var refreshed = document.getElementById("inspectionPointSearch");
+                if (refreshed) {
+                    refreshed.focus();
+                    try { refreshed.setSelectionRange(cursor, cursor); } catch (_) { }
+                }
+            });
+            host.setAttribute("data-point-search-wired", "1");
+        }
         var size = document.getElementById("inspectionPointPageSize");
         if (size) size.addEventListener("change", function () {
             listPageSize = Number(this.value) || 20;
