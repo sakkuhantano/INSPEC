@@ -11,11 +11,13 @@
     <asp:HiddenField ID="hidMapID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hidMapIsDraft" runat="server" ClientIDMode="Static" Value="0" />
     <asp:HiddenField ID="hidPointID" runat="server" ClientIDMode="Static" />
+    <asp:HiddenField ID="hidMapSelectedPointID" runat="server" ClientIDMode="Static" />
     <asp:HiddenField ID="hidElementID" runat="server" />
     <div class="d-none">
         <asp:DropDownList ID="ddlPointObjectType" runat="server"><asp:ListItem Value="GENERAL" Selected="True">General</asp:ListItem></asp:DropDownList>
         <asp:DropDownList ID="ddlPointMap" runat="server" />
         <asp:DropDownList ID="ddlEditorMap" runat="server" />
+        <asp:LinkButton ID="btnSelectPointFromMap" runat="server" ClientIDMode="Static" OnClick="btnSelectPointFromMap_Click" CausesValidation="false" />
     </div>
     <asp:Panel ID="pnlMessage" runat="server" Visible="false" CssClass="alert alert-info alert-dismissible fade show mb-3">
         <asp:Literal ID="litMessage" runat="server" />
@@ -253,7 +255,7 @@
                                 <div class="col-sm-5 d-flex align-items-center inspection-master-point-toolbar-title">Inspection Points</div>
                                 <div class="col-sm-7 d-flex justify-content-end align-items-center inspection-master-point-toolbar-actions">
                                     <div class="input-group input-group-sm" style="width:250px;">
-                                        <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control form-control-sm fz-custom1" MaxLength="50" placeholder="Search Point Code" />
+                                        <asp:TextBox ID="txtPointSearch" runat="server" CssClass="form-control form-control-sm fz-custom1" MaxLength="50" placeholder="Search Point Code / Name" AutoPostBack="true" OnTextChanged="txtPointSearch_TextChanged" />
                                         <asp:LinkButton ID="btnSearchPoint" runat="server" CssClass="btn btn-sm CUS-btn-outline-PColor-1" OnClick="btnSearchPoint_Click" CausesValidation="false"><i class="fas fa-search"></i></asp:LinkButton>
                                     </div>
                                     <asp:DropDownList ID="ddlPointPageSize" runat="server" CssClass="form-select form-select-sm ms-1 inspection-master-point-page-size" Width="75px" AutoPostBack="true" OnSelectedIndexChanged="ddlPointPageSize_SelectedIndexChanged">
@@ -267,7 +269,7 @@
                             </div>
                             <div class="row">
                                 <div class="col table-responsive inspection-master-point-table">
-                                    <asp:GridView ID="gvPoints" runat="server" AutoGenerateColumns="false" BorderColor="#394376" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100 inspection-master-grid" OnRowCommand="gvPoints_RowCommand" EmptyDataText="No Inspection Point">
+                                    <asp:GridView ID="gvPoints" runat="server" DataKeyNames="InspectionPointID" AutoGenerateColumns="false" BorderColor="#394376" BorderWidth="0" GridLines="None" CssClass="table-sm table-borderless mb-0 w-100 inspection-master-grid" OnRowCommand="gvPoints_RowCommand" EmptyDataText="No Inspection Point">
                                         <HeaderStyle HorizontalAlign="left" CssClass="CUS-fz-5 dtgrdhd-custom1 CUS-bg-Color-1" />
                                         <RowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddt-custom1" />
                                         <AlternatingRowStyle HorizontalAlign="left" VerticalAlign="Top" CssClass="CUS-fz-5 dtgrddtalt-custom1" />
