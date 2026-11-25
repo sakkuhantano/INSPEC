@@ -4810,7 +4810,7 @@ window.submitInspectionBatch = async function () {
     const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
     const points = Array.isArray(record.Points) ? record.Points : [];
     if (!masterPoints.length) {
-        showToast("Master Inspection Point belum tersedia.", "danger");
+        showToast(record.PointSource === "DYNAMIC" ? "Tambahkan minimal satu kendaraan Motor terlebih dahulu." : "Master Inspection Point belum tersedia.", "danger");
         return;
     }
     if (lightning && !schedules.length) {
@@ -4877,7 +4877,7 @@ window.submitInspectionBatch = async function () {
                 pointCode: String(point.PointCode || ("Point " + point.InspectionPointID)),
                 pointId: Number(point.InspectionPointID),
                 ScheduleTime: scheduleTime,
-                message: "Point tidak termasuk Master Map aktif pada jadwal ini."
+                message: record.PointSource === "DYNAMIC" ? "Kendaraan tidak termasuk daftar inspeksi ini." : "Point tidak termasuk Master Map aktif pada jadwal ini."
             });
         }
     });
@@ -4908,8 +4908,8 @@ window.submitInspectionBatch = async function () {
         message: lightning
             ? "Submit seluruh " + scheduleCount + " jadwal dan " + points.length +
                 " point dalam satu transaksi harian? Setelah Submit, semua jadwal akan terkunci."
-            : "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi.",
-        yesText: lightning ? "Submit Semua Jadwal" : "Submit Batch"
+            : (record.PointSource === "DYNAMIC" ? "Submit " + points.length + " kendaraan? Checklist Nopol, hasil inspeksi, dan foto seluruh kendaraan sudah lolos validasi." : "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi."),
+        yesText: lightning ? "Submit Semua Jadwal" : (record.PointSource === "DYNAMIC" ? "Submit Semua Motor" : "Submit Batch")
     });
     if (!confirmed) return;
 
