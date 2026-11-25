@@ -186,8 +186,29 @@ namespace INSPEC.MasterPages
             // Do not clear the auth cookie from a redirect response.
             // A delayed response from an older request can arrive after a newer
             // login and otherwise erase the newly-issued browser session.
+            // Preserve the originally requested page (including its query string)
+            // so Login.aspx can return the user to that page after authentication.
+            string returnUrl = String.Empty;
+            try
+            {
+                string appRelativePath = context.Request.AppRelativeCurrentExecutionFilePath ?? String.Empty;
+                if (!String.IsNullOrWhiteSpace(appRelativePath) &&
+                    !String.Equals(appRelativePath, "~/Login.aspx", StringComparison.OrdinalIgnoreCase))
+                {
+                    returnUrl = appRelativePath +
+                        (context.Request.Url == null ? String.Empty : context.Request.Url.Query);
+                }
+            }
+            catch
+            {
+                returnUrl = String.Empty;
+            }
+
             string loginUrl = VirtualPathUtility.ToAbsolute("~/Login.aspx") +
                 "?session=expired";
+            if (!String.IsNullOrWhiteSpace(returnUrl))
+                loginUrl += "&ReturnUrl=" + HttpUtility.UrlEncode(returnUrl);
+
             context.Response.Redirect(loginUrl, true);
         }
 
