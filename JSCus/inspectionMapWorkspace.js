@@ -2071,7 +2071,14 @@
             if (content) { content.classList.remove("d-none"); content.classList.add("no-map"); }
             if (mapPanel) mapPanel.classList.add("d-none");
             if (list) { list.classList.remove("d-none"); list.style.display = "block"; }
-            if (entry) entry.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
+            if (entry) {
+                var dynamicReadOnly = !!currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE";
+                entry.classList.toggle("d-none", dynamicReadOnly);
+                var plateInput = document.getElementById("txtInspectionDynamicPointName");
+                var addPlateButton = document.getElementById("btnAddInspectionDynamicPoint");
+                if (plateInput) plateInput.disabled = dynamicReadOnly;
+                if (addPlateButton) addPlateButton.disabled = dynamicReadOnly;
+            }
             if (submitBar) submitBar.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
             if (summary) summary.classList.remove("d-none");
             if (toolbar) toolbar.classList.remove("d-none");
