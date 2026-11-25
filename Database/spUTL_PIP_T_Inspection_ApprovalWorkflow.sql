@@ -6,7 +6,7 @@ BEGIN
  SET NOCOUNT ON; SET XACT_ABORT OFF;
  SET @p_Action=UPPER(LTRIM(RTRIM(ISNULL(@p_Action,''))));
  SET @p_Remark=LTRIM(RTRIM(ISNULL(@p_Remark,N'')));
- IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
+ IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid Inspection approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(4000),
          @Mode VARCHAR(10),@WorkflowCode VARCHAR(30),@ChiefEng VARCHAR(4000),@EmailEnabled BIT,@IsChiefEngStage BIT,@StageCode VARCHAR(20),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
@@ -19,7 +19,7 @@ BEGIN
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
   AND ISNULL(I.IsSubmitted,0)=1 AND (ISNULL(I.IsApproved,0)=0 OR (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0));
- IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for SPV approval.',16,1); RETURN; END;
+ IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for an authorized approval stage.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @StageCode=CASE WHEN @IsChiefEngStage=1 THEN 'CHIEF_ENG' ELSE 'SPV' END;
  IF @WorkflowCode='SPV_CHIEF_ENG'
