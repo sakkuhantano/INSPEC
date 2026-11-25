@@ -129,6 +129,18 @@ BEGIN
         RETURN;
     END;
 
+    IF @V_PointSource='DYNAMIC' AND EXISTS
+    (
+        SELECT UPPER(LTRIM(RTRIM(C10)))
+        FROM @p_Points
+        GROUP BY UPPER(LTRIM(RTRIM(C10)))
+        HAVING COUNT(1)>1
+    )
+    BEGIN
+        RAISERROR('Duplicate Nopol in Motor inspection point list.',16,1);
+        RETURN;
+    END;
+
     IF @V_PointSource='MASTER' AND EXISTS
     (
         SELECT 1
