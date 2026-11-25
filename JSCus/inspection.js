@@ -1804,6 +1804,14 @@ async function startNewInspection() {
     const requestedMode = String(type && type.InspectionMode || "STANDARD").trim().toUpperCase();
     const inspectionMode = requestedMode === "LIGHTNING" ? "LIGHTNING" :
         requestedMode === "BATCH" ? "BATCH" : "STANDARD";
+    const inspectionLayoutCode = String(type && type.InspectionLayoutCode || 
+        (inspectionMode === "BATCH" || inspectionMode === "LIGHTNING" ? "MAP" : "STANDARD")).trim().toUpperCase();
+    const pointSource = String(type && type.PointSource || "MASTER").trim().toUpperCase();
+    const scheduleSelectionMode = String(type && type.ScheduleSelectionMode ||
+        (inspectionMode === "LIGHTNING" ? "AT_INSPECTION" : "PARAM")).trim().toUpperCase();
+    const approvalWorkflowCode = String(type && type.ApprovalWorkflowCode ||
+        (inspectionMode === "LIGHTNING" ? "LIGHTNING_4_STEP" :
+            inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD")).trim().toUpperCase();
     const scheduledTime = inspectionMode === "LIGHTNING"
         ? (configuredScheduleTimes[0] || "")
         : (document.getElementById("selInspectionScheduleTime").value || "");
@@ -2063,6 +2071,10 @@ async function startNewInspection() {
         FollowUpRemark: "",
         FollowUpWONo: "",
         InspectionMode: inspectionMode,
+        InspectionLayoutCode: inspectionLayoutCode,
+        PointSource: pointSource,
+        ScheduleSelectionMode: scheduleSelectionMode,
+        ApprovalWorkflowCode: approvalWorkflowCode,
         BatchMapSetup: batchMapSetup,
         Schedules: inspectionMode === "LIGHTNING" ? configuredScheduleTimes.slice() : [],
         ActiveScheduleTime: inspectionMode === "LIGHTNING" ? scheduledTime : "",
@@ -6209,6 +6221,14 @@ async function applyInspectionParameters() {
     const inspectionMode = ["BATCH", "LIGHTNING"].includes(
         String(type.InspectionMode || "STANDARD").trim().toUpperCase()
     ) ? String(type.InspectionMode).trim().toUpperCase() : "STANDARD";
+    const inspectionLayoutCode = String(type.InspectionLayoutCode ||
+        (inspectionMode === "BATCH" || inspectionMode === "LIGHTNING" ? "MAP" : "STANDARD")).trim().toUpperCase();
+    const pointSource = String(type.PointSource || "MASTER").trim().toUpperCase();
+    const scheduleSelectionMode = String(type.ScheduleSelectionMode ||
+        (inspectionMode === "LIGHTNING" ? "AT_INSPECTION" : "PARAM")).trim().toUpperCase();
+    const approvalWorkflowCode = String(type.ApprovalWorkflowCode ||
+        (inspectionMode === "LIGHTNING" ? "LIGHTNING_4_STEP" :
+            inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD")).trim().toUpperCase();
     const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
     const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
     const selectedTenant = inspectionTenants.find(row =>
@@ -6219,6 +6239,10 @@ async function applyInspectionParameters() {
         String(record.TenantID || "") !== tenantId ||
         String(record.SuiteNo || "") !== suiteNo ||
         String(record.InspectionMode || "STANDARD").trim().toUpperCase() !== inspectionMode ||
+        String(record.InspectionLayoutCode || "STANDARD").trim().toUpperCase() !== inspectionLayoutCode ||
+        String(record.PointSource || "MASTER").trim().toUpperCase() !== pointSource ||
+        String(record.ScheduleSelectionMode || "PARAM").trim().toUpperCase() !== scheduleSelectionMode ||
+        String(record.ApprovalWorkflowCode || "STANDARD").trim().toUpperCase() !== approvalWorkflowCode ||
         String(record.InspectionTypeDetailCode || "") !== String(detail.InspectionTypeDetailCode || "") ||
         String(record.ScheduledTime || "") !== String(scheduledTime || "") ||
         Number(record.IDTemplate) !== Number(template.IDTemplate) ||
@@ -6252,6 +6276,10 @@ async function applyInspectionParameters() {
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
         InspectionMode: inspectionMode,
+        InspectionLayoutCode: inspectionLayoutCode,
+        PointSource: pointSource,
+        ScheduleSelectionMode: scheduleSelectionMode,
+        ApprovalWorkflowCode: approvalWorkflowCode,
         InspectionTypeDetailCode: detail.InspectionTypeDetailCode,
         InspectionTypeDetailName: detail.InspectionTypeDetailName,
         TenantID: tenantId,
