@@ -372,8 +372,11 @@
                 var isOrthogonal = renderMode === "ORTHOGONAL";
                 var strokeWidth = isOrthogonal ? 3.5 : Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
                 var pathFill = 'none';
+                // PATH has no fill, so it must declare an explicit stroke.
+                // Match the blue used by the map's CIRCLE markers.
+                var pathStroke = '#0d6efd';
                 svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + '" d="' +
-                    esc(point.SvgPathData) + '" fill="' + pathFill + '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth + '" data-point-id="' +
+                    esc(point.SvgPathData) + '" fill="' + pathFill + '" stroke="' + pathStroke + '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth + '" data-point-id="' +
                     esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' +
                     esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></path>');
                 return;
