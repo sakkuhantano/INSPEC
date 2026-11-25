@@ -57,6 +57,7 @@ BEGIN
  BEGIN
   IF ISNULL(@TechEmail,'')='' BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
   IF ISNULL(@ActorEmail,'')='' BEGIN RAISERROR('Approver email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+  IF @WorkflowCode='SPV_CHIEF_ENG' AND @IsChiefEngStage=0 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')) BEGIN RAISERROR('Chief Engineering email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
  BEGIN TRY
   INSERT dbo.PIP_T_InspectionApprovalHistory(EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
@@ -110,7 +111,7 @@ BEGIN
         SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF_ENG:'+X.EmployeeID,
          @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
          N'Inspection menunggu acknowledgement Chief Engineering - '+ISNULL(@No,''),
-         N'<p>Inspection '+ISNULL(@No,'')+N' telah diverifikasi oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
+         N'<p>Inspection '+ISNULL(@No,'')+N' telah diverifikasi oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').</p><p><a href="'+ISNULL(REPLACE(@p_CorrectionUrl,N'type=entry',N'type=approval'),N'')+N'">Buka halaman approval INSPEC</a></p>',
          N'Inspection '+ISNULL(@No,'')+N' menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').',
          'PENDING',0,GETDATE()
         FROM
