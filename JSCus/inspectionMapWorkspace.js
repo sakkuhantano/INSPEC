@@ -927,10 +927,11 @@
                     '<div class="inspection-map-option-summary-card">' +
                         '<div class="inspection-map-option-chip-row">' +
                             optionCounts.map(function (item) {
-                                return '<span class="inspection-map-option-chip">' +
+                                return '<button type="button" class="inspection-map-option-chip inspection-map-option-chip-action" data-open-inspection-option="' + esc(item.label) +
+                                    '" title="Lihat point dengan hasil ' + esc(item.label) + '">' +
                                     '<span class="inspection-map-option-chip-label">' + esc(item.label) + '</span>' +
                                     '<strong>' + item.count + '</strong>' +
-                                    '</span>';
+                                    '</button>';
                             }).join("") +
                         '</div>' +
                     '</div>' +
@@ -2180,6 +2181,19 @@
         var optionSummaryHost = document.getElementById("inspectionMapOptionSummaryHost");
         if (optionInfoButton && optionSummaryHost) {
             optionSummaryHost.addEventListener("click", function (event) {
+                var optionButton = event.target && event.target.closest
+                    ? event.target.closest("[data-open-inspection-option]") : null;
+                if (optionButton) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeOptionSummaryPopover();
+                    if (typeof window.openInspectionPointNavigator === "function")
+                        window.openInspectionPointNavigator({
+                            mapId: "all",
+                            optionFilter: optionButton.getAttribute("data-open-inspection-option") || ""
+                        });
+                    return;
+                }
                 var unfilledButton = event.target && event.target.closest
                     ? event.target.closest("[data-open-inspection-unfilled]") : null;
                 if (!unfilledButton) return;
