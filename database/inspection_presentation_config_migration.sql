@@ -18,12 +18,15 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 BEGIN TRANSACTION;
+DECLARE @PresentationConfigAdded BIT;
+SET @PresentationConfigAdded = 0;
 
 IF COL_LENGTH('dbo.PIP_M_InspectionType', 'InspectionLayoutCode') IS NULL
 BEGIN
     ALTER TABLE dbo.PIP_M_InspectionType
         ADD InspectionLayoutCode VARCHAR(20) NOT NULL
             CONSTRAINT DF_PIP_M_InspectionType_InspectionLayoutCode DEFAULT ('STANDARD');
+    SET @PresentationConfigAdded = 1;
 END;
 
 IF COL_LENGTH('dbo.PIP_M_InspectionType', 'PointSource') IS NULL
@@ -31,6 +34,7 @@ BEGIN
     ALTER TABLE dbo.PIP_M_InspectionType
         ADD PointSource VARCHAR(10) NOT NULL
             CONSTRAINT DF_PIP_M_InspectionType_PointSource DEFAULT ('MASTER');
+    SET @PresentationConfigAdded = 1;
 END;
 
 IF COL_LENGTH('dbo.PIP_M_InspectionType', 'ScheduleSelectionMode') IS NULL
@@ -38,6 +42,7 @@ BEGIN
     ALTER TABLE dbo.PIP_M_InspectionType
         ADD ScheduleSelectionMode VARCHAR(20) NOT NULL
             CONSTRAINT DF_PIP_M_InspectionType_ScheduleSelectionMode DEFAULT ('PARAM');
+    SET @PresentationConfigAdded = 1;
 END;
 
 IF COL_LENGTH('dbo.PIP_M_InspectionType', 'ApprovalWorkflowCode') IS NULL
@@ -45,9 +50,12 @@ BEGIN
     ALTER TABLE dbo.PIP_M_InspectionType
         ADD ApprovalWorkflowCode VARCHAR(30) NOT NULL
             CONSTRAINT DF_PIP_M_InspectionType_ApprovalWorkflowCode DEFAULT ('STANDARD');
+    SET @PresentationConfigAdded = 1;
 END;
 
 /* Backfill existing behavior without changing any existing InspectionMode. */
+IF @PresentationConfigAdded = 1
+BEGIN
 UPDATE dbo.PIP_M_InspectionType
 SET
     InspectionLayoutCode = CASE
@@ -65,6 +73,7 @@ SET
         WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode, 'STANDARD')))) = 'BATCH' THEN 'SPV_CHIEF_ENG'
         ELSE 'STANDARD'
     END;
+END;
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.check_constraints
