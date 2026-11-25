@@ -4,6 +4,45 @@ const passwordInput = document.getElementById('txt_Login_Password');
 const passwordToggle = document.getElementById('passwordToggle');
 const passwordIcon = document.getElementById('passwordIcon');
 const loginButton = document.getElementById('btn_Login');
+
+// Accept only a same-origin URL inside this INSPEC application.
+// The server sends an app-relative ReturnUrl such as ~/Secure/page.aspx?date=...
+function getSafeLoginReturnUrl() {
+    try {
+        var query = new URLSearchParams(window.location.search);
+        var candidate = query.get("ReturnUrl") || query.get("returnUrl");
+        if (!candidate) return "";
+
+        candidate = candidate.trim();
+        if (!candidate || /[\\\u0000-\u001f]/.test(candidate)) return "";
+
+        var loginPath = window.location.pathname || "/";
+        var appRootPath = loginPath.substring(0, loginPath.lastIndexOf("/") + 1);
+        var appRootUrl = new URL(appRootPath, window.location.origin);
+
+        if (candidate.indexOf("~/") === 0)
+            candidate = appRootPath + candidate.substring(2);
+
+        var target = new URL(candidate, appRootUrl);
+        if (target.origin !== window.location.origin) return "";
+        if (target.pathname.toLowerCase().indexOf(appRootUrl.pathname.toLowerCase()) !== 0) return "";
+
+        var loginPagePath = new URL("Login.aspx", appRootUrl).pathname.toLowerCase();
+        if (target.pathname.toLowerCase() === loginPagePath) return "";
+
+        return target.pathname + target.search + target.hash;
+    } catch (error) {
+        console.warn("Ignoring invalid INSPEC ReturnUrl:", error);
+        return "";
+    }
+}
+
+var loginReturnUrl = getSafeLoginReturnUrl();
+
+function redirectAfterLogin() {
+    window.location.href = loginReturnUrl || "Secure/dashboard.aspx";
+}
+
 //const btnText = document.getElementById('btnText');
 //const btnIcon = document.getElementById('btnIcon');
 //const btnSpinner = document.getElementById('btnSpinner');
@@ -48,7 +87,7 @@ window.addEventListener("load", async function () {
             // accepted and sends back the HttpOnly authentication cookie.
             var cookieReady = await confirmSessionCookie(data.token);
             if (cookieReady === true) {
-                window.location.href = "Secure/dashboard.aspx";
+                redirectAfterLogin();
             } else {
                 showToast("Cookie sesi belum diterima browser. Silakan refresh atau login kembali.", "warning", 6000);
             }
@@ -183,7 +222,7 @@ function F_LoginByPortal(infoID) {
             }
             try { sessionStorage.removeItem("INSPEC_LOGIN_BLOCK_AUTO"); } catch (e) { }
             showToast(data.message || "Login successful");
-            window.location.href = "Secure/dashboard.aspx";
+            redirectAfterLogin();
         } else {
             showToast(data.message || "Portal login failed", 'error');
             F_PS();
@@ -318,7 +357,7 @@ function F_Login() {
             }
             try { sessionStorage.removeItem("INSPEC_LOGIN_BLOCK_AUTO"); } catch (e) { }
             showToast(data.message);
-            window.location.href = "Secure/dashboard.aspx";
+            redirectAfterLogin();
         } else {
                         
             showToast(data.message, 'error');
