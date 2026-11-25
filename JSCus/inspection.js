@@ -4549,6 +4549,17 @@ async function saveBatchInspectionPoint(status, options) {
         Number(item.InspectionPointID) === Number(point.InspectionPointID));
     const conditionRequired = isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
     const errors = [];
+    if (record.PointSource === "DYNAMIC") {
+        const plateItem = items.find(item => String(item.Type || item.ItemType || "").toUpperCase() === "TEXT" &&
+            /(nopol|no\\s*pol|plat|nomor polisi|license)/i.test(String(item.ItemLabel || item.label || "")));
+        const plateValue = String(plateItem && plateItem.Value || "").trim().toUpperCase();
+        if (!plateItem || !plateValue) errors.push({ message: "Checklist Nopol wajib diisi untuk setiap motor." });
+        else {
+            point.PointName = plateValue;
+            point.Nopol = plateValue;
+            if (masterPoint) { masterPoint.PointName = plateValue; masterPoint.Nopol = plateValue; }
+        }
+    }
     if (status === "DONE" && conditionRequired) {
         const condition = document.querySelector('input[name="inspectionPointCondition"]:checked')?.value ||
             String(point.PointCondition || "").toUpperCase();
