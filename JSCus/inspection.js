@@ -3533,7 +3533,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
             (section.items || []).forEach(item => templateItems.push(item)));
         const plateTemplate = templateItems.find(item =>
             String(item.type || item.ItemType || "").toUpperCase() === "TEXT" &&
-            /(nopol|no\\s*pol|plat|nomor polisi|license)/i.test(String(item.label || item.ItemLabel || item.name || "")));
+            /(nopol|no\\s*pol|polisi|plat|nomor polisi|license)/i.test(String(item.label || item.ItemLabel || item.name || "")));
         if (plateTemplate) {
             const plateId = Number(plateTemplate.idItem || plateTemplate.IDItem);
             let plateAnswer = (point.Items || []).find(item => Number(item.IDItem) === plateId);
