@@ -1184,10 +1184,14 @@ WHERE InspectionID=@InspectionID",
                     GetInspectionSyncLogField(record, "_ServerDatabaseName", 128),
                     GetInspectionSyncLogField(record, "_ServerIsTenantInspection", 1));
 
+                DateTime jakartaNow = TimeZoneInfo.ConvertTimeFromUtc(
+                    DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+
                 string entry = String.Format(
                     CultureInfo.InvariantCulture,
-                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} UTC ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}Record Context:{1}{5}{1}{6}{1}{1}",
-                    DateTime.UtcNow,
+                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} WIB (Asia/Jakarta) ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}Record Context:{1}{5}{1}{6}{1}{1}",
+                    jakartaNow,
                     Environment.NewLine,
                     stage ?? "",
                     clientInspectionId ?? "",
