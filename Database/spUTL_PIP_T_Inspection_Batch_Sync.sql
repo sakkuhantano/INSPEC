@@ -141,24 +141,48 @@ BEGIN
         RETURN;
     END;
 
-    IF @V_PointSource='MASTER' AND EXISTS
-    (
-        SELECT 1
-        FROM dbo.PIP_M_InspectionPoint M
-        INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
-        WHERE MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
-          AND MAP.InspectionTypeCode=@p_InspectionTypeCode
-          AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
-          AND M.IsActive=1
-          AND NOT EXISTS
-          (
-              SELECT 1 FROM @p_Points P
-              WHERE ISNUMERIC(P.C2)=1 AND CAST(P.C2 AS BIGINT)=M.InspectionPointID
-          )
-    )
+    IF @V_PointSource='MASTER'
     BEGIN
-        RAISERROR('Every active Inspection Point for this BATCH must be submitted.',16,1);
-        RETURN;
+        /* BATCH map coverage is scoped to the map(s) actually submitted.
+           This is critical for Car Park: B1, B2, B3 are independent inspection
+           instances and must not lock one another. Lightning deliberately submits
+           all configured maps, so its existing 61-point daily coverage remains intact. */
+        DECLARE @V_SelectedMapIDs TABLE (MapID BIGINT NOT NULL PRIMARY KEY);
+
+        INSERT INTO @V_SelectedMapIDs(MapID)
+        SELECT DISTINCT M.MapID
+        FROM @p_Points P
+        INNER JOIN dbo.PIP_M_InspectionPoint M
+            ON M.InspectionPointID=CAST(P.C2 AS BIGINT)
+        WHERE ISNUMERIC(P.C2)=1
+          AND M.MapID IS NOT NULL;
+
+        IF NOT EXISTS (SELECT 1 FROM @V_SelectedMapIDs)
+        BEGIN
+            RAISERROR('BATCH master inspection must contain at least one valid Inspection Map.',16,1);
+            RETURN;
+        END;
+
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.PIP_M_InspectionPoint M
+            INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
+            INNER JOIN @V_SelectedMapIDs SM ON SM.MapID=M.MapID
+            WHERE MAP.CompanyID=@p_CompanyID AND MAP.LocationID=@p_LocationID
+              AND MAP.InspectionTypeCode=@p_InspectionTypeCode
+              AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+              AND M.IsActive=1
+              AND NOT EXISTS
+              (
+                  SELECT 1 FROM @p_Points P
+                  WHERE ISNUMERIC(P.C2)=1 AND CAST(P.C2 AS BIGINT)=M.InspectionPointID
+              )
+        )
+        BEGIN
+            RAISERROR('Every active Inspection Point for the submitted Inspection Map must be submitted.',16,1);
+            RETURN;
+        END;
     END;
 
     IF @V_PointSource='MASTER' AND EXISTS
