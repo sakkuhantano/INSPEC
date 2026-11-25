@@ -303,7 +303,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                                 if (pointName == "") pointName = pointCode;
                             }
                             bool duplicatePoint = pointSource == "DYNAMIC"
-                                ? !dynamicPointCodes.Add(pointCode)
+                                ? (!dynamicPointCodes.Add(pointCode) || !dynamicPointNames.Add(pointName))
                                 : (isLightningInspection
                                     ? !schedulePointIDs.Add(pointScheduleTime + "|" + masterPointID.ToString(CultureInfo.InvariantCulture))
                                     : !masterPointIDs.Add(masterPointID));
