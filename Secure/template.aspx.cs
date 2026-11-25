@@ -1041,7 +1041,47 @@ WHERE a.SectionID = @SectionID
                             string accessSection = Convert.ToString(accessTemplate["SectionID"]);
                             RequireAllowedSection(accessSection);
                             accessTemplateId = Convert.ToInt32(accessTemplate["IDTemplate"]);
-                            if (accessTemplateId > 0) RequireTemplateAccess(accessTemplateId.ToString());
+                            if (accessTemplateId > 0)
+                            {
+                                RequireTemplateAccess(accessTemplateId.ToString());
+
+                                // Optimistic concurrency: the browser must save against the
+                                // same persisted Template/Version revision it loaded.
+                                string clientRevision = accessTemplate.ContainsKey("Revision")
+                                    ? Convert.ToString(accessTemplate["Revision"])
+                                    : "";
+
+                                using (var revisionBr = new WAL.BR.CF())
+                                {
+                                    DataTable revisionDt = revisionBr.EQuery(@"
+SELECT Revision = CONVERT(varchar(23), T.UpdateDate, 121)
+    + '|' + CONVERT(varchar(20), (
+        SELECT COUNT(*)
+        FROM dbo.PIP_M_CheckListWOPM_Version V
+        WHERE V.IDTemplate = T.IDTemplate
+    ))
+    + '|' + ISNULL(CONVERT(varchar(23), (
+        SELECT MAX(V.UpdateDate)
+        FROM dbo.PIP_M_CheckListWOPM_Version V
+        WHERE V.IDTemplate = T.IDTemplate
+    )), '')
+FROM dbo.PIP_M_CheckListWOPM T
+WHERE T.IDTemplate=@IDTemplate",
+                                        "@IDTemplate=" + accessTemplateId);
+
+                                    string serverRevision = revisionDt.Rows.Count == 0
+                                        ? ""
+                                        : Convert.ToString(revisionDt.Rows[0]["Revision"]);
+
+                                    if (String.IsNullOrWhiteSpace(clientRevision) ||
+                                        !String.Equals(clientRevision, serverRevision, StringComparison.Ordinal))
+                                    {
+                                        throw new HttpException(
+                                            409,
+                                            "Template changed by another user. Reload the latest Template before saving.");
+                                    }
+                                }
+                            }
                         }
                         if (templateNode.ContainsKey("Version") && templateNode["Version"] != null)
                         {
