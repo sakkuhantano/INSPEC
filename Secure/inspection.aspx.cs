@@ -510,8 +510,14 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                              serverApprovalWorkflowCode != "LIGHTNING_4_STEP"))
                             throw new Exception("Konfigurasi Lightning pada Master Inspection Type tidak valid.");
                         if (serverPointSource == "DYNAMIC" &&
-                            (serverInspectionMode != "BATCH" || serverInspectionLayoutCode != "DYNAMIC_LIST"))
+                            (serverInspectionMode != "BATCH" || serverInspectionLayoutCode != "DYNAMIC_LIST" ||
+                             serverScheduleSelectionMode != "PARAM" || serverApprovalWorkflowCode != "SPV_CHIEF_ENG"))
                             throw new Exception("Konfigurasi Dynamic Motor pada Master Inspection Type tidak valid.");
+                        if (serverInspectionMode == "BATCH" &&
+                            serverPointSource == "MASTER" &&
+                            (serverInspectionLayoutCode != "MAP" || serverScheduleSelectionMode != "PARAM" ||
+                             serverApprovalWorkflowCode != "SPV_CHIEF_ENG"))
+                            throw new Exception("Konfigurasi Car Park Batch pada Master Inspection Type tidak valid.");
 
                         record["_ServerInspectionMode"] = serverInspectionMode;
                         record["_ServerInspectionLayoutCode"] = serverInspectionLayoutCode;
