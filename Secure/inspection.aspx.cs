@@ -280,8 +280,8 @@ WHERE ClientInspectionID=@ClientInspectionID",
                             long masterPointID = TokenLong(point, "InspectionPointID");
                             string pointStatus = TokenString(point, "Status").ToUpperInvariant();
                             string pointScheduleTime = isLightningInspection ? TokenString(point, "ScheduleTime").Trim() : "";
-                            string pointCode = Limit(TokenString(point, "PointCode").Trim(), 30);
-                            string pointName = Limit(TokenString(point, "PointName").Trim(), 100);
+                            string pointCode = Limit(TokenString(point, "PointCode").Trim(), 100);
+                            string pointName = Limit(TokenString(point, "PointName").Trim(), 200);
                             if (pointSource == "DYNAMIC")
                             {
                                 dynamicPointSequence++;
