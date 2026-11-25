@@ -2437,7 +2437,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
         },
         {
             label: "ACKNOWLEDGED BY 1",
-            role: "Chief Engineering",
+            role: "Chief Security",
             flag: "IsApproved1",
             by: record.Approved1ByName || record.Approved1By,
             date: record.Approved1Date,
@@ -2445,7 +2445,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
         },
         {
             label: "ACKNOWLEDGED BY 2",
-            role: "Chief Security",
+            role: "Chief Engineering",
             flag: "IsApproved2",
             by: record.Approved2ByName || record.Approved2By,
             date: record.Approved2Date,
@@ -7387,7 +7387,7 @@ function updateInspectionApprovalCounts(counts) {
 
 function isInspectionApprovalApproved(row) {
     if (!row) return false;
-    // Lightning has two approval stages; it is final only after Chief Security.
+    // Lightning has two approval stages; it is final only after Chief Engineering.
     const value = String(row.InspectionMode || "").toUpperCase() === "LIGHTNING" ? row.IsApproved2 : row.IsApproved;
     return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
 }
