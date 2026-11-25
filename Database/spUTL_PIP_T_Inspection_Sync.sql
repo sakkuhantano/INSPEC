@@ -660,8 +660,10 @@ BEGIN
                 EndDateTime=@p_EndDateTime, Status=@p_Status, Summary=@p_Summary,
                 FollowUp=@p_FollowUp, FollowUpSection=ISNULL(@p_FollowUpSection,''), FollowUpRemark=ISNULL(@p_FollowUpRemark,''),
                 TenantID=@p_TenantID, SuiteNo=@p_SuiteNo,
-                IsApproved=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112), ApprovalRemark='',
-                ReasonVoid='',
+                IsApproved=0, ApprovedBy='', ApprovedDate=CONVERT(DATETIME,'19000101',112),
+                IsApproved1=0, Approved1By='', Approved1Date=CONVERT(DATETIME,'19000101',112),
+                IsApproved2=0, Approved2By='', Approved2Date=CONVERT(DATETIME,'19000101',112),
+                ApprovalRemark='', ReasonVoid='', ReasonVoid1='', ReasonVoid2='',
                 GPSLatitude=@p_GPSLatitude, GPSLongitude=@p_GPSLongitude, GPSAccuracy=@p_GPSAccuracy, GPSCapturedAt=@p_GPSCapturedAt,
                 UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), SyncDate=GETDATE()
             WHERE InspectionID=@V_InspectionID;
