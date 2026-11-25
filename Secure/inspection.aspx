@@ -2460,17 +2460,6 @@
             </div>
                 </div>
             </div>
-        <div class="table-responsive">
-            <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
-                <thead><tr>
-                    <th class="text-center text-nowrap">No.</th>
-                    <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
-                    <th role="button" tabindex="0" data-approval-sort="InspectionNo" class="text-nowrap">Transaction No. <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeName">Inspection Type <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeDetailName">Inspection Type Detail <span class="approval-sort-indicator"></span></th>
-                    <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th><th>Status</th>
-                </tr></thead>
-                <tbody id="inspectionApprovalQueue"><tr><td colspan="9" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
-            </table>
-        </div>
         <div id="inspectionApprovalPagerTop" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
     <div class="d-flex align-items-center gap-2 small text-muted">
         <span id="inspectionApprovalTotalRowsTop">0 records</span>
@@ -2490,6 +2479,18 @@
         </div>
     </div>
 </div>
+        <div class="table-responsive">
+            <table id="inspectionApprovalTable" class="table table-sm table-hover align-middle">
+                <thead><tr>
+                    <th class="text-center text-nowrap">No.</th>
+                    <th id="thInspectionApprovalSelectAll"><input type="checkbox" id="chkAllInspectionApproval" class="form-check-input" aria-label="Select all filtered inspections"></th>
+                    <th role="button" tabindex="0" data-approval-sort="InspectionNo" class="text-nowrap">Transaction No. <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeName">Inspection Type <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="InspectionTypeDetailName">Inspection Type Detail <span class="approval-sort-indicator"></span></th>
+                    <th role="button" tabindex="0" data-approval-sort="InspectionDate" class="text-nowrap">Date <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="ScheduledTime">Scheduled <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="StartDateTime" class="text-nowrap">Start – End <span class="approval-sort-indicator"></span></th><th role="button" tabindex="0" data-approval-sort="TechnicianName">Technician <span class="approval-sort-indicator"></span></th><th>Status</th>
+                </tr></thead>
+                <tbody id="inspectionApprovalQueue"><tr><td colspan="9" class="text-muted py-3">Memuat antrean...</td></tr></tbody>
+            </table>
+        </div>
+        
 <div id="inspectionApprovalPager" class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
             <div class="d-flex align-items-center gap-2 small text-muted">
                 <span id="inspectionApprovalTotalRows">0 records</span>
