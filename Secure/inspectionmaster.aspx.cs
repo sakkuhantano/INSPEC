@@ -472,7 +472,7 @@ SELECT RowNum FROM PointRows WHERE InspectionPointID=@PointID",
         private void RegisterPointGridSelection(long pointID)
         {
             string id = pointID.ToString(CultureInfo.InvariantCulture);
-            string script = "(function(){var id='" + id + "';var tries=0;function selectPoint(){if(window.inspectionMasterSelectPoint){window.inspectionMasterSelectPoint(id,{scrollGrid:true});return;}if(tries++<40)window.setTimeout(selectPoint,50);}selectPoint();})();";
+            string script = "(function(){var id='" + id + "';var tries=0;function selectPoint(){if(window.inspectionMasterSelectPoint){window.inspectionMasterSelectPoint(id,{scrollGrid:true,allowPostback:false});return;}if(tries++<40)window.setTimeout(selectPoint,50);}selectPoint();})();";
             ScriptManager.RegisterStartupScript(this, GetType(), "selectInspectionPoint" + id, script, true);
         }
 
