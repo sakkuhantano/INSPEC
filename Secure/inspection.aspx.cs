@@ -2642,7 +2642,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                          (InspectionMode = 'LIGHTNING'
                                           AND ISNULL(IsApproved2, 0) = 1
                                           AND Approved2Date >= @Today
-                                          AND Approved1Date < DATEADD(DAY, 1, @Today))
+                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
                                      )
                                  )
                                  OR
@@ -2652,7 +2652,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      @IsChiefSecurity = 1
                                      AND
                                      (
-                                         (InspectionMode <> 'LIGHTNING'
+                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved, 0) = 1
                                           AND ApprovedDate >= @Today
                                           AND ApprovedDate < DATEADD(DAY, 1, @Today)
@@ -2666,7 +2666,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                          (InspectionMode = 'LIGHTNING'
                                           AND ISNULL(IsApproved1, 0) = 1
                                           AND Approved1Date >= @Today
-                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                          AND Approved1Date < DATEADD(DAY, 1, @Today))
                                      )
                                  )
                                  OR
