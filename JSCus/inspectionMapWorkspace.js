@@ -429,6 +429,47 @@
         svg.push('</svg>');
         host.innerHTML = svg.join("") + circleMarkers.join("");
 
+        // PATH data from the map editor is not always a closed SVG subpath.
+        // In that case, clicking inside a visible rectangle does not hit the
+        // path itself. Add a transparent bounding-box target behind each PATH
+        // so the entire plotted area opens the matching inspection point.
+        var pathOverlay = host.querySelector(".inspection-map-svg-overlay");
+        if (pathOverlay) {
+            var pathElements = Array.prototype.slice.call(
+                pathOverlay.querySelectorAll(".inspection-map-svg-path[data-point-id]")
+            );
+            pathElements.forEach(function (pathElement) {
+                var bounds;
+                try {
+                    bounds = pathElement.getBBox();
+                } catch (_) {
+                    bounds = null;
+                }
+                if (!bounds || !isFinite(bounds.x) || !isFinite(bounds.y) ||
+                    !isFinite(bounds.width) || !isFinite(bounds.height) ||
+                    bounds.width <= 0 || bounds.height <= 0) return;
+
+                // A small tolerance makes narrow borders easier to hit without
+                // changing the visible drawing or its stored coordinates.
+                var padX = Math.max(0.25, bounds.width * 0.015);
+                var padY = Math.max(0.25, bounds.height * 0.015);
+                var hitArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                hitArea.setAttribute("class", "inspection-map-svg-path-hit-area");
+                hitArea.setAttribute("x", String(bounds.x - padX));
+                hitArea.setAttribute("y", String(bounds.y - padY));
+                hitArea.setAttribute("width", String(bounds.width + padX * 2));
+                hitArea.setAttribute("height", String(bounds.height + padY * 2));
+                hitArea.setAttribute("fill", "transparent");
+                hitArea.setAttribute("pointer-events", "all");
+                hitArea.setAttribute("data-point-id", pathElement.getAttribute("data-point-id"));
+                hitArea.setAttribute("aria-hidden", "true");
+
+                // Keep the hit-area behind its own visible path. Later points
+                // retain their normal stacking priority when plotted on top.
+                pathOverlay.insertBefore(hitArea, pathElement);
+            });
+        }
+
         host.querySelectorAll("[data-point-id]").forEach(function (shape) {
             // SVG point shapes are keyboard-focusable for accessibility, but the
             // browser's native focus outline is not useful on top of the floor plan.
