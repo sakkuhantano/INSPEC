@@ -116,7 +116,7 @@ BEGIN
                     AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
                     AND M.IsActive=1)))
            OR (@V_PointSource='DYNAMIC' AND
-               (ISNULL(P.C2,'')<>'' OR LEN(P.C9)>30 OR LEN(P.C10)>100))
+               (ISNULL(P.C2,'')<>'' OR LEN(P.C9)>100 OR LEN(P.C10)>200))
     )
     BEGIN
         RAISERROR('One or more Inspection Point records are invalid for the configured PointSource.',16,1);
