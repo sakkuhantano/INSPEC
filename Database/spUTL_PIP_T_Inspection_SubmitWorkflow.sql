@@ -41,6 +41,20 @@ BEGIN
   SELECT @ChiefEng=NULLIF(LTRIM(RTRIM(C.Description)),'') FROM dbo.SysWebCommonValue C
   WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=@ConfigScope+';CHIEF_ENG';
   IF ISNULL(@ChiefEng,'')='' BEGIN RAISERROR('Chief Engineering approver setup is missing for this Company and Location.',16,1); RETURN; END;
+  IF EXISTS
+  (
+   SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X
+   WHERE NOT EXISTS
+   (
+    SELECT 1 FROM dbo.M_HRD_Employee E
+    WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C AND ISNULL(E.TerminationDate,'')=''
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+       AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
+      AND EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+       WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+   )
+  )
+  BEGIN RAISERROR('One or more Chief Engineering approvers are inactive or lack approval access for this location.',16,1); RETURN; END;
  END;
  SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
