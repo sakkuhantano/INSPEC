@@ -406,6 +406,11 @@ ORDER BY RowNum",
             SetTab("#tab-point");
             if (gvPoints.Rows.Count > 0 && gvPoints.DataKeys.Count > 0)
                 RegisterPointGridSelection(Convert.ToInt64(gvPoints.DataKeys[0].Value));
+
+            // Keep typing fluid after each debounced search postback.
+            ScriptManager.RegisterStartupScript(this, GetType(), "refocusInspectionPointSearch",
+                "window.setTimeout(function(){var s=document.getElementById('" + txtPointSearch.ClientID +
+                "');if(s){s.focus();var n=s.value.length;if(s.setSelectionRange)s.setSelectionRange(n,n);}},0);", true);
         }
 
         protected void btnSelectPointFromMap_Click(object sender, EventArgs e)
