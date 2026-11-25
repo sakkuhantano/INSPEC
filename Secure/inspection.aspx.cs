@@ -685,7 +685,7 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                         string candidateType = Convert.ToString(candidate["ItemType"]).ToUpperInvariant();
                                         string candidateLabel = Convert.ToString(candidate["ItemLabel"]).Trim().ToLowerInvariant();
                                         if (candidateType == "TEXT" &&
-                                            (candidateLabel.Contains("nopol") || candidateLabel.Contains("no pol") ||
+                                            (candidateLabel.Contains("nopol") || candidateLabel.Contains("no pol") || candidateLabel.Contains("polisi") ||
                                              candidateLabel.Contains("plat") || candidateLabel.Contains("nomor polisi") ||
                                              candidateLabel.Contains("license")))
                                         {
