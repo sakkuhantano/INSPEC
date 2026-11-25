@@ -649,7 +649,7 @@
 
             // Stay within the wider hit stroke. If no actual path is nearby,
             // retain the SVG hit target as a safe fallback.
-            return closestDistance <= 18 ? closestId : clickedId;
+            return closestDistance < Infinity ? closestId : clickedId;
         }
 
         // Clicking a plotted shape selects its matching point. PATH hit zones
