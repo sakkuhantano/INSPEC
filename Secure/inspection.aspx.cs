@@ -4497,15 +4497,17 @@ WHERE I.InspectionID=@InspectionID ORDER BY D.ScheduleTime",
                         schedules.Rows.Add("");
                     }
                     DataTable points = br.EQueryP(@"
-SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
-       P.PointCode,P.PointName,P.MapID,P.MapX,P.MapY,P.DisplayOrder,
+SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.PointSource,TP.Status,TP.AbnormalRemark,
+       ISNULL(NULLIF(TP.PointCode,''),P.PointCode) PointCode,
+       ISNULL(NULLIF(TP.PointName,''),P.PointName) PointName,
+       P.MapID,P.MapX,P.MapY,P.DisplayOrder,
        M.MapCode,M.MapName,M.ImagePath,M.MapGroupID,G.GroupName,G.Sequence GroupSequence
 FROM dbo.PIP_T_InspectionPoint TP
-JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
 LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 LEFT JOIN dbo.PIP_M_InspectionMapGroup G ON G.MapGroupID=M.MapGroupID
 WHERE TP.InspectionID=@InspectionID
-ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,P.DisplayOrder,P.PointCode",
+ORDER BY TP.ScheduleTime,ISNULL(G.Sequence,0),M.MapGroupID,M.MapID,ISNULL(P.DisplayOrder,0),TP.PointCode",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
                     DataTable results = br.EQueryP(@"
 SELECT R.InspectionResultID,R.InspectionPointTransactionID,R.ItemLabel,R.Value,R.Remark1,R.Remark2,R.IsAnomali,R.DisplayOrder
