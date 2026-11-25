@@ -977,7 +977,7 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                 submittedPointIDs.Add(TokenLong(submittedPoint, "InspectionPointID"));
 
                             DataTable coveragePoints = br.EQueryP(@"
-SELECT P.InspectionPointID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
+SELECT P.InspectionPointID, M.MapID, ISNULL(M.RequireAllPoints,1) AS RequireAllPoints,
        ISNULL(P.IsNormalAbnormalRequired,0) AS IsNormalAbnormalRequired, P.PointCode
 FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
@@ -992,9 +992,23 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
                                     new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode)
                                 });
+                            var submittedMapIDs = new HashSet<long>();
+                            foreach (DataRow coveragePoint in coveragePoints.Rows)
+                            {
+                                long coveragePointID = Convert.ToInt64(coveragePoint["InspectionPointID"]);
+                                if (submittedPointIDs.Contains(coveragePointID))
+                                    submittedMapIDs.Add(Convert.ToInt64(coveragePoint["MapID"]));
+                            }
+                            if (submittedMapIDs.Count == 0)
+                                throw new Exception("Inspection Point tidak termasuk master map aktif untuk Inspection Type dan Detail ini.");
+
                             var validMasterPointIDs = new HashSet<long>();
                             foreach (DataRow masterPoint in coveragePoints.Rows)
                             {
+                                long mapID = Convert.ToInt64(masterPoint["MapID"]);
+                                if (!submittedMapIDs.Contains(mapID))
+                                    continue;
+
                                 long masterPointID = Convert.ToInt64(masterPoint["InspectionPointID"]);
                                 validMasterPointIDs.Add(masterPointID);
                                 if (Convert.ToBoolean(masterPoint["RequireAllPoints"]) && !submittedPointIDs.Contains(masterPointID))
