@@ -2033,6 +2033,7 @@
         var dynamicListMode = String(record.InspectionLayoutCode || "").toUpperCase() === "DYNAMIC_LIST" &&
             String(record.PointSource || "").toUpperCase() === "DYNAMIC";
         if (activate && dynamicListMode) {
+            workspace.classList.add("inspection-dynamic-list-mode");
             document.body.classList.add("inspection-map-tab-active");
             document.body.classList.remove("inspection-map-mobile-active");
             workspace.classList.remove("d-none");
@@ -2070,6 +2071,7 @@
             if (typeof window.updateInspectionParameterTabGate === "function")
                 window.updateInspectionParameterTabGate();
         } else if (activate) {
+            workspace.classList.remove("inspection-dynamic-list-mode");
             // Apply the mobile full-height layout before revealing the map so PDF.js measures a real viewport.
             document.body.classList.add("inspection-map-tab-active");
             var mobileMapViewport = window.matchMedia &&
