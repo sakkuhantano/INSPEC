@@ -2601,14 +2601,14 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           AND ApprovedDate < DATEADD(DAY, 1, @Today))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(IsApproved1, 0) = 1
-                                          AND Approved1Date >= @Today
+                                          AND ISNULL(IsApproved2, 0) = 1
+                                          AND Approved2Date >= @Today
                                           AND Approved1Date < DATEADD(DAY, 1, @Today))
                                      )
                                  )
                                  OR
                                  /* Chief Security: own sections for standard inspections;
-                                    all company/location Lightning inspections at stage 2. */
+                                    all company/location Lightning inspections at stage 1. */
                                  (
                                      @IsChiefSecurity = 1
                                      AND
@@ -2625,8 +2625,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           ))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(IsApproved2, 0) = 1
-                                          AND Approved2Date >= @Today
+                                          AND ISNULL(IsApproved1, 0) = 1
+                                          AND Approved1Date >= @Today
                                           AND Approved2Date < DATEADD(DAY, 1, @Today))
                                      )
                                  )
