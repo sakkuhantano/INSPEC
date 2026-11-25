@@ -2786,6 +2786,16 @@
             </div>
         </div>
         </div>
+        <div id="inspectionDynamicPointEntry" class="inspection-dynamic-point-entry d-none px-3 py-2 border-bottom">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="flex-grow-1">
+                    <label for="txtInspectionDynamicPointName" class="form-label small fw-semibold mb-1">Nomor Polisi / Nopol</label>
+                    <input type="text" id="txtInspectionDynamicPointName" class="form-control form-control-sm text-uppercase" maxlength="30" autocomplete="off" placeholder="Contoh: B 1234 XYZ">
+                </div>
+                <button type="button" id="btnAddInspectionDynamicPoint" class="btn btn-primary btn-sm align-self-end"><i class="bi bi-plus-circle me-1"></i>Tambah Motor</button>
+            </div>
+            <div class="small text-muted mt-1">Setiap motor menjadi satu point inspeksi dengan checklist dan foto masing-masing.</div>
+        </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"></div>
         <div id="inspectionMapPicker" class="inspection-map-picker p-3">
             <div class="inspection-map-picker-heading mb-1 d-flex align-items-baseline gap-2">
