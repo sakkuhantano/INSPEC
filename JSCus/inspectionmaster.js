@@ -599,44 +599,48 @@
         }
 
         function resolveInspectionPreviewPointId(svg, shape, event) {
-            var clickedId = shape.getAttribute('data-point-id') || '';
-            if (!clickedId) return '';
+            var clickedId = shape && shape.getAttribute ? (shape.getAttribute('data-point-id') || '') : '';
+            var paths = svg.querySelectorAll('path.inspection-map-preview-path[data-point-id]');
+            if (!paths.length) return clickedId;
 
-            var isPathTarget = shape.classList.contains('inspection-map-preview-path') ||
-                shape.classList.contains('inspection-map-preview-path-hit');
-            if (!isPathTarget) return clickedId;
+            var inverse = null;
+            var clickPoint = null;
+            try {
+                inverse = svg.getScreenCTM().inverse();
+                clickPoint = svg.createSVGPoint();
+                clickPoint.x = event.clientX;
+                clickPoint.y = event.clientY;
+                clickPoint = clickPoint.matrixTransform(inverse);
+            } catch (ignore) { }
 
-            // An interior click on a closed PATH should select the smallest
-            // containing closed region, not a neighbouring outline painted later.
-            if (shape.classList.contains('inspection-map-preview-path-hit-closed')) {
-                try {
-                    var inverse = svg.getScreenCTM().inverse();
-                    var clickPoint = svg.createSVGPoint();
-                    clickPoint.x = event.clientX;
-                    clickPoint.y = event.clientY;
-                    clickPoint = clickPoint.matrixTransform(inverse);
-                    var containing = [];
-                    svg.querySelectorAll('path.inspection-map-preview-path[data-point-id]').forEach(function (path) {
-                        if (!/[Zz]/.test(path.getAttribute('d') || '') ||
-                            typeof path.isPointInFill !== 'function' ||
-                            !path.isPointInFill(clickPoint)) return;
-                        var bounds = path.getBBox();
-                        containing.push({
-                            id: path.getAttribute('data-point-id'),
-                            area: Math.max(0, bounds.width) * Math.max(0, bounds.height)
-                        });
-                    });
-                    if (containing.length) {
-                        containing.sort(function (a, b) { return a.area - b.area; });
-                        return containing[0].id || clickedId;
-                    }
-                } catch (ignore) { }
-                return clickedId;
+            // First resolve a click that is actually inside a closed PATH.
+            // Use the smallest containing region so a nested room/area wins
+            // over a larger enclosing floor/zone.
+            if (clickPoint) {
+                var containing = [];
+                paths.forEach(function (path) {
+                    if (!/[Zz]/.test(path.getAttribute('d') || '') ||
+                        typeof path.isPointInFill !== 'function') return;
+                    try {
+                        if (path.isPointInFill(clickPoint)) {
+                            var bounds = path.getBBox();
+                            containing.push({
+                                id: path.getAttribute('data-point-id'),
+                                area: Math.max(0, bounds.width) * Math.max(0, bounds.height)
+                            });
+                        }
+                    } catch (ignore) { }
+                });
+                if (containing.length) {
+                    containing.sort(function (a, b) { return a.area - b.area; });
+                    return containing[0].id || clickedId;
+                }
             }
 
-            var paths = svg.querySelectorAll('path.inspection-map-preview-path[data-point-id]');
-            if (paths.length < 2) return clickedId;
-
+            // For open PATHs (or clicks on a PATH border), use the actual
+            // visible geometry. This deliberately ignores the DOM paint order
+            // and any transparent hit-path, which was the source of adjacent
+            // PATHs stealing each other's clicks.
             var closestId = clickedId;
             var closestDistance = Infinity;
             paths.forEach(function (path) {
@@ -647,22 +651,23 @@
                 }
             });
 
-            // Stay within the wider hit stroke. If no actual path is nearby,
-            // retain the SVG hit target as a safe fallback.
-            return closestDistance < Infinity ? closestId : clickedId;
+            // 18 CSS px is the intentional click tolerance around an open PATH.
+            return closestDistance <= 18 ? closestId : clickedId;
         }
 
-        // Clicking a plotted shape selects its matching point. PATH hit zones
-        // can overlap, so resolve PATH clicks by geometry rather than DOM order.
+        // Resolve SVG clicks from screen coordinates, not from the DOM paint
+        // order. Transparent hit-paths are intentionally ignored.
         media.addEventListener('click', function (event) {
-            var shape = event.target && event.target.closest
-                ? event.target.closest('.inspection-map-preview-svg [data-point-id]') : null;
-            if (!shape) return;
-            event.preventDefault();
-            event.stopImmediatePropagation();
-
             var svg = media.querySelector('.inspection-map-preview-svg');
             if (!svg) return;
+
+            var shape = event.target && event.target.closest
+                ? event.target.closest('[data-point-id]') : null;
+            var isSvgClick = event.target === svg;
+            if (!shape && !isSvgClick) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
 
             var pointSearchTimer = window.__inspectionPointSearchTimer;
             if (pointSearchTimer) {
