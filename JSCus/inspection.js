@@ -2421,39 +2421,24 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     panel.style.setProperty("display", "block", "important");
     panel.style.setProperty("flex", "0 0 auto");
 
-    const stages = [
-        {
-            label: "CHECKED BY",
-            role: "Technician / Submit",
-            flag: "IsSubmitted",
-            by: record.SubmittedByName || record.TechnicianName || record.SubmittedBy || record.OwnerEmployeeID,
-            date: record.SubmittedDate,
-            color: "primary"
-        },
-        {
-            label: "VERIFIED BY",
-            role: "Supervisor (SPV)",
-            flag: "IsApproved",
-            by: record.ApprovedByName || record.ApprovedBy,
-            date: record.ApprovedDate,
-            color: "warning"
-        },
-        {
-            label: "ACKNOWLEDGED BY 1",
-            role: "Chief Security",
-            flag: "IsApproved1",
-            by: record.Approved1ByName || record.Approved1By,
-            date: record.Approved1Date,
-            color: "info"
-        },
-        {
-            label: "ACKNOWLEDGED BY 2",
-            role: "Chief Engineering",
-            flag: "IsApproved2",
-            by: record.Approved2ByName || record.Approved2By,
-            date: record.Approved2Date,
-            color: "success"
-        }
+    const stages = isBatchTwoStage ? [
+        { label: "CHECKED BY", role: "Technician / Submit", flag: "IsSubmitted",
+          by: record.SubmittedByName || record.TechnicianName || record.SubmittedBy || record.OwnerEmployeeID,
+          date: record.SubmittedDate, color: "primary" },
+        { label: "VERIFIED BY", role: "Supervisor (SPV)", flag: "IsApproved",
+          by: record.ApprovedByName || record.ApprovedBy, date: record.ApprovedDate, color: "warning" },
+        { label: "ACKNOWLEDGED BY", role: "Chief Engineering", flag: "IsApprovedFinal",
+          by: record.ApprovedFinalByName || record.ApprovedFinalBy, date: record.ApprovedFinalDate, color: "success" }
+    ] : [
+        { label: "CHECKED BY", role: "Technician / Submit", flag: "IsSubmitted",
+          by: record.SubmittedByName || record.TechnicianName || record.SubmittedBy || record.OwnerEmployeeID,
+          date: record.SubmittedDate, color: "primary" },
+        { label: "VERIFIED BY", role: "Supervisor (SPV)", flag: "IsApproved",
+          by: record.ApprovedByName || record.ApprovedBy, date: record.ApprovedDate, color: "warning" },
+        { label: "ACKNOWLEDGED BY 1", role: "Chief Security", flag: "IsApproved1",
+          by: record.Approved1ByName || record.Approved1By, date: record.Approved1Date, color: "info" },
+        { label: "ACKNOWLEDGED BY 2", role: "Chief Engineering", flag: "IsApproved2",
+          by: record.Approved2ByName || record.Approved2By, date: record.Approved2Date, color: "success" }
     ];
 
     host.innerHTML = '<div class="inspection-approval-workflow-strip">' +
