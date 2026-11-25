@@ -849,11 +849,18 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
                         paths.Append("</title></path>");
-                        // Wide, nearly invisible hit stroke keeps thin PATH geometry clickable.
+                        // Open paths use a wide stroke hit target. Closed paths (Z/z)
+                        // also receive a transparent interior hit area, so clicking inside
+                        // a square/room outline selects that point rather than a neighbour.
+                        bool isClosedPath = System.Text.RegularExpressions.Regex.IsMatch(d, @"[Zz]");
                         paths.Append("<path class='inspection-map-preview-path-hit' data-point-id='")
                             .Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
                             .Append("' d='").Append(HttpUtility.HtmlAttributeEncode(d))
-                            .Append("' fill='none' stroke='#000' stroke-opacity='0.001' stroke-width='14' pointer-events='stroke' vector-effect='non-scaling-stroke'></path>");
+                            .Append("' fill='").Append(isClosedPath ? "#000" : "none")
+                            .Append("' fill-opacity='").Append(isClosedPath ? "0.001" : "0")
+                            .Append("' stroke='#000' stroke-opacity='0.001' stroke-width='14' pointer-events='")
+                            .Append(isClosedPath ? "all" : "stroke")
+                            .Append("' vector-effect='non-scaling-stroke'></path>");
                     }
                     continue;
                 }
