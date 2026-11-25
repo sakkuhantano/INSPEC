@@ -3417,18 +3417,21 @@ new SqlParameter("@InspectionID", inspectionId) });
                 {
                     DataTable pointMasterRows = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
-       TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark, P.IsNormalAbnormalRequired,
-       P.PointCode, P.PointName, P.PointObjectType,
-       P.PointDescription, P.MapID, P.MapX, P.MapY,
+       TP.PointSource,TP.PointCode,TP.PointName,
+       TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark,
+       ISNULL(P.IsNormalAbnormalRequired,0) IsNormalAbnormalRequired,
+       ISNULL(NULLIF(TP.PointCode,''),P.PointCode) AS ResolvedPointCode,
+       ISNULL(NULLIF(TP.PointName,''),P.PointName) AS ResolvedPointName,
+       P.PointObjectType,P.PointDescription,P.MapID,P.MapX,P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth,
        M.MapCode,M.MapName,M.ImagePath AS MapUrl,M.MapVersion,M.MapGroupID,
        MG.GroupCode,MG.GroupName,MG.Sequence MapGroupSequence
 FROM dbo.PIP_T_InspectionPoint TP
-JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
+LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.InspectionPointID=TP.InspectionPointID
 LEFT JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 LEFT JOIN dbo.PIP_M_InspectionMapGroup MG ON MG.MapGroupID=M.MapGroupID
 WHERE TP.InspectionID=@InspectionID
-ORDER BY P.DisplayOrder,P.PointCode",
+ORDER BY ISNULL(P.DisplayOrder,0),ISNULL(TP.PointCode,P.PointCode)",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
                     DataTable pointResultRows = br.EQueryP(@"
