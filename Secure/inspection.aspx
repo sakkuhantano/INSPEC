@@ -2668,10 +2668,23 @@
             <div class="inspection-muted">Pilih lokasi atau objek yang akan diperiksa.</div>
         </div>
         <div class="mb-3">
-            <label for="selInspectionDetail" class="form-label small fw-semibold">Inspection Detail</label>
-            <input type="search" id="txtInspectionDetailSearch" class="form-control form-control-sm mb-2"
-                   placeholder="Ketik kode / nama lokasi, mis. L2..." autocomplete="off" disabled />
-            <select id="selInspectionDetail" class="form-select form-select-sm" disabled>
+            <label for="selInspectionDetailDropdownButton" class="form-label small fw-semibold">Inspection Detail</label>
+            <div id="inspectionDetailDropdown" class="dropdown">
+                <button type="button" id="selInspectionDetailDropdownButton"
+                        class="form-select form-select-sm text-start"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                        aria-expanded="false" disabled>
+                    Pilih detail...
+                </button>
+                <div class="dropdown-menu w-100 p-2" aria-labelledby="selInspectionDetailDropdownButton">
+                    <input type="search" id="txtInspectionDetailSearch"
+                           class="form-control form-control-sm mb-2"
+                           placeholder="Cari Detail Code atau nama lokasi..."
+                           autocomplete="off" disabled />
+                    <div id="inspectionDetailDropdownOptions" class="overflow-auto" style="max-height: 280px;"></div>
+                </div>
+            </div>
+            <select id="selInspectionDetail" class="d-none" aria-hidden="true" tabindex="-1">
                 <option value="">Pilih detail...</option>
             </select>
         </div>
