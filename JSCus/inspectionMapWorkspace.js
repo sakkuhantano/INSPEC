@@ -365,18 +365,25 @@
             var code = String(point.PointCode || "");
             var pointName = String(point.PointName || "");
             var title = code + " - " + pointName + " · " + statusLabel(status, point);
-            if (String(point.ShapeType || "CIRCLE").toUpperCase() === "PATH" && point.SvgPathData) {
+            var pointShapeType = String(point.ShapeType || point.shapeType || "CIRCLE").toUpperCase();
+            var pointPathData = String(point.SvgPathData || point.svgPathData || "").trim();
+            // Prefer explicit PATH type, but also accept geometry supplied by a
+            // cached/older payload whose ShapeType property may be missing.
+            if ((pointShapeType === "PATH" || pointPathData) && pointPathData) {
                 var shapeAttributes = {};
                 try { shapeAttributes = typeof point.ShapeAttributes === "string" ? JSON.parse(point.ShapeAttributes || "{}") : (point.ShapeAttributes || {}); } catch (_) { shapeAttributes = {}; }
                 var renderMode = String(shapeAttributes.renderMode || "").toUpperCase();
                 var isOrthogonal = renderMode === "ORTHOGONAL";
-                var strokeWidth = isOrthogonal ? 3.5 : Math.max(0.25, Math.min(10, Number(point.StrokeWidth) || 1.5));
+                // Imported StrokeWidth is expressed in source-image coordinates
+                // and becomes tiny after normalization. Use screen-pixel strokes
+                // so outlines remain visible at every map zoom level.
+                var strokeWidth = isOrthogonal ? 2.0 : 1.25;
                 var pathFill = 'none';
-                // PATH has no fill, so it must declare an explicit stroke.
-                // Match the blue used by the map's CIRCLE markers.
                 var pathStroke = '#0d6efd';
                 svg.push('<path class="inspection-map-svg-path ' + pointClass(status) + '" d="' +
-                    esc(point.SvgPathData) + '" fill="' + pathFill + '" stroke="' + pathStroke + '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth + '" data-point-id="' +
+                    esc(pointPathData) + '" fill="' + pathFill + '" stroke="' + pathStroke +
+                    '" stroke-linecap="round" stroke-linejoin="round" stroke-width="' + strokeWidth +
+                    '" vector-effect="non-scaling-stroke" data-point-id="' +
                     esc(point.InspectionPointID) + '" role="button" tabindex="0" aria-label="' +
                     esc(title) + '" title="' + esc(title) + '"><title>' + esc(title) + '</title></path>');
                 return;
