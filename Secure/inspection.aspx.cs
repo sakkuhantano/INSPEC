@@ -3915,7 +3915,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             returnedPointList.Add(new Dictionary<string, object> {
                                 { "InspectionPointTransactionID", Convert.ToInt64(pointRow["InspectionPointTransactionID"]) },
                                 { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
-                                { "InspectionPointID", Convert.ToInt64(pointRow["InspectionPointID"]) },
+                                { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(returnedPointList.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
                                 { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                                 { "PointCode", GF.GetString(pointRow["PointCode"]) },
                                 { "PointName", GF.GetString(pointRow["PointName"]) },
