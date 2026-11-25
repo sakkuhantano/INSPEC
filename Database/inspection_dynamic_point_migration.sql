@@ -8,7 +8,7 @@ IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointCode') IS NULL
  ALTER TABLE dbo.PIP_T_InspectionPoint ADD PointCode VARCHAR(100) NULL;
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointName') IS NULL
  ALTER TABLE dbo.PIP_T_InspectionPoint ADD PointName VARCHAR(200) NULL;
-UPDATE T SET T.PointSource='MASTER', T.PointCode=ISNULL(NULLIF(T.PointCode,''),M.PointCode), T.PointName=ISNULL(NULLIF(T.PointName,''),M.PointName)
+UPDATE T SET T.PointSource=ISNULL(NULLIF(T.PointSource,''),'MASTER'), T.PointCode=ISNULL(NULLIF(T.PointCode,''),M.PointCode), T.PointName=ISNULL(NULLIF(T.PointName,''),M.PointName)
 FROM dbo.PIP_T_InspectionPoint T LEFT JOIN dbo.PIP_M_InspectionPoint M ON M.InspectionPointID=T.InspectionPointID;
 IF EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionPoint WHERE PointCode IS NULL OR LTRIM(RTRIM(PointCode))='' OR PointName IS NULL OR LTRIM(RTRIM(PointName))='')
 BEGIN
