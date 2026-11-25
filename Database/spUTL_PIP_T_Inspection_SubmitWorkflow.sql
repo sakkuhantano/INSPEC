@@ -102,7 +102,7 @@ BEGIN
    OR (@WorkflowCode='SPV_CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')))
   BEGIN RAISERROR('SPV, Chief Engineering, or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
- SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1 THEN CASE WHEN ISNULL(IsApproved,0)=1 THEN 'APPROVED' ELSE 'SUBMITTED' END
+ SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1 THEN CASE WHEN ISNULL(IsApproved,0)=1 AND (@WorkflowCode<>'SPV_CHIEF_ENG' OR ISNULL(IsApprovedFinal,0)=1) THEN 'APPROVED' ELSE 'SUBMITTED' END
   WHEN Status='DRAFT' AND ISNULL(ReasonVoid,'')<>'' THEN 'VOID' ELSE '' END
  FROM dbo.PIP_T_Inspection WITH (UPDLOCK,HOLDLOCK) WHERE InspectionID=@p_InspectionID;
  IF @OldStatus='SUBMITTED' RETURN;
