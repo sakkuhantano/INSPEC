@@ -99,6 +99,63 @@ BEGIN
         RETURN;
     END;
 
+    /* Canonical STANDARD duplicate protection is intentionally bypassed for BATCH.
+       Car Park inspections are map-scoped (B1/B2/B3 independent), while Motor
+       remains one dynamic batch per date/type/detail/template. Lightning is a
+       single daily batch containing all configured maps, so any map overlap
+       correctly blocks a second daily transaction. */
+    IF @V_PointSource='DYNAMIC' AND EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+        WHERE I.ClientInspectionID<>@p_ClientInspectionID
+          AND ISNULL(I.IsActive,1)=1
+          AND I.CompanyID=@p_CompanyID
+          AND I.LocationID=@p_LocationID
+          AND I.SectionID=@p_SectionID
+          AND I.InspectionTypeCode=@p_InspectionTypeCode
+          AND I.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND ISNULL(I.ScheduledTime,'')=ISNULL(@p_ScheduledTime,'')
+          AND I.IDTemplate=@p_IDTemplate
+          AND I.InspectionDate>=CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120)
+          AND I.InspectionDate<DATEADD(DAY,1,CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120))
+    )
+    BEGIN
+        RAISERROR('A Motor inspection already exists for this date, company/location, section, type, detail, schedule, and template.',16,1);
+        RETURN;
+    END;
+
+    IF @V_PointSource='MASTER' AND EXISTS
+    (
+        SELECT 1
+        FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+        INNER JOIN dbo.PIP_T_InspectionPoint TP ON TP.InspectionID=I.InspectionID
+        INNER JOIN dbo.PIP_M_InspectionPoint ExistingPoint
+            ON ExistingPoint.InspectionPointID=TP.InspectionPointID
+        INNER JOIN dbo.PIP_M_InspectionMap ExistingMap
+            ON ExistingMap.MapID=ExistingPoint.MapID
+        INNER JOIN @p_Points P
+            ON ISNUMERIC(P.C2)=1
+           AND CAST(P.C2 AS BIGINT)=ExistingPoint.InspectionPointID
+        WHERE I.ClientInspectionID<>@p_ClientInspectionID
+          AND ISNULL(I.IsActive,1)=1
+          AND I.CompanyID=@p_CompanyID
+          AND I.LocationID=@p_LocationID
+          AND I.SectionID=@p_SectionID
+          AND I.InspectionTypeCode=@p_InspectionTypeCode
+          AND I.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+          AND ISNULL(I.ScheduledTime,'')=ISNULL(@p_ScheduledTime,'')
+          AND I.IDTemplate=@p_IDTemplate
+          AND I.InspectionDate>=CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120)
+          AND I.InspectionDate<DATEADD(DAY,1,CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120))
+          AND ExistingMap.CompanyID=@p_CompanyID
+          AND ExistingMap.LocationID=@p_LocationID
+    )
+    BEGIN
+        RAISERROR('An inspection already exists for the submitted Inspection Map / floor on this date, company/location, section, type, detail, schedule, and template.',16,1);
+        RETURN;
+    END;
+
     IF EXISTS
     (
         SELECT 1 FROM @p_Points P
