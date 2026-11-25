@@ -1512,10 +1512,17 @@ WHERE IDVersion=@IDVersion",
             }
             catch (Exception ex)
             {
+                bool isConcurrencyConflict =
+                    ex is HttpException &&
+                    ((HttpException)ex).GetHttpCode() == 409;
+
                 return new
                 {
                     success = false,
-                    message = saveStage + ": " + ex.ToString()
+                    conflict = isConcurrencyConflict,
+                    message = isConcurrencyConflict
+                        ? "Template changed by another user. Reload the latest Template before saving."
+                        : saveStage + ": " + ex.ToString()
                 };
             }
         }
