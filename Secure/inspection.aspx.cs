@@ -272,6 +272,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                         var clientPointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var masterPointIDs = new HashSet<long>();
                         var dynamicPointCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        var dynamicPointNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var schedulePointIDs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         int dynamicPointSequence = 0;
                         foreach (JObject point in pointArray.OfType<JObject>())
