@@ -1537,23 +1537,33 @@ function onInspectionTypeChanged() {
     templateSelect.disabled = !typeCode || templates.length === 0;
 
     const detailSelect = document.getElementById("selInspectionDetail");
-    detailSelect.innerHTML = '<option value="">Pilih detail...</option>';
-    detailSelect.disabled = true;
+    const typeDetails = inspectionDetails.filter(detail =>
+        String(detail.InspectionTypeCode || "") === String(typeCode || "") &&
+        String(detail.CompanyID || "") === String(inspectionCompanyID || "") &&
+        String(detail.LocationID || "") === String(inspectionLocationID || "")
+    );
+    detailSelect.innerHTML = '<option value="">Pilih detail...</option>' +
+        typeDetails.map(detail =>
+            '<option value="' + escInspection(detail.InspectionTypeDetailCode) + '">' +
+            escInspection(detail.InspectionTypeDetailName) + '</option>'
+        ).join("");
+    detailSelect.disabled = !typeCode || typeDetails.length === 0;
     inspectionDetailSearchOptions = [];
     inspectionDetailLastSelectedValue = "";
     const detailSearch = document.getElementById("txtInspectionDetailSearch");
     if (detailSearch) {
         detailSearch.value = "";
-        detailSearch.disabled = true;
+        detailSearch.disabled = detailSelect.disabled;
     }
-    inspectionDetailSelectDisabled = true;
+    inspectionDetailSelectDisabled = detailSelect.disabled;
+    syncInspectionDetailSearchOptions();
     resetInspectionScheduleTimeOptions();
     const scheduleControl = document.getElementById("selInspectionScheduleTime");
     if (scheduleControl && scheduleControl.closest(".mb-3"))
         scheduleControl.closest(".mb-3").classList.toggle("d-none",
             String(type && type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING");
     document.getElementById("inspectionScheduleHint").textContent = type
-        ? "Section: " + type.SectionID + ". Pilih template terlebih dahulu, lalu detail dan jam jadwal."
+        ? "Section: " + type.SectionID + ". Pilih detail dan template sesuai kebutuhan, lalu jam jadwal."
         : "";
     updateStartButton();
     refreshInspectionScheduleOptions();
