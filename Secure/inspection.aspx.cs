@@ -3848,8 +3848,9 @@ new SqlParameter("@InspectionID", id) });
                     {
                         DataTable returnedPoints = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
-       TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,P.IsNormalAbnormalRequired,
-       P.PointCode,P.PointName,P.PointObjectType,
+       TP.PointSource,TP.PointCode,TP.PointName,
+       TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,ISNULL(P.IsNormalAbnormalRequired,0) IsNormalAbnormalRequired,
+       P.PointObjectType,
        P.PointDescription,P.MapID,P.MapX,P.MapY,
        P.ShapeType,P.SvgPathData,P.ShapeAttributes,P.StrokeWidth
 FROM dbo.PIP_T_InspectionPoint TP
