@@ -45,10 +45,10 @@ BEGIN
         DECLARE @V_InspectionNo VARCHAR(10);
         DECLARE @V_OwnerEmployeeID VARCHAR(50);
         DECLARE @V_IDTemplate INT;
-        DECLARE @V_ApprovalWorkflowCode VARCHAR(30), @V_IsApprovedFinal BIT, @V_IsChiefEngStage BIT=0;
+        DECLARE @V_ApprovalWorkflowCode VARCHAR(30), @V_IsApproved1 BIT, @V_IsChiefEngStage BIT=0;
 
         SELECT @V_IDTemplate=I.IDTemplate, @V_SectionID=I.SectionID, @V_Status=I.Status, @V_IsApprove=I.IsApproved,
-               @V_IsApprovedFinal=I.IsApprovedFinal, @V_ApprovalWorkflowCode=ISNULL(IT.ApprovalWorkflowCode,'STANDARD'),
+               @V_IsApproved1=I.IsApproved1, @V_ApprovalWorkflowCode=ISNULL(IT.ApprovalWorkflowCode,'STANDARD'),
                @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
                @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
                @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
@@ -65,7 +65,7 @@ BEGIN
         IF @V_SectionID IS NULL
             RAISERROR('Inspection was not found for this company/location.', 16, 1);
 
-        SET @V_IsChiefEngStage=CASE WHEN @V_ApprovalWorkflowCode='SPV_CHIEF_ENG' AND ISNULL(@V_IsApprove,0)=1 AND ISNULL(@V_IsApprovedFinal,0)=0 THEN 1 ELSE 0 END;
+        SET @V_IsChiefEngStage=CASE WHEN @V_ApprovalWorkflowCode='SPV_CHIEF_ENG' AND ISNULL(@V_IsApprove,0)=1 AND ISNULL(@V_IsApproved1,0)=0 THEN 1 ELSE 0 END;
 
         IF NOT EXISTS
         (
@@ -121,7 +121,7 @@ BEGIN
 
         IF @V_Status <> 'DONE'
            OR (@V_IsChiefEngStage=0 AND (ISNULL(@V_IsApprove,0)<>0 OR ISNULL(@V_ApprovedBy,'')<>'' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)))
-           OR (@V_IsChiefEngStage=1 AND (ISNULL(@V_IsApprove,0)<>1 OR ISNULL(@V_IsApprovedFinal,0)<>0))
+           OR (@V_IsChiefEngStage=1 AND (ISNULL(@V_IsApprove,0)<>1 OR ISNULL(@V_IsApproved1,0)<>0))
            OR ISNULL(@V_ReasonVoid,'')<>''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
