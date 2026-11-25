@@ -16,6 +16,12 @@ BEGIN
  RAISERROR('Cannot backfill PointCode/PointName for all existing points. Resolve master point data before rerunning.',16,1);
  RETURN;
 END;
+IF EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionPoint GROUP BY InspectionID,PointCode HAVING COUNT(1)>1)
+BEGIN
+ ROLLBACK TRANSACTION;
+ RAISERROR('Duplicate PointCode exists within an Inspection. Resolve duplicates before creating the unique point-code index.',16,1);
+ RETURN;
+END;
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_PIP_T_InspectionPoint_Master')
  ALTER TABLE dbo.PIP_T_InspectionPoint DROP CONSTRAINT FK_PIP_T_InspectionPoint_Master;
 IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name='UQ_PIP_T_InspectionPoint_Master')
