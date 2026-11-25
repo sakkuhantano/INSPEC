@@ -3551,8 +3551,11 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
     await renderInspectionPhotos();
     await updateInspectionChecklistGate();
     mountBatchValidationNavigator();
-    if (window.matchMedia && window.matchMedia("(max-width: 767.98px)").matches &&
-        typeof window.showInspectionMapPointChecklistSheet === "function") {
+    // Batch/Lightning point selection is map-first on every viewport size.
+    // Keep the map visible behind the checklist dialog instead of forcing a
+    // desktop tab switch; this also makes a PATH click behave the same as a
+    // Point List click and a mobile map click.
+    if (typeof window.showInspectionMapPointChecklistSheet === "function") {
         window.showInspectionMapPointChecklistSheet(point);
         if (validationError) window.setTimeout(() => focusBatchValidationTarget(validationError), 180);
         return;
