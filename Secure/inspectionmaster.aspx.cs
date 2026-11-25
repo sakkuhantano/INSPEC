@@ -67,6 +67,12 @@ namespace INSPEC.Secure
             //    "155", "Master Inspection Map", txtMapCode.ClientID, false, mapSearchArgs);
             btnClearMapFile.Visible = String.IsNullOrWhiteSpace(hidMapID.Value);
             fuMapPdf.Attributes["data-inspection-draft-key"] = DraftMapFileKey;
+            string pointSearchTarget = txtPointSearch.UniqueID;
+            txtPointSearch.Attributes["oninput"] =
+                "window.clearTimeout(window.__inspectionPointSearchTimer);" +
+                "window.__inspectionPointSearchTimer=window.setTimeout(function(){" +
+                "if(window.__doPostBack)window.__doPostBack('" + pointSearchTarget + "','');" +
+                "},450);";
         }
 
         public void Toolbar_Click(object sender, ToolBarEventArgs_2 e)
@@ -304,7 +310,7 @@ FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1
-  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%' OR P.PointName LIKE '%' + @Keyword + '%')
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
       WHERE IT.InspectionTypeCode=M.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
@@ -343,7 +349,7 @@ WITH PointRows AS
     INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
     WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
       AND P.IsActive=1
-      AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+      AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%' OR P.PointName LIKE '%' + @Keyword + '%')
       AND (@IsAdmin=1 OR EXISTS
       (
           SELECT 1
@@ -393,6 +399,78 @@ ORDER BY RowNum",
             SetTab("#tab-point");
         }
 
+        protected void txtPointSearch_TextChanged(object sender, EventArgs e)
+        {
+            PointPageIndex = 0;
+            BindPoints();
+            SetTab("#tab-point");
+            if (gvPoints.Rows.Count > 0 && gvPoints.DataKeys.Count > 0)
+                RegisterPointGridSelection(Convert.ToInt64(gvPoints.DataKeys[0].Value));
+        }
+
+        protected void btnSelectPointFromMap_Click(object sender, EventArgs e)
+        {
+            long pointID;
+            if (!Int64.TryParse(hidMapSelectedPointID.Value, out pointID) || pointID <= 0)
+                return;
+
+            txtPointSearch.Text = "";
+            DataTable position;
+            using (var br = new WAL.BR.CF())
+            {
+                position = br.EQueryP(@"
+WITH PointRows AS
+(
+    SELECT P.InspectionPointID,
+           ROW_NUMBER() OVER
+           (
+               ORDER BY M.InspectionTypeCode,
+                        M.InspectionTypeDetailCode,
+                        P.DisplayOrder,
+                        P.PointCode,
+                        P.InspectionPointID
+           ) AS RowNum
+    FROM dbo.PIP_M_InspectionPoint P
+    INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
+    WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
+      AND P.MapID=@MapID AND P.IsActive=1
+      AND (@IsAdmin=1 OR EXISTS
+      (
+          SELECT 1
+          FROM dbo.PIP_M_InspectionType IT
+          INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
+          WHERE IT.InspectionTypeCode=M.InspectionTypeCode
+            AND S.ProfitCenterNo=@ProfitCenterNo
+      ))
+)
+SELECT RowNum FROM PointRows WHERE InspectionPointID=@PointID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", Master.Mn_CompanyID),
+                        new SqlParameter("@LocationID", Master.Mn_LocationID),
+                        new SqlParameter("@MapID", String.IsNullOrEmpty(hidMapID.Value) ? 0 : Convert.ToInt64(hidMapID.Value)),
+                        new SqlParameter("@PointID", pointID),
+                        new SqlParameter("@IsAdmin", IsAdministrator()),
+                        new SqlParameter("@ProfitCenterNo", Master.Mn_ProfitCenterNo)
+                    });
+            }
+
+            if (position == null || position.Rows.Count == 0)
+                return;
+
+            int rowNumber = Convert.ToInt32(position.Rows[0]["RowNum"]);
+            PointPageIndex = (rowNumber - 1) / PointPageSize;
+            BindPoints();
+            SetTab("#tab-point");
+            RegisterPointGridSelection(pointID);
+        }
+
+        private void RegisterPointGridSelection(long pointID)
+        {
+            string id = pointID.ToString(CultureInfo.InvariantCulture);
+            string script = "(function(){var id='" + id + "';var tries=0;function selectPoint(){if(window.inspectionMasterSelectPoint){window.inspectionMasterSelectPoint(id,{scrollGrid:true});return;}if(tries++<40)window.setTimeout(selectPoint,50);}selectPoint();})();";
+            ScriptManager.RegisterStartupScript(this, GetType(), "selectInspectionPoint" + id, script, true);
+        }
+
         protected void ddlPointPageSize_SelectedIndexChanged(object sender, EventArgs e)
         {
             PointPageIndex = 0;
@@ -432,7 +510,7 @@ FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID AND P.MapID=@MapID
   AND P.IsActive=1
-  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%')
+  AND (@Keyword='' OR P.PointCode LIKE '%' + @Keyword + '%' OR P.PointName LIKE '%' + @Keyword + '%')
   AND (@IsAdmin=1 OR EXISTS (SELECT 1 FROM dbo.PIP_M_InspectionType IT
       INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
       WHERE IT.InspectionTypeCode=M.InspectionTypeCode AND S.ProfitCenterNo=@ProfitCenterNo))",
@@ -712,7 +790,11 @@ FROM dbo.PIP_M_InspectionPoint P
 INNER JOIN dbo.PIP_M_InspectionMap M ON M.MapID=P.MapID
 WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
   AND P.MapID=@MapID AND P.IsActive=1
-  AND P.MapX IS NOT NULL AND P.MapY IS NOT NULL
+  AND (
+      (ISNULL(P.ShapeType,'CIRCLE')='PATH' AND NULLIF(LTRIM(RTRIM(P.SvgPathData)),'') IS NOT NULL)
+      OR (ISNULL(P.ShapeType,'CIRCLE')='RECTANGLE')
+      OR (P.MapX IS NOT NULL AND P.MapY IS NOT NULL)
+  )
 ORDER BY P.DisplayOrder, P.PointCode",
                     new SqlParameter[] {
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
@@ -750,7 +832,7 @@ ORDER BY P.DisplayOrder, P.PointCode",
                 if (String.Equals(Convert.ToString(point["ShapeType"]), "PATH", StringComparison.OrdinalIgnoreCase))
                 {
                     string d = Convert.ToString(point["SvgPathData"]);
-                    if (!String.IsNullOrWhiteSpace(d) && System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlZz0-9.,\s+\-]+$"))
+                    if (!String.IsNullOrWhiteSpace(d) && System.Text.RegularExpressions.Regex.IsMatch(d, @"^[MmLlHhVvCcSsQqTtAaZz0-9.,\s+\-eE]+$"))
                     {
                         paths.Append("<path class='inspection-map-preview-shape inspection-map-preview-path' data-point-id='");
                         paths.Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture));
@@ -762,6 +844,11 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         paths.Append("' vector-effect='non-scaling-stroke'><title>");
                         paths.Append(HttpUtility.HtmlEncode(pointLabel));
                         paths.Append("</title></path>");
+                        // Wide, nearly invisible hit stroke keeps thin PATH geometry clickable.
+                        paths.Append("<path class='inspection-map-preview-path-hit' data-point-id='")
+                            .Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
+                            .Append("' d='").Append(HttpUtility.HtmlAttributeEncode(d))
+                            .Append("' fill='none' stroke='#000' stroke-opacity='0.001' stroke-width='14' pointer-events='stroke' vector-effect='non-scaling-stroke'></path>");
                     }
                     continue;
                 }
