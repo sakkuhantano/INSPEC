@@ -165,7 +165,7 @@ GO
 
 /* Approval state is stored on the inspection header:
    IsSubmitted=1 means technician submitted; IsApproved=1 means first-stage approval;
-   IsApprovedFinal=1 means final approval. VOID resets all flags/actors/dates,
+   IsApproved1=1 means final approval. VOID resets all flags/actors/dates,
    sets Status='DRAFT', and preserves the reason in ReasonVoid. */
 IF COL_LENGTH('dbo.PIP_T_Inspection', 'IsApproved') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD IsApproved BIT NULL;
@@ -223,12 +223,12 @@ IF COL_LENGTH('dbo.PIP_T_Inspection','SubmittedBy') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD SubmittedBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_SubmittedBy DEFAULT ('');
 IF COL_LENGTH('dbo.PIP_T_Inspection','SubmittedDate') IS NULL
     ALTER TABLE dbo.PIP_T_Inspection ADD SubmittedDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_SubmittedDate DEFAULT ('19000101');
-IF COL_LENGTH('dbo.PIP_T_Inspection','IsApprovedFinal') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD IsApprovedFinal BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsApprovedFinal DEFAULT (0);
-IF COL_LENGTH('dbo.PIP_T_Inspection','ApprovedFinalBy') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedFinalBy VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedFinalBy DEFAULT ('');
-IF COL_LENGTH('dbo.PIP_T_Inspection','ApprovedFinalDate') IS NULL
-    ALTER TABLE dbo.PIP_T_Inspection ADD ApprovedFinalDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovedFinalDate DEFAULT ('19000101');
+IF COL_LENGTH('dbo.PIP_T_Inspection','IsApproved1') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD IsApproved1 BIT NOT NULL CONSTRAINT DF_PIP_T_Inspection_IsApproved1 DEFAULT (0);
+IF COL_LENGTH('dbo.PIP_T_Inspection','Approved1By') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD Approved1By VARCHAR(50) NOT NULL CONSTRAINT DF_PIP_T_Inspection_Approved1By DEFAULT ('');
+IF COL_LENGTH('dbo.PIP_T_Inspection','Approved1Date') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection ADD Approved1Date DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_Approved1Date DEFAULT ('19000101');
 GO
 
 /* Normalize nullable transaction fields to explicit defaults.
