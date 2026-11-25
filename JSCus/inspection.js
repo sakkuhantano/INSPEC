@@ -501,8 +501,6 @@ function wireInspectionEvents() {
     });
     const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
-    const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
-    if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
 
     const tenantSearchInput = document.getElementById("txtInspectionTenantSearch");
     if (tenantSearchInput) tenantSearchInput.addEventListener("input", applyInspectionTenantSearch);
