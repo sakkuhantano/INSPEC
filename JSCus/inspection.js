@@ -5988,7 +5988,7 @@ function updateInspectionParameterTabGate() {
     if (!button) return;
     const isBatch = currentInspectionRecord &&
         isInspectionMapMode(currentInspectionRecord.InspectionMode);
-    const hasSelectedPoint = !isBatch || Number(currentInspectionRecord.ActiveInspectionPointID || 0) > 0;
+    const hasSelectedPoint = !isBatch || Number(currentInspectionRecord.ActiveInspectionPointID || 0) !== 0;
     const complete = (currentInspectionReadOnly || isInspectionParameterSelectionComplete()) && hasSelectedPoint;
     button.disabled = !complete;
     button.classList.toggle("disabled", !complete);
