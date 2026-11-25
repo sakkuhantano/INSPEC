@@ -473,6 +473,50 @@ WHERE ClientInspectionID=@ClientInspectionID",
 
                     using (var br = new WAL.BR.CF())
                     {
+                        syncStage = "validate inspection type configuration";
+                        DataTable inspectionTypeConfig = br.EQueryP(@"
+SELECT ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode,
+       ISNULL(NULLIF(IT.InspectionLayoutCode,''),'STANDARD') InspectionLayoutCode,
+       ISNULL(NULLIF(IT.PointSource,''),'MASTER') PointSource,
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode,
+       ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') ApprovalWorkflowCode
+FROM dbo.PIP_M_InspectionType IT
+WHERE IT.InspectionTypeCode=@InspectionTypeCode
+  AND IT.SectionID=@SectionID
+  AND IT.IsActive=1",
+                            new SqlParameter[] {
+                                new SqlParameter("@InspectionTypeCode", inspectionTypeCode),
+                                new SqlParameter("@SectionID", sectionId)
+                            });
+                        if (inspectionTypeConfig == null || inspectionTypeConfig.Rows.Count != 1)
+                            throw new Exception("Inspection Type tidak ditemukan atau sudah tidak aktif.");
+
+                        DataRow typeConfigRow = inspectionTypeConfig.Rows[0];
+                        string serverInspectionMode = Convert.ToString(typeConfigRow["InspectionMode"]).Trim().ToUpperInvariant();
+                        string serverInspectionLayoutCode = Convert.ToString(typeConfigRow["InspectionLayoutCode"]).Trim().ToUpperInvariant();
+                        string serverPointSource = Convert.ToString(typeConfigRow["PointSource"]).Trim().ToUpperInvariant();
+                        string serverScheduleSelectionMode = Convert.ToString(typeConfigRow["ScheduleSelectionMode"]).Trim().ToUpperInvariant();
+                        string serverApprovalWorkflowCode = Convert.ToString(typeConfigRow["ApprovalWorkflowCode"]).Trim().ToUpperInvariant();
+
+                        if (serverInspectionMode != inspectionMode)
+                            throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
+                        if (serverPointSource != "MASTER" && serverPointSource != "DYNAMIC")
+                            throw new Exception("Point Source pada Master Inspection Type tidak valid.");
+                        if (serverInspectionMode == "LIGHTNING" &&
+                            (serverInspectionLayoutCode != "MAP" || serverPointSource != "MASTER" ||
+                             serverScheduleSelectionMode != "AT_INSPECTION" ||
+                             serverApprovalWorkflowCode != "LIGHTNING_4_STEP"))
+                            throw new Exception("Konfigurasi Lightning pada Master Inspection Type tidak valid.");
+                        if (serverPointSource == "DYNAMIC" &&
+                            (serverInspectionMode != "BATCH" || serverInspectionLayoutCode != "DYNAMIC_LIST"))
+                            throw new Exception("Konfigurasi Dynamic Motor pada Master Inspection Type tidak valid.");
+
+                        record["_ServerInspectionMode"] = serverInspectionMode;
+                        record["_ServerInspectionLayoutCode"] = serverInspectionLayoutCode;
+                        record["_ServerPointSource"] = serverPointSource;
+                        record["_ServerScheduleSelectionMode"] = serverScheduleSelectionMode;
+                        record["_ServerApprovalWorkflowCode"] = serverApprovalWorkflowCode;
+
                         syncStage = "validate inspection template detail";
                         DataTable templateDetailCheck = br.EQueryP(@"
 SELECT T.IDTemplate
