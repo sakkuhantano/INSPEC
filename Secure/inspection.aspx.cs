@@ -674,6 +674,33 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                             " tidak termasuk Master Checklist Version yang dipilih.");
                                 }
 
+                                if (pointSource == "DYNAMIC")
+                                {
+                                    string dynamicPointName = TokenString(versionPoint, "PointName").Trim();
+                                    DataRow nopolTemplateItem = null;
+                                    foreach (DataRow candidate in versionItems.Rows)
+                                    {
+                                        string candidateType = Convert.ToString(candidate["ItemType"]).ToUpperInvariant();
+                                        string candidateLabel = Convert.ToString(candidate["ItemLabel"]).Trim().ToLowerInvariant();
+                                        if (candidateType == "TEXT" &&
+                                            (candidateLabel.Contains("nopol") || candidateLabel.Contains("no pol") ||
+                                             candidateLabel.Contains("plat") || candidateLabel.Contains("nomor polisi") ||
+                                             candidateLabel.Contains("license")))
+                                        {
+                                            nopolTemplateItem = candidate;
+                                            break;
+                                        }
+                                    }
+                                    if (nopolTemplateItem == null)
+                                        throw new Exception(pointPrefix + "Master Checklist Version Motor wajib memiliki item TEXT untuk Nopol.");
+                                    int nopolItemId = Convert.ToInt32(nopolTemplateItem["IDItem"]);
+                                    JObject nopolAnswer;
+                                    string nopolValue = submittedItemsById.TryGetValue(nopolItemId, out nopolAnswer)
+                                        ? TokenString(nopolAnswer, "Value").Trim() : "";
+                                    if (dynamicPointName == "" || !String.Equals(dynamicPointName, nopolValue, StringComparison.OrdinalIgnoreCase))
+                                        throw new Exception(pointPrefix + "Nilai item TEXT Nopol harus sama dengan PointName kendaraan.");
+                                }
+
                                 bool hasAnomalousItem = false;
                                 foreach (DataRow templateItem in versionItems.Rows)
                                 {
