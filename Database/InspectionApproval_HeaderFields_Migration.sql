@@ -4,8 +4,8 @@
   Assumes PIP_T_Inspection contains no production data.
   Approval flags:
     IsApproved  = SPV (Standard/Batch and Lightning stage 1)
-    IsApproved1 = Chief Engineering (Lightning stage 2)
-    IsApproved2 = Chief Security (Lightning stage 3)
+    IsApproved1 = Chief Engineering for Standard/Batch; Chief Security for Lightning stage 2
+    IsApproved2 = Chief Engineering for Lightning stage 3
   The obsolete IsApprovedFinal family is removed.
 */
 SET NOCOUNT ON;
