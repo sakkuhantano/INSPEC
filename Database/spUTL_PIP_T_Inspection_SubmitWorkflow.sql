@@ -17,13 +17,13 @@ AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
-         @Mode VARCHAR(10),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
+         @Mode VARCHAR(10),@WorkflowCode VARCHAR(30),@ChiefEng VARCHAR(4000),@TypeName VARCHAR(100),@DetailName VARCHAR(100),
          @EmailEnabled BIT,@SPV VARCHAR(4000),@SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),
           @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),
          @ConfigScope VARCHAR(30),@OldStatus VARCHAR(30),@Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsActorSPV BIT=0;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
-        @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
+        @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'),@WorkflowCode=ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD')
  FROM dbo.PIP_T_Inspection I JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0
    AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
@@ -36,6 +36,12 @@ BEGIN
    AND C.ID=@ConfigScope+';EMAIL;'+@Mode;
  SET @EmailEnabled=ISNULL(@EmailEnabled,0);
  IF @Owner<>@p_ActorEmployeeID BEGIN RAISERROR('Only the inspection owner can submit this inspection.',16,1); RETURN; END;
+ IF @WorkflowCode='SPV_CHIEF_ENG'
+ BEGIN
+  SELECT @ChiefEng=NULLIF(LTRIM(RTRIM(C.Description)),'') FROM dbo.SysWebCommonValue C
+  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=@ConfigScope+';CHIEF_ENG';
+  IF ISNULL(@ChiefEng,'')='' BEGIN RAISERROR('Chief Engineering approver setup is missing for this Company and Location.',16,1); RETURN; END;
+ END;
  SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -93,7 +99,8 @@ BEGIN
       AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
    )
   ) OR ISNULL(@TechEmail,'')=''
-  BEGIN RAISERROR('SPV or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
+   OR (@WorkflowCode='SPV_CHIEF_ENG' AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')))
+  BEGIN RAISERROR('SPV, Chief Engineering, or Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
  END;
  SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1 THEN CASE WHEN ISNULL(IsApproved,0)=1 THEN 'APPROVED' ELSE 'SUBMITTED' END
   WHEN Status='DRAFT' AND ISNULL(ReasonVoid,'')<>'' THEN 'VOID' ELSE '' END
@@ -110,6 +117,7 @@ BEGIN
   UPDATE dbo.PIP_T_Inspection
   SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
       IsApproved=CASE WHEN @IsActorSPV=1 THEN 1 ELSE 0 END,
+      IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
       ApprovedBy=CASE WHEN @IsActorSPV=1 THEN @p_ActorEmployeeID ELSE '' END,
       ApprovedDate=CASE WHEN @IsActorSPV=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
       ApprovalRemark='',ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
@@ -159,6 +167,25 @@ BEGIN
     CASE WHEN @IsActorSPV=1 THEN N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah otomatis di-approve oleh Anda sebagai SPV.</p>' ELSE N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.</p>' END,
     CASE WHEN @IsActorSPV=1 THEN N'Inspection '+ISNULL(@No,'')+N' telah otomatis di-approve oleh owner yang merupakan SPV.' ELSE N'Inspection '+ISNULL(@No,'')+N' milik '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N') telah dikirim dan menunggu approval SPV '+ISNULL(@SPVName,@SPV)+N'.' END,
     'PENDING',0,GETDATE());
+
+   IF @WorkflowCode='SPV_CHIEF_ENG' AND @IsActorSPV=1
+   INSERT dbo.PIP_T_InspectionEmailOutbox
+   (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+    EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+   SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF_ENG:'+X.EmployeeID,
+    @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
+    N'Inspection menunggu acknowledgement Chief Engineering - '+ISNULL(@No,''),
+    N'<p>Inspection '+ISNULL(@No,'')+N' telah otomatis diverifikasi oleh owner yang merupakan SPV dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
+    N'Inspection '+ISNULL(@No,'')+N' menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').',
+    'PENDING',0,GETDATE()
+   FROM
+   (
+    SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress,
+     ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+    FROM dbo.SplitStringConvertToTable(@ChiefEng,';') S
+    JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+    WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+   ) X;
   END;
   END TRY
  BEGIN CATCH
