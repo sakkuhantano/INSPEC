@@ -1990,6 +1990,24 @@
             window.mountInspectionBatchSummary(record);
 
         var setup = record.BatchMapSetup || {};
+        if (String(record.PointSource || "").toUpperCase() === "DYNAMIC" &&
+            (!Array.isArray(setup.points) || !setup.points.length) && Array.isArray(record.Points)) {
+            setup.points = record.Points.map(function (transaction, index) {
+                return {
+                    InspectionPointID: Number(transaction.InspectionPointID),
+                    ClientPointID: transaction.ClientPointID,
+                    PointSource: "DYNAMIC",
+                    PointCode: transaction.PointCode || ("M" + String(index + 1).padStart(3, "0")),
+                    PointName: transaction.PointName || "",
+                    Nopol: transaction.PointName || "",
+                    MapID: 0,
+                    DisplayOrder: index + 1,
+                    IsNormalAbnormalRequired: false
+                };
+            });
+            setup.maps = [];
+            record.BatchMapSetup = setup;
+        }
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
         if (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING") {
             var recordActiveSchedule = String(record.ActiveScheduleTime || "");
