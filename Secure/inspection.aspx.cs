@@ -3240,7 +3240,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
+       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
