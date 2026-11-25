@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -1877,7 +1877,7 @@ IF EXISTS (
     FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
     JOIN dbo.PIP_M_CheckListWOPM T
       ON T.IDTemplate=@IDTemplate AND T.TemplateType='I'
-    WHERE I.IDTemplate=@IDTemplate AND I.IDVersion=@IDVersion
+    WHERE I.IDTemplate=@IDTemplate AND I.IDVersion=@IDVersion AND I.IsActive=1
 )
 BEGIN
     ROLLBACK TRANSACTION;
@@ -1889,7 +1889,7 @@ IF EXISTS (
     FROM dbo.PIP_T_WO W WITH (UPDLOCK,HOLDLOCK)
     WHERE LTRIM(RTRIM(CONVERT(VARCHAR(100), W.TemplateWOPM))) IN
           (@TemplateNo, CONVERT(VARCHAR(20), @IDTemplate))
-      AND LTRIM(RTRIM(CONVERT(VARCHAR(50), W.TemplateVersion)))=@TemplateVersion
+      AND LTRIM(RTRIM(CONVERT(VARCHAR(50), W.TemplateVersion)))=@TemplateVersion AND W.IsDelete=0
 )
 BEGIN
     ROLLBACK TRANSACTION;
