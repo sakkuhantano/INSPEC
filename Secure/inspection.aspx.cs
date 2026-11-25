@@ -3066,7 +3066,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
-       CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END CurrentStageCode
+       CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 if (countOnly) return rows == null ? 0 : rows.Rows.Count;
@@ -3238,8 +3238,10 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
        CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' WHEN I.IsApproved2=0 THEN 'CHIEF_SEC' ELSE 'COMPLETED' END
+            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
