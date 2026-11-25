@@ -46,30 +46,41 @@ function syncInspectionDetailSearchOptions() {
 function applyInspectionDetailSearch() {
     const select = document.getElementById("selInspectionDetail");
     const search = document.getElementById("txtInspectionDetailSearch");
+    const optionHost = document.getElementById("inspectionDetailDropdownOptions");
+    const dropdownButton = document.getElementById("selInspectionDetailDropdownButton");
     if (!select || !search) return;
+
     const keyword = String(search.value || "").trim().toLowerCase();
-    const matches = inspectionDetailSearchOptions.filter(option =>
+    const options = inspectionDetailSearchOptions;
+    const matches = options.filter(option =>
         !option.value || !keyword ||
         (String(option.value) + " " + String(option.text)).toLowerCase().includes(keyword)
     );
-    select.innerHTML = "";
-    matches.forEach(option => {
-        const item = new Option(option.text, option.value);
-        item.disabled = option.disabled;
-        select.add(item);
-    });
-    if (!matches.some(option => option.value === inspectionDetailLastSelectedValue)) {
-        select.value = "";
-    } else {
-        select.value = inspectionDetailLastSelectedValue;
+
+    if (dropdownButton) {
+        const selected = options.find(option => String(option.value || "") === String(select.value || ""));
+        dropdownButton.textContent = selected && selected.value
+            ? selected.text
+            : "Pilih detail...";
+        dropdownButton.disabled = inspectionDetailSelectDisabled;
     }
-    if (keyword && matches.filter(option => option.value).length === 0)
-        select.add(new Option("Tidak ada lokasi yang cocok", ""));
-    select.disabled = inspectionDetailSelectDisabled;
-    search.disabled = inspectionDetailSelectDisabled;
+
+    if (!optionHost) return;
+    optionHost.innerHTML = matches.length
+        ? matches.map(option => {
+            const selected = String(option.value || "") === String(select.value || "");
+            return '<button type="button" class="dropdown-item rounded small' +
+                (selected ? ' active' : '') +
+                (option.disabled ? ' disabled' : '') +
+                '" data-inspection-detail-value="' + escInspection(option.value) + '"' +
+                (option.disabled ? ' disabled aria-disabled="true"' : '') + '>' +
+                escInspection(option.text || option.value) +
+                '</button>';
+        }).join("")
+        : '<div class="dropdown-item-text small text-muted py-2">Detail tidak ditemukan.</div>';
 }
 
-function isInspectionMapMode(mode) {
+function isInspectionMapMode(mode)function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
 }
 
@@ -490,8 +501,36 @@ function wireInspectionEvents() {
     });
     const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
     if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
+    const detailSearchInput = document.getElementById("txtInspectionDetailSearch");
+    if (detailSearchInput) detailSearchInput.addEventListener("input", applyInspectionDetailSearch);
+
     const tenantSearchInput = document.getElementById("txtInspectionTenantSearch");
     if (tenantSearchInput) tenantSearchInput.addEventListener("input", applyInspectionTenantSearch);
+
+    const detailDropdown = document.getElementById("inspectionDetailDropdown");
+    if (detailDropdown) {
+        detailDropdown.addEventListener("click", function (event) {
+            const option = event.target.closest("[data-inspection-detail-value]");
+            if (!option || option.disabled) return;
+            const select = document.getElementById("selInspectionDetail");
+            if (!select) return;
+            inspectionDetailLastSelectedValue = option.getAttribute("data-inspection-detail-value") || "";
+            select.value = inspectionDetailLastSelectedValue;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            applyInspectionDetailSearch();
+            const dropdownButton = document.getElementById("selInspectionDetailDropdownButton");
+            if (dropdownButton && window.bootstrap && bootstrap.Dropdown) {
+                bootstrap.Dropdown.getOrCreateInstance(dropdownButton).hide();
+            }
+        });
+        detailDropdown.addEventListener("shown.bs.dropdown", function () {
+            const search = document.getElementById("txtInspectionDetailSearch");
+            if (search && !search.disabled) {
+                search.focus();
+                search.select();
+            }
+        });
+    }
 
     const tenantDropdown = document.getElementById("inspectionTenantDropdown");
     if (tenantDropdown) {
