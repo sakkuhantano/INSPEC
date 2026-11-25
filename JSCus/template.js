@@ -38,6 +38,12 @@ let versionStructureLoadRequestId = 0;
 let templateVersionsLoadRequestId = 0;
 let templatePropertiesLoadRequestId = 0;
 
+// Multi-user cache synchronization. The editor remains cache-first for normal
+// navigation, while loaded Sections are checked periodically for persisted changes.
+let templateCacheSyncTimer = null;
+let templateCacheSyncBusy = false;
+const templateExternalConflictSections = new Set();
+
 // Share in-flight Version structure requests by persisted IDVersion. A request
 // can finish after navigation and still populate its owning Version cache.
 const versionStructureLoadPromises = new Map();
@@ -653,6 +659,7 @@ document.addEventListener(
         bindTemplatePostbackContinuation();
         await loadTemplateExplorer();
         await restoreTemplateSessionDraft();
+        startTemplateCacheSync();
     }
 );
 document.addEventListener('click', function () {
@@ -1981,7 +1988,7 @@ function showTemplateRootMenu(event, sectionId, btn)
         );
     });
 }
-async function loadTemplatesBySection(sectionId, btn)
+async function loadTemplatesBySection(sectionId, btn, forceServer)
 {
     let collapseEl = null;
 
@@ -2016,7 +2023,7 @@ async function loadTemplatesBySection(sectionId, btn)
     // Simpan identitas section pada container yang benar.
     collapseEl.dataset.sectionId = sectionId;
 
-    if (collapseEl.dataset.loaded === "1")
+    if (collapseEl.dataset.loaded === "1" && !forceServer)
     {
         currentTemplates =
             Object.values(
@@ -2084,6 +2091,22 @@ async function loadTemplatesBySection(sectionId, btn)
 
             if (existingNode) {
                 const stableRuntimeID = existingNode.Template.RuntimeTemplateID;
+                const previousRevision = String(existingNode.Template.Revision || "");
+                const incomingRevision = String(tpl.Revision || "");
+                const persistedRevisionChanged =
+                    Number(existingNode.Template.IDTemplate || 0) > 0 &&
+                    previousRevision !== "" &&
+                    incomingRevision !== "" &&
+                    previousRevision !== incomingRevision;
+
+                // A persisted Template revision change invalidates all cached Versions
+                // and their structures. Keep the Template node itself so navigation
+                // remains instant after the metadata refresh.
+                if (persistedRevisionChanged && !existingNode.Dirty) {
+                    existingNode.Versions = {};
+                    existingNode.VersionsLoaded = false;
+                }
+
                 existingNode.Template = Object.assign({}, tpl, { RuntimeTemplateID: stableRuntimeID });
                 existingNode.Dirty = false;
                 // Remove duplicate cache entries for this same database template.
@@ -2139,6 +2162,8 @@ async function loadTemplatesBySection(sectionId, btn)
             collapseEl,
             sectionId
         );
+        sectionCache.ServerRevisionSignature =
+            buildTemplateRevisionSignature(currentTemplates);
         // currentTemplate = null;
         // currentVersions = [];
         // currentVersion = null;
@@ -2155,6 +2180,223 @@ async function loadTemplatesBySection(sectionId, btn)
         `;
     }
 }
+function buildTemplateRevisionSignature(templateNodes)
+{
+    return (Array.isArray(templateNodes) ? templateNodes : [])
+        .map(function(node) {
+            const tpl = node && node.Template;
+            return String(tpl && tpl.IDTemplate || 0) + "=" +
+                String(tpl && tpl.Revision || "");
+        })
+        .sort()
+        .join("|");
+}
+
+function isTemplateSectionDirty(sectionId)
+{
+    const section = getSectionCache(sectionId);
+    if (!section) return false;
+    if (section.Dirty) return true;
+
+    return Object.values(section.Templates || {}).some(function(node) {
+        const tpl = node && node.Template;
+        if (node && node.Dirty) return true;
+        if (tpl && (tpl.Dirty || tpl.MetadataDirty)) return true;
+
+        return Object.values(node && node.Versions || {}).some(function(ver) {
+            return !!(
+                ver &&
+                (
+                    (ver.VersionInfo && ver.VersionInfo.Dirty) ||
+                    (ver.Structure && ver.Structure.VersionInfo && ver.Structure.VersionInfo.Dirty) ||
+                    (ver.Structure && ver.Structure.Dirty)
+                )
+            );
+        });
+    });
+}
+
+function markTemplateExternalConflict(sectionId)
+{
+    const section = getSectionCache(sectionId);
+    if (!section) return;
+
+    section.ExternalRevisionChanged = true;
+
+    const btn = document.querySelector(
+        '#rootHeader_' + String(sectionId).replace(/[^A-Za-z0-9_-]/g, '_')
+    );
+    if (btn) {
+        btn.classList.add('template-external-conflict');
+        btn.title = 'Template changed by another user. Save is blocked until you reload the latest data.';
+    }
+
+    if (!templateExternalConflictSections.has(String(sectionId))) {
+        templateExternalConflictSections.add(String(sectionId));
+        showToast(
+            'Section ' + sectionId +
+            ' changed by another user. Your unsaved changes are preserved; reload the latest Template before saving.',
+            'warning'
+        );
+    }
+}
+
+async function refreshTemplateSectionFromServer(sectionId)
+{
+    const section = getSectionCache(sectionId);
+    if (!section) return false;
+
+    const container = document.querySelector(
+        '.template-list-container[data-section-id="' +
+        String(sectionId).replace(/"/g, '\\"') + '"]'
+    );
+    if (!container) return false;
+
+    const selectedTemplateId =
+        currentTemplate &&
+        String(currentTemplate.SectionID) === String(sectionId)
+            ? currentTemplate.RuntimeTemplateID
+            : null;
+    const selectedVersionId =
+        currentVersion &&
+        currentTemplate &&
+        String(currentTemplate.SectionID) === String(sectionId)
+            ? currentVersion.RuntimeVersionID
+            : null;
+
+    container.dataset.loaded = "0";
+    await loadTemplatesBySection(sectionId, null, true);
+
+    section.ExternalRevisionChanged = false;
+    templateExternalConflictSections.delete(String(sectionId));
+
+    const selectedNode =
+        selectedTemplateId != null
+            ? getTemplateCache(sectionId, selectedTemplateId)
+            : null;
+
+    if (!selectedNode) {
+        if (currentTemplate &&
+            String(currentTemplate.SectionID) === String(sectionId)) {
+            currentTemplate = null;
+            currentVersion = null;
+            currentVersionData = null;
+            clearCenterPanel();
+            clearBuilderPanel();
+            clearRightPanel();
+        }
+        return true;
+    }
+
+    // Re-enter the selected Template through the normal cache/server path.
+    // Its Version cache was invalidated when its persisted Revision changed.
+    if (selectedTemplateId != null) {
+        await onTemplateClick(
+            null,
+            selectedTemplateId,
+            sectionId
+        );
+
+        if (selectedVersionId != null) {
+            const versionEl = document.querySelector(
+                '.template-version-item[data-version-id="' +
+                String(selectedVersionId).replace(/"/g, '\\"') + '"]'
+            );
+            if (versionEl) {
+                await loadVersionStructure(
+                    selectedTemplateId,
+                    selectedVersionId,
+                    versionEl
+                );
+            }
+        }
+    }
+
+    return true;
+}
+
+async function syncTemplateCacheOnce()
+{
+    if (templateCacheSyncBusy || document.hidden) return;
+    templateCacheSyncBusy = true;
+
+    try {
+        const loadedSections = Object.keys(templateCache.sections || {})
+            .filter(function(sectionId) {
+                const section = getSectionCache(sectionId);
+                return section &&
+                    section.Templates &&
+                    Object.keys(section.Templates).length >= 0 &&
+                    document.querySelector(
+                        '.template-list-container[data-section-id="' +
+                        String(sectionId).replace(/"/g, '\\"') + '"]'
+                    );
+            });
+
+        for (let i = 0; i < loadedSections.length; i++) {
+            const sectionId = loadedSections[i];
+            const result = await promisifyPageMethod(
+                PageMethods.GetTemplateSectionRevision,
+                sectionId,
+                companyId,
+                locationId,
+                getLoginData().employeeid,
+                getLoginData().userid
+            );
+
+            const data = typeof result === 'string'
+                ? JSON.parse(result || '{}')
+                : (result || {});
+            const serverTemplates = Array.isArray(data.Templates)
+                ? data.Templates
+                : [];
+
+            const serverSignature = serverTemplates
+                .map(function(x) {
+                    return String(x.IDTemplate || 0) + '=' +
+                        String(x.Revision || '');
+                })
+                .sort()
+                .join('|');
+
+            const section = getSectionCache(sectionId);
+            const cachedSignature =
+                section.ServerRevisionSignature ||
+                buildTemplateRevisionSignature(
+                    Object.values(section.Templates || {})
+                );
+
+            if (serverSignature === cachedSignature)
+                continue;
+
+            if (isTemplateSectionDirty(sectionId)) {
+                markTemplateExternalConflict(sectionId);
+                continue;
+            }
+
+            await refreshTemplateSectionFromServer(sectionId);
+        }
+    }
+    catch (ex) {
+        // Background synchronization must never interrupt the editor.
+        console.warn('[Template Builder] Background cache sync failed:', ex);
+    }
+    finally {
+        templateCacheSyncBusy = false;
+    }
+}
+
+function startTemplateCacheSync()
+{
+    if (templateCacheSyncTimer)
+        clearInterval(templateCacheSyncTimer);
+
+    templateCacheSyncTimer = setInterval(
+        syncTemplateCacheOnce,
+        15000
+    );
+}
+
 async function refreshSavedTemplateSection(sectionId)
 {
     if (sectionId == null || sectionId === "")
@@ -10937,6 +11179,20 @@ function syncVisibleTemplateMetadataBeforeSave()
 }
 async function saveAllTemplate()
 {
+    // Prevent saving stale cached data after another user has persisted a newer
+    // revision. The server also enforces this check as the final safety barrier.
+    const conflictedSection = Object.keys(templateCache.sections || {}).find(function(sectionId) {
+        return getSectionCache(sectionId) && getSectionCache(sectionId).ExternalRevisionChanged;
+    });
+    if (conflictedSection) {
+        showToast(
+            'Save blocked. Section ' + conflictedSection +
+            ' has changes from another user. Reload the latest Template first.',
+            'danger'
+        );
+        return;
+    }
+
     // Prevent a second click while the complete Save All pipeline is still running.
     if (saveAllTemplate._busy) return;
 
