@@ -3248,6 +3248,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,
        I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.IsApproved1,I.Approved1By,ISNULL(EA1.Name,I.Approved1By) AS Approved1ByName,I.Approved1Date,
        I.IsApproved2,I.Approved2By,ISNULL(EA2.Name,I.Approved2By) AS Approved2ByName,I.Approved2Date,
@@ -3261,6 +3262,7 @@ LEFT JOIN dbo.THD_M_GeneralInformation TG
 LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
 LEFT JOIN dbo.M_HRD_Employee EA1 ON EA1.EmployeeID=I.Approved1By
 LEFT JOIN dbo.M_HRD_Employee EA2 ON EA2.EmployeeID=I.Approved2By
 WHERE I.InspectionID=@InspectionID
