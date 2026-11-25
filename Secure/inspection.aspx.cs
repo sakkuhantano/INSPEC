@@ -2176,8 +2176,11 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
  AND EXISTS(SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (@IsAdministrator=1 OR EXISTS(SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')) AND (EXISTS(SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID) OR EXISTS(SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)))
  AND (
   (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0 AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
+  OR (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0 AND (@IsAdministrator=1 OR R.IsCE=1))
   OR
-  (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
+  (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=1 AND I.ApprovedFinalDate>=@DateFrom AND I.ApprovedFinalDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsCE=1 OR R.IsSPV=1))
+  OR
+  (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
   OR
   (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(I.IsApproved2,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') AND ((@IsAdministrator=1 AND (V.VoidSPV=1 OR V.VoidCE=1 OR V.VoidCS=1)) OR (R.IsSPV=1 AND V.VoidSPV=1) OR (R.IsCE=1 AND R.IsPENG=1 AND V.VoidSPV=1) OR (R.IsCS=1 AND R.InSection=1 AND V.VoidSPV=1)))
  )";
@@ -2220,11 +2223,13 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       
+       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,
        I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
         CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApprovedFinal,0)=1 THEN 'ACKNOWLEDGED'
+             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
              WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
