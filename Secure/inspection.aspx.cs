@@ -3012,8 +3012,8 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
   (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND (
     (@IsAdministrator=1 AND ISNULL(I.IsApproved2,0)=0)
     OR (R.IsSPV=1 AND ISNULL(I.IsApproved,0)=0)
-    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0)
-    OR (R.IsCS=1 AND ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+    OR (R.IsCS=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0)
+    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0)
   ))
   OR
   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND (
@@ -3023,8 +3023,8 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
       OR (ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru))
     ))
     OR (R.IsSPV=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
-    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru))
-    OR (R.IsCS=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru))
+    OR (R.IsCS=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru))
+    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru))
   ))
   OR
   (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(I.IsApproved2,0)=0
