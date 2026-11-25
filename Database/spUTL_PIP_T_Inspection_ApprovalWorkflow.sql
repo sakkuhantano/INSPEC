@@ -9,7 +9,7 @@ BEGIN
  IF @p_Action NOT IN ('APPROVE','VOID') BEGIN RAISERROR('Invalid SPV approval action.',16,1); RETURN; END;
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),@SPV VARCHAR(4000),
-         @Mode VARCHAR(10),@WorkflowCode VARCHAR(30),@ChiefEng VARCHAR(4000),@IsChiefEngStage BIT,@StageCode VARCHAR(20),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
+         @Mode VARCHAR(10),@WorkflowCode VARCHAR(30),@ChiefEng VARCHAR(4000),@EmailEnabled BIT,@IsChiefEngStage BIT,@StageCode VARCHAR(20),@TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),@ActorEmail VARCHAR(320),@ConfigScope VARCHAR(30),
          @EventID BIGINT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
