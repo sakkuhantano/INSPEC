@@ -583,6 +583,17 @@ SELECT a.IDTemplate,
                WHERE aa.IDTemplate = a.IDTemplate
                  AND aa.Status = 'Active'
            ) THEN 1 ELSE 0 END AS BIT),
+       Revision = CONVERT(varchar(23), a.UpdateDate, 121)
+           + '|' + CONVERT(varchar(20), (
+               SELECT COUNT(*)
+               FROM PIP_M_CheckListWOPM_Version rv
+               WHERE rv.IDTemplate = a.IDTemplate
+           ))
+           + '|' + ISNULL(CONVERT(varchar(23), (
+               SELECT MAX(rv.UpdateDate)
+               FROM PIP_M_CheckListWOPM_Version rv
+               WHERE rv.IDTemplate = a.IDTemplate
+           )), ''),
        RuntimeTemplateID = a.IDTemplate
 FROM PIP_M_CheckListWOPM a
 WHERE a.SectionID = @SectionID
@@ -627,11 +638,81 @@ WHERE a.SectionID = @SectionID
                         ? "S" : GF.GetString(row["CompanyScope"]),
                     IsActive = Convert.ToBoolean(row.Field<Boolean>("IsActive")),
                     HasActiveVersion = Convert.ToBoolean(row.Field<Boolean>("HasActiveVersion")),
-                    CanDeleted = Convert.ToBoolean(row.Field<Boolean>("CanDeleted"))
+                    CanDeleted = Convert.ToBoolean(row.Field<Boolean>("CanDeleted")),
+                    Revision = GF.GetString(row["Revision"])
                 }).ToList();
 
                 JavaScriptSerializer serializer = new JavaScriptSerializer();
                 return serializer.Serialize(versionList);
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GetTemplateSectionRevision(string sectionId, string companyId, string locationId, string employeeId, string userId)
+        {
+            DataRow inspecUser = RequireMenuAccess(INSPEC_MENU_ID);
+            userId = Convert.ToString(inspecUser["UserID"]).Trim();
+            employeeId = Convert.ToString(inspecUser["EmployeeID"]).Trim();
+            companyId = Convert.ToString(inspecUser["CompanyID"]).Trim();
+            locationId = Convert.ToString(inspecUser["LocationID"]).Trim();
+            RequireAllowedSection(sectionId);
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable dt = br.EQuery(@"
+SELECT
+    a.IDTemplate,
+    Revision = CONVERT(varchar(23), a.UpdateDate, 121)
+        + '|' + CONVERT(varchar(20), (
+            SELECT COUNT(*)
+            FROM PIP_M_CheckListWOPM_Version rv
+            WHERE rv.IDTemplate = a.IDTemplate
+        ))
+        + '|' + ISNULL(CONVERT(varchar(23), (
+            SELECT MAX(rv.UpdateDate)
+            FROM PIP_M_CheckListWOPM_Version rv
+            WHERE rv.IDTemplate = a.IDTemplate
+        )), '')
+FROM PIP_M_CheckListWOPM a
+WHERE a.SectionID = @SectionID
+  AND (
+      ISNULL(a.CompanyScope, 'S') = 'A'
+      OR (';' + ISNULL(a.CompanyLocationList, '') + ';' LIKE '%;' + @CompanyID + @LocationID + ';%')
+  )
+  AND (
+      EXISTS (
+          SELECT 1
+          FROM dbo.SysWebUserCompanyLocation perm
+          WHERE perm.AppID = 'INSPEC'
+            AND perm.UserID = @UserID
+            AND perm.CompanyID = @CompanyID
+            AND perm.LocationID = @LocationID
+      )
+      OR EXISTS (
+          SELECT 1
+          FROM dbo.F_SelectOneLogin('INSPEC', @EmployeeID, '') loginCompany
+          WHERE loginCompany.CompanyID = @CompanyID
+            AND loginCompany.LocationID = @LocationID
+      )
+  )",
+                    "@SectionID=" + sectionId
+                    + GF.Str2 + "@CompanyID=" + companyId
+                    + GF.Str2 + "@LocationID=" + locationId
+                    + GF.Str2 + "@EmployeeID=" + employeeId
+                    + GF.Str2 + "@UserID=" + userId);
+
+                var templates = dt.AsEnumerable().Select(row => new
+                {
+                    IDTemplate = Convert.ToInt32(row["IDTemplate"]),
+                    Revision = GF.GetString(row["Revision"])
+                }).ToList();
+
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new
+                {
+                    SectionID = sectionId,
+                    Templates = templates
+                });
             }
         }
 
