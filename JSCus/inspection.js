@@ -3577,7 +3577,7 @@ window.openBatchInspectionPointChecklist = openBatchInspectionPointChecklist;
 let inspectionPointNavigatorState = {
     baseRecord: null, detail: null, setup: null, record: null, selectedMapId: "",
     scheduleTime: "", activeScheduleTime: "", scheduleTimes: [], allMapsRequested: false, keyword: "",
-    statusFilter: "all", page: 1, pageSize: 20,
+    statusFilter: "all", optionFilter: "", page: 1, pageSize: 20,
     returnScrollTop: 0, returnPointId: 0, restoreNavigatorPosition: false
 };
 let inspectionPointNavigatorLoadSequence = 0;
@@ -3665,6 +3665,28 @@ function getInspectionPointNavigatorRecords(baseRecord, detail) {
         candidates.push(baseRecord);
     return candidates.sort((a, b) => String(b.UpdatedAt || b.StartDateTime || "")
         .localeCompare(String(a.UpdatedAt || a.StartDateTime || "")));
+}
+
+function getInspectionPointNavigatorOptionValue(point, record, scheduleTime, optionFilter) {
+    const wanted = String(optionFilter || "").trim().toUpperCase();
+    if (!wanted) return false;
+    const lightning = String(record && record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const transaction = record && (record.Points || []).find(item =>
+        Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
+        (!lightning || String(item.ScheduleTime || "") === String(scheduleTime || "")));
+    const items = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
+    const template = record && record.TemplateSnapshot;
+    const sections = template && Array.isArray(template.sections) ? template.sections : [];
+    for (const section of sections) {
+        for (const item of (section.items || [])) {
+            if (String(item.type || "").toUpperCase() !== "OPTION") continue;
+            const itemId = item.idItem != null ? item.idItem : item.IDItem;
+            const answer = items.find(entry => Number(entry.IDItem) === Number(itemId));
+            const value = String(answer && answer.Value || "").trim().toUpperCase();
+            if (value === wanted) return true;
+        }
+    }
+    return false;
 }
 
 function getInspectionPointNavigatorStatus(point, record, scheduleTime) {
@@ -3783,7 +3805,9 @@ function renderInspectionPointNavigatorList() {
             (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
             (state.statusFilter === "done" && status === "DONE") ||
             (state.statusFilter === "abnormal" && status === "ABNORMAL");
-        return matchesMap && matchesSchedule && matchesKeyword && matchesStatus;
+        const matchesOption = !state.optionFilter ||
+            getInspectionPointNavigatorOptionValue(point, state.record, state.scheduleTime, state.optionFilter);
+        return matchesMap && matchesSchedule && matchesKeyword && matchesStatus && matchesOption;
     });
 
     // Keep the Inspection Point master order; the optional Sort By control is removed.
@@ -3897,8 +3921,8 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         if (navigatorSubtitle) {
             navigatorSubtitle.textContent =
                 String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
-                    ? "Jadwal aktif: " + (state.scheduleTime || "-") + " · Status dan input mengikuti jadwal ini."
-                    : "Semua titik tetap ditampilkan, termasuk yang sudah diinspeksi.";
+                    ? "Jadwal aktif: " + (state.scheduleTime || "-") + (state.optionFilter ? " · Filter hasil: " + state.optionFilter : "") + " · Status dan input mengikuti jadwal ini."
+                    : "Semua titik tetap ditampilkan" + (state.optionFilter ? " · Filter hasil: " + state.optionFilter : "") + ".";
         }
 
         const mapSelect = document.getElementById("inspectionPointNavigatorMap");
@@ -4059,7 +4083,9 @@ function wireInspectionPointNavigator() {
                     (state.statusFilter === "incomplete" && status === "INCOMPLETE") ||
                     (state.statusFilter === "done" && status === "DONE") ||
                     (state.statusFilter === "abnormal" && status === "ABNORMAL");
-                return matchMap && matchKeyword && matchStatus;
+                const matchOption = !state.optionFilter ||
+                    getInspectionPointNavigatorOptionValue(point, state.record, state.scheduleTime, state.optionFilter);
+                return matchMap && matchKeyword && matchStatus && matchOption;
             }).length / Math.max(1, state.pageSize)));
             if (action === "first") state.page = 1;
             else if (action === "prev") state.page--;
@@ -4070,6 +4096,17 @@ function wireInspectionPointNavigator() {
                 state.page = Math.max(1, Math.min(pageCount, Number(input && input.value) || 1));
             }
             renderInspectionPointNavigatorList();
+            return;
+        }
+        const optionButton = event.target.closest("[data-open-inspection-option]");
+        if (optionButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof window.openInspectionPointNavigator === "function")
+                window.openInspectionPointNavigator({
+                    mapId: "all",
+                    optionFilter: optionButton.getAttribute("data-open-inspection-option") || ""
+                });
             return;
         }
         const button = event.target.closest("[data-point-navigator-open]");
@@ -4126,6 +4163,7 @@ window.openInspectionPointNavigator = async function (options) {
     state.keyword = "";
     state.statusFilter = ["all", "pending", "incomplete", "unfilled", "done", "abnormal"].includes(String(options.statusFilter || "all"))
         ? String(options.statusFilter || "all") : "all";
+    state.optionFilter = String(options.optionFilter || "").trim().toUpperCase();
     state.page = 1;
     state.pageSize = 20;
     document.getElementById("inspectionPointNavigatorSearch").value = "";
