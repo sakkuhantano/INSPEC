@@ -8,6 +8,10 @@ ALTER PROCEDURE dbo.spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType
     @p_H_IsActive BIT=1,
     @p_H_GroupingBy VARCHAR(200)='',
     @p_H_InspectionMode VARCHAR(10)='STANDARD',
+    @p_H_InspectionLayoutCode VARCHAR(20)='STANDARD',
+    @p_H_PointSource VARCHAR(10)='MASTER',
+    @p_H_ScheduleSelectionMode VARCHAR(20)='PARAM',
+    @p_H_ApprovalWorkflowCode VARCHAR(30)='STANDARD',
     @p_D_ID INT=0,
     @p_D_CompanyID VARCHAR(10),
     @p_D_LocationID VARCHAR(3),
@@ -27,14 +31,16 @@ BEGIN
             RAISERROR('Inspection Type Code already exists.', 16, 1);
         ELSE
             INSERT INTO dbo.PIP_M_InspectionType
-                (InspectionTypeCode, InspectionTypeName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, ReportLayout, GroupingBy, InspectionMode)
+                (InspectionTypeCode, InspectionTypeName, SectionID, IsActive, EntryUser, EntryDate, UpdateUser, UpdateDate, ReportLayout, GroupingBy, InspectionMode, InspectionLayoutCode, PointSource, ScheduleSelectionMode, ApprovalWorkflowCode)
             VALUES
-                (@p_H_InspectionTypeCode, @p_H_InspectionTypeName, @p_H_SectionID, @p_H_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_H_ReportLayout, @p_H_GroupingBy, @p_H_InspectionMode);
+                (@p_H_InspectionTypeCode, @p_H_InspectionTypeName, @p_H_SectionID, @p_H_IsActive, @p_UpdateUser, GETDATE(), @p_UpdateUser, GETDATE(), @p_H_ReportLayout, @p_H_GroupingBy, @p_H_InspectionMode, @p_H_InspectionLayoutCode, @p_H_PointSource, @p_H_ScheduleSelectionMode, @p_H_ApprovalWorkflowCode);
     END
     ELSE IF @p_H_Tipe = '2'
         UPDATE dbo.PIP_M_InspectionType
         SET InspectionTypeName=@p_H_InspectionTypeName, SectionID=@p_H_SectionID, ReportLayout = @p_H_ReportLayout,
-            IsActive=@p_H_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), GroupingBy = @p_H_GroupingBy, InspectionMode=@p_H_InspectionMode
+            IsActive=@p_H_IsActive, UpdateUser=@p_UpdateUser, UpdateDate=GETDATE(), GroupingBy = @p_H_GroupingBy, InspectionMode=@p_H_InspectionMode,
+            InspectionLayoutCode=@p_H_InspectionLayoutCode, PointSource=@p_H_PointSource,
+            ScheduleSelectionMode=@p_H_ScheduleSelectionMode, ApprovalWorkflowCode=@p_H_ApprovalWorkflowCode
         WHERE InspectionTypeCode=@p_H_InspectionTypeCode;
     ELSE IF @p_H_Tipe = '3'
         UPDATE dbo.PIP_M_InspectionType
