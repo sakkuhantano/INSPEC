@@ -2197,7 +2197,12 @@ CROSS APPLY (SELECT
 CROSS APPLY (SELECT
  CASE WHEN ISNULL(I.ReasonVoid,'')<>'' AND (ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='SPV' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidSPV,
  CASE WHEN ISNULL(I.ReasonVoid1,'')<>'' AND (ISNULL(I.Approved1Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCE,
- CASE WHEN ISNULL(I.ReasonVoid2,'')<>'' AND (ISNULL(I.Approved2Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCS
+ CASE WHEN ISNULL(I.ReasonVoid2,'')<>'' AND (ISNULL(I.Approved2Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCS,
+ CASE WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.ReasonVoid,'')<>'' AND EXISTS
+  (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID
+   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
+   AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID
+    AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate)) THEN 1 ELSE 0 END VoidBatchCE
 ) V
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1
  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
@@ -2211,7 +2216,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
   OR
   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
   OR
-  (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(I.IsApproved2,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') AND ((@IsAdministrator=1 AND (V.VoidSPV=1 OR V.VoidCE=1 OR V.VoidCS=1)) OR (R.IsSPV=1 AND V.VoidSPV=1) OR (R.IsCE=1 AND R.IsPENG=1 AND V.VoidSPV=1) OR (R.IsCS=1 AND R.InSection=1 AND V.VoidSPV=1)))
+  (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(I.IsApproved2,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') AND ((@IsAdministrator=1 AND (V.VoidSPV=1 OR V.VoidCE=1 OR V.VoidCS=1 OR V.VoidBatchCE=1)) OR (R.IsSPV=1 AND V.VoidSPV=1) OR (R.IsCE=1 AND R.IsPENG=1 AND V.VoidSPV=1) OR (R.IsCS=1 AND R.InSection=1 AND V.VoidSPV=1) OR (R.IsCE=1 AND V.VoidBatchCE=1)))
  )";
 
 
