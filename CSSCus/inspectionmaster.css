@@ -195,7 +195,7 @@
 .inspection-map-preview-canvas,.inspection-map-preview-media .inspection-image-preview{display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:fill;border:0;background:#fff}
 .inspection-map-preview-markers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .inspection-map-preview-svg{position:absolute;inset:0;display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
-.inspection-map-preview-svg .inspection-map-preview-path{stroke-width:3!important;stroke-linecap:round;stroke-linejoin:round}
+.inspection-map-preview-svg .inspection-map-preview-path{stroke-width:2!important;stroke-linecap:round;stroke-linejoin:round}
 .inspection-map-preview-svg .inspection-map-preview-path-hit{fill:none!important;stroke:#000!important;stroke-opacity:.001!important;stroke-width:14!important;pointer-events:stroke!important}
 .inspection-map-preview-svg [data-point-id]{pointer-events:visiblePainted;cursor:pointer}
 .inspection-map-preview-svg .inspection-map-preview-circle{fill:#fd7e14;stroke:#fff;stroke-width:1.05;vector-effect:non-scaling-stroke}
@@ -203,7 +203,7 @@
 .inspection-map-preview-svg .inspection-map-preview-path{stroke:#fd7e14!important}
 .inspection-map-preview-svg .inspection-map-preview-circle.inspection-map-preview-shape-selected{fill:#0d6efd!important;stroke:#fff!important;stroke-width:1.5!important}
 .inspection-map-preview-svg .inspection-map-preview-rectangle.inspection-map-preview-shape-selected{fill:rgba(13,110,253,.30)!important;stroke:#0d6efd!important;stroke-width:1.5!important}
-.inspection-map-preview-svg .inspection-map-preview-path.inspection-map-preview-shape-selected{stroke:#0d6efd!important;stroke-width:6!important;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px rgba(13,110,253,.95))}
+.inspection-map-preview-svg .inspection-map-preview-path.inspection-map-preview-shape-selected{stroke:#0d6efd!important;stroke-width:3.5!important;filter:drop-shadow(0 0 1px #fff) drop-shadow(0 0 3px rgba(13,110,253,.9))}
 .inspection-map-preview-marker{position:absolute;transform:translate(-50%,-50%);width:9px;height:9px;border:1.5px solid #fff;border-radius:50%;background:#0d6efd;box-shadow:0 1px 4px rgba(0,0,0,.55)}
 .inspection-point-pager{padding:.2rem .35rem;border:1px solid #e2e8f0;border-radius:.45rem;background:#f8fafc}
 .inspection-point-pager .btn{min-width:32px;border-radius:.3rem!important;font-size:.78rem}
