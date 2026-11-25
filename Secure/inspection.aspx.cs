@@ -292,6 +292,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                                     pointName = TokenString(point, "Nopol").Trim();
                                 if (pointName == "")
                                     throw new Exception("Nopol / PointName wajib diisi untuk setiap kendaraan Motor.");
+                                pointName = pointName.ToUpperInvariant();
                                 if (masterPointID > 0)
                                     throw new Exception("Dynamic Motor point must not reference a master InspectionPointID.");
                             }
