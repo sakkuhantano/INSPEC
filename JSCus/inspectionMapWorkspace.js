@@ -311,6 +311,86 @@
         }
     }
 
+    function inspectionMapDistanceToPathScreen(path, svg, clientX, clientY) {
+        if (!path || !svg || typeof path.getTotalLength !== "function" ||
+            typeof path.getPointAtLength !== "function") return Infinity;
+        var total = 0;
+        try { total = path.getTotalLength(); } catch (_) { return Infinity; }
+        if (!isFinite(total) || total <= 0) return Infinity;
+
+        var ctm;
+        try { ctm = path.getScreenCTM(); } catch (_) { ctm = null; }
+        if (!ctm) return Infinity;
+
+        var samples = Math.max(12, Math.min(160, Math.ceil(total / 18)));
+        var best = Infinity;
+        for (var i = 0; i <= samples; i++) {
+            var p;
+            try { p = path.getPointAtLength(total * i / samples); } catch (_) { continue; }
+            var screen = new DOMPoint(p.x, p.y).matrixTransform(ctm);
+            var dx = screen.x - clientX, dy = screen.y - clientY;
+            var d = Math.sqrt(dx * dx + dy * dy);
+            if (d < best) best = d;
+        }
+        return best;
+    }
+
+    function resolveInspectionMapPointIdFromGeometry(clickedShape, clientX, clientY) {
+        var overlay = document.getElementById("inspectionMapPoints");
+        var svg = overlay && overlay.querySelector(".inspection-map-svg-overlay");
+        if (!svg) return clickedShape && clickedShape.getAttribute("data-point-id");
+
+        var clickedId = clickedShape && clickedShape.getAttribute
+            ? clickedShape.getAttribute("data-point-id") : "";
+        var paths = Array.prototype.slice.call(
+            svg.querySelectorAll(".inspection-map-svg-path[data-point-id]")
+        );
+        if (!paths.length) return clickedId;
+
+        // Closed PATHs are resolved by the actual SVG fill geometry first.
+        // This avoids any dependency on DOM paint order or overlapping hit boxes.
+        try {
+            var inverse = svg.getScreenCTM().inverse();
+            var point = svg.createSVGPoint();
+            point.x = clientX;
+            point.y = clientY;
+            point = point.matrixTransform(inverse);
+
+            var containing = [];
+            paths.forEach(function (path) {
+                if (!/[Zz]/.test(path.getAttribute("d") || "") ||
+                    typeof path.isPointInFill !== "function") return;
+                try {
+                    if (path.isPointInFill(point)) {
+                        var box = path.getBBox();
+                        containing.push({
+                            id: path.getAttribute("data-point-id"),
+                            area: Math.max(0, box.width) * Math.max(0, box.height)
+                        });
+                    }
+                } catch (_) { }
+            });
+            if (containing.length) {
+                containing.sort(function (a, b) { return a.area - b.area; });
+                return containing[0].id || clickedId;
+            }
+        } catch (_) { }
+
+        // Open PATHs and border clicks use the nearest real visible geometry.
+        // The tolerance is deliberately in CSS pixels, so it remains stable
+        // while the map is zoomed/panned.
+        var nearestId = clickedId;
+        var nearestDistance = Infinity;
+        paths.forEach(function (path) {
+            var distance = inspectionMapDistanceToPathScreen(path, svg, clientX, clientY);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestId = path.getAttribute("data-point-id") || clickedId;
+            }
+        });
+        return nearestDistance <= 18 ? nearestId : clickedId;
+    }
+
     function renderPoints() {
         var host = document.getElementById("inspectionMapPoints");
         if (!host) return;
@@ -325,7 +405,12 @@
                 event.preventDefault();
                 event.stopPropagation();
                 removeNavigatorFocusRing();
-                openPoint(shape.getAttribute("data-point-id"));
+                var pointId = resolveInspectionMapPointIdFromGeometry(
+                    shape,
+                    event.clientX,
+                    event.clientY
+                );
+                openPoint(pointId || shape.getAttribute("data-point-id"));
             });
             host.addEventListener("keydown", function (event) {
                 if (event.key !== "Enter" && event.key !== " ") return;
@@ -429,47 +514,10 @@
         svg.push('</svg>');
         host.innerHTML = svg.join("") + circleMarkers.join("");
 
-        // PATH data from the map editor is not always a closed SVG subpath.
-        // In that case, clicking inside a visible rectangle does not hit the
-        // path itself. Add a transparent bounding-box target behind each PATH
-        // so the entire plotted area opens the matching inspection point.
-        var pathOverlay = host.querySelector(".inspection-map-svg-overlay");
-        if (pathOverlay) {
-            var pathElements = Array.prototype.slice.call(
-                pathOverlay.querySelectorAll(".inspection-map-svg-path[data-point-id]")
-            );
-            pathElements.forEach(function (pathElement) {
-                var bounds;
-                try {
-                    bounds = pathElement.getBBox();
-                } catch (_) {
-                    bounds = null;
-                }
-                if (!bounds || !isFinite(bounds.x) || !isFinite(bounds.y) ||
-                    !isFinite(bounds.width) || !isFinite(bounds.height) ||
-                    bounds.width <= 0 || bounds.height <= 0) return;
-
-                // A small tolerance makes narrow borders easier to hit without
-                // changing the visible drawing or its stored coordinates.
-                var padX = Math.max(0.25, bounds.width * 0.015);
-                var padY = Math.max(0.25, bounds.height * 0.015);
-                var hitArea = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                hitArea.setAttribute("class", "inspection-map-svg-path-hit-area");
-                hitArea.setAttribute("x", String(bounds.x - padX));
-                hitArea.setAttribute("y", String(bounds.y - padY));
-                hitArea.setAttribute("width", String(bounds.width + padX * 2));
-                hitArea.setAttribute("height", String(bounds.height + padY * 2));
-                hitArea.setAttribute("fill", "transparent");
-                hitArea.setAttribute("pointer-events", "all");
-                hitArea.setAttribute("data-point-id", pathElement.getAttribute("data-point-id"));
-                hitArea.setAttribute("aria-hidden", "true");
-
-                // Keep the hit-area behind its own visible path. Later points
-                // retain their normal stacking priority when plotted on top.
-                pathOverlay.insertBefore(hitArea, pathElement);
-            });
-        }
-
+        // Do NOT create transparent bounding-box hit targets for PATHs.
+        // Adjacent PATH bounding boxes can overlap, and SVG paint order then makes
+        // a click on one visible PATH resolve to a neighboring PATH. Selection is
+        // resolved from the actual rendered geometry in the delegated click handler.
         host.querySelectorAll("[data-point-id]").forEach(function (shape) {
             // SVG point shapes are keyboard-focusable for accessibility, but the
             // browser's native focus outline is not useful on top of the floor plan.
@@ -1247,8 +1295,18 @@
             return;
         }
 
-        // Desktop keeps its existing Point List synchronization behavior.
-        scrollPointListToRow(id);
+        // Map selection is a direct inspection action on both desktop and
+        // mobile: open the point checklist dialog immediately. The list remains
+        // available separately and is no longer used as an intermediate step.
+        if (typeof window.openBatchInspectionPointChecklist === "function") {
+            Promise.resolve(window.openBatchInspectionPointChecklist(selectedPoint)).catch(function (error) {
+                console.error("Unable to open inspection checklist:", error);
+                if (typeof showToast === "function")
+                    showToast(error && error.message ? error.message : "Checklist point gagal dibuka.", "warning");
+            });
+        } else {
+            scrollPointListToRow(id);
+        }
     }
 
     function closePoint() {
