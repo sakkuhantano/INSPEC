@@ -2978,8 +2978,8 @@
             </div>
         </div>
     </div>
-<script type="text/javascript" src="../JSCus/inspection.js?v=20261125-point-dialog-v1"></script>
+<script type="text/javascript" src="../JSCus/inspection.js?v=20261125-batch-lightning-ux-v2"></script>
 <script type="text/javascript" src="../JSCus/inspectionApprovalOffline.js"></script>
 <script type="text/javascript" src="../JSCus/pdf.min.js"></script>
-<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261125-path-geometry-v1"></script>
+<script type="text/javascript" src="../JSCus/inspectionMapWorkspace.js?v=20261125-batch-lightning-ux-v2"></script>
 </asp:Content>
