@@ -77,10 +77,10 @@ BEGIN
        INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
         EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
        VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-        'TECHNICIAN',@Owner,@TechEmail,N'Inspection perlu diperbaiki - '+ISNULL(@No,''),
-        N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' dikembalikan oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
+        'TECHNICIAN',@Owner,@TechEmail,CASE WHEN @IsChiefEngStage=1 THEN N'Inspection perlu diperbaiki oleh Chief Engineering - ' ELSE N'Inspection perlu diperbaiki oleh SPV - ' END+ISNULL(@No,''),
+        N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' dikembalikan oleh '+CASE WHEN @IsChiefEngStage=1 THEN N'Chief Engineering ' ELSE N'SPV ' END+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') untuk koreksi.</p><p>Alasan: '+REPLACE(REPLACE(REPLACE(@p_Remark,N'&',N'&amp;'),N'<',N'&lt;'),N'>',N'&gt;')+
         N'</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka INSPEC untuk memperbaiki dan submit ulang</a></p>',
-        N'Inspection '+ISNULL(@No,'')+N' dikembalikan oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
+        N'Inspection '+ISNULL(@No,'')+N' dikembalikan oleh '+CASE WHEN @IsChiefEngStage=1 THEN N'Chief Engineering ' ELSE N'SPV ' END+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). Alasan: '+@p_Remark+N' '+ISNULL(@p_CorrectionUrl,N''),'PENDING',0,GETDATE());
     
    END
   END
@@ -99,9 +99,29 @@ BEGIN
        INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
         EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
        VALUES('INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':TECHNICIAN',@EventID,'INSPECTION',@p_InspectionID,
-        'TECHNICIAN',@Owner,@TechEmail,N'Inspection telah di-approve - '+ISNULL(@No,''),
-        N'<p>Halo '+ISNULL(@TechName,@Owner)+N' ('+ISNULL(@Owner,'')+N'), inspection '+ISNULL(@No,'')+N' telah di-approve oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').</p>',
-         N'Inspection '+ISNULL(@No,'')+N' telah di-approve oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N').','PENDING',0,GETDATE());
+        'TECHNICIAN',@Owner,@TechEmail,CASE WHEN @IsChiefEngStage=1 THEN N'Inspection telah di-acknowledge Chief Engineering - ' WHEN @WorkflowCode='SPV_CHIEF_ENG' THEN N'Inspection telah diverifikasi SPV - ' ELSE N'Inspection telah di-approve - ' END+ISNULL(@No,''),
+        N'<p>Halo '+ISNULL(@TechName,@Owner)+N', inspection '+ISNULL(@No,'')+N' telah diproses oleh '+CASE WHEN @IsChiefEngStage=1 THEN N'Chief Engineering ' ELSE N'SPV ' END+ISNULL(@ActorName,@p_ActorEmployeeID)+CASE WHEN @WorkflowCode='SPV_CHIEF_ENG' AND @IsChiefEngStage=0 THEN N' dan menunggu acknowledgement Chief Engineering.</p>' ELSE N'.</p>' END,
+         N'Inspection '+ISNULL(@No,'')+N' telah diproses oleh '+CASE WHEN @IsChiefEngStage=1 THEN N'Chief Engineering ' ELSE N'SPV ' END+ISNULL(@ActorName,@p_ActorEmployeeID)+CASE WHEN @WorkflowCode='SPV_CHIEF_ENG' AND @IsChiefEngStage=0 THEN N' dan menunggu acknowledgement Chief Engineering.' ELSE N'.' END,'PENDING',0,GETDATE());
+
+       IF @WorkflowCode='SPV_CHIEF_ENG' AND @IsChiefEngStage=0
+       BEGIN
+        INSERT dbo.PIP_T_InspectionEmailOutbox(NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
+         EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
+        SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF_ENG:'+X.EmployeeID,
+         @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
+         N'Inspection menunggu acknowledgement Chief Engineering - '+ISNULL(@No,''),
+         N'<p>Inspection '+ISNULL(@No,'')+N' telah diverifikasi oleh SPV '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').</p><p><a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka halaman approval INSPEC</a></p>',
+         N'Inspection '+ISNULL(@No,'')+N' menunggu acknowledgement Chief Engineering '+X.EmployeeName+N' ('+X.EmployeeID+N').',
+         'PENDING',0,GETDATE()
+        FROM
+        (
+         SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress,
+          ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
+         FROM dbo.SplitStringConvertToTable(@ChiefEng,';') S
+         JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
+         WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''
+        ) X;
+       END;
       END;
     
    END;
