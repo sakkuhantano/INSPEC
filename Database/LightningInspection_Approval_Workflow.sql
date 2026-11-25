@@ -269,7 +269,7 @@ BEGIN
     DECLARE @V_EventID BIGINT,@V_NewStatus VARCHAR(30),@V_NextStage VARCHAR(20);
 
     SELECT @V_CompanyID=I.CompanyID,@V_LocationID=I.LocationID,@V_SectionID=I.SectionID,
-           @V_Stage=CASE WHEN ISNULL(I.IsApproved,0)=0 THEN 'SPV' WHEN ISNULL(I.IsApproved1,0)=0 THEN 'CHIEF_ENG' ELSE 'CHIEF_SEC' END,
+           @V_Stage=CASE WHEN ISNULL(I.IsApproved,0)=0 THEN 'SPV' WHEN ISNULL(I.IsApproved1,0)=0 THEN 'CHIEF_SEC' ELSE 'CHIEF_ENG' END,
            @V_OwnerEmployeeID=I.OwnerEmployeeID,@V_InspectionNo=I.InspectionNo
     FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
     JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
@@ -304,8 +304,8 @@ BEGIN
       AND C.ID=@V_ConfigScope+';CHIEF_SEC';
 
     IF (@V_Stage='SPV' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
-       OR (@V_Stage='CHIEF_ENG' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
        OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
+       OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
     BEGIN RAISERROR('You are not the configured approver for the current Lightning stage.',16,1); RETURN; END;
 
     /*
@@ -337,8 +337,8 @@ BEGIN
              AND H.StageCode=
                  CASE
                      WHEN @V_Stage='SPV' THEN 'TECHNICIAN'
-                     WHEN @V_Stage='CHIEF_ENG' THEN 'SPV'
-                     WHEN @V_Stage='CHIEF_SEC' THEN 'CHIEF_ENG'
+                     WHEN @V_Stage='CHIEF_SEC' THEN 'SPV'
+                     WHEN @V_Stage='CHIEF_SEC' THEN 'CHIEF_SEC'
                  END
              AND H.ActionCode IN ('SUBMITTED','RESUBMITTED','APPROVED')
        )
@@ -351,7 +351,7 @@ BEGIN
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
     IF @V_EmailEnabled=1 AND ISNULL(@V_TechnicianEmail,'')=''
     BEGIN RAISERROR('Technician email is missing from M_HRD_Employee.emailaddress.',16,1); RETURN; END;
-    IF @V_EmailEnabled=1 AND @V_Stage IN ('CHIEF_ENG','CHIEF_SEC')
+    IF @V_EmailEnabled=1 AND @V_Stage IN ('CHIEF_SEC','CHIEF_ENG')
        AND EXISTS
        (
            SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X
@@ -367,7 +367,7 @@ BEGIN
     IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_SEC'
        AND EXISTS
        (
-           SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X
+           SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X
            WHERE NOT EXISTS
            (
                SELECT 1 FROM dbo.M_HRD_Employee E
@@ -377,14 +377,14 @@ BEGIN
        )
     BEGIN RAISERROR('Email address is missing for one or more configured Chief Engineering recipients.',16,1); RETURN; END;
 
-    IF @p_Action='APPROVE' AND @V_Stage IN ('SPV','CHIEF_ENG')
+    IF @p_Action='APPROVE' AND @V_Stage IN ('SPV','CHIEF_SEC')
     BEGIN
-        SELECT @V_NextEmployeeID=CASE WHEN @V_Stage='SPV' THEN @V_ChiefEngID ELSE @V_ChiefSecID END;
+        SELECT @V_NextEmployeeID=CASE WHEN @V_Stage='SPV' THEN @V_ChiefSecID ELSE @V_ChiefEngID END;
         SELECT @V_NextEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress)) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),''),
                @V_NextName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val))) FROM dbo.SplitStringConvertToTable(@V_NextEmployeeID,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val)) ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_NextEmployeeID);
         IF @V_EmailEnabled=1 AND ISNULL(@V_NextEmail,'')=''
         BEGIN RAISERROR('Email address is missing for the next Lightning approver stage.',16,1); RETURN; END;
-        SET @V_NewStatus=CASE WHEN @V_Stage='SPV' THEN 'VERIFIED' ELSE 'ACKNOWLEDGE 1' END; SET @V_NextStage=CASE WHEN @V_Stage='SPV' THEN 'CHIEF_ENG' ELSE 'CHIEF_SEC' END;
+        SET @V_NewStatus=CASE WHEN @V_Stage='SPV' THEN 'VERIFIED' ELSE 'ACKNOWLEDGE 1' END; SET @V_NextStage=CASE WHEN @V_Stage='SPV' THEN 'CHIEF_SEC' ELSE 'CHIEF_ENG' END;
     END
     ELSE IF @p_Action='APPROVE'
     BEGIN
@@ -430,14 +430,14 @@ BEGIN
                 ApprovedBy=CASE WHEN @V_Stage='SPV' THEN @p_ActorEmployeeID ELSE '' END,
                 ApprovedDate=CASE WHEN @V_Stage='SPV' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
                 IsApproved1=0,
-                Approved1By=CASE WHEN @V_Stage='CHIEF_ENG' THEN @p_ActorEmployeeID ELSE '' END,
-                Approved1Date=CASE WHEN @V_Stage='CHIEF_ENG' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
+                Approved1By=CASE WHEN @V_Stage='CHIEF_SEC' THEN @p_ActorEmployeeID ELSE '' END,
+                Approved1Date=CASE WHEN @V_Stage='CHIEF_SEC' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
                 IsApproved2=0,
                 Approved2By=CASE WHEN @V_Stage='CHIEF_SEC' THEN @p_ActorEmployeeID ELSE '' END,
                 Approved2Date=CASE WHEN @V_Stage='CHIEF_SEC' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
                 ApprovalRemark='',
                 ReasonVoid=CASE WHEN @V_Stage='SPV' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid END,
-                ReasonVoid1=CASE WHEN @V_Stage='CHIEF_ENG' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
+                ReasonVoid1=CASE WHEN @V_Stage='CHIEF_SEC' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
                 ReasonVoid2=CASE WHEN @V_Stage='CHIEF_SEC' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid2 END,
                 UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
             WHERE InspectionID=@p_InspectionID;
@@ -457,7 +457,7 @@ BEGIN
             END;
 
             /* Notify lower approval levels when a higher level VOIDs the inspection. */
-            IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_ENG'
+            IF @V_EmailEnabled=1 AND @V_Stage='CHIEF_SEC'
                 INSERT dbo.PIP_T_InspectionEmailOutbox
                 (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                  EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
@@ -511,7 +511,7 @@ BEGIN
                     ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),
                     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
                 WHERE InspectionID=@p_InspectionID;
-            ELSE IF @V_Stage='CHIEF_ENG'
+            ELSE IF @V_Stage='CHIEF_SEC'
                 UPDATE dbo.PIP_T_Inspection SET IsApproved1=1,Approved1By=@p_ActorEmployeeID,Approved1Date=GETDATE(),ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE() WHERE InspectionID=@p_InspectionID;
             ELSE
                 UPDATE dbo.PIP_T_Inspection SET IsApproved2=1,Approved2By=@p_ActorEmployeeID,Approved2Date=GETDATE(),ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE() WHERE InspectionID=@p_InspectionID;
@@ -536,9 +536,9 @@ BEGIN
                     SELECT
                     'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+CASE WHEN @V_Stage='SPV' THEN ':CHIEF_ENG:' ELSE ':CHIEF_SEC:' END+X.EmployeeID,
                      @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,T.ApprovalToken,
-                     N'Lightning Inspection menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering - ' ELSE N'Chief Security - ' END+ISNULL(@V_InspectionNo,''),
-                     N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'&approvalToken='+CONVERT(NVARCHAR(36),T.ApprovalToken)+N'">Buka halaman approval INSPEC</a></p>',
-                     N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Engineering ' ELSE N'Chief Security ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve '+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Engineering ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
+                     N'Lightning Inspection menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Security - ' ELSE N'Chief Engineering - ' END+ISNULL(@V_InspectionNo,''),
+                     N'<p>'+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Security ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N') telah approve. Daily Lightning Inspection menunggu review '+CASE WHEN @V_Stage='SPV' THEN N'Chief Security ' ELSE N'Chief Engineering ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N').</p><p><a href="'+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID)+N'&approvalToken='+CONVERT(NVARCHAR(36),T.ApprovalToken)+N'">Buka halaman approval INSPEC</a></p>',
+                     N'Daily Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' menunggu approval '+CASE WHEN @V_Stage='SPV' THEN N'Chief Security ' ELSE N'Chief Engineering ' END+ISNULL(X.EmployeeName,X.EmployeeID)+N' ('+ISNULL(X.EmployeeID,'')+N') setelah di-approve '+CASE WHEN @V_Stage='SPV' THEN N'SPV ' ELSE N'Chief Security ' END+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' ('+ISNULL(@p_ActorEmployeeID,'')+N'). '+ISNULL(@p_ApprovalUrl,N'')+N'&inspectionId='+CONVERT(NVARCHAR(20),@p_InspectionID),'PENDING',0,GETDATE()
                     FROM
                     (
                       SELECT LTRIM(RTRIM(S.val)) EmployeeID,E.emailaddress EmailAddress,ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
@@ -549,7 +549,7 @@ BEGIN
                     CROSS APPLY (SELECT NEWID() ApprovalToken) T;
 
                 /* Notify all lower approval levels after a higher-level approval. */
-                IF @V_Stage='CHIEF_ENG'
+                IF @V_Stage='CHIEF_SEC'
                     INSERT dbo.PIP_T_InspectionEmailOutbox
                     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
