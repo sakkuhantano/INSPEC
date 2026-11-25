@@ -424,7 +424,11 @@ new SqlParameter("@CompanyID", companyId),
 
                 DataTable types = br.EQuery(@"
 SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
-       ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode
+       ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode,
+       ISNULL(T.InspectionLayoutCode,'STANDARD') AS InspectionLayoutCode,
+       ISNULL(T.PointSource,'MASTER') AS PointSource,
+       ISNULL(T.ScheduleSelectionMode,'PARAM') AS ScheduleSelectionMode,
+       ISNULL(T.ApprovalWorkflowCode,'STANDARD') AS ApprovalWorkflowCode
 FROM dbo.PIP_M_InspectionType T
 WHERE T.IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
@@ -469,6 +473,10 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                     InspectionTypeName = GF.GetString(row["InspectionTypeName"]),
                     SectionID = GF.GetString(row["SectionID"]),
                     InspectionMode = GF.GetString(row["InspectionMode"]),
+                    InspectionLayoutCode = GF.GetString(row["InspectionLayoutCode"]),
+                    PointSource = GF.GetString(row["PointSource"]),
+                    ScheduleSelectionMode = GF.GetString(row["ScheduleSelectionMode"]),
+                    ApprovalWorkflowCode = GF.GetString(row["ApprovalWorkflowCode"]),
                     CompanyID = companyId,
                     LocationID = locationId
                 }).ToList();
