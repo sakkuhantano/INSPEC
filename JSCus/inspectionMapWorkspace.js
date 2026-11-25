@@ -566,6 +566,11 @@
 
         var all = getVisiblePoints();
         var keyword = String(listKeyword || "").trim().toLowerCase();
+        var searchMatches = keyword ? all.filter(function (point) {
+            return String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
+                String(point.PointName || "").toLowerCase().indexOf(keyword) >= 0 ||
+                getPointPlateSearchText(point).toLowerCase().indexOf(keyword) >= 0;
+        }) : [];
         var filtered = all.filter(function (point) {
             return !keyword ||
                 String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
@@ -590,6 +595,15 @@
                 '<div class="d-flex gap-2 align-items-center mb-2">' +
                     '<input type="search" id="inspectionPointSearch" class="form-control form-control-sm" ' +
                     'placeholder="Cari Point Code / No. Plat..." value="' + esc(listKeyword) + '">' +
+                    (searchMatches.length > 1 ? '<select id="inspectionPointSearchChoice" class="form-select form-select-sm" aria-label="Pilih hasil pencarian">' +
+                        '<option value="">Pilih hasil (' + searchMatches.length + ')</option>' +
+                        searchMatches.slice(0, 100).map(function (point) {
+                            return '<option value="' + esc(point.InspectionPointID) + '">' +
+                                esc((point.PointCode || point.PointName || "Point") + ' · ' + (point.PointName || "") +
+                                    (getPointPlateSearchText(point) ? ' · ' + getPointPlateSearchText(point) : "")) +
+                                '</option>';
+                        }).join("") +
+                        '</select>' : '') +
                     '<select id="inspectionPointPageSize" class="form-select form-select-sm" style="width:82px">' +
                         '<option value="10"' + (listPageSize === 10 ? ' selected' : '') + '>10</option>' +
                         '<option value="20"' + (listPageSize === 20 ? ' selected' : '') + '>20</option>' +
@@ -734,6 +748,11 @@
             });
             host.setAttribute("data-point-search-wired", "1");
         }
+        var searchChoice = document.getElementById("inspectionPointSearchChoice");
+        if (searchChoice) searchChoice.addEventListener("change", function () {
+            var id = String(this.value || "");
+            if (id) openPoint(id);
+        });
         var size = document.getElementById("inspectionPointPageSize");
         if (size) size.addEventListener("change", function () {
             listPageSize = Number(this.value) || 20;
