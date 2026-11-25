@@ -37,11 +37,11 @@ The schema script creates approval history and email outbox. Workflow state is s
 
 ## Workflow behavior
 
-- Standard / Batch: Technician submits -> configured Section SPV approves or voids.
-- Lightning: one daily InspectionID contains every configured ScheduleTime -> Technician submits -> Chief Engineering (`CHECKED` -> `ACKNOWLEDGE 1`) -> Chief Security (`ACKNOWLEDGE`).
+- Standard / Batch: Technician submits -> configured Section SPV verifies -> Chief Engineering acknowledges for types configured with `SPV_CHIEF_ENG`. Car Park and Motor use this 3-card workflow (`CHECKED BY` -> `VERIFIED BY` -> `ACKNOWLEDGED BY`).
+- Lightning: one daily InspectionID contains all 61 configured lamp points across the configured maps -> Technician submits -> SPV verifies (`CHECKED` -> `VERIFIED`) -> Chief Security acknowledges 1 -> Chief Engineering acknowledges 2 (`ACKNOWLEDGE 1` -> `ACKNOWLEDGE 2`).
 - A void requires a reason and returns the server record to the technician correction list. The authenticated correction email link opens that record.
 - Approval email links open the authenticated approval review; approval itself is only performed by an explicit same-origin POST action.
-- Workflow state is held on PIP_T_Inspection (IsSubmitted, IsApproved, IsApprovedFinal and their actor/date fields). Every approver VOID resets all three stages and returns the record to DRAFT; the approval history remains intact. Lightning schedule tabs are derived from PIP_M_InspectionTypeDetail.ScheduleTime and PIP_T_InspectionPoint.ScheduleTime.
+- Workflow state is held on PIP_T_Inspection (`IsSubmitted`, `IsApproved`, `IsApproved1`, `IsApproved2` and their actor/date fields). For Standard/Batch, `IsApproved` is SPV and `IsApproved1` is Chief Engineering; for Lightning, `IsApproved` is SPV, `IsApproved1` is Chief Security, and `IsApproved2` is Chief Engineering. Every approver VOID resets all three stages and returns the record to DRAFT; the approval history remains intact. Lightning schedule tabs are derived from PIP_M_InspectionTypeDetail.ScheduleTime and PIP_T_InspectionPoint.ScheduleTime.
 
 ## Deployment checks
 
