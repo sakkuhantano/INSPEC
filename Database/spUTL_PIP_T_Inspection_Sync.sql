@@ -572,7 +572,7 @@ BEGIN
         /* One scheduled inspection per company/location, section, date, type, detail, time, and template.
            For tenant-based details, TenantID and SuiteNo are also part of the duplicate key.
            ClientInspectionID is excluded so syncing an existing offline record remains an update. */
-        IF EXISTS
+        IF @p_InspectionMode <> 'BATCH' AND EXISTS
         (
             SELECT 1
             FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
