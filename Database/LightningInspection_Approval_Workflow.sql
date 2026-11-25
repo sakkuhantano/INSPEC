@@ -433,8 +433,8 @@ BEGIN
                 Approved1By=CASE WHEN @V_Stage='CHIEF_SEC' THEN @p_ActorEmployeeID ELSE '' END,
                 Approved1Date=CASE WHEN @V_Stage='CHIEF_SEC' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
                 IsApproved2=0,
-                Approved2By=CASE WHEN @V_Stage='CHIEF_SEC' THEN @p_ActorEmployeeID ELSE '' END,
-                Approved2Date=CASE WHEN @V_Stage='CHIEF_SEC' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
+                Approved2By=CASE WHEN @V_Stage='CHIEF_ENG' THEN @p_ActorEmployeeID ELSE '' END,
+                Approved2Date=CASE WHEN @V_Stage='CHIEF_ENG' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
                 ApprovalRemark='',
                 ReasonVoid=CASE WHEN @V_Stage='SPV' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid END,
                 ReasonVoid1=CASE WHEN @V_Stage='CHIEF_SEC' THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
@@ -548,35 +548,35 @@ BEGIN
                     ) X
                     CROSS APPLY (SELECT NEWID() ApprovalToken) T;
 
-                /* Notify all lower approval levels after a higher-level approval. */
+                /* Notify lower approval levels after a higher-level approval. */
                 IF @V_Stage='CHIEF_SEC'
                     INSERT dbo.PIP_T_InspectionEmailOutbox
                     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
                     SELECT 'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':APPROVED_NOTIFY:SPV:'+X.EmployeeID,
                            @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
-                           N'Lightning Inspection telah di-approve Chief Engineering - '+ISNULL(@V_InspectionNo,''),
-                           N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah approve Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p><p>Saat ini menunggu approval Chief Security.</p>',
-                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah di-approve Chief Engineering dan menunggu Chief Security.',
+                           N'Lightning Inspection telah di-approve Chief Security - '+ISNULL(@V_InspectionNo,''),
+                           N'<p>Chief Security '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah approve Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p><p>Saat ini menunggu approval Chief Engineering.</p>',
+                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah di-approve Chief Security dan menunggu Chief Engineering.',
                            'PENDING',0,GETDATE()
                     FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress
                           FROM dbo.SplitStringConvertToTable(@V_SPVID,';') S
                           JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
                           WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'') X;
 
-                IF @V_Stage='CHIEF_SEC'
+                IF @V_Stage='CHIEF_ENG'
                 BEGIN
                     INSERT dbo.PIP_T_InspectionEmailOutbox
                     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-                    SELECT 'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':APPROVED_NOTIFY:CHIEF_ENG:'+X.EmployeeID,
+                    SELECT 'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':APPROVED_NOTIFY:CHIEF_SEC:'+X.EmployeeID,
                            @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
-                           N'Lightning Inspection telah selesai di-approve Chief Security - '+ISNULL(@V_InspectionNo,''),
-                           N'<p>Chief Security '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah menyelesaikan approval Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p>',
-                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah selesai di-approve Chief Security.',
+                           N'Lightning Inspection telah selesai di-approve Chief Engineering - '+ISNULL(@V_InspectionNo,''),
+                           N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah menyelesaikan approval Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p>',
+                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah selesai di-approve Chief Engineering.',
                            'PENDING',0,GETDATE()
                     FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress
-                          FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') S
+                          FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') S
                           JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
                           WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'') X;
 
@@ -585,9 +585,9 @@ BEGIN
                      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
                     SELECT 'LIGHTNING:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@V_EventID)+':APPROVED_NOTIFY:SPV:'+X.EmployeeID,
                            @V_EventID,'LIGHTNING',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
-                           N'Lightning Inspection telah selesai di-approve Chief Security - '+ISNULL(@V_InspectionNo,''),
-                           N'<p>Chief Security '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah menyelesaikan approval Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p>',
-                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah selesai di-approve Chief Security.',
+                           N'Lightning Inspection telah selesai di-approve Chief Engineering - '+ISNULL(@V_InspectionNo,''),
+                           N'<p>Chief Engineering '+ISNULL(@V_ActorName,@p_ActorEmployeeID)+N' telah menyelesaikan approval Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N'.</p>',
+                           N'Lightning Inspection '+ISNULL(@V_InspectionNo,'')+N' telah selesai di-approve Chief Engineering.',
                            'PENDING',0,GETDATE()
                     FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress
                           FROM dbo.SplitStringConvertToTable(@V_SPVID,';') S
