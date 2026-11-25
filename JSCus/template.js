@@ -10955,9 +10955,17 @@ async function saveTemplate(runtimeTemplateID, isPublish)
     );  
     if(!save.success)
     {
-        showToast(
-            save.message
-        );
+        if (save.conflict) {
+            markTemplateExternalConflict(sectionID);
+            showToast(
+                'Save blocked. Another user has changed this Template. Reload the latest data before continuing.',
+                'danger'
+            );
+        } else {
+            showToast(
+                save.message
+            );
+        }
 
         return false;
     }
