@@ -484,7 +484,7 @@ WHERE T.IDTemplate=@IDTemplate
                             throw new Exception("Inspection Detail tidak sesuai dengan batasan Inspection Detail pada Master Template.");
 
                         DataTable tenantDetail = br.EQueryP(@"
-SELECT ISNULL(IsTenantInspection,0) IsTenantInspection
+SELECT DB_NAME() AS ServerDatabaseName, ISNULL(IsTenantInspection,0) IsTenantInspection
 FROM dbo.PIP_M_InspectionTypeDetail
 WHERE InspectionTypeCode=@InspectionTypeCode
   AND InspectionTypeDetailCode=@InspectionTypeDetailCode
@@ -498,6 +498,8 @@ WHERE InspectionTypeCode=@InspectionTypeCode
                         if (tenantDetail == null || tenantDetail.Rows.Count == 0)
                             throw new Exception("Inspection Type Detail tidak ditemukan atau sudah tidak aktif.");
                         bool isTenantInspection = Convert.ToBoolean(tenantDetail.Rows[0]["IsTenantInspection"]);
+                        record["_ServerDatabaseName"] = Convert.ToString(tenantDetail.Rows[0]["ServerDatabaseName"]);
+                        record["_ServerIsTenantInspection"] = isTenantInspection ? "1" : "0";
                         if (isTenantInspection)
                         {
                             if (String.IsNullOrWhiteSpace(tenantId) || String.IsNullOrWhiteSpace(suiteNo))
@@ -1074,7 +1076,7 @@ WHERE InspectionID=@InspectionID",
                 }
                 catch (Exception ex)
                 {
-                    WriteInspectionSyncError(syncStage, clientId, userId, ex);
+                    WriteInspectionSyncError(syncStage, clientId, userId, record, ex);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
                     // Keep technical diagnostics in App_Data/server logs only.
@@ -1143,7 +1145,15 @@ WHERE InspectionID=@InspectionID",
             return "Inspeksi belum berhasil disinkronkan. Data masih tersimpan di perangkat ini. Periksa koneksi internet, lalu coba sinkronkan kembali. Jika masalah tetap muncul, hubungi SPV.";
         }
 
-        private static void WriteInspectionSyncError(string stage, string clientInspectionId, string userId, Exception error)
+        private static string GetInspectionSyncLogField(JObject record, string field, int maxLength)
+        {
+            if (record == null) return "";
+            string value = TokenString(record, field) ?? "";
+            value = value.Replace("\r", " ").Replace("\n", " ").Trim();
+            return Limit(value, maxLength);
+        }
+
+        private static void WriteInspectionSyncError(string stage, string clientInspectionId, string userId, JObject record, Exception error)
         {
             try
             {
@@ -1157,14 +1167,32 @@ WHERE InspectionID=@InspectionID",
 
                 Directory.CreateDirectory(appDataPath);
                 string logPath = Path.Combine(appDataPath, "InspectionSyncErrors.log");
+                string recordContext = String.Format(
+                    CultureInfo.InvariantCulture,
+                    "CompanyID: {0}{10}LocationID: {1}{10}SectionID: {2}{10}InspectionTypeCode: {3}{10}InspectionTypeDetailCode: {4}{10}TenantID: {5}{10}SuiteNo: {6}{10}ScheduledTime: {7}{10}IDTemplate: {8}{10}InspectionDate: {9}{10}ServerDatabaseName: {11}{10}ServerIsTenantInspection: {12}",
+                    GetInspectionSyncLogField(record, "CompanyID", 10),
+                    GetInspectionSyncLogField(record, "LocationID", 3),
+                    GetInspectionSyncLogField(record, "SectionID", 10),
+                    GetInspectionSyncLogField(record, "InspectionTypeCode", 10),
+                    GetInspectionSyncLogField(record, "InspectionTypeDetailCode", 20),
+                    GetInspectionSyncLogField(record, "TenantID", 10),
+                    GetInspectionSyncLogField(record, "SuiteNo", 10),
+                    GetInspectionSyncLogField(record, "ScheduledTime", 20),
+                    GetInspectionSyncLogField(record, "IDTemplate", 20),
+                    GetInspectionSyncLogField(record, "InspectionDate", 30),
+                    Environment.NewLine,
+                    GetInspectionSyncLogField(record, "_ServerDatabaseName", 128),
+                    GetInspectionSyncLogField(record, "_ServerIsTenantInspection", 1));
+
                 string entry = String.Format(
                     CultureInfo.InvariantCulture,
-                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} UTC ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}{5}{1}{1}",
+                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} UTC ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}Record Context:{1}{5}{1}{6}{1}{1}",
                     DateTime.UtcNow,
                     Environment.NewLine,
                     stage ?? "",
                     clientInspectionId ?? "",
                     userId ?? "",
+                    recordContext,
                     error == null ? "(no exception details)" : error.ToString());
 
                 lock (typeof(inspection))
