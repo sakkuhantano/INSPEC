@@ -280,7 +280,7 @@
                     <div class="d-flex align-items-center gap-2">
                         <asp:DropDownList ID="ddlInspectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
                             <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
-                            <asp:ListItem Text="Batch Map" Value="BATCH"></asp:ListItem>
+                            <asp:ListItem Text="Batch Inspection" Value="BATCH"></asp:ListItem>
                             <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
                         </asp:DropDownList>
                         <button type="button" id="btnInspectionModeInfo" class="btn btn-link text-info p-0 flex-shrink-0" data-bs-toggle="tooltip" data-bs-trigger="focus" data-bs-placement="top" data-bs-container="body" title="Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian." aria-label="Informasi Lightning">
