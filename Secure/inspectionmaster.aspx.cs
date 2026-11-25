@@ -853,7 +853,9 @@ ORDER BY P.DisplayOrder, P.PointCode",
                         // also receive a transparent interior hit area, so clicking inside
                         // a square/room outline selects that point rather than a neighbour.
                         bool isClosedPath = System.Text.RegularExpressions.Regex.IsMatch(d, @"[Zz]");
-                        paths.Append("<path class='inspection-map-preview-path-hit' data-point-id='")
+                        paths.Append("<path class='inspection-map-preview-path-hit")
+                            .Append(isClosedPath ? " inspection-map-preview-path-hit-closed" : "")
+                            .Append("' data-point-id='")
                             .Append(Convert.ToString(point["InspectionPointID"], CultureInfo.InvariantCulture))
                             .Append("' d='").Append(HttpUtility.HtmlAttributeEncode(d))
                             .Append("' fill='").Append(isClosedPath ? "#000" : "none")
