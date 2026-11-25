@@ -2268,9 +2268,9 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
  AND EXISTS(SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (@IsAdministrator=1 OR EXISTS(SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')) AND (EXISTS(SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID) OR EXISTS(SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)))
  AND (
   (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=0 AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
-  OR (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0 AND (@IsAdministrator=1 OR R.IsCE=1))
+  OR (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND (@IsAdministrator=1 OR R.IsCE=1))
   OR
-  (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=1 AND I.ApprovedFinalDate>=@DateFrom AND I.ApprovedFinalDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsCE=1 OR R.IsSPV=1))
+  (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsCE=1 OR R.IsSPV=1))
   OR
   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(IT.ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru) AND (@IsAdministrator=1 OR R.IsSPV=1 OR (R.IsCE=1 AND R.IsPENG=1) OR (R.IsCS=1 AND R.InSection=1)))
   OR
@@ -2315,12 +2315,12 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,I.ApprovedFinalDate,
+       I.IsApproved1,I.Approved1By,I.Approved1Date,
        I.ApprovalRemark,I.ReasonVoid,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
         CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
-             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApprovedFinal,0)=1 THEN 'ACKNOWLEDGED'
+             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
              WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
              WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
@@ -2423,8 +2423,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.IsApproved,
                         I.IsApproved1,
                         I.IsApproved2,
-                        I.IsApprovedFinal,
-                        I.ApprovedFinalDate,
+                        I.IsApproved1,
+                        I.Approved1Date,
                         I.ApprovedDate,
                         I.Approved1Date,
                         I.Approved2Date,
@@ -2569,7 +2569,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                             THEN 1
 
                             WHEN @IsAdministrator=1 AND I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
                             THEN 1
 
                             WHEN I.InspectionMode = 'LIGHTNING'
@@ -2611,7 +2611,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                             THEN 1
 
                             WHEN I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0
+                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
                                  AND EXISTS
                                  (
                                      SELECT 1 FROM dbo.SysWebCommonValue C
@@ -2653,8 +2653,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      AND
                                      (
                                          (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApprovedFinal,0)=1
-                                          AND ApprovedFinalDate >= @Today AND ApprovedFinalDate < DATEADD(DAY,1,@Today))
+                                          AND ISNULL(IsApproved1,0)=1
+                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today))
                                          OR
                                          (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved,0)=1
@@ -2695,8 +2695,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      AND
                                      (
                                          (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApprovedFinal,0)=1
-                                          AND ApprovedFinalDate >= @Today AND ApprovedFinalDate < DATEADD(DAY,1,@Today))
+                                          AND ISNULL(IsApproved1,0)=1
+                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today))
                                          OR
                                          (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved,0)=1
@@ -3361,17 +3361,17 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') AS ApprovalWorkflowCode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
-            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApprovedFinal=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
        CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
-            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApprovedFinal=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
+            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(ET.Name,I.OwnerEmployeeID) AS TechnicianName,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
-       I.IsApprovedFinal,I.ApprovedFinalBy,ISNULL(EAF.Name,I.ApprovedFinalBy) AS ApprovedFinalByName,I.ApprovedFinalDate,
+       I.IsApproved1,I.Approved1By,ISNULL(EAF.Name,I.Approved1By) AS Approved1ByName,I.Approved1Date,
        I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.IsApproved1,I.Approved1By,ISNULL(EA1.Name,I.Approved1By) AS Approved1ByName,I.Approved1Date,
        I.IsApproved2,I.Approved2By,ISNULL(EA2.Name,I.Approved2By) AS Approved2ByName,I.Approved2Date,
@@ -3385,7 +3385,7 @@ LEFT JOIN dbo.THD_M_GeneralInformation TG
 LEFT JOIN dbo.M_HRD_Employee ET ON ET.EmployeeID=I.OwnerEmployeeID
 LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
 LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
-LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.ApprovedFinalBy
+LEFT JOIN dbo.M_HRD_Employee EAF ON EAF.EmployeeID=I.Approved1By
 LEFT JOIN dbo.M_HRD_Employee EA1 ON EA1.EmployeeID=I.Approved1By
 LEFT JOIN dbo.M_HRD_Employee EA2 ON EA2.EmployeeID=I.Approved2By
 WHERE I.InspectionID=@InspectionID
