@@ -14,11 +14,11 @@ BEGIN
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
         @WorkflowCode=ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD'),
-        @IsChiefEngStage=CASE WHEN ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN 1 ELSE 0 END
+        @IsChiefEngStage=CASE WHEN ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN 1 ELSE 0 END
  FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
-  AND ISNULL(I.IsSubmitted,0)=1 AND (ISNULL(I.IsApproved,0)=0 OR (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApprovedFinal,0)=0));
+  AND ISNULL(I.IsSubmitted,0)=1 AND (ISNULL(I.IsApproved,0)=0 OR (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0));
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for an authorized approval stage.',16,1); RETURN; END;
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @StageCode=CASE WHEN @IsChiefEngStage=1 THEN 'CHIEF_ENG' ELSE 'SPV' END;
@@ -69,7 +69,7 @@ BEGIN
    UPDATE dbo.PIP_T_Inspection SET Status='DRAFT',
     IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
     IsApproved=0,ApprovedBy='',ApprovedDate=GETDATE(),
-    IsApprovedFinal=0,ApprovedFinalBy='',ApprovedFinalDate=CONVERT(DATETIME,'19000101',112),
+    IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
     ApprovalRemark='',ReasonVoid=CONVERT(VARCHAR(500),@p_Remark),
     UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
@@ -88,7 +88,7 @@ BEGIN
   ELSE
   BEGIN
    IF @IsChiefEngStage=1
-    UPDATE dbo.PIP_T_Inspection SET IsApprovedFinal=1,ApprovedFinalBy=@p_ActorEmployeeID,ApprovedFinalDate=GETDATE(),
+    UPDATE dbo.PIP_T_Inspection SET IsApproved1=1,Approved1By=@p_ActorEmployeeID,Approved1Date=GETDATE(),
      ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
     WHERE InspectionID=@p_InspectionID;
    ELSE
