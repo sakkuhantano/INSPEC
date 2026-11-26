@@ -3039,7 +3039,7 @@ WHERE I.InspectionID=@InspectionID
                          AND EXISTS (
                              SELECT 1 FROM dbo.SysWebCommonValue C
                              WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                               AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+                               AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(B.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
                                AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
                          )
                    ))
@@ -4130,7 +4130,7 @@ WHERE S.CompanyID=@CompanyID AND S.LocationID=@LocationID
   (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(S.SectionID)
+        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))
@@ -4189,7 +4189,7 @@ WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID
   (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(B.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))
@@ -4235,7 +4235,7 @@ ORDER BY B.InspectionDate DESC,B.ApprovalBatchID DESC",
 SELECT B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
        B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
        B.ApprovedBy,B.ApprovedDate,B.EmailStatus,
-       dbo.fnINSPEC_ChiefRoleForSection(B.SectionID) ChiefRole,
+       CASE UPPER(LTRIM(RTRIM(ISNULL(B.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END ChiefRole,
        ISNULL(EC.Name,B.CreatedBy) CreatedByName,
        ISNULL(EA.Name,B.ApprovedBy) ApprovedByName
 FROM dbo.PIP_T_Inspection_ApprovalBatch B
@@ -4247,7 +4247,7 @@ WHERE B.ApprovalBatchID=@BatchID
   (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(B.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))",
