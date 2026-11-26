@@ -1968,11 +1968,9 @@ FROM dbo.PIP_M_InspectionType IT
 WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
   AND
   (
-      ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
-      OR
-      (ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
-       AND ISNULL(IT.InspectionPointMode,'')='MAP'
-       AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')
+      ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+      AND ISNULL(IT.InspectionPointMode,'')='MAP'
+      AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'
   )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)",
                     new SqlParameter[] {
@@ -2706,9 +2704,9 @@ CROSS APPLY (SELECT
  CASE WHEN ISNULL(I.ReasonVoid1,'')<>'' AND (ISNULL(I.Approved1Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCE,
  CASE WHEN ISNULL(I.ReasonVoid2,'')<>'' AND (ISNULL(I.Approved2Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCS
 ) V
-WHERE (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
-        OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'))
- AND I.InspectionMode='LIGHTNING'
+WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
+ AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'
+ AND I.InspectionMode='BATCH'
  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1
  AND EXISTS(SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (@IsAdministrator=1 OR EXISTS(SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')) AND (EXISTS(SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID) OR EXISTS(SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)))
  AND (
@@ -2769,7 +2767,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
        I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
-       'LIGHTNING' InspectionMode,
+       'BATCH' InspectionMode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
@@ -3983,7 +3981,6 @@ JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.Se
 WHERE I.InspectionID IN (" + String.Join(",", idParameters.ToArray()) + @")
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
   AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
   AND ISNULL(T.TemplateType,'W')='I'
   AND (ISNULL(T.CompanyScope,'S')='A'
@@ -4065,7 +4062,6 @@ LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeC
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
 WHERE I.InspectionID=@InspectionID
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
   AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
   AND ISNULL(T.TemplateType,'W')='I' 
   AND (ISNULL(T.CompanyScope,'S')='A'
