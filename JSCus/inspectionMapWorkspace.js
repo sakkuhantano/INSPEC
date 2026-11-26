@@ -65,7 +65,7 @@
     }
 
     function getActiveScheduleTime() {
-        if (!currentMapRecord || String(currentMapRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "";
+        if (!currentMapRecord || !(String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" && String(currentMapRecord.ScheduleSelectionMode || "").toUpperCase() === "INSPECT")) return "";
         var schedules = Array.isArray(currentMapRecord.Schedules) ? currentMapRecord.Schedules : [];
         var active = String(currentMapRecord.ActiveScheduleTime || currentScheduleTime || "");
         if (!schedules.some(function (item) { return String(item.ScheduleTime || item) === active; }))
@@ -77,7 +77,7 @@
     function renderLightningScheduleTabs() {
         var host = document.getElementById("inspectionLightningScheduleTabs");
         if (!host) return;
-        var lightning = currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "LIGHTNING";
+        var lightning = currentMapRecord && (String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" && String(currentMapRecord.ScheduleSelectionMode || "").toUpperCase() === "INSPECT");
         host.classList.toggle("d-none", !lightning);
         if (!lightning) { host.innerHTML = ""; currentScheduleTime = ""; return; }
         var schedules = Array.isArray(currentMapRecord.Schedules) ? currentMapRecord.Schedules : [];
@@ -921,7 +921,7 @@
         }
 
         var isLightning = currentMapRecord &&
-            String(currentMapRecord.InspectionMode || "").toUpperCase() === "LIGHTNING";
+            (String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" && String(currentMapRecord.ScheduleSelectionMode || "").toUpperCase() === "INSPECT");
         var scheduleLabel = isLightning ? (getActiveScheduleTime() || "Belum dipilih") : "Batch";
         var html =
             '<div class="small fw-semibold text-muted mb-1"><i class="bi bi-bar-chart-line me-1"></i>Ringkasan Semua Denah' +
@@ -1990,7 +1990,7 @@
             window.mountInspectionBatchSummary(record);
 
         var setup = record.BatchMapSetup || {};
-        if (String(record.PointSource || "").toUpperCase() === "DYNAMIC" &&
+        if (String(record.InspectionPointMode || "").toUpperCase() === "DYNAMIC" &&
             (!Array.isArray(setup.points) || !setup.points.length) && Array.isArray(record.Points)) {
             setup.points = record.Points.map(function (transaction, index) {
                 return {
@@ -2009,7 +2009,7 @@
             record.BatchMapSetup = setup;
         }
         currentMaps = Array.isArray(setup.maps) ? setup.maps : [];
-        if (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+        if ((String(record.InspectionMode || "").toUpperCase() === "BATCH" && String(record.ScheduleSelectionMode || "").toUpperCase() === "INSPECT")) {
             var recordActiveSchedule = String(record.ActiveScheduleTime || "");
             var scheduleExists = function (value) {
                 return Array.isArray(record.Schedules) &&
@@ -2040,7 +2040,7 @@
         var title = document.getElementById("inspectionMapTitle");
         var subtitle = document.getElementById("inspectionMapSubtitle");
         if (title) title.textContent = typeName + (detailName ? " · " + detailName : "");
-        if (subtitle) subtitle.textContent = (String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+        if (subtitle) subtitle.textContent = ((String(record.InspectionMode || "").toUpperCase() === "BATCH" && String(record.ScheduleSelectionMode || "").toUpperCase() === "INSPECT")
             ? "Jadwal " + getActiveScheduleTime() + " · "
             : "Batch " + (record.InspectionNo || "baru") + " · ") + currentPoints.length + " Unit Inspeksi";
 
