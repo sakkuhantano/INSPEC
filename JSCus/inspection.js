@@ -363,6 +363,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             document.getElementById("inspectionApprovalPanel").classList.remove("d-none");
             wireInspectionApprovalEvents();
             await loadInspectionApprovalQueue();
+            await initializeSpvApprovalSections();
             await initializeChiefBatchApproval();
             const approvalView = new URLSearchParams(window.location.search).get("view");
             if (approvalView === "chiefbatch") showChiefBatchPanel();
@@ -7224,6 +7225,7 @@ const INSPECTION_APPROVAL_PAGE_SIZE_KEY = "inspectionApprovalPageSize";
 let inspectionApprovalPage = 1;
 let inspectionApprovalPageSize = INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE;
 let currentChiefApprovalBatchID = 0;
+let spvApprovalSections = [];
 let currentChiefApprovalBatch = null;
 let chiefApprovalBatchRows = [];
 // Excel preview is generated server-side and opened with a short-lived Session token.
@@ -7311,6 +7313,10 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("inspectionApprovalParamTab", "shown.bs.tab", function () {
         const navHost = document.getElementById("inspectionApprovalSectionNavHost");
         if (navHost) navHost.classList.add("d-none");
+    });
+    addInspectionApprovalListener("selApprovalSection", "change", function () {
+        inspectionApprovalPage = 1;
+        renderInspectionApprovalQueue();
     });
     addInspectionApprovalListener("selApprovalType", "change", function () {
         document.getElementById("selApprovalDetail").value = "";
@@ -7578,7 +7584,10 @@ function populateInspectionApprovalFilters(filterRows) {
 }
 
 function getInspectionApprovalPageCount() {
+    const sectionFilter = document.getElementById("selApprovalSection");
+    const selectedSection = sectionFilter ? sectionFilter.value : "";
     const rows = inspectionApprovalRows.filter(row => {
+        if (selectedSection && String(row.SectionID || "") !== selectedSection) return false;
         if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
@@ -7605,7 +7614,10 @@ function updateInspectionApprovalPager(totalRows, pageCount) {
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
+    const sectionFilter = document.getElementById("selApprovalSection");
+    const selectedSection = sectionFilter ? sectionFilter.value : "";
     const rows = inspectionApprovalRows.filter(row => {
+        if (selectedSection && String(row.SectionID || "") !== selectedSection) return false;
         if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
@@ -8412,6 +8424,29 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
     if (canRenderMap) await renderMap(selectedMap());
 }
 
+
+
+async function initializeSpvApprovalSections() {
+    try {
+        const result = await inspectionApprovalPost("GetSPVApprovalSections", {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        spvApprovalSections = Array.isArray(result.data) ? result.data : [];
+        const select = document.getElementById("selApprovalSection");
+        if (select) {
+            const previous = select.value;
+            select.innerHTML = '<option value="">All authorized sections</option>' +
+                spvApprovalSections.map(row => '<option value="' + escInspection(row.SectionID) + '">' +
+                    escInspection(row.SectionID) + '</option>').join("");
+            if (spvApprovalSections.some(row => String(row.SectionID) === previous)) select.value = previous;
+        }
+        renderInspectionApprovalQueue();
+    } catch (error) {
+        console.warn("Unable to load authorized SPV sections:", error);
+    }
+}
 
 async function initializeChiefBatchApproval() {
     try {
