@@ -3984,7 +3984,7 @@ WHERE ApprovalBatchID=@BatchID AND CompanyID=@CompanyID AND LocationID=@Location
 
         private static string SendStandardBatchEmail(
             long approvalBatchId, string employeeId, string companyId, string locationId,
-            DataRow batch, IList<Dictionary<string, string>> reports)
+            DataRow batch, IList<Dictionary<string, string>> reports, bool isScheduled)
         {
             string recipients = Convert.ToString(batch["ChiefRecipients"]);
             DataTable recipientRows;
@@ -4011,24 +4011,40 @@ WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''",
             string fromName = employeeId;
             using (var br = new WAL.BR.CF())
             {
-                DataTable sender = br.EQueryP(@"
+                DataTable sender;
+                if (isScheduled)
+                {
+                    sender = br.EQueryP(@"
+SELECT TOP 1 LTRIM(RTRIM(ISNULL(Description,''))) EmailAddress,
+       LTRIM(RTRIM(ISNULL(GroupDescription,''))) EmployeeName
+FROM dbo.SysWebCommonValue
+WHERE AppID='pip' AND CommonGroup='AutoEmail' AND IsDelete=0
+  AND ISNULL(LTRIM(RTRIM(Description)),'')<>''
+  AND ISNULL(LTRIM(RTRIM(GroupDescription)),'')<>''", new SqlParameter[] { });
+                }
+                else
+                {
+                    sender = br.EQueryP(@"
 SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') EmailAddress,
        ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@EmployeeID) EmployeeName
 FROM dbo.M_HRD_Employee
 WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
   AND ISNULL(TerminationDate,'')=''",
-                    new SqlParameter[] {
-                        new SqlParameter("@EmployeeID", employeeId),
-                        new SqlParameter("@CompanyID", companyId)
-                    });
+                        new SqlParameter[] {
+                            new SqlParameter("@EmployeeID", employeeId),
+                            new SqlParameter("@CompanyID", companyId)
+                        });
+                }
                 if (sender != null && sender.Rows.Count > 0)
                 {
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
                     fromName = Convert.ToString(sender.Rows[0]["EmployeeName"]).Trim();
                 }
             }
-            if (String.IsNullOrWhiteSpace(fromAddress))
-                throw new InvalidOperationException("Email pengirim SPV tidak ditemukan di M_HRD_Employee.");
+            if (String.IsNullOrWhiteSpace(fromAddress) || String.IsNullOrWhiteSpace(fromName))
+                throw new InvalidOperationException(isScheduled
+                    ? "Sender AutoEmail belum dikonfigurasi pada SysWebCommonValue (AppID=pip, CommonGroup=AutoEmail)."
+                    : "Email pengirim SPV tidak ditemukan di M_HRD_Employee.");
 
             string host = ConfigurationManager.AppSettings["smtpHost"];
             int port;
@@ -4363,6 +4379,15 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             }
         }
 
+        private sealed class StandardBatchProcessResult
+        {
+            public bool success { get; set; }
+            public long approvalBatchId { get; set; }
+            public int inspectionCount { get; set; }
+            public string emailStatus { get; set; }
+            public string emailMessage { get; set; }
+        }
+
         [WebMethod]
         public static object CreateStandardApprovalBatch(long[] inspectionIds, string employeeId,
             string companyId, string locationId)
@@ -4372,6 +4397,16 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             if (!IsInspectionAdministrator(employeeId))
                 employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            return CreateStandardApprovalBatchCore(inspectionIds, employeeId, companyId, locationId, false);
+        }
+
+        // The manual SPV action and nightly scheduler share this single batch processor.
+        private static StandardBatchProcessResult CreateStandardApprovalBatchCore(
+            long[] inspectionIds, string employeeId, string companyId, string locationId, bool isScheduled)
+        {
+            if (isScheduled &&
+                (!String.Equals(employeeId, "sa", StringComparison.OrdinalIgnoreCase) || !IsInspectionAdministrator(employeeId)))
+                throw new UnauthorizedAccessException("Scheduled batch requires the INSPEC administrator identity sa.");
             if (inspectionIds == null || inspectionIds.Length == 0 || inspectionIds.Length > 200)
                 throw new HttpException(400, "Pilih 1 sampai 200 inspeksi untuk dibuatkan batch.");
             long[] ids = inspectionIds.Where(id => id > 0).Distinct().ToArray();
@@ -4386,18 +4421,17 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                         new SqlParameter("@p_InspectionIDs", String.Join(",", ids.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray())),
                         new SqlParameter("@p_EmployeeID", employeeId),
                         new SqlParameter("@p_CompanyID", companyId),
-                        new SqlParameter("@p_LocationID", locationId)
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_IsScheduled", isScheduled)
                     }, true, true);
             }
             if (created == null || created.Rows.Count == 0)
                 throw new InvalidOperationException("Batch berhasil diproses tetapi header batch tidak dikembalikan.");
 
             long batchId = Convert.ToInt64(created.Rows[0]["ApprovalBatchID"]);
-            bool emailEnabled = created.Rows[0]["EmailEnabled"] != DBNull.Value &&
-                Convert.ToBoolean(created.Rows[0]["EmailEnabled"]);
+            bool emailEnabled = created.Rows[0]["EmailEnabled"] != DBNull.Value && Convert.ToBoolean(created.Rows[0]["EmailEnabled"]);
             string emailStatus = emailEnabled ? "FAILED" : "NOT_REQUIRED";
             string emailMessage = "";
-
             if (emailEnabled)
             {
                 try
@@ -4405,7 +4439,7 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                     List<Dictionary<string, string>> reports = GenerateStandardBatchReports(
                         batchId, employeeId, companyId, locationId, true);
                     string emailTo = SendStandardBatchEmail(batchId, employeeId, companyId, locationId,
-                        created.Rows[0], reports);
+                        created.Rows[0], reports, isScheduled);
                     emailStatus = "SENT";
                     using (var br = new WAL.BR.CF())
                     {
@@ -4438,13 +4472,199 @@ WHERE ApprovalBatchID=@BatchID",
                     }
                 }
             }
-
-            return new {
+            return new StandardBatchProcessResult
+            {
                 success = true, approvalBatchId = batchId,
                 inspectionCount = Convert.ToInt32(created.Rows[0]["InspectionCount"]),
-                emailStatus = emailStatus,
-                emailMessage = emailMessage
+                emailStatus = emailStatus, emailMessage = emailMessage
             };
+        }
+
+        // Called only after Login.aspx has validated the scheduler HMAC and one-time nonce.
+        // System scope is equivalent to administrator NIK sa, without browser session impersonation.
+        public static object RunScheduledChiefBatch()
+        {
+            const string systemEmployeeId = "sa";
+            if (!IsInspectionAdministrator(systemEmployeeId))
+                throw new UnauthorizedAccessException("NIK sa belum terdaftar sebagai INSPEC administrator.");
+
+            Guid runId = Guid.NewGuid();
+            int sectionsProcessed = 0, sectionsFailed = 0, batchesCreated = 0;
+            int inspectionsBatched = 0, emailsSent = 0, emailsFailed = 0;
+            DataTable lockResult;
+            using (var br = new WAL.BR.CF())
+            {
+                lockResult = br.EQueryP(@"
+UPDATE dbo.INSPEC_SchedulerLock WITH (UPDLOCK,ROWLOCK)
+SET LockToken=@RunID,LockUntil=DATEADD(MINUTE,360,GETDATE())
+WHERE LockID=1 AND (LockToken IS NULL OR LockUntil<GETDATE());
+SELECT @@ROWCOUNT AS Acquired",
+                    new SqlParameter[] { new SqlParameter("@RunID", runId) });
+            }
+            bool lockAcquired = lockResult != null && lockResult.Rows.Count > 0 && Convert.ToInt32(lockResult.Rows[0]["Acquired"]) == 1;
+            if (!lockAcquired) throw new HttpException(409, "Scheduled Chief Batch sedang berjalan pada instance lain.");
+
+            try
+            {
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"
+INSERT dbo.INSPEC_SchedulerRunLog
+(JobRunID,StartedDate,RunStatus,SectionsProcessed,SectionsFailed,BatchesCreated,InspectionsBatched,EmailsSent,EmailsFailed,Summary,ErrorMessage)
+VALUES (@RunID,GETDATE(),'RUNNING',0,0,0,0,0,0,N'',N'')",
+                        new SqlParameter[] { new SqlParameter("@RunID", runId) }, true, true);
+                }
+
+                DataTable sections;
+                using (var br = new WAL.BR.CF())
+                {
+                    sections = br.EQueryP(@"
+SELECT I.CompanyID,I.LocationID,I.SectionID,
+       DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0) InspectionDate
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+JOIN dbo.PIP_M_Section S ON S.CompanyID=I.CompanyID AND S.LocationID=I.LocationID AND S.SectionID=I.SectionID
+WHERE ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
+  AND I.ApprovalBatchID IS NULL AND I.InspectionDate IS NOT NULL
+  AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
+  AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
+GROUP BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)
+ORDER BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)",
+                        new SqlParameter[] { });
+                }
+
+                if (sections != null)
+                {
+                    foreach (DataRow section in sections.Rows)
+                    {
+                        string companyId = Convert.ToString(section["CompanyID"]).Trim();
+                        string locationId = Convert.ToString(section["LocationID"]).Trim();
+                        string sectionId = Convert.ToString(section["SectionID"]).Trim();
+                        DateTime inspectionDate = Convert.ToDateTime(section["InspectionDate"]);
+                        int sectionBatches = 0, sectionInspections = 0, sectionEmails = 0, sectionEmailFailed = 0;
+                        string sectionStatus = "SUCCESS", sectionError = "";
+                        sectionsProcessed++;
+                        try
+                        {
+                            while (true)
+                            {
+                                using (var br = new WAL.BR.CF())
+                                {
+                                    br.EQueryP(@"UPDATE dbo.INSPEC_SchedulerLock SET LockUntil=DATEADD(MINUTE,360,GETDATE()) WHERE LockID=1 AND LockToken=@RunID",
+                                        new SqlParameter[] { new SqlParameter("@RunID", runId) }, true, true);
+                                }
+                                DataTable queued;
+                                using (var br = new WAL.BR.CF())
+                                {
+                                    queued = br.EQueryP(@"
+SELECT TOP 200 I.InspectionID
+FROM dbo.PIP_T_Inspection I
+JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND I.SectionID=@SectionID
+  AND I.InspectionDate>=@InspectionDate AND I.InspectionDate<DATEADD(DAY,1,@InspectionDate)
+  AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
+  AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NULL
+  AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
+  AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
+ORDER BY I.InspectionID",
+                                        new SqlParameter[] {
+                                            new SqlParameter("@CompanyID", companyId),
+                                            new SqlParameter("@LocationID", locationId),
+                                            new SqlParameter("@SectionID", sectionId),
+                                            new SqlParameter("@InspectionDate", inspectionDate)
+                                        });
+                                }
+                                if (queued == null || queued.Rows.Count == 0) break;
+                                long[] ids = queued.AsEnumerable().Select(row => Convert.ToInt64(row["InspectionID"])).ToArray();
+                                StandardBatchProcessResult result = CreateStandardApprovalBatchCore(
+                                    ids, systemEmployeeId, companyId, locationId, true);
+                                sectionBatches++;
+                                sectionInspections += result.inspectionCount;
+                                batchesCreated++;
+                                inspectionsBatched += result.inspectionCount;
+                                if (String.Equals(result.emailStatus, "SENT", StringComparison.OrdinalIgnoreCase))
+                                { sectionEmails++; emailsSent++; }
+                                else if (String.Equals(result.emailStatus, "FAILED", StringComparison.OrdinalIgnoreCase))
+                                { sectionEmailFailed++; emailsFailed++; }
+                            }
+                        }
+                        catch (Exception sectionException)
+                        {
+                            sectionStatus = "FAILED";
+                            sectionError = Limit(sectionException.GetBaseException().Message, 3900);
+                            sectionsFailed++;
+                            System.Diagnostics.Trace.TraceError("RunScheduledChiefBatch " + companyId + "/" + locationId + "/" + sectionId + ": " + sectionException);
+                        }
+                        if (sectionStatus == "SUCCESS" && sectionEmailFailed > 0) sectionStatus = "EMAIL_FAILED";
+                        using (var br = new WAL.BR.CF())
+                        {
+                            br.EQueryP(@"
+INSERT dbo.INSPEC_SchedulerSectionLog
+(JobRunID,CompanyID,LocationID,SectionID,InspectionDate,RunStatus,BatchesCreated,InspectionsBatched,EmailsSent,EmailsFailed,ErrorMessage,LoggedDate)
+VALUES (@RunID,@CompanyID,@LocationID,@SectionID,@InspectionDate,@RunStatus,@BatchesCreated,@InspectionsBatched,@EmailsSent,@EmailsFailed,@ErrorMessage,GETDATE())",
+                                new SqlParameter[] {
+                                    new SqlParameter("@RunID", runId), new SqlParameter("@CompanyID", companyId),
+                                    new SqlParameter("@LocationID", locationId), new SqlParameter("@SectionID", sectionId),
+                                    new SqlParameter("@InspectionDate", inspectionDate), new SqlParameter("@RunStatus", sectionStatus),
+                                    new SqlParameter("@BatchesCreated", sectionBatches), new SqlParameter("@InspectionsBatched", sectionInspections),
+                                    new SqlParameter("@EmailsSent", sectionEmails), new SqlParameter("@EmailsFailed", sectionEmailFailed),
+                                    new SqlParameter("@ErrorMessage", sectionError)
+                                }, true, true);
+                        }
+                    }
+                }
+
+                string runStatus = sectionsFailed == 0 && emailsFailed == 0 ? "SUCCESS" : "PARTIAL";
+                string summary = "Sections=" + sectionsProcessed.ToString(CultureInfo.InvariantCulture) +
+                    "; Batches=" + batchesCreated.ToString(CultureInfo.InvariantCulture) +
+                    "; Inspections=" + inspectionsBatched.ToString(CultureInfo.InvariantCulture) +
+                    "; EmailsSent=" + emailsSent.ToString(CultureInfo.InvariantCulture) +
+                    "; EmailsFailed=" + emailsFailed.ToString(CultureInfo.InvariantCulture) +
+                    "; SectionsFailed=" + sectionsFailed.ToString(CultureInfo.InvariantCulture);
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"
+UPDATE dbo.INSPEC_SchedulerRunLog
+SET CompletedDate=GETDATE(),RunStatus=@RunStatus,SectionsProcessed=@SectionsProcessed,SectionsFailed=@SectionsFailed,
+    BatchesCreated=@BatchesCreated,InspectionsBatched=@InspectionsBatched,EmailsSent=@EmailsSent,EmailsFailed=@EmailsFailed,
+    Summary=@Summary,ErrorMessage=N'' WHERE JobRunID=@RunID",
+                        new SqlParameter[] {
+                            new SqlParameter("@RunStatus", runStatus), new SqlParameter("@SectionsProcessed", sectionsProcessed),
+                            new SqlParameter("@SectionsFailed", sectionsFailed), new SqlParameter("@BatchesCreated", batchesCreated),
+                            new SqlParameter("@InspectionsBatched", inspectionsBatched), new SqlParameter("@EmailsSent", emailsSent),
+                            new SqlParameter("@EmailsFailed", emailsFailed), new SqlParameter("@Summary", summary),
+                            new SqlParameter("@RunID", runId)
+                        }, true, true);
+                }
+                return new { jobRunId = runId.ToString("D"), status = runStatus,
+                    sectionsProcessed = sectionsProcessed, sectionsFailed = sectionsFailed,
+                    batchesCreated = batchesCreated, inspectionsBatched = inspectionsBatched,
+                    emailsSent = emailsSent, emailsFailed = emailsFailed, summary = summary };
+            }
+            catch (Exception runException)
+            {
+                System.Diagnostics.Trace.TraceError("RunScheduledChiefBatch: " + runException);
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"UPDATE dbo.INSPEC_SchedulerRunLog SET CompletedDate=GETDATE(),RunStatus='FAILED',ErrorMessage=@Error WHERE JobRunID=@RunID",
+                        new SqlParameter[] { new SqlParameter("@Error", Limit(runException.GetBaseException().Message, 3900)),
+                            new SqlParameter("@RunID", runId) }, true, true);
+                }
+                throw;
+            }
+            finally
+            {
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"UPDATE dbo.INSPEC_SchedulerLock SET LockToken=NULL,LockUntil=NULL WHERE LockID=1 AND LockToken=@RunID",
+                        new SqlParameter[] { new SqlParameter("@RunID", runId) }, true, true);
+                }
+            }
         }
 
         [WebMethod(EnableSession = true)]
