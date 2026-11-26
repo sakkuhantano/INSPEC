@@ -104,8 +104,6 @@ WHERE SU.EmployeeID=@UserID
                         throw new Exception("STANDARD inspection must not define InspectionPointMode.");
                     if (isBatchInspection && inspectionPointMode != "MAP" && inspectionPointMode != "DYNAMIC")
                         throw new Exception("BATCH inspection requires InspectionPointMode MAP or DYNAMIC.");
-                    if (inspectionPointMode != "MAP" && inspectionPointMode != "DYNAMIC")
-                        throw new Exception("InspectionPointMode is invalid.");
                     if (isDynamicPoints && (!isBatchInspection || scheduleSelectionMode != "PARAM"))
                         throw new Exception("Dynamic inspection points require BATCH / PARAM.");
                     if (status != "DONE")
