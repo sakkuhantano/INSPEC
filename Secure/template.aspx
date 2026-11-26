@@ -604,5 +604,5 @@
 
     <script type="text/javascript" src="../JSCus/GFC.js"></script>
     <script type="text/javascript" src="../JSCus/sortable.js"></script>
-    <script type="text/javascript" src="../JSCus/template.js?v=20261126-mult-user-cache-v1"></script>
+    <script type="text/javascript" src="../JSCus/template.js"></script>
 </asp:Content>
