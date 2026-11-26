@@ -96,29 +96,19 @@ The base schema scripts are initial-install prerequisites, not part of this upgr
 - Database/THD_Tenant_Suite_Master_Reference.sql: if the THD tenant / agreement master tables are genuinely absent, run this before required step 12. These tables are owned by THD; do not create duplicate copies when they already exist.
 - Database/InspectionPoint_Seed_MCDP.sql, Database/InspectionPoint_Seed_MCDP_Lighting_SplitMaps.sql, and Database/Import_INSPEC_Lighting_Parking_Maps_Points_FKFix.sql are data import / seed scripts only. Do not run if the required Map / Point master data is already present.
 
-## Do NOT run these superseded scripts
+## Initial-install-only scripts (not part of this upgrade)
 
-These files are retained for reference or compatibility, but are not part of this deployment:
+The following base-schema scripts remain available only for a brand-new INSPEC database. Do not run them against the existing database being upgraded:
 
-- database/inspection_mode_migration.sql
-- database/inspection_presentation_config_migration.sql
-- database/inspection_type_code_length_migration.sql (the final standard sync procedure already has the corrected parameter width)
-- Database/spPIP_Inspection_Query.sql (not called by the current WebForms call sites in this branch)
+- database/inspection_location_map_schema.sql
+- database/inspection_transaction_schema.sql
+- database/master_template_inspection_schema.sql
+
+## Do NOT run
+
 - SQL/ALTER_PIP_M_InspectionMap_MoveInspectionType.sql (only for an empty initial database; it intentionally refuses to run when Inspection Points exist)
-- Database/InspectionLegacyApproval_Procedure_ColumnRename.sql
-- Database/InspectionPoint_ShapeGeometry_Migration.sql
-- Database/InspectionPoint_RemoveShapeTypeCheckConstraint.sql
-- database/inspection_location_map_schema.sql (initial map schema; do not rerun over existing map tables)
-- database/inspection_transaction_schema.sql (initial transaction schema; do not rerun over existing transaction tables)
-- database/master_template_inspection_schema.sql (initial template schema; do not rerun over existing template tables)
-- Database/spUTL_PIP_T_Inspection_SubmitWorkflow.sql
-- Database/spUTL_PIP_T_Inspection_ApprovalWorkflow.sql
-- Database/spUTL_PIP_T_Inspection_Approval_Execute.sql
-- Database/spUTL_PIP_T_Inspection_Lightning_Approval.sql
-- Database/spUTL_PIP_T_Inspection_Lightning_SubmitWorkflow.sql
-- Database/spUTL_PIP_T_Inspection_Lightning_Sync.sql
 
-Use the consolidated / canonical scripts in the required order above. Do not run the obsolete inspection_presentation_config_migration.sql; it adds deprecated PointSource / ApprovalWorkflowCode master fields.
+The superseded standalone migration / stored-procedure SQL files have been removed from the Database folder to prevent accidental execution. For this upgrade, use only the consolidated canonical scripts in the required order above.
 
 ## Per-company COMVAL configuration
 
