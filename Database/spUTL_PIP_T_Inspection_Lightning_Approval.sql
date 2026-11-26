@@ -1,3 +1,4 @@
+/* LEGACY COPY — DO NOT DEPLOY. The active Lightning approval procedure is deployed from Database/LightningInspection_Approval_Workflow.sql. */
 
 CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_Lightning_Approval
     @p_InspectionID BIGINT,
