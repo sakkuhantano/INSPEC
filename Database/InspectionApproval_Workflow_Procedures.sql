@@ -17,18 +17,17 @@ AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
-         @Mode VARCHAR(10),@ScheduleMode VARCHAR(10),@WorkflowCode VARCHAR(30),@WorkflowKey VARCHAR(30),
-         @TypeName VARCHAR(100),@DetailName VARCHAR(100),@SPV VARCHAR(4000),@ChiefEng VARCHAR(4000),
-         @SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),@ChiefEngEmail VARCHAR(4000),
-         @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ChiefEngName NVARCHAR(200),
+         @Mode VARCHAR(10),@ScheduleMode VARCHAR(10),@WorkflowKey VARCHAR(30),@ChiefRole VARCHAR(20),
+         @TypeName VARCHAR(100),@DetailName VARCHAR(100),@SPV VARCHAR(4000),@Chief VARCHAR(4000),
+         @SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),@ChiefEmail VARCHAR(4000),
+         @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ChiefName NVARCHAR(200),
          @ConfigScope VARCHAR(30),@EmailSPV BIT,@EmailChief BIT,@OldStatus VARCHAR(30),
          @Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsChiefWorkflow BIT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'),
         @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM'),
-        @WorkflowCode=ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD')
- FROM dbo.PIP_T_Inspection I
+        FROM dbo.PIP_T_Inspection I
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE'
    AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0
@@ -40,7 +39,10 @@ BEGIN
 
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @WorkflowKey=CASE WHEN @Mode='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END;
- SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' AND @WorkflowCode='SPV_CHIEF_ENG' THEN 1 ELSE 0 END;
+ SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@S) ELSE '' END;
+ SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN 1 ELSE 0 END;
+ IF @IsChiefWorkflow=1 AND ISNULL(@ChiefRole,'')=''
+ BEGIN RAISERROR('BATCH/PARAM Section has no supported ProfitCenterNo mapping (PENG/PSEC/PHKP).',16,1); RETURN; END;
  SET @EmailSPV=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'SPV');
  SET @EmailChief=CASE WHEN @IsChiefWorkflow=1 THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF') ELSE 0 END;
 
@@ -68,19 +70,19 @@ BEGIN
  )
  BEGIN RAISERROR('One or more SPV approvers are inactive or lack Inspection approval access for this Company, Location, and Section.',16,1); RETURN; END;
 
- SELECT @ChiefEng=NULLIF(LTRIM(RTRIM(C.Description)),'')
+ SELECT @Chief=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-   AND C.ID=@ConfigScope+';CHIEF_ENG';
- IF @IsChiefWorkflow=1 AND ISNULL(@ChiefEng,'')<>''
+   AND C.ID=@ConfigScope+';'+@ChiefRole;
+ IF @IsChiefWorkflow=1 AND ISNULL(@Chief,'')<>''
  AND EXISTS
  (
-  SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X
+  SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
   WHERE NOT EXISTS
   (
    SELECT 1 FROM dbo.M_HRD_Employee E
    WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C
-     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo='PENG'
+     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo=(SELECT S.ProfitCenterNo FROM dbo.PIP_M_Section S WHERE S.SectionID=@S)
      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
        AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
      AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
@@ -88,7 +90,7 @@ BEGIN
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',E.EmployeeID,'') L WHERE L.CompanyID=@C AND L.LocationID=@L))
   )
  )
- BEGIN RAISERROR('One or more configured Chief Engineering approvers are inactive or lack PENG approval access for this Company and Location.',16,1); RETURN; END;
+ BEGIN RAISERROR('One or more configured configured Chief approvers are inactive or lack PENG approval access for this Company and Location.',16,1); RETURN; END;
 
  SELECT @SPVName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
    FROM dbo.SplitStringConvertToTable(@SPV,';') X LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
@@ -99,21 +101,21 @@ BEGIN
  SELECT @TechName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@Owner),
         @TechEmail=LTRIM(RTRIM(ISNULL(emailaddress,'')))
  FROM dbo.M_HRD_Employee WHERE EmployeeID=@Owner;
- SELECT @ChiefEngName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
-   FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
-   ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@ChiefEng),
-        @ChiefEngEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress))
-   FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+ SELECT @ChiefName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
+   FROM dbo.SplitStringConvertToTable(@Chief,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+   ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@Chief),
+        @ChiefEmail=ISNULL(STUFF((SELECT ';'+LTRIM(RTRIM(E.emailaddress))
+   FROM dbo.SplitStringConvertToTable(@Chief,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
    WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
 
  IF @EmailSPV=1 AND (ISNULL(@TechEmail,'')='' OR EXISTS
    (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
     WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')))
  BEGIN RAISERROR('Technician and every configured SPV need email addresses while SPV notification is enabled.',16,1); RETURN; END;
- IF @EmailChief=1 AND ISNULL(@ChiefEng,'')<>'' AND EXISTS
-   (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X
+ IF @EmailChief=1 AND ISNULL(@Chief,'')<>'' AND EXISTS
+   (SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
     WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))
- BEGIN RAISERROR('Every configured Chief Engineering approver needs an email address while CHIEF notification is enabled.',16,1); RETURN; END;
+ BEGIN RAISERROR('Every configured Chief approver needs an email address while CHIEF notification is enabled.',16,1); RETURN; END;
 
  SELECT @OldStatus=CASE WHEN ISNULL(IsSubmitted,0)=1
        THEN CASE WHEN ISNULL(IsApproved,0)=1 AND (@IsChiefWorkflow=0 OR ISNULL(IsApproved1,0)=1) THEN 'APPROVED' ELSE 'SUBMITTED' END
@@ -190,8 +192,8 @@ BEGIN
  IF @p_Action='VOID' AND @p_Remark='' BEGIN RAISERROR('Void reason is required.',16,1); RETURN; END;
 
  DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@Owner VARCHAR(50),@No VARCHAR(10),
-         @SPV VARCHAR(4000),@ChiefEng VARCHAR(4000),@Mode VARCHAR(10),@ScheduleMode VARCHAR(10),
-         @WorkflowCode VARCHAR(30),@WorkflowKey VARCHAR(30),@IsChiefWorkflow BIT,@IsChiefEngStage BIT,
+         @SPV VARCHAR(4000),@Chief VARCHAR(4000),@Mode VARCHAR(10),@ScheduleMode VARCHAR(10),
+         @WorkflowKey VARCHAR(30),@ChiefRole VARCHAR(20),@IsChiefWorkflow BIT,@IsChiefStage BIT,
          @StageCode VARCHAR(20),@EmailStage BIT,@EmailNext BIT,
          @TechName NVARCHAR(200),@ActorName NVARCHAR(200),@TechEmail VARCHAR(320),
          @SPVEmail VARCHAR(4000),@ChiefEmail VARCHAR(4000),@ConfigScope VARCHAR(30),
@@ -199,45 +201,47 @@ BEGIN
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
         @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM'),
-        @WorkflowCode=ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD')
- FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+        FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
    AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
    AND ISNULL(I.IsSubmitted,0)=1
    AND (ISNULL(I.IsApproved,0)=0 OR
-        (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0));
+        (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0));
  IF @C IS NULL BEGIN RAISERROR('Inspection is not waiting for an authorized approval stage.',16,1); RETURN; END;
 
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @WorkflowKey=CASE WHEN @Mode='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END;
- SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' AND @WorkflowCode='SPV_CHIEF_ENG' THEN 1 ELSE 0 END;
- SET @IsChiefEngStage=CASE WHEN @IsChiefWorkflow=1 AND ISNULL((SELECT I.IsApproved FROM dbo.PIP_T_Inspection I WHERE I.InspectionID=@p_InspectionID),0)=1 THEN 1 ELSE 0 END;
- SET @StageCode=CASE WHEN @IsChiefEngStage=1 THEN 'CHIEF_ENG' ELSE 'SPV' END;
- SET @EmailStage=CASE WHEN @IsChiefEngStage=1 THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF')
+ SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@S) ELSE '' END;
+ SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN 1 ELSE 0 END;
+ IF @IsChiefWorkflow=1 AND ISNULL(@ChiefRole,'')=''
+ BEGIN RAISERROR('BATCH/PARAM Section has no supported ProfitCenterNo mapping (PENG/PSEC/PHKP).',16,1); RETURN; END;
+ SET @IsChiefStage=CASE WHEN @IsChiefWorkflow=1 AND ISNULL((SELECT I.IsApproved FROM dbo.PIP_T_Inspection I WHERE I.InspectionID=@p_InspectionID),0)=1 THEN 1 ELSE 0 END;
+ SET @StageCode=CASE WHEN @IsChiefStage=1 THEN @ChiefRole ELSE 'SPV' END;
+ SET @EmailStage=CASE WHEN @IsChiefStage=1 THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF')
                        ELSE dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'SPV') END;
- SET @EmailNext=CASE WHEN @IsChiefEngStage=0 AND @IsChiefWorkflow=1
+ SET @EmailNext=CASE WHEN @IsChiefStage=0 AND @IsChiefWorkflow=1
                       THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF') ELSE 0 END;
 
  SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';SPV;'+@S;
- SELECT @ChiefEng=NULLIF(LTRIM(RTRIM(C.Description)),'')
+ SELECT @Chief=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-   AND C.ID=@ConfigScope+';CHIEF_ENG';
+   AND C.ID=@ConfigScope+';'+@ChiefRole;
 
- IF @IsChiefEngStage=1 AND ISNULL(@ChiefEng,'')=''
- BEGIN RAISERROR('Chief Engineering mapping was removed while this inspection was awaiting approval. Re-submit after confirming the workflow.',16,1); RETURN; END;
+ IF @IsChiefStage=1 AND ISNULL(@Chief,'')=''
+ BEGIN RAISERROR('configured Chief mapping was removed while this inspection was awaiting approval. Re-submit after confirming the workflow.',16,1); RETURN; END;
  IF NOT EXISTS
  (
   SELECT 1 FROM dbo.SysWebUser SU
   WHERE SU.EmployeeID=@p_ActorEmployeeID AND SU.IsActive=1
     AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022')
     AND (EXISTS (SELECT 1 FROM dbo.SysWebUserUserGroup UG WHERE UG.UserID=SU.UserID AND UG.UserGroupID='administrator')
-         OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(CASE WHEN @IsChiefEngStage=1 THEN @ChiefEng ELSE @SPV END,';') X
+         OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(CASE WHEN @IsChiefStage=1 THEN @Chief ELSE @SPV END,';') X
                     WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
     AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL WHERE CL.UserID=SU.EmployeeID
                  AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
@@ -251,15 +255,15 @@ BEGIN
  SELECT @ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID)
  FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
  IF @EmailStage=1 AND (ISNULL(@TechEmail,'')='' OR
-      (@IsChiefEngStage=0 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
+      (@IsChiefStage=0 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
         WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))) OR
-      (@IsChiefEngStage=1 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X
+      (@IsChiefStage=1 AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
         WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))))
  BEGIN RAISERROR('Email address is missing for this approval stage. Complete M_HRD_Employee.emailaddress or switch off its email flag.',16,1); RETURN; END;
- IF @EmailNext=1 AND ISNULL(@ChiefEng,'')<>'' AND EXISTS
-    (SELECT 1 FROM dbo.SplitStringConvertToTable(@ChiefEng,';') X
+ IF @EmailNext=1 AND ISNULL(@Chief,'')<>'' AND EXISTS
+    (SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
      WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))
- BEGIN RAISERROR('Email address is missing for configured Chief Engineering recipients.',16,1); RETURN; END;
+ BEGIN RAISERROR('Email address is missing for configured configured Chief recipients.',16,1); RETURN; END;
 
  BEGIN TRY
   INSERT dbo.PIP_T_InspectionApprovalHistory
@@ -273,12 +277,12 @@ BEGIN
   BEGIN
    UPDATE dbo.PIP_T_Inspection
    SET Status='DRAFT',IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
-       IsApproved=0,ApprovedBy='',ApprovedDate=CASE WHEN @IsChiefEngStage=0 THEN GETDATE() ELSE ApprovedDate END,
-       IsApproved1=0,Approved1By='',Approved1Date=CASE WHEN @IsChiefEngStage=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
+       IsApproved=0,ApprovedBy='',ApprovedDate=CASE WHEN @IsChiefStage=0 THEN GETDATE() ELSE ApprovedDate END,
+       IsApproved1=0,Approved1By='',Approved1Date=CASE WHEN @IsChiefStage=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
        IsApproved2=0,Approved2By='',Approved2Date=CONVERT(DATETIME,'19000101',112),
        ApprovalRemark='',
-       ReasonVoid=CASE WHEN @IsChiefEngStage=0 THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid END,
-       ReasonVoid1=CASE WHEN @IsChiefEngStage=1 THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
+       ReasonVoid=CASE WHEN @IsChiefStage=0 THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid END,
+       ReasonVoid1=CASE WHEN @IsChiefStage=1 THEN CONVERT(VARCHAR(500),@p_Remark) ELSE ReasonVoid1 END,
        ReasonVoid2='',UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
    WHERE InspectionID=@p_InspectionID;
 
@@ -296,7 +300,7 @@ BEGIN
   END
   ELSE
   BEGIN
-   IF @IsChiefEngStage=1
+   IF @IsChiefStage=1
    BEGIN
     UPDATE dbo.PIP_T_Inspection
     SET IsApproved1=1,Approved1By=@p_ActorEmployeeID,Approved1Date=GETDATE(),
@@ -307,18 +311,18 @@ BEGIN
    BEGIN
     UPDATE dbo.PIP_T_Inspection
     SET IsApproved=1,ApprovedBy=@p_ActorEmployeeID,ApprovedDate=GETDATE(),
-        IsApproved1=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@ChiefEng,'')='' THEN 1 ELSE 0 END,
-        Approved1By=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@ChiefEng,'')='' THEN @p_ActorEmployeeID ELSE '' END,
-        Approved1Date=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@ChiefEng,'')='' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
+        IsApproved1=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@Chief,'')='' THEN 1 ELSE 0 END,
+        Approved1By=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@Chief,'')='' THEN @p_ActorEmployeeID ELSE '' END,
+        Approved1Date=CASE WHEN @IsChiefWorkflow=1 AND ISNULL(@Chief,'')='' THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
         ApprovalRemark=CONVERT(VARCHAR(500),@p_Remark),ReasonVoid='',ReasonVoid1='',
         UpdateUser=@p_ActorEmployeeID,UpdateDate=GETDATE()
     WHERE InspectionID=@p_InspectionID;
 
-    IF @IsChiefWorkflow=1 AND ISNULL(@ChiefEng,'')=''
+    IF @IsChiefWorkflow=1 AND ISNULL(@Chief,'')=''
      INSERT dbo.PIP_T_InspectionApprovalHistory
       (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
-     VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'CHIEF_ENG','SKIPPED',@p_ActorEmployeeID,GETDATE(),
-            N'Auto-skipped: no Chief Engineering configured; Approved1By is stamped with the actual SPV approver.');
+     VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,@ChiefRole,'SKIPPED',@p_ActorEmployeeID,GETDATE(),
+            N'Auto-skipped: no '+@ChiefRole+' mapping; Approved1By is stamped with the actual SPV approver.');
    END;
 
    IF @EmailStage=1
@@ -332,20 +336,20 @@ BEGIN
      N'Inspection '+ISNULL(@No,'')+N' telah disetujui oleh '+ISNULL(@ActorName,@p_ActorEmployeeID)+N' ('+@StageCode+N').',
      'PENDING',0,GETDATE());
 
-   IF @IsChiefEngStage=0 AND @EmailNext=1 AND ISNULL(@ChiefEng,'')<>''
+   IF @IsChiefStage=0 AND @EmailNext=1 AND ISNULL(@Chief,'')<>''
    BEGIN
     INSERT dbo.PIP_T_InspectionEmailOutbox
     (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
      EmailSubject,HtmlBody,PlainBody,DeliveryStatus,AttemptCount,NextAttemptDate)
-    SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF_ENG:'+X.EmployeeID,
+    SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF:'+X.EmployeeID,
      @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
-     N'Inspection menunggu acknowledgement Chief Engineering - '+ISNULL(@No,''),
-     N'Inspection '+ISNULL(@No,'')+N' telah diverifikasi SPV dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N'. <a href="'+REPLACE(ISNULL(@p_CorrectionUrl,N''),N'type=entry',N'type=approval')+N'">Buka approval INSPEC</a>',
-     N'Inspection '+ISNULL(@No,'')+N' menunggu acknowledgement Chief Engineering '+X.EmployeeName+N'.',
+     N'Inspection menunggu approval '+@ChiefRole+N' - '+ISNULL(@No,''),
+     N'Inspection '+ISNULL(@No,'')+N' telah di-approve SPV dan menunggu approval '+@ChiefRole+N' '+X.EmployeeName+N'. <a href="'+REPLACE(ISNULL(@p_CorrectionUrl,N''),N'type=entry',N'type=approval')+N'">Buka approval INSPEC</a>',
+     N'Inspection '+ISNULL(@No,'')+N' menunggu approval '+@ChiefRole+N' '+X.EmployeeName+N'.',
      'PENDING',0,GETDATE()
     FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress,
                  ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(S.val))) EmployeeName
-          FROM dbo.SplitStringConvertToTable(@ChiefEng,';') S
+          FROM dbo.SplitStringConvertToTable(@Chief,';') S
           JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(S.val))
           WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'') X;
    END;
