@@ -1,6 +1,7 @@
 /*
   Standard / BATCH-PARAM workflow:
-  STANDARD: Technician -> configured SPV (Company + Location + Section).
+  STANDARD: Technician -> configured SPV; an inspection owned by that SPV is self-approved at sync.
+  STANDARD CHIEF approval is created later as a manually selected batch by the SPV.
   BATCH/PARAM: Technician -> SPV -> Section ProfitCenter-derived Chief role.
   BATCH/INSPECT is handled by LightningInspection_Approval_Workflow.sql.
   SMTP is sent from the outbox dispatcher after the caller commits.
