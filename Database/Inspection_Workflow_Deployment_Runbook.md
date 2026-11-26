@@ -82,6 +82,8 @@ Run each file in this order. Stop on the first SQL error.
     - Deploys the final BATCH MAP / DYNAMIC sync, including abnormal summary validation and nullable InspectionPointID handling.
 28. Database/LightningInspection_Sync_Procedure.sql
     - Deploys Lightning daily sync for BATCH / MAP / INSPECT.
+29. Database/StandardInspection_ApprovalBatch.sql
+    - Adds PIP_T_Inspection.ApprovalBatchID, the PIP_T_Inspection_ApprovalBatch header, indexes, and the STANDARD batch create / CHIEF approve procedures. No detail table is created.
 
 The base schema scripts are initial-install prerequisites, not part of this upgrade sequence. If a base table or TVP is missing, resolve that separately; do not blindly run initial-install scripts over an existing database.
 
@@ -129,7 +131,7 @@ Approver mappings:
 - Chief Security: <CompanyID><LocationID>;CHIEF_SEC → semicolon-separated EmployeeIDs.
 - Chief Housekeeping: <CompanyID><LocationID>;CHIEF_HK → semicolon-separated EmployeeIDs.
 
-Chief role for BATCH / PARAM is resolved from PIP_M_Section.ProfitCenterNo:
+Chief role for STANDARD approval batches and BATCH / PARAM is resolved from PIP_M_Section.ProfitCenterNo:
 
 | ProfitCenterNo | COMVAL mapping key |
 |---|---|
@@ -143,13 +145,13 @@ Workflow email switches are scoped per Company + Location; Description contains 
 
 | COMVAL ID suffix | Description |
 |---|---|
-| ;STANDARD | [SPV][TRUE/FALSE] |
+| ;STANDARD | [SPV][TRUE/FALSE];[CHIEF][TRUE/FALSE] |
 | ;BATCH;PARAM | [SPV][TRUE/FALSE];[CHIEF][TRUE/FALSE] |
 | ;BATCH;INSPECT | [SPV][TRUE/FALSE];[CHIEF_SEC][TRUE/FALSE];[CHIEF_ENG][TRUE/FALSE] |
 
 Example: ID I00024012R02;BATCH;INSPECT, Description [SPV][TRUE];[CHIEF_SEC][TRUE];[CHIEF_ENG][TRUE].
 
-Email switches control notification only; they never bypass an approval stage. Missing token / malformed token / FALSE means no email for that stage. A missing Chief approver mapping skips that Chief stage and records SKIPPED in PIP_T_InspectionApprovalHistory, with the approval actor field stamped using the previous actual approver.
+Email switches control notification only; they never bypass an approval stage. Missing token / malformed token / FALSE means no email for that stage. STANDARD batch creation requires a configured CHIEF mapping derived from ProfitCenterNo; BATCH / PARAM retains its existing staged Chief workflow behavior.
 
 ## Canonical workflow behavior
 
