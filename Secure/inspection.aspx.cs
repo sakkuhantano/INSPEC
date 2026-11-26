@@ -2490,6 +2490,14 @@ SET @Tomorrow=DATEADD(DAY,1,@Today);
 ApprovalEvents AS
 (
     SELECT H.EntityType,H.EntityID,H.StageCode,H.ActionCode,H.ActionDate,I.Status,
+           CASE WHEN NOT EXISTS
+           (
+               SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X
+               WHERE X.EntityType=H.EntityType
+                 AND X.EntityID=H.EntityID
+                 AND X.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                 AND X.ActionDate>H.ActionDate
+           ) THEN 1 ELSE 0 END AS IsLatestVoid,
            CASE
              WHEN @IsAdministrator=1 THEN 1
              WHEN H.StageCode='SPV' AND EXISTS
@@ -2536,14 +2544,7 @@ SELECT
            OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')
          THEN 1 ELSE 0 END AS ShowApprovalCards,
     COUNT(DISTINCT CASE WHEN ActionCode='VOIDED' AND IsVisible=1 AND Status='DRAFT'
-                        AND NOT EXISTS
-                        (
-                            SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X
-                            WHERE X.EntityType=ApprovalEvents.EntityType
-                              AND X.EntityID=ApprovalEvents.EntityID
-                              AND X.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                              AND X.ActionDate>ApprovalEvents.ActionDate
-                        )
+                        AND IsLatestVoid=1
                         THEN EntityType+':'+CONVERT(VARCHAR(20),EntityID) END) AS VoidCount
 FROM ApprovalEvents;",
                                 new SqlParameter[]
