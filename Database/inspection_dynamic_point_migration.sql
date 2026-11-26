@@ -58,6 +58,9 @@ IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='FK_PIP_T_InspectionPoint_M
 IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name='UQ_PIP_T_InspectionPoint_Master')
     ALTER TABLE dbo.PIP_T_InspectionPoint DROP CONSTRAINT UQ_PIP_T_InspectionPoint_Master;
 
+IF EXISTS (SELECT 1 FROM sys.key_constraints WHERE name='UQ_PIP_T_InspectionPoint_Schedule_Master')
+    ALTER TABLE dbo.PIP_T_InspectionPoint DROP CONSTRAINT UQ_PIP_T_InspectionPoint_Schedule_Master;
+
 IF EXISTS
 (
     SELECT 1 FROM sys.check_constraints
@@ -70,9 +73,14 @@ IF EXISTS
 (
     SELECT 1 FROM sys.indexes
     WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
-      AND name='UX_PIP_T_InspectionPoint_Master'
+      AND name IN ('UX_PIP_T_InspectionPoint_Master','UX_PIP_T_InspectionPoint_Schedule_Master')
 )
-    DROP INDEX UX_PIP_T_InspectionPoint_Master ON dbo.PIP_T_InspectionPoint;
+BEGIN
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint') AND name='UX_PIP_T_InspectionPoint_Master')
+        DROP INDEX UX_PIP_T_InspectionPoint_Master ON dbo.PIP_T_InspectionPoint;
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint') AND name='UX_PIP_T_InspectionPoint_Schedule_Master')
+        DROP INDEX UX_PIP_T_InspectionPoint_Schedule_Master ON dbo.PIP_T_InspectionPoint;
+END;
 
 /* Drop any additional legacy checks / indexes that include PointSource. */
 DECLARE @PointSourceCheck SYSNAME, @DropPointSourceCheckSql NVARCHAR(1000);
@@ -157,8 +165,14 @@ IF NOT EXISTS
     WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
       AND name='UX_PIP_T_InspectionPoint_Code'
 )
-    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Code
-        ON dbo.PIP_T_InspectionPoint(InspectionID,PointCode);
+    DROP INDEX UX_PIP_T_InspectionPoint_Code ON dbo.PIP_T_InspectionPoint;
+
+CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Schedule_Master
+    ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,InspectionPointID)
+    WHERE InspectionPointID IS NOT NULL;
+
+CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Code
+    ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,PointCode);
 
 COMMIT TRANSACTION;
 GO
