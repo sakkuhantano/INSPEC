@@ -3014,12 +3014,15 @@ WHERE I.InspectionID=@InspectionID
            WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
              AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022'))
              AND (@IsAdministrator=1 OR (
-               ((ISNULL(I.InspectionMode,'STANDARD')='STANDARD' AND ISNULL(IT.InspectionMode,'STANDARD')='STANDARD') OR ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT') AND EXISTS (
+               (
+                 ((ISNULL(I.InspectionMode,'STANDARD')='STANDARD' AND ISNULL(IT.InspectionMode,'STANDARD')='STANDARD') OR ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT')
+                 AND EXISTS (
                    SELECT 1 FROM dbo.SysWebCommonValue C
                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-               ))
+                 )
+               )
                OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
                    AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
                    AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
