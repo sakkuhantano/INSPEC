@@ -5059,20 +5059,27 @@ WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
   (
       SELECT 1
       FROM dbo.PIP_T_Inspection I
-      JOIN dbo.SysWebCommonValue C
-        ON C.AppID='INSPEC'
-       AND C.CommonGroup='EmailApproval'
-       AND C.IsDelete=0
-       AND C.Description='1'
-       AND
-       (
-           (O.EntityType='LIGHTNING'
-            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
-           OR
-           (O.EntityType='INSPECTION'
-            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
-       )
+      LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+      LEFT JOIN dbo.PIP_T_InspectionApprovalHistory H ON H.ApprovalEventID=O.ApprovalEventID
       WHERE I.InspectionID=O.EntityID
+        AND dbo.fnINSPEC_ApprovalEmailEnabled
+        (
+            I.CompanyID,I.LocationID,
+            CASE WHEN O.EntityType='LIGHTNING'
+                       OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')
+                 THEN 'BATCH;INSPECT'
+                 WHEN ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
+                 THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
+            CASE
+                WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
+                WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
+                WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
+                     THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
+                WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
+                WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+                WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
+                ELSE '' END
+        )=1
   )");
                 return new
                 {
