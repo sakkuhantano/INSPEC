@@ -1,4 +1,4 @@
-CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval]
+ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval]
 (
     @p_InspectionID BIGINT,
     @p_Action VARCHAR(10),
