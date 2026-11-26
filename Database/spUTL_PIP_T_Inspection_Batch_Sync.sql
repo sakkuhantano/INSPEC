@@ -89,13 +89,19 @@ BEGIN
     END;
 
     DECLARE @V_PointSource VARCHAR(10);
-    SELECT @V_PointSource=UPPER(ISNULL(NULLIF(PointSource,''),'MASTER'))
+    /* InspectionPointMode is the sole master setting: MAP is persisted as
+       MASTER on the transaction-point snapshot; DYNAMIC remains DYNAMIC. */
+    SELECT @V_PointSource=CASE
+             WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,'MAP'))))='DYNAMIC' THEN 'DYNAMIC'
+             WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,'MAP'))))='MAP' THEN 'MASTER'
+             ELSE ''
+           END
     FROM dbo.PIP_M_InspectionType
     WHERE InspectionTypeCode=@p_InspectionTypeCode AND SectionID=@p_SectionID;
 
-    IF @V_PointSource NOT IN ('MASTER','DYNAMIC')
+    IF ISNULL(@V_PointSource,'') NOT IN ('MASTER','DYNAMIC')
     BEGIN
-        RAISERROR('Inspection Type PointSource configuration is invalid.',16,1);
+        RAISERROR('Inspection Type InspectionPointMode configuration is invalid. Use MAP or DYNAMIC.',16,1);
         RETURN;
     END;
 
