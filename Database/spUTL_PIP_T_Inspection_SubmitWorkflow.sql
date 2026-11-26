@@ -36,9 +36,6 @@ BEGIN
  WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
    AND C.ID=@ConfigScope+';EMAIL;'+@Mode;
  SET @EmailEnabled=ISNULL(@EmailEnabled,0);
- /* STANDARD uses its per-stage COMVAL switch. BATCH keeps the legacy EMAIL;BATCH behavior. */
- IF @Mode='STANDARD'
-  SET @EmailEnabled=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,'STANDARD','SPV');
  IF @Owner<>@p_ActorEmployeeID BEGIN RAISERROR('Only the inspection owner can submit this inspection.',16,1); RETURN; END;
  IF @WorkflowCode='SPV_CHIEF_ENG'
  BEGIN
