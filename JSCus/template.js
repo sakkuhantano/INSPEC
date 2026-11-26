@@ -2127,6 +2127,25 @@ async function loadTemplatesBySection(sectionId, btn, forceServer)
                 };
             }
         });
+        // Remove persisted Template nodes that are no longer returned by the server.
+        // Keep local drafts (IDTemplate=0) and dirty nodes so a background refresh
+        // can never silently discard unsaved work.
+        const returnedTemplateIds = new Set(
+            templates
+                .map(function(tpl) { return Number(tpl && tpl.IDTemplate || 0); })
+                .filter(function(id) { return id > 0; })
+        );
+        Object.entries(sectionCache.Templates).forEach(function(entry) {
+            const key = entry[0];
+            const node = entry[1];
+            const persistedId = Number(node && node.Template && node.Template.IDTemplate || 0);
+            if (persistedId > 0 &&
+                !returnedTemplateIds.has(persistedId) &&
+                !(node && node.Dirty)) {
+                delete sectionCache.Templates[key];
+            }
+        });
+
         //-----------------------------------
         // MERGE CACHE
         //-----------------------------------
@@ -2308,6 +2327,13 @@ async function refreshTemplateSectionFromServer(sectionId)
                     selectedVersionId,
                     versionEl
                 );
+            } else {
+                // The selected Version may have been deleted/archived by another
+                // user. Never keep rendering the stale structure.
+                currentVersion = null;
+                currentVersionData = null;
+                clearBuilderPanel();
+                clearRightPanel();
             }
         }
     }
@@ -2335,46 +2361,57 @@ async function syncTemplateCacheOnce()
 
         for (let i = 0; i < loadedSections.length; i++) {
             const sectionId = loadedSections[i];
-            const result = await promisifyPageMethod(
-                PageMethods.GetTemplateSectionRevision,
-                sectionId,
-                companyId,
-                locationId,
-                getLoginData().employeeid,
-                getLoginData().userid
-            );
-
-            const data = typeof result === 'string'
-                ? JSON.parse(result || '{}')
-                : (result || {});
-            const serverTemplates = Array.isArray(data.Templates)
-                ? data.Templates
-                : [];
-
-            const serverSignature = serverTemplates
-                .map(function(x) {
-                    return String(x.IDTemplate || 0) + '=' +
-                        String(x.Revision || '');
-                })
-                .sort()
-                .join('|');
-
-            const section = getSectionCache(sectionId);
-            const cachedSignature =
-                section.ServerRevisionSignature ||
-                buildTemplateRevisionSignature(
-                    Object.values(section.Templates || {})
+            try {
+                const result = await promisifyPageMethod(
+                    PageMethods.GetTemplateSectionRevision,
+                    sectionId,
+                    companyId,
+                    locationId,
+                    getLoginData().employeeid,
+                    getLoginData().userid
                 );
 
-            if (serverSignature === cachedSignature)
-                continue;
+                const data = typeof result === 'string'
+                    ? JSON.parse(result || '{}')
+                    : (result || {});
+                const serverTemplates = Array.isArray(data.Templates)
+                    ? data.Templates
+                    : [];
 
-            if (isTemplateSectionDirty(sectionId)) {
-                markTemplateExternalConflict(sectionId);
-                continue;
+                const serverSignature = serverTemplates
+                    .map(function(x) {
+                        return String(x.IDTemplate || 0) + '=' +
+                            String(x.Revision || '');
+                    })
+                    .sort()
+                    .join('|');
+
+                const section = getSectionCache(sectionId);
+                const cachedSignature =
+                    section.ServerRevisionSignature ||
+                    buildTemplateRevisionSignature(
+                        Object.values(section.Templates || {})
+                    );
+
+                if (serverSignature === cachedSignature)
+                    continue;
+
+                if (isTemplateSectionDirty(sectionId)) {
+                    markTemplateExternalConflict(sectionId);
+                    continue;
+                }
+
+                await refreshTemplateSectionFromServer(sectionId);
             }
-
-            await refreshTemplateSectionFromServer(sectionId);
+            catch (sectionSyncError) {
+                // One section must never disable synchronization of the other
+                // loaded sections or interrupt the editor.
+                console.warn(
+                    '[Template Builder] Section cache sync failed:',
+                    sectionId,
+                    sectionSyncError
+                );
+            }
         }
     }
     catch (ex) {
@@ -4422,8 +4459,14 @@ async function loadVersionStructure(templateId, versionId, el)
         // CACHE STRUCTURE
         //--------------------------------
 
-        const cachedStructure =
+        const rawCachedStructure =
             versionNode.Structure || cache.Structure;
+        const cachedStructure =
+            rawCachedStructure &&
+            typeof rawCachedStructure === "object" &&
+            !Array.isArray(rawCachedStructure)
+                ? rawCachedStructure
+                : null;
 
         if(cachedStructure)
         {
