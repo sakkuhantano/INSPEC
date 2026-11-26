@@ -151,6 +151,7 @@ BEGIN
               AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
               AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
               AND I.ApprovalBatchID IS NULL
+              AND I.InspectionDate IS NOT NULL
               AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
               AND ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
               AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM'
