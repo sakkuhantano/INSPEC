@@ -224,7 +224,7 @@ BEGIN
 
         SELECT @ProfitCenterNo=UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,''))))
         FROM dbo.PIP_M_Section S
-        WHERE S.CompanyID=@C AND S.LocationID=@L AND S.SectionID=@S;
+        WHERE S.SectionID=@S;
 
         SET @ChiefRole=CASE @ProfitCenterNo WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END;
         IF ISNULL(@ChiefRole,'')=''
