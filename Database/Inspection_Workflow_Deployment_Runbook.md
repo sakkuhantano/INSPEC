@@ -171,20 +171,85 @@ A missing optional Chief mapping skips that stage and records the skip. Email OF
 
 ## Application files
 
-Publish the WebForms application from the same branch as the SQL package. Do not mix older standalone SQL procedure copies with the current application code. Keep the INSPEC.csproj inclusion of JSCus/inspectionMapWorkspace.js for build / publish.
+Publish the whole feature/repeatable-inspection-integrated-ux branch with the SQL package. Do not cherry-pick only a subset into an older WebForms build. The following files are changed in this branch relative to main.
 
-Workflow-related files changed in this finalization:
+**JavaScript**
 
-- Secure/inspection.aspx.cs
-- Secure/dashboard.aspx.cs
-- Secure/inspectionmaster.aspx.cs
-- Secure/inspectionemailsetup.aspx
-- Secure/inspectionemailsetup.aspx.cs
-- Secure/inspectionemailsetup.aspx.designer.cs
+- JSCus/GFC_FO.js
+- JSCus/Login.js
+- JSCus/Site1.Master.js
+- JSCus/dashboard.js
 - JSCus/inspection.js
+- JSCus/inspectionApprovalOffline.js
+- JSCus/inspectionApprovalSync.js
+- JSCus/inspectionGeofence.js
 - JSCus/inspectionMapWorkspace.js
+- JSCus/inspectionmaster.js
+- JSCus/pdf.min.js
+- JSCus/pdf.worker.min.js
+- JSCus/template.js
+- JSCus/workorder.js
 
-No CSS file was changed in this workflow finalization. The integrated branch also includes the REPEAT, Map Workspace, Geofence, Inspection Master, template, and Work Order files documented in Database/REPEATABLE_INSPECTION_README.md and Database/INSPEC_Change_Scope.md. Deploy the matching branch as a whole rather than copying only the workflow files into an older build.
+**CSS**
+
+- CSSCus/Site1.Master.css
+- CSSCus/inspectionGeofence.css
+- CSSCus/inspectionmaster.css
+- CSSCus/template.css
+
+**ASPX code-behind (.aspx.cs)**
+
+- Login.aspx.cs
+- SearchList_2.aspx.cs
+- Secure/M_InspectionGeofence.aspx.cs
+- Secure/M_InspectionType.aspx.cs
+- Secure/M_LightingMapEditor.aspx.cs
+- Secure/R_Report.aspx.cs
+- Secure/R_Reports.aspx.cs
+- Secure/T_LightingInspection.aspx.cs
+- Secure/T_ParkingInspection.aspx.cs
+- Secure/assignwoemployee.aspx.cs
+- Secure/dashboard.aspx.cs
+- Secure/inspection.aspx.cs
+- Secure/inspectionemailsetup.aspx.cs
+- Secure/inspectionmaster.aspx.cs
+- Secure/template.aspx.cs
+- Secure/workorder.aspx.cs
+
+**Other C# files**
+
+- BRC/PIP_T_WO.cs
+- BusinessRules/Components/CF.cs
+- GFC.cs
+- MasterPages/Site1.Master.cs
+
+**ASPX markup**
+
+- Login.aspx
+- Secure/M_InspectionGeofence.aspx
+- Secure/M_InspectionType.aspx
+- Secure/M_LightingMapEditor.aspx
+- Secure/R_Reports.aspx
+- Secure/T_LightingInspection.aspx
+- Secure/T_ParkingInspection.aspx
+- Secure/inspection.aspx
+- Secure/inspectionemailsetup.aspx
+- Secure/inspectionmaster.aspx
+- Secure/template.aspx
+- Secure/workorder.aspx
+
+**Designer files**
+
+- SearchList_2.aspx.designer.cs
+- Secure/M_InspectionGeofence.aspx.designer.cs
+- Secure/M_InspectionType.aspx.designer.cs
+- Secure/M_LightingMapEditor.aspx.designer.cs
+- Secure/T_LightingInspection.aspx.designer.cs
+- Secure/T_ParkingInspection.aspx.designer.cs
+- Secure/inspectionemailsetup.aspx.designer.cs
+- Secure/inspectionmaster.aspx.designer.cs
+
+The current workflow finalization adds no new CSS files beyond the four CSS files already changed in this integrated branch. Keep the INSPEC.csproj inclusion of JSCus/inspectionMapWorkspace.js for build / publish.
 
 ## Non-production smoke test
 
