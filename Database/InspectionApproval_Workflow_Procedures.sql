@@ -340,7 +340,7 @@ BEGIN
     SELECT 'INSPECTION:'+CONVERT(VARCHAR(20),@p_InspectionID)+':'+CONVERT(VARCHAR(20),@EventID)+':CHIEF_ENG:'+X.EmployeeID,
      @EventID,'INSPECTION',@p_InspectionID,'APPROVER',X.EmployeeID,X.EmailAddress,
      N'Inspection menunggu acknowledgement Chief Engineering - '+ISNULL(@No,''),
-     N'Inspection '+ISNULL(@No,'')+N' telah diverifikasi SPV dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N'. <a href="'+ISNULL(@p_CorrectionUrl,N'')+N'">Buka approval INSPEC</a>',
+     N'Inspection '+ISNULL(@No,'')+N' telah diverifikasi SPV dan menunggu acknowledgement Chief Engineering '+X.EmployeeName+N'. <a href="'+REPLACE(ISNULL(@p_CorrectionUrl,N''),N'type=entry',N'type=approval')+N'">Buka approval INSPEC</a>',
      N'Inspection '+ISNULL(@No,'')+N' menunggu acknowledgement Chief Engineering '+X.EmployeeName+N'.',
      'PENDING',0,GETDATE()
     FROM (SELECT LTRIM(RTRIM(S.val)) EmployeeID,LTRIM(RTRIM(E.emailaddress)) EmailAddress,
