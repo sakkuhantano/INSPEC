@@ -312,6 +312,36 @@ BEGIN
     IF @V_Stage='CHIEF_ENG' AND ISNULL(@V_ChiefEngID,'')=''
     BEGIN RAISERROR('Chief Engineering mapping is missing during an active Chief Engineering stage. Reconcile the inspection approval state before continuing.',16,1); RETURN; END;
 
+    /* Revalidate the actor's live account, INSPEC approval permission,
+       and Company/Location scope at the moment of approval. */
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.SysWebUser SU
+        WHERE SU.EmployeeID=@p_ActorEmployeeID
+          AND SU.IsActive=1
+          AND EXISTS
+          (
+              SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+              WHERE AM.MenuID='20022'
+          )
+          AND
+          (
+              EXISTS
+              (
+                  SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                  WHERE CL.UserID=SU.EmployeeID AND CL.AppID='pip'
+                    AND CL.CompanyID=@V_CompanyID AND CL.LocationID=@V_LocationID
+              )
+              OR EXISTS
+              (
+                  SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                  WHERE L.CompanyID=@V_CompanyID AND L.LocationID=@V_LocationID
+              )
+          )
+    )
+    BEGIN RAISERROR('Your account is inactive, lacks INSPEC approval access, or has no access to this Company/Location.',16,1); RETURN; END;
+
     IF (@V_Stage='SPV' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
        OR (@V_Stage='CHIEF_SEC' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefSecID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
        OR (@V_Stage='CHIEF_ENG' AND NOT EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@V_ChiefEngID,';') X WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
