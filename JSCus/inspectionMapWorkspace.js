@@ -249,7 +249,7 @@
     }
 
     function getVisiblePoints() {
-        if (currentMapRecord && String(currentMapRecord.InspectionLayoutCode || '').toUpperCase() === 'DYNAMIC_LIST' && String(currentMapRecord.PointSource || '').toUpperCase() === 'DYNAMIC') return currentPoints.slice();
+        if (currentMapRecord && String(currentMapRecord.InspectionLayoutCode || '').toUpperCase() === 'DYNAMIC_LIST' && String(currentMapRecord.InspectionPointMode || '').toUpperCase() === 'DYNAMIC') return currentPoints.slice();
         if (!currentMapId) return [];
         return currentPoints.filter(function (point) { return Number(point.MapID || 0) === Number(currentMapId); });
     }
