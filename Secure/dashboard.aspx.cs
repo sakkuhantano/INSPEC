@@ -425,10 +425,10 @@ new SqlParameter("@CompanyID", companyId),
                 DataTable types = br.EQuery(@"
 SELECT DISTINCT T.InspectionTypeCode, T.InspectionTypeName, T.SectionID,
        ISNULL(NULLIF(T.InspectionMode,''),'STANDARD') AS InspectionMode,
-       ISNULL(T.InspectionLayoutCode,'STANDARD') AS InspectionLayoutCode,
-       ISNULL(T.PointSource,'MASTER') AS PointSource,
-       ISNULL(T.ScheduleSelectionMode,'PARAM') AS ScheduleSelectionMode,
-       ISNULL(T.ApprovalWorkflowCode,'STANDARD') AS ApprovalWorkflowCode
+       CASE WHEN ISNULL(T.InspectionPointMode,'')='DYNAMIC' THEN 'DYNAMIC_LIST'
+            WHEN ISNULL(T.InspectionPointMode,'')='MAP' THEN 'MAP' ELSE 'STANDARD' END AS InspectionLayoutCode,
+       ISNULL(T.InspectionPointMode,'') AS InspectionPointMode,
+       ISNULL(T.ScheduleSelectionMode,'PARAM') AS ScheduleSelectionMode
 FROM dbo.PIP_M_InspectionType T
 WHERE T.IsActive=1
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') S WHERE S.val=T.SectionID)
@@ -474,9 +474,8 @@ ORDER BY D.InspectionTypeCode, D.ScheduleTime, D.InspectionTypeDetailCode",
                     SectionID = GF.GetString(row["SectionID"]),
                     InspectionMode = GF.GetString(row["InspectionMode"]),
                     InspectionLayoutCode = GF.GetString(row["InspectionLayoutCode"]),
-                    PointSource = GF.GetString(row["PointSource"]),
+                    InspectionPointMode = GF.GetString(row["InspectionPointMode"]),
                     ScheduleSelectionMode = GF.GetString(row["ScheduleSelectionMode"]),
-                    ApprovalWorkflowCode = GF.GetString(row["ApprovalWorkflowCode"]),
                     CompanyID = companyId,
                     LocationID = locationId
                 }).ToList();
