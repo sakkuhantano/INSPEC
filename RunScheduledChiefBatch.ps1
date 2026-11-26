@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 if (-not (Test-Path -LiteralPath $SecretFile)) { throw "Encrypted scheduler secret file not found: $SecretFile" }
-$encryptedSecret = (Get-Content -LiteralPath $SecretFile -Raw).Trim()
+$encryptedSecret = [System.IO.File]::ReadAllText($SecretFile).Trim()
 $secureSecret = ConvertTo-SecureString -String $encryptedSecret
 $secretPtr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureSecret)
 try { $secret = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($secretPtr) }
