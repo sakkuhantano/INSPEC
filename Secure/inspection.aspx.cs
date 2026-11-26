@@ -2271,7 +2271,7 @@ CROSS APPLY (SELECT
         (
           SELECT 1 FROM dbo.SysWebCommonValue C
           WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID)
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
             AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
         ) THEN 1 ELSE 0 END IsBatchChief
 ) R
@@ -2295,7 +2295,7 @@ CROSS APPLY (SELECT
    (
      SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
      WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID
-       AND H.StageCode=dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID) AND H.ActionCode='VOIDED'
+       AND H.StageCode=dbo.fnINSPEC_ChiefRoleForSection(I.SectionID) AND H.ActionCode='VOIDED'
        AND NOT EXISTS
        (
          SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X
@@ -2348,7 +2348,7 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
            (R.IsBatchChief=1 AND EXISTS
              (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
               WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID
-                AND H.StageCode=dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID)
+                AND H.StageCode=dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
                 AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))))
    OR
    (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
@@ -2473,7 +2473,7 @@ SET @Tomorrow=DATEADD(DAY,1,@Today);
     SELECT I.InspectionID,I.CompanyID,I.LocationID,I.SectionID,I.Status,
            I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
            IT.InspectionMode,IT.ScheduleSelectionMode,
-           dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID) AS ChiefRole
+           dbo.fnINSPEC_ChiefRoleForSection(I.SectionID) AS ChiefRole
     FROM dbo.PIP_T_Inspection I
     LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
     WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
@@ -2952,7 +2952,7 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
        CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
-            WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID) ELSE 'COMPLETED' END
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN dbo.fnINSPEC_ChiefRoleForSection(I.SectionID) ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
@@ -3030,7 +3030,7 @@ WHERE I.InspectionID=@InspectionID
                    AND EXISTS (
                        SELECT 1 FROM dbo.SysWebCommonValue C
                        WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID)
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
                          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
                    ))
                OR ((ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='INSPECT') AND (
@@ -4088,7 +4088,7 @@ WHERE I.InspectionID=@InspectionID
        AND (@IsAdministrator=1 OR EXISTS (
           SELECT 1 FROM dbo.SysWebCommonValue C
           WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.CompanyID,I.LocationID,I.SectionID)
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
             AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
        )))
   )
