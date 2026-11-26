@@ -2767,7 +2767,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
        I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
-       'BATCH' InspectionMode,
+       'BATCH' InspectionMode,ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
