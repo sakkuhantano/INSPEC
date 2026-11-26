@@ -20,7 +20,14 @@ BEGIN
     FROM sys.default_constraints dc
     JOIN sys.columns c ON c.object_id=dc.parent_object_id AND c.column_id=dc.parent_column_id
     WHERE dc.parent_object_id=OBJECT_ID('dbo.PIP_T_Inspection') AND c.name='IsApprove';
-    IF @OldDefault IS NOT NULL EXEC('ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT '+QUOTENAME(@OldDefault));
+    IF @OldDefault IS NOT NULL
+    BEGIN
+        DECLARE @DropOldDefaultSql NVARCHAR(1000);
+        SET @DropOldDefaultSql =
+            N'ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT ' + QUOTENAME(@OldDefault);
+        EXEC sp_executesql @DropOldDefaultSql;
+    END;
+
     EXEC sp_rename 'dbo.PIP_T_Inspection.IsApprove','IsApproved','COLUMN';
 END;
 GO
