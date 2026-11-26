@@ -11,7 +11,7 @@
       - CommonGroup='EmailApproval'.
       - Chief Engineering / Chief Security: <CompanyID><LocationID>;CHIEF_ENG / CHIEF_SEC.
       - SPV: <CompanyID><LocationID>;SPV;<SectionID>.
-      - Email switches: <CompanyID><LocationID>;EMAIL;STANDARD / BATCH / LIGHTNING.
+      - Workflow email flags: <CompanyID><LocationID>;STANDARD / BATCH;PARAM / BATCH;INSPECT.
       - Employee IDs are stored in Description; application resolves Name/emailaddress from M_HRD_Employee.
     Approval history/outbox supports the single canonical PIP_T_Inspection header
     for STANDARD, BATCH, and LIGHTNING modes. Workflow state lives on that header.
@@ -25,7 +25,7 @@ GO
      <CompanyID><LocationID>;CHIEF_ENG      -> Description=EmployeeID
      <CompanyID><LocationID>;CHIEF_SEC      -> Description=EmployeeID
      <CompanyID><LocationID>;SPV;<SectionID> -> Description=EmployeeID
-     <CompanyID><LocationID>;EMAIL;STANDARD/BATCH/LIGHTNING -> Description=1/0
+     <CompanyID><LocationID>;STANDARD / BATCH;PARAM / BATCH;INSPECT -> per-stage [LEVEL][TRUE/FALSE] tokens
    No INSPEC-specific setup tables are required. */
 
 IF OBJECT_ID('dbo.PIP_T_InspectionApprovalHistory', 'U') IS NULL
@@ -49,9 +49,24 @@ BEGIN
         CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Stage
             CHECK (StageCode IN ('TECHNICIAN', 'SPV', 'CHIEF_ENG', 'CHIEF_SEC')),
         CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Action
-            CHECK (ActionCode IN ('SUBMITTED', 'APPROVED', 'VOIDED', 'RESUBMITTED'))
+            CHECK (ActionCode IN ('SUBMITTED', 'APPROVED', 'VOIDED', 'RESUBMITTED', 'SKIPPED'))
     );
 END;
+GO
+
+/* SKIPPED records are emitted when a configured workflow role is absent.
+   Keep this constraint update repeatable on databases with the earlier schema. */
+IF EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionApprovalHistory')
+      AND name='CK_PIP_T_InspectionApprovalHistory_Action'
+)
+    ALTER TABLE dbo.PIP_T_InspectionApprovalHistory DROP CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Action;
+GO
+ALTER TABLE dbo.PIP_T_InspectionApprovalHistory WITH CHECK
+    ADD CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Action
+    CHECK (ActionCode IN ('SUBMITTED', 'APPROVED', 'VOIDED', 'RESUBMITTED', 'SKIPPED'));
 GO
 
 IF NOT EXISTS
