@@ -4900,15 +4900,33 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
             {
                 DataTable emailConfig = configBr.EQueryP(@"
 SELECT TOP 1 1 AS IsEnabled
-FROM dbo.PIP_T_Inspection I
-JOIN dbo.SysWebCommonValue C
-  ON C.AppID='INSPEC'
- AND C.CommonGroup='EmailApproval'
- AND C.IsDelete=0
- AND C.Description='1'
- AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)
-          +';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')
-WHERE I.CompanyID=@C",
+FROM dbo.PIP_T_InspectionEmailOutbox O
+JOIN dbo.PIP_T_Inspection I ON I.InspectionID=O.EntityID
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+LEFT JOIN dbo.PIP_T_InspectionApprovalHistory H ON H.ApprovalEventID=O.ApprovalEventID
+WHERE O.EntityType IN ('INSPECTION','LIGHTNING')
+  AND I.CompanyID=@C
+  AND O.DeliveryStatus IN ('PENDING','FAILED')
+  AND O.AttemptCount<5
+  AND O.NextAttemptDate<=GETDATE()
+  AND dbo.fnINSPEC_ApprovalEmailEnabled
+  (
+      I.CompanyID,I.LocationID,
+      CASE WHEN O.EntityType='LIGHTNING'
+                 OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')
+           THEN 'BATCH;INSPECT'
+           WHEN ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
+           THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
+      CASE
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
+               THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
+          WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
+          WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+          WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
+          ELSE '' END
+  )=1",
                     new SqlParameter[] { new SqlParameter("@C", companyId ?? "") });
                 emailConfigured = emailConfig != null && emailConfig.Rows.Count > 0;
             }
@@ -4946,28 +4964,34 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
     WHERE O.DeliveryStatus IN ('PENDING','FAILED')
       AND O.NextAttemptDate<=GETDATE()
       AND O.AttemptCount<5
-      /* Fail closed: never dispatch queued mail unless the matching
-         inspection email switch is explicitly enabled for its scope. */
-      AND EXISTS
-      (
-          SELECT 1
-          FROM dbo.PIP_T_Inspection I
-          JOIN dbo.SysWebCommonValue C
-            ON C.AppID='INSPEC'
-           AND C.CommonGroup='EmailApproval'
-           AND C.IsDelete=0
-           AND C.Description='1'
-           AND
-           (
-               (O.EntityType='LIGHTNING'
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;LIGHTNING')
-               OR
-               (O.EntityType='INSPECTION'
-                AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';EMAIL;'+ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'))
-           )
-          WHERE I.InspectionID=O.EntityID
-      )
-    ORDER BY EmailOutboxID
+      /* Re-check the specific notification stage at dispatch time. */
+       AND EXISTS
+       (
+           SELECT 1
+           FROM dbo.PIP_T_Inspection I
+           LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+           LEFT JOIN dbo.PIP_T_InspectionApprovalHistory H ON H.ApprovalEventID=O.ApprovalEventID
+           WHERE I.InspectionID=O.EntityID
+             AND dbo.fnINSPEC_ApprovalEmailEnabled
+             (
+                 I.CompanyID,I.LocationID,
+                 CASE WHEN O.EntityType='LIGHTNING'
+                            OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')
+                      THEN 'BATCH;INSPECT'
+                      WHEN ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
+                      THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
+                 CASE
+                     WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
+                     WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
+                     WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
+                          THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
+                     WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
+                     WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+                     WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
+                     ELSE '' END
+             )=1
+       )
+       ORDER BY EmailOutboxID
 )
 UPDATE EmailQueue
 SET DeliveryStatus='SENDING',AttemptCount=AttemptCount+1,LastAttemptDate=GETDATE()
