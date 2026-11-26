@@ -25,6 +25,18 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH('dbo.PIP_M_InspectionType','InspectionMode') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionType
+        ADD InspectionMode VARCHAR(10) NOT NULL
+            CONSTRAINT DF_PIP_M_InspectionType_InspectionMode DEFAULT ('STANDARD');
+GO
+
+IF COL_LENGTH('dbo.PIP_M_InspectionType','ScheduleSelectionMode') IS NULL
+    ALTER TABLE dbo.PIP_M_InspectionType
+        ADD ScheduleSelectionMode VARCHAR(10) NOT NULL
+            CONSTRAINT DF_PIP_M_InspectionType_ScheduleSelectionMode DEFAULT ('PARAM');
+GO
+
 IF COL_LENGTH('dbo.PIP_M_InspectionType','InspectionPointMode') IS NULL
     ALTER TABLE dbo.PIP_M_InspectionType ADD InspectionPointMode VARCHAR(10) NULL;
 GO
