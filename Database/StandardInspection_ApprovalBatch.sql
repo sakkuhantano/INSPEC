@@ -84,7 +84,8 @@ ALTER PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Create
     @p_InspectionIDs VARCHAR(4000),
     @p_EmployeeID VARCHAR(50),
     @p_CompanyID VARCHAR(10),
-    @p_LocationID VARCHAR(3)
+    @p_LocationID VARCHAR(3),
+    @p_IsScheduled BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -119,23 +120,41 @@ BEGIN
             @EmailEnabled BIT,@BatchID BIGINT,@SelectedCount INT;
 
     SELECT @SelectedCount=COUNT(*) FROM @Ids;
-    IF NOT EXISTS
-    (
-        SELECT 1 FROM dbo.SysWebUser SU
-        WHERE SU.EmployeeID=@p_EmployeeID AND SU.IsActive=1
-          AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') M WHERE M.MenuID='20022')
-          AND
-          (
-              EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
-                      WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
-                        AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID)
-              OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
-                         WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
-          )
-    )
+    IF ISNULL(@p_IsScheduled,0)=0
     BEGIN
-        RAISERROR('Employee is not authorized for Inspection approval in this Company/Location.',16,1);
-        RETURN;
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM dbo.SysWebUser SU
+            WHERE SU.EmployeeID=@p_EmployeeID AND SU.IsActive=1
+              AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') M WHERE M.MenuID='20022')
+              AND
+              (
+                  EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
+                          WHERE C.UserID=SU.EmployeeID AND C.AppID='pip'
+                            AND C.CompanyID=@p_CompanyID AND C.LocationID=@p_LocationID)
+                  OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L
+                             WHERE L.CompanyID=@p_CompanyID AND L.LocationID=@p_LocationID)
+              )
+        )
+        BEGIN
+            RAISERROR('Employee is not authorized for Inspection approval in this Company/Location.',16,1);
+            RETURN;
+        END;
+    END
+    ELSE
+    BEGIN
+        IF UPPER(LTRIM(RTRIM(ISNULL(@p_EmployeeID,''))))<>'SA'
+           OR NOT EXISTS
+           (
+               SELECT 1 FROM dbo.SysWebUser SU
+               JOIN dbo.SysWebUserUserGroup UG ON UG.UserID=SU.UserID
+               WHERE SU.EmployeeID=@p_EmployeeID AND SU.IsActive=1
+                 AND UG.UserGroupID='administrator'
+           )
+        BEGIN
+            RAISERROR('Scheduled batch requires the active INSPEC administrator identity sa.',16,1);
+            RETURN;
+        END;
     END;
 
     BEGIN TRY
@@ -191,7 +210,7 @@ BEGIN
             RAISERROR('STANDARD workflow COMVAL must contain both [SPV][TRUE/FALSE] and [CHIEF][TRUE/FALSE].',16,1);
         END;
 
-        IF NOT EXISTS
+        IF ISNULL(@p_IsScheduled,0)=0 AND NOT EXISTS
         (
             SELECT 1 FROM dbo.SysWebCommonValue C
             WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
