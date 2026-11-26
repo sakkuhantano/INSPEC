@@ -34,7 +34,7 @@ WHERE NOT EXISTS
     WHERE X.AppID='INSPEC' AND X.CommonGroup='EmailApproval' AND X.ID=S.ScopeID+';STANDARD'
 );
 
-/* BATCH / PARAM: SPV -> CHIEF (Chief Engineering alias). */
+/* BATCH / PARAM: SPV -> one Section ProfitCenter-derived Chief (CHIEF_ENG / CHIEF_SEC / CHIEF_HK). The email flag uses the generic CHIEF token. */
 INSERT dbo.SysWebCommonValue
     (AppID,ID,Description,CommonGroup,GroupDescription,IsDelete,IsSystem,EntryUser,EntryDate,UpdateUser,UpdateDate)
 SELECT 'INSPEC',S.ScopeID+';BATCH;PARAM',
