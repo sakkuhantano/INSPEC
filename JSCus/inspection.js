@@ -4326,7 +4326,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
             templateSelect.dispatchEvent(new Event("change"));
             detailSelect.value = state.detail.InspectionTypeDetailCode;
             onInspectionDetailChanged();
-            if (String(baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" && state.scheduleTimes.length)
+            if (!isLightningInspectionRecord(baseRecord) && state.scheduleTimes.length)
                 scheduleSelect.value = state.scheduleTime;
             refreshInspectionScheduleOptions();
             await startNewInspection();
