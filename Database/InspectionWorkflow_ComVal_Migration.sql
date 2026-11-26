@@ -75,6 +75,12 @@ UPDATE dbo.PIP_M_InspectionType
 SET ScheduleSelectionMode='PARAM'
 WHERE NULLIF(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))),'') IS NULL;
 
+ALTER TABLE dbo.PIP_M_InspectionType
+    ALTER COLUMN InspectionMode VARCHAR(10) NOT NULL;
+ALTER TABLE dbo.PIP_M_InspectionType
+    ALTER COLUMN ScheduleSelectionMode VARCHAR(10) NOT NULL;
+GO
+
 /* The old LIGHTNING mode is consolidated into BATCH + INSPECT. */
 UPDATE dbo.PIP_M_InspectionType
 SET InspectionMode='BATCH'
