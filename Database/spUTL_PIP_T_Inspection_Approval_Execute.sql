@@ -1,3 +1,4 @@
+/* LEGACY COPY — DO NOT DEPLOY. Superseded by Database/InspectionApproval_Workflow_Procedures.sql. */
 CREATE PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Approval_Execute]
 (
     @p_InspectionID BIGINT,
