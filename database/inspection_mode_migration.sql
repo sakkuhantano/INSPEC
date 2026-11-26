@@ -1,3 +1,4 @@
+/* OBSOLETE MIGRATION — DO NOT RUN. Superseded by Database/InspectionWorkflow_ComVal_Migration.sql, which normalizes InspectionMode to STANDARD/BATCH and ScheduleSelectionMode to PARAM/INSPECT. */
 /*
     InspectionMode on PIP_M_InspectionType.
     STANDARD = existing checklist workflow.
