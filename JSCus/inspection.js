@@ -8655,6 +8655,8 @@ async function previewChiefApprovalBatchReports() {
             companyId: inspectionCompanyID,
             locationId: inspectionLocationID
         });
+        if (!result || result.success !== true)
+            throw new Error(result && result.message ? result.message : "Gagal membuat report batch.");
         const reports = Array.isArray(result.reports) ? result.reports : [];
         if (!reports.length) throw new Error("No report was generated for this batch.");
         host.innerHTML = '<div class="border rounded p-3"><div class="fw-semibold mb-2">Generated reports (' +
