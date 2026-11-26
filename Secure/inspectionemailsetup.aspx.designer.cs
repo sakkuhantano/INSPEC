@@ -24,9 +24,12 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.WebControls.Button btnNewSPV;
         protected global::System.Web.UI.WebControls.Button btnCancelSPV;
         protected global::System.Web.UI.WebControls.GridView gvSPV;
-        protected global::System.Web.UI.WebControls.CheckBox chkEmailStandard;
-        protected global::System.Web.UI.WebControls.CheckBox chkEmailBatch;
-        protected global::System.Web.UI.WebControls.CheckBox chkEmailLightning;
+        protected global::System.Web.UI.WebControls.CheckBox chkStandardSPV;
+        protected global::System.Web.UI.WebControls.CheckBox chkBatchParamSPV;
+        protected global::System.Web.UI.WebControls.CheckBox chkBatchParamChief;
+        protected global::System.Web.UI.WebControls.CheckBox chkBatchInspectSPV;
+        protected global::System.Web.UI.WebControls.CheckBox chkBatchInspectChiefSec;
+        protected global::System.Web.UI.WebControls.CheckBox chkBatchInspectChiefEng;
         protected global::System.Web.UI.WebControls.CheckBox chkEmailWO;
     }
 }
