@@ -183,7 +183,7 @@ BEGIN
         RETURN;
     END;
 
-    IF EXISTS (SELECT C9 FROM @p_Points GROUP BY C9 HAVING COUNT(1)>1)
+    IF EXISTS (SELECT C7,C9 FROM @p_Points GROUP BY C7,C9 HAVING COUNT(1)>1)
     BEGIN
         RAISERROR('Duplicate PointCode in inspection point list.',16,1);
         RETURN;
