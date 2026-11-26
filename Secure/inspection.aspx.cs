@@ -4432,13 +4432,6 @@ WHERE ApprovalBatchID=@BatchID",
                     }
                 }
             }
-            else
-            {
-                using (var br = new WAL.BR.CF())
-                {
-                    br.EQueryP("UPDATE dbo.PIP_T_Inspection_ApprovalBatch SET SentDate=GETDATE() WHERE ApprovalBatchID=@BatchID",
-                        new SqlParameter[] { new SqlParameter("@BatchID", batchId) }, true, true);
-                }
             }
 
             return new {
