@@ -55,6 +55,12 @@ SET InspectionMode='BATCH',
     ScheduleSelectionMode='INSPECT'
 WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='LIGHTNING';
 
+/* Normalize any remaining legacy schedule selector values, including records
+   already stored as BATCH but still carrying AT_INSPECTION. */
+UPDATE dbo.PIP_M_InspectionType
+SET ScheduleSelectionMode='INSPECT'
+WHERE UPPER(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))))='AT_INSPECTION';
+
 /* A Standard inspection has no point-mode setting. */
 UPDATE dbo.PIP_M_InspectionType
 SET InspectionPointMode=NULL
