@@ -3031,7 +3031,8 @@ WHERE I.InspectionID=@InspectionID
                          AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
                          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
                    ))
-               OR (ISNULL(IT.InspectionMode,'STANDARD')='STANDARD'
+               OR (ISNULL(I.InspectionMode,'STANDARD')='STANDARD'
+                   AND ISNULL(IT.InspectionMode,'STANDARD')='STANDARD'
                    AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NOT NULL
                    AND EXISTS (
                        SELECT 1 FROM dbo.PIP_T_Inspection_ApprovalBatch B
