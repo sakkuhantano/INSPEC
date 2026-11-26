@@ -90,17 +90,14 @@ WHERE SU.EmployeeID=@UserID
 
                     string status = TokenString(record, "Status").ToUpperInvariant();
                     string submittedMode = TokenString(record, "InspectionMode").Trim().ToUpperInvariant();
-                    string inspectionMode = submittedMode == "LIGHTNING" ? "BATCH" : submittedMode;
+                    string inspectionMode = submittedMode;
                     if (inspectionMode == "") inspectionMode = "STANDARD";
                     string scheduleSelectionMode = TokenString(record, "ScheduleSelectionMode").Trim().ToUpperInvariant();
-                    if (scheduleSelectionMode == "AT_INSPECTION") scheduleSelectionMode = "INSPECT";
                     if (scheduleSelectionMode == "") scheduleSelectionMode = "PARAM";
                     bool isLightningInspection = inspectionMode == "BATCH" && scheduleSelectionMode == "INSPECT";
                     bool isBatchInspection = inspectionMode == "BATCH";
                     string inspectionPointMode = TokenString(record, "InspectionPointMode").Trim().ToUpperInvariant();
-                    string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" :
-                        inspectionPointMode == "MAP" ? "MASTER" : TokenString(record, "PointSource").Trim().ToUpperInvariant();
-                    if (pointSource == "") pointSource = "MASTER";
+                    string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" : "MASTER";
                     if (isLightningInspection) pointSource = "MASTER";
                     if (inspectionPointMode == "" && isBatchInspection)
                         inspectionPointMode = pointSource == "DYNAMIC" ? "DYNAMIC" : "MAP";
@@ -505,7 +502,6 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                         string serverInspectionMode = Convert.ToString(typeConfigRow["InspectionMode"]).Trim().ToUpperInvariant();
                         string serverInspectionPointMode = Convert.ToString(typeConfigRow["InspectionPointMode"]).Trim().ToUpperInvariant();
                         string serverScheduleSelectionMode = Convert.ToString(typeConfigRow["ScheduleSelectionMode"]).Trim().ToUpperInvariant();
-                        if (serverScheduleSelectionMode == "AT_INSPECTION") serverScheduleSelectionMode = "INSPECT";
 
                         if (serverInspectionMode != inspectionMode)
                             throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
@@ -3405,16 +3401,16 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
        I.InspectionTypeDetailName, ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
-       ISNULL(NULLIF(IT.InspectionLayoutCode,''),'STANDARD') AS InspectionLayoutCode,
-       ISNULL(NULLIF(IT.PointSource,''),'MASTER') AS PointSource,
+       CASE WHEN ISNULL(NULLIF(IT.InspectionPointMode,''),'')='DYNAMIC' THEN 'DYNAMIC_LIST'
+            WHEN ISNULL(NULLIF(IT.InspectionPointMode,''),'')='MAP' THEN 'MAP' ELSE 'STANDARD' END AS InspectionLayoutCode,
+       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
-       ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') AS ApprovalWorkflowCode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
-            WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
-            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
-            WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
+       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
+            WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN dbo.fnINSPEC_ChiefRoleForSection(I.SectionID) ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
