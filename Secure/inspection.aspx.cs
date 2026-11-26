@@ -2665,7 +2665,11 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      (
                                          (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved1,0)=1
-                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today))
+                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today)
+                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                       WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
+                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                          OR
                                          (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved,0)=1
@@ -2680,11 +2684,19 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                               OR
                                               (ISNULL(IsApproved1, 0) = 1
                                                AND Approved1Date >= @Today
-                                               AND Approved1Date < DATEADD(DAY, 1, @Today))
+                                               AND Approved1Date < DATEADD(DAY, 1, @Today)
+                                               AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                           WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
+                                                             AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED'
+                                                             AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                               OR
                                               (ISNULL(IsApproved2, 0) = 1
                                                AND Approved2Date >= @Today
-                                               AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                               AND Approved2Date < DATEADD(DAY, 1, @Today)
+                                               AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                           WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
+                                                             AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
+                                                             AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                           ))
                                      )
                                  )
@@ -2707,16 +2719,24 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                      (
                                          (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved1,0)=1
-                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today))
+                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today)
+                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                       WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
+                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                          OR
                                          (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
                                           AND ISNULL(IsApproved,0)=1
                                           AND ApprovedDate >= @Today AND ApprovedDate < DATEADD(DAY,1,@Today))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(IsApproved2, 0) = 1
-                                          AND Approved2Date >= @Today
-                                          AND Approved2Date < DATEADD(DAY, 1, @Today))
+                                           AND ISNULL(IsApproved2, 0) = 1
+                                           AND Approved2Date >= @Today
+                                           AND Approved2Date < DATEADD(DAY, 1, @Today)
+                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                       WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
+                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
+                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                      )
                                  )
                                  OR
@@ -2738,9 +2758,13 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           ))
                                          OR
                                          (InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(IsApproved1, 0) = 1
-                                          AND Approved1Date >= @Today
-                                          AND Approved1Date < DATEADD(DAY, 1, @Today))
+                                           AND ISNULL(IsApproved1, 0) = 1
+                                           AND Approved1Date >= @Today
+                                           AND Approved1Date < DATEADD(DAY, 1, @Today)
+                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
+                                                       WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
+                                                         AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED'
+                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
                                      )
                                  )
                                  OR
@@ -2806,8 +2830,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                                OR EXISTS
                                              (
                                                  SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
+                                                 WHERE ((H.EntityType='INSPECTION' AND H.StageCode='CHIEF_ENG') OR (H.EntityType='LIGHTNING' AND H.StageCode='CHIEF_SEC'))
+                                                   AND H.EntityID=AF.InspectionID AND H.ActionCode='VOIDED'
                                                    AND NOT EXISTS
                                                    (
                                                        SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
@@ -2822,8 +2846,8 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                                OR EXISTS
                                              (
                                                  SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED'
+                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
+                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
                                                    AND NOT EXISTS
                                                    (
                                                        SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
@@ -2895,12 +2919,12 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                              )))
                                          OR
                                          (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid1, '') <> ''
-                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                          AND ISNULL(AF.ReasonVoid2, '') <> ''
+                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
                                                OR EXISTS
                                              (
                                                  SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
                                                    AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
                                                    AND NOT EXISTS
                                                    (
@@ -2940,12 +2964,12 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                                           ))
                                          OR
                                          (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid2, '') <> ''
-                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
+                                          AND ISNULL(AF.ReasonVoid1, '') <> ''
+                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
                                                OR EXISTS
                                              (
                                                  SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
+                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
                                                    AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED'
                                                    AND NOT EXISTS
                                                    (
