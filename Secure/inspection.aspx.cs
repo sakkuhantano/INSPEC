@@ -3950,7 +3950,10 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                         if (!Directory.Exists(snapshotFolder))
                             Directory.CreateDirectory(snapshotFolder);
                         string snapshotPath = Path.Combine(snapshotFolder, reportName);
-                        File.Copy(report.StoragePath, snapshotPath, true);
+                        if (File.Exists(snapshotPath)) File.Delete(snapshotPath);
+                        // Move the generated file out of the per-user export folder immediately.
+                        // This also frees the original R_Report filename before the next type is generated.
+                        File.Move(report.StoragePath, snapshotPath);
                         reportPath = snapshotPath;
                     }
                 }
