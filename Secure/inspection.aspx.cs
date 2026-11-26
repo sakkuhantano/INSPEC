@@ -1963,7 +1963,8 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
             using (var br = new WAL.BR.CF())
             {
                 DataTable type = br.EQueryP(@"
-SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID
+SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID,
+       IT.InspectionMode,IT.InspectionPointMode,IT.ScheduleSelectionMode
 FROM dbo.PIP_M_InspectionType IT
 WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
   AND
