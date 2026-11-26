@@ -6,11 +6,14 @@
     InspectionPointMode: NULL (STANDARD) / MAP / DYNAMIC (BATCH)
     ScheduleSelectionMode: PARAM / INSPECT
 
-    Approval route is read from SysWebCommonValue:
-      ID=BATCH;INSPECT, Description=SPV;CHIEF_SEC;CHIEF_ENG
-      ID=BATCH;PARAM,          Description=SPV;CHIEF
+    Company + Location scoped workflow email ComVal:
+      ID=<CompanyLocation>;STANDARD
+      ID=<CompanyLocation>;BATCH;PARAM
+      ID=<CompanyLocation>;BATCH;INSPECT
 
-    Missing workflow ComVal deliberately falls back to SPV only.
+    Description format: [LEVEL][TRUE/FALSE], one token per approval stage.
+    Missing workflow ComVal or token means email OFF; approval stages still
+    follow InspectionMode and ScheduleSelectionMode.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
