@@ -2163,7 +2163,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo,
        I.OwnerEmployeeID, ISNULL(E.Name, I.OwnerEmployeeID) TechnicianName, I.Status,
        I.IsSubmitted, I.IsApproved, I.IsApproved1, I.IsApproved2,
        I.ApprovedDate, I.SyncDate, I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2,
-       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
+       ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
@@ -3403,10 +3403,10 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
        ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') AS ApprovalWorkflowCode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
-            WHEN ((ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN ((ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
+       CASE WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
@@ -3928,8 +3928,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,
        I.Status, I.Summary, I.OwnerEmployeeID,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
-       I.ReasonVoid, I.UpdateDate,
-       ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode
+       I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2, I.UpdateDate,
+       ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.THD_M_GeneralInformation TG
@@ -3937,7 +3937,7 @@ LEFT JOIN dbo.THD_M_GeneralInformation TG
 WHERE I.OwnerEmployeeID=@EmployeeID AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
   AND I.Status='DRAFT' AND I.IsApproved=0
-  AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.ReasonVoid,'')<>''
+  AND ISNULL(I.IsSubmitted,0)=0 AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
   AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU
 
 WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20021')
@@ -4507,6 +4507,7 @@ JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.Se
 WHERE I.InspectionID=@InspectionID
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+  AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
   AND ISNULL(T.TemplateType,'W')='I' 
   AND (ISNULL(T.CompanyScope,'S')='A'
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
@@ -4572,7 +4573,7 @@ WHERE I.InspectionID=@InspectionID
                 {
                     DataTable header = br.EQueryP(@"
 SELECT I.CompanyID,I.LocationID,I.InspectionDate,I.InspectionNo,I.InspectionTypeName,I.InspectionTypeDetailName,
-       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode
+       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) InspectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.InspectionID=@InspectionID",
