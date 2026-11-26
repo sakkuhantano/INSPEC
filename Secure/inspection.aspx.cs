@@ -4432,10 +4432,13 @@ SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID,
        I.OwnerEmployeeID, I.Status, I.IsApproved
 FROM dbo.PIP_T_Inspection I
 JOIN dbo.SysWebUser SU ON SU.EmployeeID=@EmployeeID AND SU.IsActive=1
+LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 JOIN dbo.PIP_M_CheckListWOPM T ON T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
 WHERE I.InspectionID IN (" + String.Join(",", idParameters.ToArray()) + @")
   AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID
   AND ISNULL(I.IsActive,1)=1
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+  AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
   AND ISNULL(T.TemplateType,'W')='I'
   AND (ISNULL(T.CompanyScope,'S')='A'
        OR (';' + ISNULL(T.CompanyLocationList,'') + ';' LIKE '%;' + I.CompanyID + I.LocationID + ';%'))
