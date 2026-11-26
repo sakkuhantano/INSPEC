@@ -88,29 +88,27 @@ BEGIN
         RETURN;
     END;
 
-    DECLARE @V_PointSource VARCHAR(10);
+    DECLARE @V_InspectionPointMode VARCHAR(10), @V_IsDynamic BIT;
     /* InspectionPointMode is the sole master setting: MAP is persisted as
        MASTER on the transaction-point snapshot; DYNAMIC remains DYNAMIC. */
-    SELECT @V_PointSource=CASE
-             WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,'MAP'))))='DYNAMIC' THEN 'DYNAMIC'
-             WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,'MAP'))))='MAP' THEN 'MASTER'
-             ELSE ''
-           END
+    SELECT @V_InspectionPointMode=UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,''))))
     FROM dbo.PIP_M_InspectionType
     WHERE InspectionTypeCode=@p_InspectionTypeCode AND SectionID=@p_SectionID;
 
-    IF ISNULL(@V_PointSource,'') NOT IN ('MASTER','DYNAMIC')
+    IF ISNULL(@V_InspectionPointMode,'') NOT IN ('MAP','DYNAMIC')
     BEGIN
         RAISERROR('Inspection Type InspectionPointMode configuration is invalid. Use MAP or DYNAMIC.',16,1);
         RETURN;
     END;
+
+    SET @V_IsDynamic=CASE WHEN @V_InspectionPointMode='DYNAMIC' THEN 1 ELSE 0 END;
 
     /* Canonical STANDARD duplicate protection is intentionally bypassed for BATCH.
        Car Park inspections are map-scoped (B1/B2/B3 independent), while Motor
        remains one dynamic batch per date/type/detail/template. Lightning is a
        single daily batch containing all configured maps, so any map overlap
        correctly blocks a second daily transaction. */
-    IF @V_PointSource='DYNAMIC' AND EXISTS
+    IF @V_IsDynamic=1 AND EXISTS
     (
         SELECT 1
         FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
@@ -131,7 +129,7 @@ BEGIN
         RETURN;
     END;
 
-    IF @V_PointSource='MASTER' AND EXISTS
+    IF @V_IsDynamic=0 AND EXISTS
     (
         SELECT 1
         FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
@@ -166,10 +164,9 @@ BEGIN
     (
         SELECT 1 FROM @p_Points P
         WHERE ISNULL(P.C1,'')=''
-           OR ISNULL(P.C8,'')<>@V_PointSource
            OR ISNULL(LTRIM(RTRIM(P.C9)),'')=''
            OR ISNULL(LTRIM(RTRIM(P.C10)),'')=''
-           OR (@V_PointSource='MASTER' AND
+           OR (@V_IsDynamic=0 AND
                (ISNUMERIC(P.C2)=0 OR NOT EXISTS
                  (SELECT 1 FROM dbo.PIP_M_InspectionPoint M
                   INNER JOIN dbo.PIP_M_InspectionMap MAP ON MAP.MapID=M.MapID
@@ -178,11 +175,11 @@ BEGIN
                     AND MAP.InspectionTypeCode=@p_InspectionTypeCode
                     AND MAP.InspectionTypeDetailCode=@p_InspectionTypeDetailCode
                     AND M.IsActive=1)))
-           OR (@V_PointSource='DYNAMIC' AND
+           OR (@V_IsDynamic=1 AND
                (ISNULL(P.C2,'')<>'' OR LEN(P.C9)>100 OR LEN(P.C10)>200))
     )
     BEGIN
-        RAISERROR('One or more Inspection Point records are invalid for the configured PointSource.',16,1);
+        RAISERROR('One or more Inspection Point records are invalid for the configured InspectionPointMode.',16,1);
         RETURN;
     END;
 
@@ -192,7 +189,7 @@ BEGIN
         RETURN;
     END;
 
-    IF @V_PointSource='DYNAMIC' AND EXISTS
+    IF @V_IsDynamic=1 AND EXISTS
     (
         SELECT UPPER(LTRIM(RTRIM(C10)))
         FROM @p_Points
@@ -204,7 +201,7 @@ BEGIN
         RETURN;
     END;
 
-    IF @V_PointSource='MASTER'
+    IF @V_IsDynamic=0
     BEGIN
         /* BATCH map coverage is scoped to the map(s) actually submitted.
            This is critical for Car Park: B1, B2, B3 are independent inspection
@@ -248,7 +245,7 @@ BEGIN
         END;
     END;
 
-    IF @V_PointSource='MASTER' AND EXISTS
+    IF @V_IsDynamic=0 AND EXISTS
     (
         SELECT 1
         FROM @p_Points P
@@ -506,8 +503,7 @@ BEGIN
         );
 
         UPDATE T
-        SET T.InspectionPointID=CASE WHEN @V_PointSource='MASTER' THEN CAST(P.C2 AS BIGINT) ELSE NULL END,
-            T.PointSource=@V_PointSource,
+        SET T.InspectionPointID=CASE WHEN @V_IsDynamic=0 THEN CAST(P.C2 AS BIGINT) ELSE NULL END,
             T.PointCode=P.C9,
             T.PointName=P.C10,
             T.InspectionDateTime=ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()),
@@ -526,8 +522,8 @@ BEGIN
         ;WITH NewPoints AS
         (
             SELECT P.C1 ClientPointID,
-                   CASE WHEN @V_PointSource='MASTER' THEN CAST(P.C2 AS BIGINT) ELSE NULL END InspectionPointID,
-                   P.C8 PointSource,P.C9 PointCode,P.C10 PointName,
+                   CASE WHEN @V_IsDynamic=0 THEN CAST(P.C2 AS BIGINT) ELSE NULL END InspectionPointID,
+                   P.C9 PointCode,P.C10 PointName,
                    ISNULL(CONVERT(DATETIME,NULLIF(P.C3,''),126),GETDATE()) InspectionDateTime,
                    P.C4 Status,
                    NULLIF(LTRIM(RTRIM(ISNULL(P.C5,''))),'') AbnormalRemark,
@@ -542,13 +538,13 @@ BEGIN
         INSERT dbo.PIP_T_InspectionPoint
         (
             InspectionPointTransactionID,InspectionID,ClientPointID,InspectionPointID,
-            PointSource,PointCode,PointName,InspectionDateTime,Status,AbnormalRemark,
+            PointCode,PointName,InspectionDateTime,Status,AbnormalRemark,
             EntryUser,EntryDate,UpdateUser,UpdateDate
         )
         OUTPUT inserted.ClientPointID, inserted.InspectionPointTransactionID
             INTO @V_PointMap(ClientPointID,InspectionPointTransactionID)
         SELECT N.NewID,@V_InspectionID,N.ClientPointID,N.InspectionPointID,
-               N.PointSource,N.PointCode,N.PointName,N.InspectionDateTime,N.Status,N.AbnormalRemark,
+               N.PointCode,N.PointName,N.InspectionDateTime,N.Status,N.AbnormalRemark,
                @p_UpdateUser,GETDATE(),@p_UpdateUser,GETDATE()
         FROM NewPoints N;
 
