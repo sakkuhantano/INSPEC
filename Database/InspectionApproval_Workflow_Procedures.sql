@@ -26,8 +26,8 @@ BEGIN
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'),
-        @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM'),
-        FROM dbo.PIP_T_Inspection I
+        @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')
+ FROM dbo.PIP_T_Inspection I
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID AND I.Status='DONE'
    AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0
@@ -90,7 +90,7 @@ BEGIN
        OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',E.EmployeeID,'') L WHERE L.CompanyID=@C AND L.LocationID=@L))
   )
  )
- BEGIN RAISERROR('One or more configured configured Chief approvers are inactive or lack PENG approval access for this Company and Location.',16,1); RETURN; END;
+ BEGIN RAISERROR('One or more configured Chief approvers are inactive or lack the matching ProfitCenter approval access for this Company and Location.',16,1); RETURN; END;
 
  SELECT @SPVName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
    FROM dbo.SplitStringConvertToTable(@SPV,';') X LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
@@ -200,8 +200,8 @@ BEGIN
          @EventID BIGINT,@NextStatus VARCHAR(30);
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
-        @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM'),
-        FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
+        @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')
+ FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
@@ -263,7 +263,7 @@ BEGIN
  IF @EmailNext=1 AND ISNULL(@Chief,'')<>'' AND EXISTS
     (SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
      WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''))
- BEGIN RAISERROR('Email address is missing for configured configured Chief recipients.',16,1); RETURN; END;
+ BEGIN RAISERROR('Email address is missing for configured Chief recipients.',16,1); RETURN; END;
 
  BEGIN TRY
   INSERT dbo.PIP_T_InspectionApprovalHistory
