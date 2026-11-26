@@ -36,7 +36,10 @@ try {
     $result = $response.Content | ConvertFrom-Json
     if (-not $result.success) { throw "INSPEC rejected the scheduled batch: $($result.message)" }
     $result.result | Format-List | Out-String | Write-Output
-    if ($result.result.status -eq 'PARTIAL') { Write-Warning 'Scheduler completed with errors. Review INSPEC_SchedulerRunLog and INSPEC_SchedulerSectionLog.' }
+    if ($result.result.status -eq 'PARTIAL') {
+        Write-Warning 'Scheduler completed with errors. Review INSPEC_SchedulerRunLog and INSPEC_SchedulerSectionLog.'
+        exit 1
+    }
 }
 catch { Write-Error $_; exit 1 }
 finally { $secret = $null; $secureSecret = $null; $keyBytes = $null }
