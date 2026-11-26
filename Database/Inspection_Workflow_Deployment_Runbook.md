@@ -10,6 +10,19 @@ The existing INSPEC database is expected to contain the canonical base tables an
 
 Do not rerun the initial-install scripts database/inspection_transaction_schema.sql or database/master_template_inspection_schema.sql when these base objects already exist. Resolve missing prerequisites separately before proceeding.
 
+Before proceeding, confirm the populated map schema already has the map-owned type columns required by the current application:
+
+```sql
+SELECT
+    COL_LENGTH('dbo.PIP_M_InspectionMap','InspectionTypeCode') AS MapInspectionTypeCodeLength,
+    COL_LENGTH('dbo.PIP_M_InspectionMap','InspectionTypeDetailCode') AS MapInspectionTypeDetailCodeLength,
+    COL_LENGTH('dbo.PIP_M_InspectionPoint','InspectionPointID') AS MasterPointIDLength,
+    COL_LENGTH('dbo.PIP_M_InspectionPoint','MapX') AS MapXLength,
+    COL_LENGTH('dbo.PIP_M_InspectionPoint','MapY') AS MapYLength;
+```
+
+If either map-owned type column is NULL while PIP_M_InspectionPoint already contains data, stop. Do not run SQL/ALTER_PIP_M_InspectionMap_MoveInspectionType.sql against the populated database; that script intentionally refuses populated points. A separate data-preserving migration is required before application deployment.
+
 ## Required SQL deployment order
 
 Run each file in this order. Stop on the first SQL error.
