@@ -36,7 +36,8 @@ BEGIN
    AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0
    AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
-   AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT';
+   AND (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+        OR ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT');
  IF @C IS NULL BEGIN RAISERROR('Inspection is not eligible for submission.',16,1); RETURN; END;
  IF @Owner<>@p_ActorEmployeeID BEGIN RAISERROR('Only the inspection owner can submit this inspection.',16,1); RETURN; END;
 
