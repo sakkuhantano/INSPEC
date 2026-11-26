@@ -3953,7 +3953,7 @@ WHERE ApprovalBatchID=@BatchID AND CompanyID=@CompanyID AND LocationID=@Location
             return reports;
         }
 
-        private static void SendStandardBatchEmail(
+        private static string SendStandardBatchEmail(
             long approvalBatchId, string employeeId, string companyId, string locationId,
             DataRow batch, IList<Dictionary<string, string>> reports)
         {
@@ -3970,6 +3970,8 @@ WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''",
             }
             if (recipientRows == null || recipientRows.Rows.Count == 0)
                 throw new InvalidOperationException("Alamat email CHIEF belum tersedia di M_HRD_Employee.");
+            string emailTo = String.Join(";", recipientRows.AsEnumerable()
+                .Select(row => Convert.ToString(row["EmailAddress"]).Trim()).ToArray());
 
             string fromAddress = "";
             string fromName = employeeId;
@@ -4052,6 +4054,7 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
                     smtp.Send(message);
                 }
             }
+            return emailTo;
         }
 
         [WebMethod]
@@ -4173,7 +4176,10 @@ ORDER BY B.InspectionDate DESC,B.ApprovalBatchID DESC",
             using (var br = new WAL.BR.CF())
             {
                 DataTable header = br.EQueryP(@"
-SELECT B.*,dbo.fnINSPEC_ChiefRoleForSection(B.SectionID) ChiefRole,
+SELECT B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
+       B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+       B.ApprovedBy,B.ApprovedDate,B.EmailStatus,
+       dbo.fnINSPEC_ChiefRoleForSection(B.SectionID) ChiefRole,
        ISNULL(EC.Name,B.CreatedBy) CreatedByName,
        ISNULL(EA.Name,B.ApprovedBy) ApprovedByName
 FROM dbo.PIP_T_Inspection_ApprovalBatch B
@@ -4324,7 +4330,7 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                 {
                     List<Dictionary<string, string>> reports = GenerateStandardBatchReports(
                         batchId, employeeId, companyId, locationId, true);
-                    SendStandardBatchEmail(batchId, employeeId, companyId, locationId,
+                    string emailTo = SendStandardBatchEmail(batchId, employeeId, companyId, locationId,
                         created.Rows[0], reports);
                     emailStatus = "SENT";
                     using (var br = new WAL.BR.CF())
@@ -4335,7 +4341,7 @@ SET EmailStatus='SENT',EmailError=N'',EmailTo=@EmailTo,EmailAttemptCount=EmailAt
     LastEmailAttemptDate=GETDATE(),SentDate=GETDATE()
 WHERE ApprovalBatchID=@BatchID",
                             new SqlParameter[] {
-                                new SqlParameter("@EmailTo", String.Join(";", reports.Select(r => r["FileName"]).ToArray())),
+                                new SqlParameter("@EmailTo", emailTo),
                                 new SqlParameter("@BatchID", batchId)
                             }, true, true);
                     }
