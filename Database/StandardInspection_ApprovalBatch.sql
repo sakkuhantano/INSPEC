@@ -265,7 +265,7 @@ BEGIN
         VALUES
         (
             @C,@L,@S,@InspectionDate,@ProfitCenterNo,
-            @p_EmployeeID,GETDATE(),GETDATE(),'PENDING',
+            @p_EmployeeID,GETDATE(),NULL,'PENDING',
             CASE WHEN ISNULL(@EmailEnabled,0)=1 THEN 'PENDING' ELSE 'NOT_REQUIRED' END,
             @Chief
         );
