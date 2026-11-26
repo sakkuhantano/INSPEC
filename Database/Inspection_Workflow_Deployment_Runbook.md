@@ -18,44 +18,58 @@ Run each file in this order. Stop on the first SQL error.
    - Adds REPEAT master configuration tables and ObjectIndex/value-column changes.
 2. Database/InspectionWorkflow_ComVal_Migration.sql
    - Consolidates InspectionMode to STANDARD or BATCH, InspectionPointMode to MAP or DYNAMIC, and ScheduleSelectionMode to PARAM or INSPECT.
-   - Normalizes legacy LIGHTNING / AT_INSPECTION master values to BATCH / INSPECT, then drops the deprecated PointSource and ApprovalWorkflowCode master columns after backfill.
+   - Normalizes legacy LIGHTNING / AT_INSPECTION master values to BATCH / INSPECT, then drops deprecated PointSource and ApprovalWorkflowCode master columns after backfill.
 3. Database/InspectionPoint_Coordinate_Consolidation.sql
    - Ensures MapX / MapY anchor coordinates exist on PIP_M_InspectionPoint.
 4. Database/inspection_point_svg_shape_migration.sql
    - Adds SVG geometry columns and the supported CIRCLE / RECTANGLE / PATH shape constraint.
 5. Database/InspectionMapGroup_Migration.sql
    - Adds Map Group master and the scoped MapGroupID relationship on PIP_M_InspectionMap.
-6. database/inspection_batch_transaction_migration.sql
-   - Adds the canonical BATCH point transaction / result / photo structure. Requires the existing base tables and TVPs.
-7. Database/LightningInspection_Transaction_Migration.sql
+6. SQL/ALTER_PIP_M_InspectionMap_RequireAllPoints.sql
+   - Adds the map-level RequireAllPoints rule used by Car Park / Lightning coverage validation.
+7. database/inspection_batch_transaction_migration.sql
+   - Adds the canonical BATCH point transaction / result / photo structure. Requires existing base tables and TVPs.
+8. Database/LightningInspection_Transaction_Migration.sql
    - Adds ScheduleTime per-point storage and normalizes old transaction header modes to BATCH.
-8. Database/inspection_dynamic_point_migration.sql
+9. Database/inspection_dynamic_point_migration.sql
    - Allows dynamic Motor point snapshots with NULL InspectionPointID, drops the deprecated PointSource transaction column, and creates schedule-scoped filtered indexes. Master points retain a non-NULL InspectionPointID.
-9. Database/Inspection_GPS_Transaction_Migration.sql
-   - Adds technician GPS columns used by Inspection sync / geofence validation.
-10. Database/Inspection_Tenant_Suite_Migration.sql
-    - Adds tenant/suite inspection fields and the duplicate-check index.
-11. Database/InspectionApproval_HeaderFields_Migration.sql
+10. database/inspection_point_abnormal_summary_migration.sql
+    - Adds point abnormal / summary settings used by map point validation and REPEAT summary rules.
+11. Database/Inspection_GPS_Transaction_Migration.sql
+    - Adds technician GPS columns used by Inspection sync / geofence validation.
+12. Database/Inspection_Tenant_Suite_Migration.sql
+    - Adds tenant/suite inspection fields and duplicate-check index.
+13. Database/InspectionApproval_HeaderFields_Migration.sql
     - Adds / normalizes approval actor, date, and stage fields on PIP_T_Inspection.
-12. Database/InspectionEmailApproval_Schema.sql
+14. Database/InspectionEmailApproval_Schema.sql
     - Creates approval history and email outbox, including CHIEF_HK history support.
-13. Database/InspectionApproval_ComVal_EmailHelper.sql
+15. Database/InspectionApproval_ComVal_EmailHelper.sql
     - Creates fnINSPEC_ApprovalEmailEnabled and fnINSPEC_ChiefRoleForSection.
-14. Database/spUTL_PIP_T_Inspection_Approval.sql
+16. Database/spUTL_PIP_T_Inspection_Approval.sql
     - Deploys the Follow Up / final-approval gate used by the approval execute wrapper.
-15. Database/InspectionApproval_Workflow_Procedures.sql
+17. Database/InspectionApproval_Workflow_Procedures.sql
     - Deploys the active Standard / BATCH-PARAM submit, approval, and execute procedures.
-16. Database/LightningInspection_Approval_Workflow.sql
+18. Database/LightningInspection_Approval_Workflow.sql
     - Deploys the active Lightning submit and three-stage approval procedures.
-17. Database/spUTL_PIP_M_CheckListWOPM.sql
+19. database/inspection_parameter_change_migration.sql
+    - Adds SyncDate / archive / cancellation fields and installs the parameter-change Standard sync foundation. This must run after the generic workflow procedures because it invokes the submit workflow.
+20. Database/Patch_Inspection_DeleteArchive_ColumnLengths.sql
+    - Fixes archive field lengths created by the parameter-change migration.
+21. Database/spPIP_InsertUpdateDeleteInput_PIP_M_HD_InspectionType.sql
+    - Deploys the Inspection Type master save procedure using InspectionMode / InspectionPointMode / ScheduleSelectionMode.
+22. Database/spPIP_InsertUpdateDeleteInput_PIP_M_InspectionGeofence.sql
+    - Creates / deploys the Geofence master save procedure.
+23. Database/spUTL_PIP_T_WO_AssignmentEmployee.sql
+    - Deploys the current Work Order assignment procedure.
+24. Database/spUTL_PIP_M_CheckListWOPM.sql
     - Deploys REPEAT template configuration persistence.
-18. Database/spUTL_WO_CheckList.sql
+25. Database/spUTL_WO_CheckList.sql
     - Deploys Work Order REPEAT value validation / persistence.
-19. Database/spUTL_PIP_T_Inspection_Sync.sql
-    - Deploys STANDARD Inspection sync, including REPEAT persistence and generic submit workflow call.
-20. Database/spUTL_PIP_T_Inspection_Batch_Sync.sql
-    - Deploys BATCH MAP / DYNAMIC sync using InspectionPointMode from the Inspection Type master.
-21. Database/LightningInspection_Sync_Procedure.sql
+26. Database/spUTL_PIP_T_Inspection_Sync.sql
+    - Deploys the final STANDARD Inspection sync, including REPEAT persistence, GPS / tenant fields, and generic submit workflow call. This replaces the interim procedure from step 19.
+27. Database/spUTL_PIP_T_Inspection_Batch_Sync.sql
+    - Deploys the final BATCH MAP / DYNAMIC sync, including abnormal summary validation and nullable InspectionPointID handling.
+28. Database/LightningInspection_Sync_Procedure.sql
     - Deploys Lightning daily sync for BATCH / MAP / INSPECT.
 
 The base schema scripts are initial-install prerequisites, not part of this upgrade sequence. If a base table or TVP is missing, resolve that separately; do not blindly run initial-install scripts over an existing database.
