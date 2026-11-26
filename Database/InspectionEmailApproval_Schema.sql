@@ -14,7 +14,7 @@
       - Workflow email flags: <CompanyID><LocationID>;STANDARD / BATCH;PARAM / BATCH;INSPECT.
       - Employee IDs are stored in Description; application resolves Name/emailaddress from M_HRD_Employee.
     Approval history/outbox supports the single canonical PIP_T_Inspection header
-    for STANDARD, BATCH, and LIGHTNING modes. Workflow state lives on that header.
+    for STANDARD and BATCH modes. Lightning uses the BATCH + INSPECT master mode and a LIGHTNING audit entity type. Workflow state lives on that header.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
