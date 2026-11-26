@@ -2435,7 +2435,7 @@
             </div>
             <div class="inspection-filter-control">
                 <label for="selApprovalBatchStatus" class="form-label small mb-1">Batch Status</label>
-                <select id="selApprovalBatchStatus" class="form-select form-select-sm"><option value="NOT_SENT" selected>Not yet sent</option><option value="SENT">Sent to CHIEF</option><option value="">All</option></select>
+                <select id="selApprovalBatchStatus" class="form-select form-select-sm"><option value="NOT_SENT" selected>Not yet sent</option><option value="SENT">In CHIEF batch</option><option value="">All</option></select>
             </div>
             <div class="inspection-date-control"><label for="txtApprovalInspectionDateFrom" class="form-label small mb-1">Inspection Date From</label><input type="date" id="txtApprovalInspectionDateFrom" class="form-control form-control-sm" /></div>
             <div class="inspection-date-control"><label for="txtApprovalInspectionDateThru" class="form-label small mb-1">Inspection Date Thru</label><input type="date" id="txtApprovalInspectionDateThru" class="form-control form-control-sm" /></div>
