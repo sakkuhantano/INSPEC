@@ -3917,8 +3917,12 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                     foreach (DataRow row in group)
                         selected.Rows.Add(Convert.ToInt64(row["InspectionID"]));
 
+                    // Use a per-batch/per-type export folder so two different types with
+                    // the same report title and timestamp cannot overwrite one another.
+                    string reportUserFolder = employeeId + "_B" + approvalBatchId.ToString(CultureInfo.InvariantCulture) +
+                        "_T" + SafeBatchReportSegment(typeCode);
                     var report = R_Report.GenerateInspectionXlsx(
-                        selected, companyId, locationId, employeeId);
+                        selected, companyId, locationId, reportUserFolder);
                     if (report == null || !report.Success ||
                         String.IsNullOrWhiteSpace(report.StoragePath) || !File.Exists(report.StoragePath))
                         throw new InvalidOperationException(
