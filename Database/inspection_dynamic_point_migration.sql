@@ -18,7 +18,7 @@ IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointName') IS NULL
 
 /* Preserve the old dynamic/master distinction during the one-time migration. */
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointSource') IS NOT NULL
-    EXEC('UPDATE dbo.PIP_T_InspectionPoint SET InspectionPointID=NULL WHERE UPPER(LTRIM(RTRIM(ISNULL(PointSource,\'MASTER\'))))=\'DYNAMIC\';');
+    EXEC('UPDATE dbo.PIP_T_InspectionPoint SET InspectionPointID=NULL WHERE UPPER(LTRIM(RTRIM(ISNULL(PointSource,''MASTER''))))=''DYNAMIC'';');
 
 UPDATE T
 SET T.PointCode=ISNULL(NULLIF(T.PointCode,''),M.PointCode),
