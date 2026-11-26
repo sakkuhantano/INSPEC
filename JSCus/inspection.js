@@ -94,11 +94,8 @@ function isLightningInspectionRecord(record) {
     return mode === "BATCH" && scheduleMode === "INSPECT";
 }
 
-function getInspectionPointSource(typeOrRecord) {
-    const mode = String(typeOrRecord && typeOrRecord.InspectionPointMode || "").trim().toUpperCase();
-    if (mode === "DYNAMIC") return "DYNAMIC";
-    if (mode === "MAP") return "MASTER";
-    return "MASTER";
+function isDynamicInspectionType(typeOrRecord) {
+    return String(typeOrRecord && typeOrRecord.InspectionPointMode || "").trim().toUpperCase() === "DYNAMIC";
 }
 
 function isInspectionMapMode(mode) {
@@ -644,7 +641,7 @@ function wireInspectionEvents() {
     if (addDynamicPointButton && dynamicPointNameInput) {
         const addDynamicPoint = async function () {
             const record = currentInspectionRecord;
-            if (!record || getInspectionPointSource(record) !== "DYNAMIC" ||
+            if (!record || !isDynamicInspectionType(record) ||
                 !isInspectionMapMode(record.InspectionMode) || record.Status === "DONE") return;
             const plate = String(dynamicPointNameInput.value || "").trim().toUpperCase();
             if (!plate) { showToast("Nomor Polisi wajib diisi.", "warning"); dynamicPointNameInput.focus(); return; }
@@ -659,7 +656,7 @@ function wireInspectionEvents() {
             const point = {
                 InspectionPointID: -sequence,
                 ClientPointID: newInspectionId(),
-                PointSource: "DYNAMIC",
+                
                 PointCode: "M" + String(sequence).padStart(3, "0"),
                 PointName: plate,
                 Nopol: plate,
@@ -2056,7 +2053,7 @@ const scheduledTime = isLightning
     }
 
     let batchMapSetup = null;
-    if (isInspectionMapMode(inspectionMode) && pointSource === "DYNAMIC") {
+    if (isInspectionMapMode(inspectionMode) && isDynamicPoints) {
         batchMapSetup = { success: true, maps: [], points: [] };
     } else if (isInspectionMapMode(inspectionMode)) {
         if (navigator.onLine) {
@@ -2090,7 +2087,7 @@ const scheduledTime = isLightning
         }
 
         if (!batchMapSetup || !Array.isArray(batchMapSetup.points) ||
-            (pointSource === "MASTER" && !batchMapSetup.points.length)) {
+            (!isDynamicPoints && !batchMapSetup.points.length)) {
             showToast("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
@@ -3530,7 +3527,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         point = {
             ClientPointID: String(masterPoint.ClientPointID || newInspectionId()),
             InspectionPointID: Number(masterPoint.InspectionPointID),
-            PointSource: getInspectionPointSource(currentInspectionRecord),
+            
             PointCode: String(masterPoint.PointCode || ""),
             PointName: String(masterPoint.PointName || ""),
             ScheduleTime: scheduleTime,
@@ -3544,7 +3541,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         currentInspectionRecord.Points = currentInspectionRecord.Points || [];
         currentInspectionRecord.Points.push(point);
     }
-    if (getInspectionPointSource(currentInspectionRecord) === "DYNAMIC") {
+    if (isDynamicInspectionType(currentInspectionRecord)) {
         const templateItems = [];
         (currentInspectionRecord.TemplateSnapshot && currentInspectionRecord.TemplateSnapshot.sections || []).forEach(section =>
             (section.items || []).forEach(item => templateItems.push(item)));
@@ -4566,7 +4563,7 @@ async function saveBatchInspectionPoint(status, options) {
         Number(item.InspectionPointID) === Number(point.InspectionPointID));
     const conditionRequired = isInspectionFlagEnabled(masterPoint && masterPoint.IsNormalAbnormalRequired, false);
     const errors = [];
-    if (getInspectionPointSource(record) === "DYNAMIC") {
+    if (isDynamicInspectionType(record)) {
         const plateItem = items.find(item => String(item.Type || item.ItemType || "").toUpperCase() === "TEXT" &&
             /(nopol|no\\s*pol|plat|nomor polisi|license)/i.test(String(item.ItemLabel || item.label || "")));
         const plateValue = String(plateItem && plateItem.Value || "").trim().toUpperCase();
@@ -4827,7 +4824,7 @@ window.submitInspectionBatch = async function () {
     const masterPoints = record.BatchMapSetup && record.BatchMapSetup.points || [];
     const points = Array.isArray(record.Points) ? record.Points : [];
     if (!masterPoints.length) {
-        showToast(getInspectionPointSource(record) === "DYNAMIC" ? "Tambahkan minimal satu kendaraan Motor terlebih dahulu." : "Master Inspection Point belum tersedia.", "danger");
+        showToast(isDynamicInspectionType(record) ? "Tambahkan minimal satu kendaraan Motor terlebih dahulu." : "Master Inspection Point belum tersedia.", "danger");
         return;
     }
     if (lightning && !schedules.length) {
@@ -4894,7 +4891,7 @@ window.submitInspectionBatch = async function () {
                 pointCode: String(point.PointCode || ("Point " + point.InspectionPointID)),
                 pointId: Number(point.InspectionPointID),
                 ScheduleTime: scheduleTime,
-                message: getInspectionPointSource(record) === "DYNAMIC" ? "Kendaraan tidak termasuk daftar inspeksi ini." : "Point tidak termasuk Master Map aktif pada jadwal ini."
+                message: isDynamicInspectionType(record) ? "Kendaraan tidak termasuk daftar inspeksi ini." : "Point tidak termasuk Master Map aktif pada jadwal ini."
             });
         }
     });
@@ -4925,8 +4922,8 @@ window.submitInspectionBatch = async function () {
         message: lightning
             ? "Submit seluruh " + scheduleCount + " jadwal dan " + points.length +
                 " point dalam satu transaksi harian? Setelah Submit, semua jadwal akan terkunci."
-            : (getInspectionPointSource(record) === "DYNAMIC" ? "Submit " + points.length + " kendaraan? Checklist Nopol, hasil inspeksi, dan foto seluruh kendaraan sudah lolos validasi." : "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi."),
-        yesText: lightning ? "Submit Semua Jadwal" : (getInspectionPointSource(record) === "DYNAMIC" ? "Submit Semua Motor" : "Submit Batch")
+            : (isDynamicInspectionType(record) ? "Submit " + points.length + " kendaraan? Checklist Nopol, hasil inspeksi, dan foto seluruh kendaraan sudah lolos validasi." : "Submit " + points.length + " titik? Checklist, foto, kondisi titik, dan pengaturan Master Version sudah lolos validasi."),
+        yesText: lightning ? "Submit Semua Jadwal" : (isDynamicInspectionType(record) ? "Submit Semua Motor" : "Submit Batch")
     });
     if (!confirmed) return;
 
