@@ -18,7 +18,7 @@ Run each file in this order. Stop on the first SQL error.
    - Adds REPEAT master configuration tables and ObjectIndex/value-column changes.
 2. Database/InspectionWorkflow_ComVal_Migration.sql
    - Consolidates InspectionMode to STANDARD or BATCH, InspectionPointMode to MAP or DYNAMIC, and ScheduleSelectionMode to PARAM or INSPECT.
-   - Normalizes legacy LIGHTNING / AT_INSPECTION master values to BATCH / INSPECT.
+   - Normalizes legacy LIGHTNING / AT_INSPECTION master values to BATCH / INSPECT, then drops the deprecated PointSource and ApprovalWorkflowCode master columns after backfill.
 3. Database/InspectionPoint_Coordinate_Consolidation.sql
    - Ensures MapX / MapY anchor coordinates exist on PIP_M_InspectionPoint.
 4. Database/inspection_point_svg_shape_migration.sql
@@ -28,7 +28,7 @@ Run each file in this order. Stop on the first SQL error.
 6. database/inspection_batch_transaction_migration.sql
    - Adds the canonical BATCH point transaction / result / photo structure. Requires the existing base tables and TVPs.
 7. Database/inspection_dynamic_point_migration.sql
-   - Extends transaction-point snapshots to support dynamic Motor points. Its PointSource is transaction-level snapshot data only; it is not a PIP_M_InspectionType configuration field.
+   - Allows dynamic Motor point snapshots with NULL InspectionPointID and drops the deprecated PointSource transaction column. Master points retain a non-NULL InspectionPointID.
 8. Database/LightningInspection_Transaction_Migration.sql
    - Adds per-schedule point transactions and normalizes old transaction header modes to BATCH.
 9. Database/Inspection_GPS_Transaction_Migration.sql
