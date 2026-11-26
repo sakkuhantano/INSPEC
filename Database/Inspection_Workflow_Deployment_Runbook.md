@@ -1,65 +1,83 @@
-# Lightning + Inspection Approval Deployment Runbook
+# Inspection Approval Deployment Runbook
 
 ## SQL deployment order
 
-Run the scripts below in SQL Server Management Studio against the target INSPEC database. Do not deploy the application code before the required procedures and tables exist.
+Run these scripts in SQL Server Management Studio against a **non-production INSPEC database first**. Take a database backup before applying schema migrations. Confirm the existing base INSPEC schema, dbo.SysWebCommonValue, HR employee tables, login/access functions, and template/map master tables are present.
 
-1. Existing prerequisites (only if not already applied):
-   - `InspectionWorkflow_ComVal_Migration.sql` (consolidates InspectionPointMode and renames schedule mode to INSPECT)
-   - `InspectionEmailApproval_CommonValue_Migration.sql` (only when temporary routing tables still exist)
-   - `InspectionApproval_ComValWorkflow_Migration.sql` (converts existing EMAIL mode flags into per-level workflow flags)
-   - `InspectionApproval_ComVal_EmailHelper.sql` (creates the per-level ComVal email flag lookup function)
-   - `inspection_mode_migration.sql`
-   - `inspection_batch_transaction_migration.sql`
-   - `InspectionMapGroup_Migration.sql`
-   - `InspectionPoint_Coordinate_Consolidation.sql`
-   - `InspectionPoint_RemoveCompanyLocation_Migration.sql`
-     (only if the current Group Map / direct MapX+MapY schema and point scope are not already deployed)
-2. `InspectionEmailApproval_Schema.sql`
-3. `InspectionApproval_HeaderFields_Migration.sql`
-4. `InspectionLegacyApproval_Procedure_ColumnRename.sql`
-5. `LightningInspection_Transaction_Migration.sql`
-6. `LightningInspection_Approval_Workflow.sql`
-7. `InspectionApproval_Workflow_Procedures.sql`
-8. `LightningInspection_Sync_Procedure.sql`
+1. database/inspection_mode_migration.sql
+   - Adds/normalizes the Inspection Type InspectionMode field.
+2. database/inspection_presentation_config_migration.sql
+   - Adds presentation, point-source, schedule-selection, and workflow-code master fields. Run after step 1.
+3. Database/InspectionWorkflow_ComVal_Migration.sql
+   - Consolidates point mode, converts legacy Lightning master types to BATCH / MAP / INSPECT, and updates the related check constraints. Run after steps 1–2.
+4. database/inspection_batch_transaction_migration.sql
+5. Database/InspectionMapGroup_Migration.sql
+6. Database/InspectionPoint_Coordinate_Consolidation.sql
+7. Database/InspectionPoint_RemoveCompanyLocation_Migration.sql
+   - Only when the deployed map-point schema still has the old Group Map / direct MapX+MapY point-scope fields.
+8. Database/InspectionEmailApproval_CommonValue_Migration.sql
+   - Run only when the old temporary PIP_M_InspectionEmailSetup* tables still exist. It moves their SPV/Chief/legacy email settings into dbo.SysWebCommonValue and drops the temporary tables.
+9. Database/InspectionEmailApproval_Schema.sql
+   - Creates/updates approval history and email outbox. It also permits the SKIPPED history action used when a Chief stage has no configured approver.
+10. Database/InspectionApproval_HeaderFields_Migration.sql
+    - Adds the three approval-stage actor/date fields. Review its existing-data assumptions and the obsolete IsApprovedFinal column removal before using it on any database containing important inspection history.
+11. Database/LightningInspection_Transaction_Migration.sql
+12. Database/InspectionLegacyApproval_Procedure_ColumnRename.sql
+    - Recompiles the original Follow Up procedure after the IsApprove → IsApproved column rename.
+13. Database/spUTL_PIP_T_Inspection_Approval.sql
+    - Applies the updated Follow Up/approval authorization routine, including the final-stage behavior when optional Chief Engineering is not configured.
+14. Database/InspectionApproval_ComValWorkflow_Migration.sql
+    - Converts existing legacy ;EMAIL;STANDARD/BATCH/LIGHTNING switches into the new per-workflow/per-stage ComVal rows. Run after step 8 if the old temporary tables existed; it does not overwrite a workflow row that is already configured.
+15. Database/InspectionApproval_ComVal_EmailHelper.sql
+    - Creates dbo.fnINSPEC_ApprovalEmailEnabled. This must exist before compiling the workflow procedures below.
+16. Database/LightningInspection_Approval_Workflow.sql
+17. Database/InspectionApproval_Workflow_Procedures.sql
+18. Database/LightningInspection_Sync_Procedure.sql
 
-The schema script creates approval history and email outbox. Workflow state is stored on PIP_T_Inspection. Approval routing and email switches are stored in the existing `dbo.SysWebCommonValue` table under `AppID='INSPEC'`, `CommonGroup='EmailApproval'`.
-
-
+The active stored procedures are created by steps 16–18. The similarly named older standalone spUTL_PIP_T_Inspection_Lightning_* SQL files are not part of this runbook; do not apply those old copies over the active routines.
 
 ## Application configuration
 
-- Configure approval routing from Inspection Master -> Inspection Email & Approval Routing. Chief employee mappings, Section SPV mappings, and workflow email flags are stored in `dbo.SysWebCommonValue`.
-- Approver mappings remain `<CompanyID><LocationID>;CHIEF_ENG` / `;CHIEF_SEC` with EmployeeID in Description; SPV uses `<CompanyID><LocationID>;SPV;<SectionID>`. Workflow flags use the three keys above and one `[LEVEL][TRUE/FALSE]` token per stage.
-- Workflow email flags are stored per Company + Location: `<CompanyID><LocationID>;STANDARD`, `...;BATCH;PARAM`, and `...;BATCH;INSPECT`. Description tokens use `[LEVEL][TRUE/FALSE]`; a missing workflow ComVal or missing level token means email OFF for that level.
-- If a development database already contains the temporary `PIP_M_InspectionEmailSetup*` tables from the earlier patch, run `InspectionEmailApproval_CommonValue_Migration.sql` once before removing those tables.
-- Set `smtpFrom` in `Web.config` to a sender address authorized by the SMTP relay.
-- Current relay defaults remain `smtp.varnion.net:25`, SSL disabled, and blank credentials. Confirm the relay policy and configure credentials if required.
-- Pending/failed email notifications remain in `PIP_T_InspectionEmailOutbox`; dispatch is retried after inspection sync, approval actions, and approval queue loads.
-- The dispatcher records `LastAttemptDate` and automatically recovers `SENDING` rows left stale for more than 30 minutes after an app-pool recycle or process interruption; the fifth failed attempt remains terminal for manual review.
-- The setup page is available from Inspection Master. Configure two distinct Chief employees for the Company + Location, then configure the SPV for every active inspection Section.
+Configure routing from Inspection Master → Inspection Email & Approval Routing. Routing remains in dbo.SysWebCommonValue, AppID='INSPEC', CommonGroup='EmailApproval':
+
+- SPV: <CompanyID><LocationID>;SPV;<SectionID> → one or more SPV EmployeeIDs in Description. **SPV mapping is mandatory for every active Inspection Section**, independent of email settings.
+- Chief Engineering: <CompanyID><LocationID>;CHIEF_ENG → EmployeeIDs in Description. Optional; an empty mapping causes the Batch/Param Chief stage to be skipped.
+- Chief Security: <CompanyID><LocationID>;CHIEF_SEC → EmployeeIDs in Description. Optional; an empty mapping causes the Lightning Chief Security stage to be skipped.
+- Workflow email flags are stored per Company + Location:
+  - <CompanyID><LocationID>;STANDARD → [SPV][TRUE/FALSE]
+  - <CompanyID><LocationID>;BATCH;PARAM → [SPV][TRUE/FALSE];[CHIEF][TRUE/FALSE]
+  - <CompanyID><LocationID>;BATCH;INSPECT → [SPV][TRUE/FALSE];[CHIEF_SEC][TRUE/FALSE];[CHIEF_ENG][TRUE/FALSE]
+
+Email flags control notification only. FALSE, a missing token, or a missing workflow ComVal means **no email for that stage**; it does not remove that approval stage. A missing Chief mapping, by contrast, means the Chief approval stage is skipped and its approval field is stamped with the NIK of the preceding person who actually approved. Skipped stages are recorded in PIP_T_InspectionApprovalHistory as ActionCode='SKIPPED'.
+
+The CHIEF token for BATCH;PARAM controls email to Chief Engineering. The CHIEF_SEC and CHIEF_ENG tokens are separate Lightning notification switches. Chief Security and Chief Engineering mappings are independently optional and, when supplied, must contain valid active employees with the correct profit center and Company/Location access. The same NIK must not be assigned to both Chief roles or overlap the SPV mapping.
+
+If a development database has the temporary setup tables from the earlier patch, run step 8 before step 14. Step 14 migrates old on/off switches only where a legacy setting exists; absent legacy settings remain OFF. New setups should be configured in the Inspection Email & Approval Routing page after the migrations.
+
+Set smtpFrom in Web.config to a sender address authorized by the SMTP relay. Confirm relay policy and configure credentials if required; historical defaults were smtp.varnion.net:25, SSL disabled, and blank credentials, but do not assume those values match the current environment. Pending/failed notifications remain in PIP_T_InspectionEmailOutbox. The dispatcher retries eligible outbox rows after sync, approval actions, and approval queue loads.
 
 ## Workflow behavior
 
-- STANDARD: Technician submits -> configured Section SPV verifies. BATCH / PARAM: Technician submits -> configured Section SPV verifies -> Chief Engineering acknowledges. BATCH / INSPECT: Technician submits -> SPV verifies -> Chief Security acknowledges -> Chief Engineering acknowledges. Each stage's email notification is independently controlled by its ComVal `[LEVEL][TRUE/FALSE]` token.
-- Lightning: one daily InspectionID contains all 61 configured lamp points across the configured maps -> Technician submits -> SPV verifies (`CHECKED` -> `VERIFIED`) -> Chief Security acknowledges 1 -> Chief Engineering acknowledges 2 (`ACKNOWLEDGE 1` -> `ACKNOWLEDGE 2`).
-- A void requires a reason and returns the server record to the technician correction list. The authenticated correction email link opens that record.
-- Approval email links open the authenticated approval review; approval itself is only performed by an explicit same-origin POST action.
-- Workflow state is held on PIP_T_Inspection (`IsSubmitted`, `IsApproved`, `IsApproved1`, `IsApproved2` and their actor/date fields). For Standard/Batch, `IsApproved` is SPV and `IsApproved1` is Chief Engineering; for Lightning, `IsApproved` is SPV, `IsApproved1` is Chief Security, and `IsApproved2` is Chief Engineering. Every approver VOID resets all three stages and returns the record to DRAFT; the approval history remains intact. Lightning schedule tabs are derived from PIP_M_InspectionTypeDetail.ScheduleTime and PIP_T_InspectionPoint.ScheduleTime.
+- **STANDARD:** Technician submits → configured Section SPV verifies. IsApproved / ApprovedBy records the actual SPV.
+- **BATCH / PARAM (Car Park and Motor):** Technician submits → SPV verifies → Chief Engineering acknowledges. If no Chief Engineering mapping exists, SPV is the final approver; IsApproved1 / Approved1By is stamped with the SPV's NIK and the skipped Chief stage is audited.
+- **BATCH / INSPECT (Lightning daily):** One daily InspectionID contains the daily map-point inspection. Normal flow is SPV → Chief Security → Chief Engineering. If Chief Security is absent, its field is stamped by SPV and the process continues to Chief Engineering if configured. If Chief Engineering is absent, its field is stamped by the preceding actual approver. If both are absent, SPV completes the workflow. The fields are IsApproved/ApprovedBy (SPV), IsApproved1/Approved1By (Chief Security stage), and IsApproved2/Approved2By (Chief Engineering stage).
+- Email notification for each active stage is independently controlled by that stage's [LEVEL][TRUE/FALSE] token. Turning email OFF does not permit bypassing a configured approver.
+- A VOID requires a reason, records the correct stage and returns the transaction to the technician correction list. Resubmission resets approval-stage flags but preserves approval history.
+- Approval email links open the authenticated approval review; approval itself is performed only by an explicit same-origin POST action.
 
-## Deployment checks
+## Deployment and smoke checks
 
-Before enabling users, verify:
+Before enabling users in the test environment:
 
-- Chief and SPV employee records have active Company + Location access.
-- If email is enabled for a mode, the relevant recipients have non-empty `M_HRD_Employee.emailaddress`.
-- Every inspection Section has an active SPV mapping in `SysWebCommonValue`.
-- Chief Engineering and Chief Security are different employees.
-- The SQL scripts complete without errors and the procedures exist.
-- The application compiles under the existing .NET Framework 4.5 / VS2013 project.
-- A test Standard, Batch, and Lightning inspection can be submitted, approved, voided, corrected, and resubmitted.
-- Inline map/photo attachments display in the received emails; SMTP delivery is confirmed from the outbox status.
+1. Confirm all scripts complete without SQL errors and that the helper function and active procedures exist.
+2. Confirm ScheduleSelectionMode values in PIP_M_InspectionType use PARAM or INSPECT; Lightning master records should be BATCH / MAP / INSPECT.
+3. Configure one SPV for each tested Section. Test Chief Engineering blank while Chief Security is configured, and then the reverse; also test both Chief mappings blank.
+4. Test all three workflows with email flags ON and OFF independently. With email OFF, check that approval is still required and no outbox message is queued for that stage.
+5. Verify ApprovedBy, Approved1By, and Approved2By contain the NIK of the actual approving employee, including the auto-skipped cases. Verify SKIPPED history rows do not appear as actual Chief approvals in queues/dashboard counts.
+6. Test APPROVE, VOID, correction, and resubmission for Standard, Batch/Param, and Batch/Inspect. For Batch/Inspect, exercise each missing-Chief combination.
+7. Confirm SMTP delivery and inspect PIP_T_InspectionEmailOutbox status and errors.
+8. Compile the existing WebForms project under .NET Framework 4.5 / VS2013 and test the approval pages in IIS.
 
-## Important
+## Test boundary
 
-The SQL scripts and C# changes are committed to the feature branch but have **not** been executed against the live database or compiled in the user's VS2013 environment. Run the deployment scripts in the order above and test in a non-production database before production rollout.
+The feature branch has **not** been executed against the target SQL Server, compiled in the user's VS2013 environment, or exercised in IIS. Treat this as a test candidate, not a production-ready deployment, until the SQL deployment and smoke checks above pass in the non-production environment.
