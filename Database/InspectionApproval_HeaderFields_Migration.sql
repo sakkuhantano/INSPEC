@@ -4,7 +4,7 @@
   Additive for existing installations; does not drop legacy approval columns.
   Approval flags:
     IsApproved  = SPV (Standard/Batch and Lightning stage 1)
-    IsApproved1 = Chief Engineering for Standard/Batch; Chief Security for Lightning stage 2
+    IsApproved1 = the section ProfitCenter-derived Chief for BATCH/PARAM; Chief Security for Lightning stage 2
     IsApproved2 = Chief Engineering for Lightning stage 3
   Legacy IsApprovedFinal columns are retained for backward compatibility.
 */
