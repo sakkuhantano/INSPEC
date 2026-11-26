@@ -91,7 +91,7 @@ function isLightningInspectionRecord(record) {
     if (!record) return false;
     const mode = String(record.InspectionMode || "").trim().toUpperCase();
     const scheduleMode = String(record.ScheduleSelectionMode || "").trim().toUpperCase();
-    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "INSPECT");
+    return mode === "LIGHTNING" || (mode === "BATCH" && (scheduleMode === "INSPECT" || scheduleMode === "AT_INSPECTION"));
 }
 
 function getInspectionPointSource(typeOrRecord) {
@@ -2423,7 +2423,8 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     const inspectionMode = recordMode || String(typeMaster && typeMaster.InspectionMode || "").trim().toUpperCase();
 
     const isBatchTwoStage = !!record && inspectionMode === "BATCH" &&
-        String(record.ApprovalWorkflowCode || (typeMaster && typeMaster.ApprovalWorkflowCode) || "").toUpperCase() === "SPV_CHIEF_SEC";
+        !isLightningInspectionRecord(record) &&
+        String(record.ScheduleSelectionMode || (typeMaster && typeMaster.ScheduleSelectionMode) || "PARAM").toUpperCase() === "PARAM";
     if (!record || (inspectionMode !== "LIGHTNING" && !isBatchTwoStage)) {
         host.innerHTML = "";
         panel.classList.add("d-none");
@@ -2449,7 +2450,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
           date: record.SubmittedDate, color: "primary" },
         { label: "VERIFIED BY", role: "Supervisor (SPV)", flag: "IsApproved",
           by: record.ApprovedByName || record.ApprovedBy, date: record.ApprovedDate, color: "warning" },
-        { label: "ACKNOWLEDGED BY", role: "Chief Security", flag: "IsApproved1",
+        { label: "ACKNOWLEDGED BY", role: "Chief Engineering", flag: "IsApproved1",
           by: record.Approved1ByName || record.Approved1By, date: record.Approved1Date, color: "success" }
     ] : [
         { label: "CHECKED BY", role: "Technician / Submit", flag: "IsSubmitted",
