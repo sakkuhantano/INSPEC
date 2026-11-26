@@ -89,19 +89,30 @@ WHERE SU.EmployeeID=@UserID
                         throw new Exception("ClientInspectionID is required.");
 
                     string status = TokenString(record, "Status").ToUpperInvariant();
-                    string inspectionMode = TokenString(record, "InspectionMode").Trim().ToUpperInvariant();
+                    string submittedMode = TokenString(record, "InspectionMode").Trim().ToUpperInvariant();
+                    string inspectionMode = submittedMode == "LIGHTNING" ? "BATCH" : submittedMode;
                     if (inspectionMode == "") inspectionMode = "STANDARD";
-                    bool isLightningInspection = String.Equals(inspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase);
-                    bool isBatchInspection = String.Equals(inspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) || isLightningInspection;
-                    string pointSource = TokenString(record, "PointSource").Trim().ToUpperInvariant();
-                    if (pointSource == "")
-                        pointSource = String.Equals(TokenString(record, "InspectionLayoutCode"), "DYNAMIC_LIST", StringComparison.OrdinalIgnoreCase)
-                            ? "DYNAMIC" : "MASTER";
+                    string scheduleSelectionMode = TokenString(record, "ScheduleSelectionMode").Trim().ToUpperInvariant();
+                    if (scheduleSelectionMode == "") scheduleSelectionMode = "PARAM";
+                    bool isLightningInspection = inspectionMode == "BATCH" && scheduleSelectionMode == "AT_INSPECTION";
+                    bool isBatchInspection = inspectionMode == "BATCH";
+                    string inspectionPointMode = TokenString(record, "InspectionPointMode").Trim().ToUpperInvariant();
+                    string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" :
+                        inspectionPointMode == "MAP" ? "MASTER" : TokenString(record, "PointSource").Trim().ToUpperInvariant();
+                    if (pointSource == "") pointSource = "MASTER";
                     if (isLightningInspection) pointSource = "MASTER";
+                    if (inspectionPointMode == "" && isBatchInspection)
+                        inspectionPointMode = pointSource == "DYNAMIC" ? "DYNAMIC" : "MAP";
+                    if (inspectionMode != "STANDARD" && inspectionMode != "BATCH")
+                        throw new Exception("InspectionMode must be STANDARD or BATCH.");
+                    if (inspectionMode == "STANDARD" && inspectionPointMode != "")
+                        throw new Exception("STANDARD inspection must not define InspectionPointMode.");
+                    if (isBatchInspection && inspectionPointMode != "MAP" && inspectionPointMode != "DYNAMIC")
+                        throw new Exception("BATCH inspection requires InspectionPointMode MAP or DYNAMIC.");
                     if (pointSource != "MASTER" && pointSource != "DYNAMIC")
-                        throw new Exception("Inspection PointSource must be MASTER or DYNAMIC.");
-                    if (pointSource == "DYNAMIC" && !isBatchInspection)
-                        throw new Exception("Dynamic inspection points are supported only for BATCH inspections.");
+                        throw new Exception("InspectionPointMode is invalid.");
+                    if (pointSource == "DYNAMIC" && (!isBatchInspection || scheduleSelectionMode != "PARAM"))
+                        throw new Exception("Dynamic inspection points require BATCH / PARAM.");
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
 
@@ -476,11 +487,9 @@ WHERE ClientInspectionID=@ClientInspectionID",
                         syncStage = "validate inspection type configuration";
                         DataTable inspectionTypeConfig = br.EQueryP(@"
 SELECT ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') InspectionMode,
-       ISNULL(NULLIF(IT.InspectionLayoutCode,''),'STANDARD') InspectionLayoutCode,
-       ISNULL(NULLIF(IT.PointSource,''),'MASTER') PointSource,
-       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode,
-       ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') ApprovalWorkflowCode
-FROM dbo.PIP_M_InspectionType IT
+       ISNULL(NULLIF(IT.InspectionPointMode,''),'') InspectionPointMode,
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode
+ FROM dbo.PIP_M_InspectionType IT
 WHERE IT.InspectionTypeCode=@InspectionTypeCode
   AND IT.SectionID=@SectionID
   AND IT.IsActive=1",
@@ -493,37 +502,29 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
 
                         DataRow typeConfigRow = inspectionTypeConfig.Rows[0];
                         string serverInspectionMode = Convert.ToString(typeConfigRow["InspectionMode"]).Trim().ToUpperInvariant();
-                        string serverInspectionLayoutCode = Convert.ToString(typeConfigRow["InspectionLayoutCode"]).Trim().ToUpperInvariant();
-                        string serverPointSource = Convert.ToString(typeConfigRow["PointSource"]).Trim().ToUpperInvariant();
+                        string serverInspectionPointMode = Convert.ToString(typeConfigRow["InspectionPointMode"]).Trim().ToUpperInvariant();
                         string serverScheduleSelectionMode = Convert.ToString(typeConfigRow["ScheduleSelectionMode"]).Trim().ToUpperInvariant();
-                        string serverApprovalWorkflowCode = Convert.ToString(typeConfigRow["ApprovalWorkflowCode"]).Trim().ToUpperInvariant();
 
                         if (serverInspectionMode != inspectionMode)
                             throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
-                        if (serverPointSource != pointSource)
-                            throw new Exception("Point Source pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
-                        if (serverPointSource != "MASTER" && serverPointSource != "DYNAMIC")
-                            throw new Exception("Point Source pada Master Inspection Type tidak valid.");
-                        if (serverInspectionMode == "LIGHTNING" &&
-                            (serverInspectionLayoutCode != "MAP" || serverPointSource != "MASTER" ||
-                             serverScheduleSelectionMode != "AT_INSPECTION" ||
-                             serverApprovalWorkflowCode != "LIGHTNING_4_STEP"))
-                            throw new Exception("Konfigurasi Lightning pada Master Inspection Type tidak valid.");
-                        if (serverPointSource == "DYNAMIC" &&
-                            (serverInspectionMode != "BATCH" || serverInspectionLayoutCode != "DYNAMIC_LIST" ||
-                             serverScheduleSelectionMode != "PARAM" || serverApprovalWorkflowCode != "SPV_CHIEF_ENG"))
-                            throw new Exception("Konfigurasi Dynamic Motor pada Master Inspection Type tidak valid.");
-                        if (serverInspectionMode == "BATCH" &&
-                            serverPointSource == "MASTER" &&
-                            (serverInspectionLayoutCode != "MAP" || serverScheduleSelectionMode != "PARAM" ||
-                             serverApprovalWorkflowCode != "SPV_CHIEF_ENG"))
-                            throw new Exception("Konfigurasi Car Park Batch pada Master Inspection Type tidak valid.");
+                        if (serverInspectionPointMode != inspectionPointMode)
+                            throw new Exception("Inspection Point Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
+                        if (serverScheduleSelectionMode != scheduleSelectionMode)
+                            throw new Exception("Schedule Selection pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
+                        if (serverInspectionMode == "STANDARD" && serverInspectionPointMode != "")
+                            throw new Exception("Konfigurasi Standard tidak boleh memiliki InspectionPointMode.");
+                        if (serverInspectionMode == "BATCH" && serverInspectionPointMode == "")
+                            throw new Exception("Konfigurasi BATCH harus memiliki InspectionPointMode MAP atau DYNAMIC.");
+                        if (serverInspectionPointMode == "DYNAMIC" &&
+                            (serverInspectionMode != "BATCH" || serverScheduleSelectionMode != "PARAM"))
+                            throw new Exception("Dynamic Motor harus menggunakan BATCH / DYNAMIC / PARAM.");
+                        if (serverScheduleSelectionMode == "AT_INSPECTION" &&
+                            (serverInspectionMode != "BATCH" || serverInspectionPointMode != "MAP"))
+                            throw new Exception("Lightning daily harus menggunakan BATCH / MAP / AT_INSPECTION.");
 
                         record["_ServerInspectionMode"] = serverInspectionMode;
-                        record["_ServerInspectionLayoutCode"] = serverInspectionLayoutCode;
-                        record["_ServerPointSource"] = serverPointSource;
+                        record["_ServerInspectionPointMode"] = serverInspectionPointMode;
                         record["_ServerScheduleSelectionMode"] = serverScheduleSelectionMode;
-                        record["_ServerApprovalWorkflowCode"] = serverApprovalWorkflowCode;
 
                         syncStage = "validate inspection template detail";
                         DataTable templateDetailCheck = br.EQueryP(@"
