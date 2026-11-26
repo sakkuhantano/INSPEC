@@ -123,10 +123,8 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
             txtIsNew.Text = "1";
             txtDetailOriginalCode.Text = "";
             ddlInspectionMode.SelectedValue = "STANDARD";
-            ddlInspectionLayoutCode.SelectedValue = "STANDARD";
-            ddlPointSource.SelectedValue = "MASTER";
+            ddlInspectionPointMode.SelectedValue = "";
             ddlScheduleSelectionMode.SelectedValue = "PARAM";
-            ddlApprovalWorkflowCode.SelectedValue = "STANDARD";
             hidGroupingBy.Value = "";
             GF.SelectListItem(ref ddlGroupingBy, "");
             GF.SelectListItem(ref ddlReportLayout, "");
@@ -160,10 +158,8 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
                 txtSectionID.Text = dt.Rows[0]["SectionID"].ToString();
                 GF.SelectListItem(ref ddlReportLayout, dt.Rows[0]["ReportLayout"].ToString());
                 GF.SelectListItem(ref ddlInspectionMode, dt.Rows[0]["InspectionMode"].ToString());
-                GF.SelectListItem(ref ddlInspectionLayoutCode, dt.Rows[0]["InspectionLayoutCode"].ToString());
-                GF.SelectListItem(ref ddlPointSource, dt.Rows[0]["PointSource"].ToString());
+                GF.SelectListItem(ref ddlInspectionPointMode, dt.Rows[0]["InspectionPointMode"].ToString());
                 GF.SelectListItem(ref ddlScheduleSelectionMode, dt.Rows[0]["ScheduleSelectionMode"].ToString());
-                GF.SelectListItem(ref ddlApprovalWorkflowCode, dt.Rows[0]["ApprovalWorkflowCode"].ToString());
                 hidGroupingBy.Value = NormalizeGroupingBy(dt.Rows[0]["GroupingBy"].ToString());
                 _OpenSection();
                 Master.TB_VisibleButton(ToolbarItem_2.Save, true);
@@ -186,23 +182,19 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
             else if (txtInspectionTypeName.Text.Trim() == "") message = "Inspection Type Name cannot be empty.";
             else if (txtSectionID.Text.Trim() == "") message = "Section ID cannot be empty.";
             else if (ddlReportLayout.SelectedValue == "") message = "Report Layout cannot be empty.";
-            else if (!new[] { "STANDARD", "BATCH", "LIGHTNING" }.Contains(ddlInspectionMode.SelectedValue)) message = "Inspection Mode is invalid.";
-            else if (!new[] { "STANDARD", "MAP", "DYNAMIC_LIST" }.Contains(ddlInspectionLayoutCode.SelectedValue)) message = "Inspection Layout is invalid.";
-            else if (!new[] { "MASTER", "DYNAMIC" }.Contains(ddlPointSource.SelectedValue)) message = "Point Source is invalid.";
+            else if (!new[] { "STANDARD", "BATCH" }.Contains(ddlInspectionMode.SelectedValue)) message = "Inspection Mode is invalid.";
+            else if (!new[] { "", "MAP", "DYNAMIC" }.Contains(ddlInspectionPointMode.SelectedValue)) message = "Inspection Point Mode is invalid.";
             else if (!new[] { "PARAM", "AT_INSPECTION" }.Contains(ddlScheduleSelectionMode.SelectedValue)) message = "Schedule Selection is invalid.";
-            else if (!new[] { "STANDARD", "SPV_CHIEF_ENG", "LIGHTNING_4_STEP" }.Contains(ddlApprovalWorkflowCode.SelectedValue)) message = "Approval Workflow is invalid.";
-            else if (ddlInspectionMode.SelectedValue == "LIGHTNING" &&
-                (ddlInspectionLayoutCode.SelectedValue != "MAP" || ddlPointSource.SelectedValue != "MASTER" ||
-                 ddlScheduleSelectionMode.SelectedValue != "AT_INSPECTION" ||
-                 ddlApprovalWorkflowCode.SelectedValue != "LIGHTNING_4_STEP"))
-                message = "Lightning must use MAP, MASTER points, schedule at inspection, and Lightning 4-step approval.";
-            else if (ddlPointSource.SelectedValue == "DYNAMIC" &&
-                (ddlInspectionMode.SelectedValue != "BATCH" || ddlInspectionLayoutCode.SelectedValue != "DYNAMIC_LIST"))
-                message = "Dynamic points currently require BATCH mode and Dynamic List layout.";
-            else if (ddlInspectionLayoutCode.SelectedValue == "DYNAMIC_LIST" && ddlPointSource.SelectedValue != "DYNAMIC")
-                message = "Dynamic List layout requires Dynamic point source.";
-            else if (ddlScheduleSelectionMode.SelectedValue == "AT_INSPECTION" && ddlInspectionMode.SelectedValue != "LIGHTNING")
-                message = "Schedule at inspection is currently reserved for Lightning.";
+            else if (ddlInspectionMode.SelectedValue == "STANDARD" && ddlInspectionPointMode.SelectedValue != "")
+                message = "Standard inspection must leave Inspection Point Mode empty.";
+            else if (ddlInspectionMode.SelectedValue == "BATCH" && ddlInspectionPointMode.SelectedValue == "")
+                message = "Batch inspection must select MAP or DYNAMIC point mode.";
+            else if (ddlInspectionPointMode.SelectedValue == "DYNAMIC" &&
+                (ddlInspectionMode.SelectedValue != "BATCH" || ddlScheduleSelectionMode.SelectedValue != "PARAM"))
+                message = "Dynamic points require BATCH mode and PARAM schedule selection.";
+            else if (ddlScheduleSelectionMode.SelectedValue == "AT_INSPECTION" &&
+                (ddlInspectionMode.SelectedValue != "BATCH" || ddlInspectionPointMode.SelectedValue != "MAP"))
+                message = "AT_INSPECTION is reserved for BATCH MAP inspections such as Lightning.";
             if (message != "") GF.MsgBox(this, message, "BS-5.3.0");
             return message == "";
         }
@@ -220,10 +212,8 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
                     new SqlParameter("@p_H_SectionID", txtSectionID.Text.Trim()), 
                     new SqlParameter("@p_H_ReportLayout", ddlReportLayout.SelectedValue),
                     new SqlParameter("@p_H_InspectionMode", ddlInspectionMode.SelectedValue),
-                    new SqlParameter("@p_H_InspectionLayoutCode", ddlInspectionLayoutCode.SelectedValue),
-                    new SqlParameter("@p_H_PointSource", ddlPointSource.SelectedValue),
-                    new SqlParameter("@p_H_ScheduleSelectionMode", ddlScheduleSelectionMode.SelectedValue),
-                    new SqlParameter("@p_H_ApprovalWorkflowCode", ddlApprovalWorkflowCode.SelectedValue), 
+                    new SqlParameter("@p_H_InspectionPointMode", String.IsNullOrWhiteSpace(ddlInspectionPointMode.SelectedValue) ? (object)DBNull.Value : ddlInspectionPointMode.SelectedValue),
+                    new SqlParameter("@p_H_ScheduleSelectionMode", ddlScheduleSelectionMode.SelectedValue), 
                     new SqlParameter("@p_D_InspectionTypeDetailCode", ""), new SqlParameter("@p_D_InspectionTypeDetailName", ""),
                     new SqlParameter("@p_D_ScheduleTime", ""), new SqlParameter("@p_D_IsActive", false),
                     new SqlParameter("@p_UpdateUser", Master.Mn_EmployeeID),
@@ -298,10 +288,8 @@ WHERE InspectionTypeCode=@InspectionTypeCode
                     new SqlParameter("@p_H_InspectionTypeName", txtInspectionTypeName.Text), new SqlParameter("@p_H_SectionID", txtSectionID.Text),
                     new SqlParameter("@p_H_ReportLayout", ddlReportLayout.SelectedValue),
                     new SqlParameter("@p_H_InspectionMode", ddlInspectionMode.SelectedValue),
-                    new SqlParameter("@p_H_InspectionLayoutCode", ddlInspectionLayoutCode.SelectedValue),
-                    new SqlParameter("@p_H_PointSource", ddlPointSource.SelectedValue),
-                    new SqlParameter("@p_H_ScheduleSelectionMode", ddlScheduleSelectionMode.SelectedValue),
-                    new SqlParameter("@p_H_ApprovalWorkflowCode", ddlApprovalWorkflowCode.SelectedValue), 
+                    new SqlParameter("@p_H_InspectionPointMode", String.IsNullOrWhiteSpace(ddlInspectionPointMode.SelectedValue) ? (object)DBNull.Value : ddlInspectionPointMode.SelectedValue),
+                    new SqlParameter("@p_H_ScheduleSelectionMode", ddlScheduleSelectionMode.SelectedValue), 
                     new SqlParameter("@p_D_InspectionTypeDetailCode", code),
                     new SqlParameter("@p_D_InspectionTypeDetailName", name), 
                     new SqlParameter("@p_D_ScheduleTime", time),
@@ -403,8 +391,7 @@ ORDER BY InspectionTypeDetailCode, ScheduleTime",
                 }
 
                 _retval = _retval = new DataView(br.EQuery("SELECT TOP " + (p_MaxRecord == "" ? "50" : p_MaxRecord) + " InspectionTypeCode, InspectionTypeName, SectionID, ReportLayout, GroupingBy, ISNULL(InspectionMode,'STANDARD') InspectionMode, " +
-                "ISNULL(InspectionLayoutCode,'STANDARD') InspectionLayoutCode, ISNULL(PointSource,'MASTER') PointSource, " +
-                "ISNULL(ScheduleSelectionMode,'PARAM') ScheduleSelectionMode, ISNULL(ApprovalWorkflowCode,'STANDARD') ApprovalWorkflowCode " +
+                "ISNULL(InspectionPointMode,'') InspectionPointMode, ISNULL(ScheduleSelectionMode,'PARAM') ScheduleSelectionMode " +
                 "FROM pip_m_inspectiontype h WHERE h.isActive=1 " +
                 (p_Condition != string.Empty ? " AND " + p_Condition : "") + _Condition +
                 " Order By InspectionTypeCode"));
