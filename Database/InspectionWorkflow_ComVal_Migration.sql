@@ -10,9 +10,8 @@
     Workflow routing is NOT stored on PIP_M_InspectionType.
     Approval stages are resolved from SysWebCommonValue (Company + Location)
     and the Section ProfitCenter. Legacy PointSource / ApprovalWorkflowCode
-    columns are intentionally not read by the application; this migration
-    retains them temporarily for compatibility with any un-audited external
-    database objects, but removes constraints that depend on them.
+    values are used only for one-time backfill; both master columns are then
+    dropped so they are not part of the final schema.
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
@@ -114,6 +113,28 @@ SET InspectionPointMode=
       ELSE ''MAP''
     END;';
 EXEC sp_executesql @PointModeSql;
+GO
+
+/* Remove non-constraint indexes that reference deprecated master fields. */
+DECLARE @LegacyIndex SYSNAME, @DropLegacyIndexSql NVARCHAR(1000);
+DECLARE LegacyMasterIndexes CURSOR LOCAL FAST_FORWARD FOR
+    SELECT DISTINCT I.name
+    FROM sys.indexes I
+    JOIN sys.index_columns IC ON IC.object_id=I.object_id AND IC.index_id=I.index_id
+    JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
+    WHERE I.object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND I.is_primary_key=0 AND I.is_unique_constraint=0
+      AND C.name IN ('PointSource','ApprovalWorkflowCode');
+OPEN LegacyMasterIndexes;
+FETCH NEXT FROM LegacyMasterIndexes INTO @LegacyIndex;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @DropLegacyIndexSql=N'DROP INDEX '+QUOTENAME(@LegacyIndex)+N' ON dbo.PIP_M_InspectionType;';
+    EXEC sp_executesql @DropLegacyIndexSql;
+    FETCH NEXT FROM LegacyMasterIndexes INTO @LegacyIndex;
+END;
+CLOSE LegacyMasterIndexes;
+DEALLOCATE LegacyMasterIndexes;
 GO
 
 /* Remove defaults attached to deprecated master fields, then remove the fields.
