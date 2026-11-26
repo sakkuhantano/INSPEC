@@ -1,3 +1,4 @@
+/* LEGACY COPY — DO NOT DEPLOY. The active Lightning sync procedure is deployed from Database/LightningInspection_Sync_Procedure.sql. */
 ALTER PROCEDURE [dbo].[spUTL_PIP_T_Inspection_Lightning_Sync]
     @p_ClientInspectionID VARCHAR(36),
     @p_CompanyID VARCHAR(10),
