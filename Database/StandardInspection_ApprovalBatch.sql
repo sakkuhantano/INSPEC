@@ -246,16 +246,9 @@ BEGIN
         END;
 
         SET @EmailEnabled=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,'STANDARD','CHIEF');
-        IF @EmailEnabled=1 AND EXISTS
-        (
-            SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
-            WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E
-                              WHERE E.EmployeeID=LTRIM(RTRIM(X.val))
-                                AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')
-        )
-        BEGIN
-            RAISERROR('Every configured CHIEF approver needs an email address while CHIEF notification is enabled.',16,1);
-        END;
+        /* Email is notification only. Missing recipient addresses must not block batch
+           creation; the sender records EmailStatus='FAILED' and CHIEF can still approve
+           the batch in the application. */
 
         INSERT dbo.PIP_T_Inspection_ApprovalBatch
         (
