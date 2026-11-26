@@ -281,8 +281,7 @@
                         <asp:DropDownList ID="ddlInspectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
                             <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
                             <asp:ListItem Text="Batch Inspection" Value="BATCH"></asp:ListItem>
-                            <asp:ListItem Text="Lightning Daily" Value="LIGHTNING"></asp:ListItem>
-                        </asp:DropDownList>
+                                                    </asp:DropDownList>
                         <button type="button" id="btnInspectionModeInfo" class="btn btn-link text-info p-0 flex-shrink-0" data-bs-toggle="tooltip" data-bs-trigger="focus" data-bs-placement="top" data-bs-container="body" title="Lightning menggabungkan seluruh Schedule Time dalam satu inspeksi harian." aria-label="Informasi Lightning">
                             <i class="bi bi-info-circle-fill"></i>
                         </button>
@@ -292,21 +291,12 @@
             <div class="row mt-1">
                 <div class="col-sm-4 d-flex align-items-center">
             <div class="row mt-1">
-                <div class="col-sm-4 d-flex align-items-center">Inspection Layout</div>
+                <div class="col-sm-4 d-flex align-items-center">Inspection Point Mode</div>
                 <div class="col-sm-8">
-                    <asp:DropDownList ID="ddlInspectionLayoutCode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
-                        <asp:ListItem Text="Standard Form" Value="STANDARD" Selected="True"></asp:ListItem>
+                    <asp:DropDownList ID="ddlInspectionPointMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
+                        <asp:ListItem Text="-- Standard / Not Applicable --" Value="" Selected="True"></asp:ListItem>
                         <asp:ListItem Text="Map / Denah" Value="MAP"></asp:ListItem>
-                        <asp:ListItem Text="Dynamic List" Value="DYNAMIC_LIST"></asp:ListItem>
-                    </asp:DropDownList>
-                </div>
-            </div>
-            <div class="row mt-1">
-                <div class="col-sm-4 d-flex align-items-center">Point Source</div>
-                <div class="col-sm-8">
-                    <asp:DropDownList ID="ddlPointSource" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
-                        <asp:ListItem Text="Master Points" Value="MASTER" Selected="True"></asp:ListItem>
-                        <asp:ListItem Text="Dynamic Points" Value="DYNAMIC"></asp:ListItem>
+                        <asp:ListItem Text="Dynamic List" Value="DYNAMIC"></asp:ListItem>
                     </asp:DropDownList>
                 </div>
             </div>
@@ -317,30 +307,6 @@
                         <asp:ListItem Text="At Param" Value="PARAM" Selected="True"></asp:ListItem>
                         <asp:ListItem Text="At Inspection" Value="AT_INSPECTION"></asp:ListItem>
                     </asp:DropDownList>
-                </div>
-            </div>
-            <div class="row mt-1">
-                <div class="col-sm-4 d-flex align-items-center">Approval Workflow</div>
-                <div class="col-sm-8">
-                    <asp:DropDownList ID="ddlApprovalWorkflowCode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
-                        <asp:ListItem Text="Standard" Value="STANDARD" Selected="True"></asp:ListItem>
-                        <asp:ListItem Text="SPV → Chief Engineering" Value="SPV_CHIEF_ENG"></asp:ListItem>
-                        <asp:ListItem Text="Lightning 4 Steps" Value="LIGHTNING_4_STEP"></asp:ListItem>
-                    </asp:DropDownList>
-                </div>
-            </div>
-                    Grouping By
-                </div>
-                <div class="col-sm-8 grouping-by-editor">
-                    <div class="input-group input-group-sm">
-                        <asp:DropDownList ID="ddlGroupingBy" runat="server" ClientIDMode="Static" CssClass="form-select form-select-sm fz-custom1">
-                            <asp:ListItem Text="" Value="" Selected="True"></asp:ListItem>
-                            <asp:ListItem Text="Inspection Type Code" Value="InspectionTypeCode"></asp:ListItem>
-                            <asp:ListItem Text="Inspection Detail Code" Value="InspectionTypeDetailCode"></asp:ListItem>
-                            <asp:ListItem Text="Schedule Time" Value="ScheduledTime"></asp:ListItem>
-                        </asp:DropDownList>
-                        <button type="button" id="btnAddGroupingBy" class="btn btn-sm CUS-btn-outline-PColor-1 py-1 px-3 CUS-fz-5 CUS-BorRad-4" title="Tambah grouping"><i class="fas fa-plus"></i></button>
-                    </div>
                 </div>
             </div>
             <div class="row mt-1">
