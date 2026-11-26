@@ -5003,11 +5003,12 @@ WHERE O.EntityType IN ('INSPECTION','LIGHTNING')
            THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
       CASE
           WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF:',O.NotificationKey)>0 THEN 'CHIEF'
           WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
           WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
                THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
           WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
-          WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+          WHEN O.RecipientType='TECHNICIAN' AND O.EntityType='INSPECTION' AND H.StageCode IN ('CHIEF_ENG','CHIEF_SEC','CHIEF_HK') THEN 'CHIEF'
           WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
           ELSE '' END
   )=1",
@@ -5066,11 +5067,12 @@ WHERE EmployeeID=@E AND CompanyID=@C AND ISNULL(TerminationDate,'')=''
                       THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
                  CASE
                      WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
-                     WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
+                     WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF:',O.NotificationKey)>0 THEN 'CHIEF'
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
                      WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
                           THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
                      WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
-                     WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+                     WHEN O.RecipientType='TECHNICIAN' AND O.EntityType='INSPECTION' AND H.StageCode IN ('CHIEF_ENG','CHIEF_SEC','CHIEF_HK') THEN 'CHIEF'
                      WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
                      ELSE '' END
              )=1
@@ -5156,11 +5158,12 @@ WHERE O.DeliveryStatus IN ('PENDING','FAILED','SENDING')
                  THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
             CASE
                 WHEN O.RecipientType='APPROVER' AND CHARINDEX(':SPV:',O.NotificationKey)>0 THEN 'SPV'
-                WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
+                WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF:',O.NotificationKey)>0 THEN 'CHIEF'
+          WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_SEC:',O.NotificationKey)>0 THEN 'CHIEF_SEC'
                 WHEN O.RecipientType='APPROVER' AND CHARINDEX(':CHIEF_ENG:',O.NotificationKey)>0
                      THEN CASE WHEN O.EntityType='LIGHTNING' THEN 'CHIEF_ENG' ELSE 'CHIEF' END
                 WHEN O.RecipientType='TECHNICIAN' AND H.StageCode IN ('TECHNICIAN','SPV') THEN 'SPV'
-                WHEN O.RecipientType='TECHNICIAN' AND H.StageCode='CHIEF_ENG' AND O.EntityType='INSPECTION' THEN 'CHIEF'
+                WHEN O.RecipientType='TECHNICIAN' AND O.EntityType='INSPECTION' AND H.StageCode IN ('CHIEF_ENG','CHIEF_SEC','CHIEF_HK') THEN 'CHIEF'
                 WHEN O.RecipientType='TECHNICIAN' THEN H.StageCode
                 ELSE '' END
         )=1
