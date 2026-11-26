@@ -80,6 +80,27 @@ function applyInspectionDetailSearch() {
         : '<div class="dropdown-item-text small text-muted py-2">Detail tidak ditemukan.</div>';
 }
 
+function isLightningInspectionType(type) {
+    if (!type) return false;
+    const mode = String(type.InspectionMode || "").trim().toUpperCase();
+    const scheduleMode = String(type.ScheduleSelectionMode || "").trim().toUpperCase();
+    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "AT_INSPECTION");
+}
+
+function isLightningInspectionRecord(record) {
+    if (!record) return false;
+    const mode = String(record.InspectionMode || "").trim().toUpperCase();
+    const scheduleMode = String(record.ScheduleSelectionMode || "").trim().toUpperCase();
+    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "AT_INSPECTION");
+}
+
+function getInspectionPointSource(typeOrRecord) {
+    const mode = String(typeOrRecord && typeOrRecord.InspectionPointMode || "").trim().toUpperCase();
+    if (mode === "DYNAMIC") return "DYNAMIC";
+    if (mode === "MAP") return "MASTER";
+    return String(typeOrRecord && typeOrRecord.PointSource || "MASTER").trim().toUpperCase();
+}
+
 function isInspectionMapMode(mode) {
     return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
 }
@@ -201,7 +222,7 @@ window.getActiveInspectionScheduleTime = function () {
 };
 window.setInspectionActiveScheduleTime = function (value) {
     activeInspectionScheduleTime = String(value || "");
-    if (currentInspectionRecord && String(currentInspectionRecord.InspectionMode || "").toUpperCase() === "LIGHTNING")
+    if (currentInspectionRecord && isLightningInspectionRecord(currentInspectionRecord))
         currentInspectionRecord.ActiveScheduleTime = activeInspectionScheduleTime;
 };
 
@@ -1274,7 +1295,7 @@ function refreshInspectionTenantAvailability() {
     }
 
     const configuredTimes = getInspectionScheduleTimes(detail);
-    const isLightning = String(type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
+    const isLightning = isLightningInspectionType(type);
     let slotTimes = isLightning
         ? [configuredTimes.length ? configuredTimes[0] : ""]
         : (configuredTimes.length ? configuredTimes : [""]);
@@ -1406,7 +1427,7 @@ function refreshInspectionSuiteAvailability() {
     }
 
     const configuredTimes = getInspectionScheduleTimes(detail);
-    const isLightning = String(type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
+    const isLightning = isLightningInspectionType(type);
     let slotTimes = isLightning
         ? [configuredTimes.length ? configuredTimes[0] : ""]
         : (configuredTimes.length ? configuredTimes : [""]);
@@ -1526,7 +1547,7 @@ function refreshInspectionDetailAvailability() {
         }
 
         const times = getInspectionScheduleTimes(detail);
-        const isLightning = String(type.InspectionMode || "").toUpperCase() === "LIGHTNING";
+        const isLightning = isLightningInspectionType(type);
         const slotTimes = isLightning
             ? [times.length ? times[0] : ""]
             : (times.length ? times : [""]);
@@ -1604,7 +1625,7 @@ function onInspectionTypeChanged() {
     const scheduleControl = document.getElementById("selInspectionScheduleTime");
     if (scheduleControl && scheduleControl.closest(".mb-3"))
         scheduleControl.closest(".mb-3").classList.toggle("d-none",
-            String(type && type.InspectionMode || "").trim().toUpperCase() === "LIGHTNING");
+            isLightningInspectionType(type));
     document.getElementById("inspectionScheduleHint").textContent = type
         ? "Section: " + type.SectionID + ". Pilih detail dan template sesuai kebutuhan, lalu jam jadwal."
         : "";
@@ -1637,7 +1658,7 @@ function onInspectionDetailChanged() {
     const scheduleControl = document.getElementById("selInspectionScheduleTime");
     if (scheduleControl && scheduleControl.closest(".mb-3"))
         scheduleControl.closest(".mb-3").classList.toggle("d-none",
-            String(selectedType && selectedType.InspectionMode || "").trim().toUpperCase() === "LIGHTNING");
+            isLightningInspectionType(selectedType));
     refreshInspectionDetailAvailability();
     updateStartButton();
     refreshInspectionScheduleOptions();
@@ -1825,7 +1846,7 @@ function updateStartButton() {
         isInspectionTemplateDetailAllowed(template, detailCode);
     const hasScheduledTimes = getInspectionScheduleTimes(detail).length > 0;
     const selectedType = inspectionTypes.find(x => String(x.InspectionTypeCode || "") === String(typeCode || ""));
-    const isLightning = String(selectedType && selectedType.InspectionMode || "").trim().toUpperCase() === "LIGHTNING";
+    const isLightning = isLightningInspectionType(selectedType);
     const scheduledTime = document.getElementById("selInspectionScheduleTime").value;
     const tenantRequired = isInspectionTenantDetail(detail);
     const tenantComplete = !tenantRequired || (!!getSelectedInspectionTenantID() && !!getSelectedInspectionSuiteNo());
@@ -1845,16 +1866,16 @@ async function startNewInspection() {
     let template = inspectionTemplates.find(x => Number(x.IDTemplate) === templateId);
     const configuredScheduleTimes = getInspectionScheduleTimes(detail);
     const requestedMode = String(type && type.InspectionMode || "STANDARD").trim().toUpperCase();
-    const inspectionMode = requestedMode === "LIGHTNING" ? "LIGHTNING" :
-        requestedMode === "BATCH" ? "BATCH" : "STANDARD";
-    const inspectionLayoutCode = String(type && type.InspectionLayoutCode || 
-        (inspectionMode === "BATCH" || inspectionMode === "LIGHTNING" ? "MAP" : "STANDARD")).trim().toUpperCase();
-    const pointSource = String(type && type.PointSource || "MASTER").trim().toUpperCase();
-    const scheduleSelectionMode = String(type && type.ScheduleSelectionMode ||
-        (inspectionMode === "LIGHTNING" ? "AT_INSPECTION" : "PARAM")).trim().toUpperCase();
-    const approvalWorkflowCode = String(type && type.ApprovalWorkflowCode ||
-        (inspectionMode === "LIGHTNING" ? "LIGHTNING_4_STEP" :
-            inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD")).trim().toUpperCase();
+    const scheduleSelectionMode = String(type && type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
+    const isLightning = requestedMode === "LIGHTNING" ||
+        (requestedMode === "BATCH" && scheduleSelectionMode === "AT_INSPECTION");
+    const inspectionMode = isLightning ? "LIGHTNING" : (requestedMode === "BATCH" ? "BATCH" : "STANDARD");
+    const inspectionPointMode = String(type && type.InspectionPointMode || "").trim().toUpperCase();
+    const pointSource = getInspectionPointSource(type);
+    const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
+        (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
+    const approvalWorkflowCode = isLightning ? "LIGHTNING_4_STEP" :
+        (inspectionMode === "BATCH" ? "SPV_CHIEF_SEC" : "STANDARD");
     const scheduledTime = inspectionMode === "LIGHTNING"
         ? (configuredScheduleTimes[0] || "")
         : (document.getElementById("selInspectionScheduleTime").value || "");
@@ -2117,6 +2138,7 @@ async function startNewInspection() {
         FollowUpRemark: "",
         FollowUpWONo: "",
         InspectionMode: inspectionMode,
+        InspectionPointMode: inspectionPointMode,
         InspectionLayoutCode: inspectionLayoutCode,
         PointSource: pointSource,
         ScheduleSelectionMode: scheduleSelectionMode,
@@ -3374,7 +3396,7 @@ function focusInvalidInspectionItem(error) {
 function getActiveInspectionPoint() {
     if (!currentInspectionRecord || !isInspectionMapMode(currentInspectionRecord.InspectionMode))
         return null;
-    const scheduleTime = String(currentInspectionRecord.InspectionMode).toUpperCase() === "LIGHTNING"
+    const scheduleTime = isLightningInspectionRecord(currentInspectionRecord)
         ? String(activeInspectionScheduleTime || currentInspectionRecord.ActiveScheduleTime || "")
         : "";
     return (currentInspectionRecord.Points || []).find(point =>
@@ -3502,7 +3524,7 @@ async function openBatchInspectionPointChecklist(masterPoint, validationError) {
         return;
     if (!masterPoint || !masterPoint.InspectionPointID) return;
     const pointReadOnly = currentInspectionReadOnly || currentInspectionRecord.Status === "DONE";
-    const scheduleTime = String(currentInspectionRecord.InspectionMode).toUpperCase() === "LIGHTNING"
+    const scheduleTime = isLightningInspectionRecord(currentInspectionRecord)
         ? String(activeInspectionScheduleTime || currentInspectionRecord.ActiveScheduleTime || "")
         : "";
 
@@ -3735,7 +3757,7 @@ function getInspectionPointNavigatorRecords(baseRecord, detail) {
 function getInspectionPointNavigatorOptionValue(point, record, scheduleTime, optionFilter) {
     const wanted = String(optionFilter || "").trim().toUpperCase();
     if (!wanted) return false;
-    const lightning = String(record && record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const lightning = isLightningInspectionRecord(record);
     const transaction = record && (record.Points || []).find(item =>
         Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
         (!lightning || String(item.ScheduleTime || "") === String(scheduleTime || "")));
@@ -3755,7 +3777,7 @@ function getInspectionPointNavigatorOptionValue(point, record, scheduleTime, opt
 }
 
 function getInspectionPointNavigatorStatus(point, record, scheduleTime) {
-    const lightning = String(record && record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const lightning = isLightningInspectionRecord(record);
     const transaction = record && (record.Points || []).find(item =>
         Number(item.InspectionPointID) === Number(point.InspectionPointID) &&
         (!lightning || String(item.ScheduleTime || "") === String(scheduleTime || "")));
@@ -3770,7 +3792,7 @@ function selectInspectionPointNavigatorRecord(detail) {
     const state = inspectionPointNavigatorState;
     const base = state.baseRecord;
     const candidates = getInspectionPointNavigatorRecords(base, detail);
-    const lightning = String(base.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const lightning = isLightningInspectionRecord(base);
     const sameDetail = String(detail.InspectionTypeDetailCode || "").toUpperCase() ===
         String(base.InspectionTypeDetailCode || "").toUpperCase();
 
@@ -3811,7 +3833,7 @@ function renderInspectionPointNavigatorPointControls(point) {
         if (String(item.type || item.Type || "").toUpperCase() === "OPTION") optionItems.push(item);
     }));
     if (!optionItems.length) return "";
-    const schedule = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING" ? String(state.scheduleTime || record.ActiveScheduleTime || "") : "";
+    const schedule = isLightningInspectionRecord(record) ? String(state.scheduleTime || record.ActiveScheduleTime || "") : "";
     const transaction = (record.Points || []).find(item => Number(item.InspectionPointID) === Number(point.InspectionPointID) && String(item.ScheduleTime || "") === schedule);
     const savedItems = transaction && Array.isArray(transaction.Items) ? transaction.Items : [];
     const readOnly = String(record.Status || "").toUpperCase() === "DONE" || (record === currentInspectionRecord && currentInspectionReadOnly);
@@ -3985,7 +4007,7 @@ async function loadInspectionPointNavigatorDetail(detailCode) {
         const navigatorSubtitle = document.getElementById("inspectionPointNavigatorSubtitle");
         if (navigatorSubtitle) {
             navigatorSubtitle.textContent =
-                String(state.record && state.record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+                isLightningInspectionRecord(state.record)
                     ? "Jadwal aktif: " + (state.scheduleTime || "-") + (state.optionFilter ? " · Filter hasil: " + state.optionFilter : "") + " · Status dan input mengikuti jadwal ini."
                     : "Semua titik tetap ditampilkan" + (state.optionFilter ? " · Filter hasil: " + state.optionFilter : "") + ".";
         }
@@ -4288,7 +4310,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
         let targetRecord = state.record;
         if (targetRecord) {
             targetRecord.BatchMapSetup = state.setup;
-            if (String(targetRecord.InspectionMode || "").toUpperCase() === "LIGHTNING" &&
+            if (isLightningInspectionRecord(targetRecord) &&
                 state.scheduleTimes.indexOf(state.scheduleTime) >= 0)
                 targetRecord.ActiveScheduleTime = state.scheduleTime;
             await openSavedInspection(targetRecord.LocalInspectionID);
@@ -4324,7 +4346,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
     const activeRecord = currentInspectionRecord;
     if (!activeRecord || String(activeRecord.InspectionTypeDetailCode || "").toUpperCase() !==
         String(state.detail.InspectionTypeDetailCode || "").toUpperCase()) return;
-    if (String(activeRecord.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+    if (isLightningInspectionRecord(activeRecord)) {
         const schedules = (activeRecord.Schedules || []).map(item => String(item.ScheduleTime || item));
         if (schedules.indexOf(state.scheduleTime) >= 0) {
             activeRecord.ActiveScheduleTime = state.scheduleTime;
@@ -4373,7 +4395,7 @@ window.setBatchInspectionPointRemark = async function (pointId, itemId, remarkNu
     const field = Number(remarkNumber) === 2 ? "Remark2" : "Remark1";
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
-    const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+    const scheduleTime = isLightningInspectionRecord(record)
         ? String(inspectionPointNavigatorState.record === record ? inspectionPointNavigatorState.scheduleTime : (activeInspectionScheduleTime || record.ActiveScheduleTime || "")) : "";
     let point = record.Points.find(item =>
         Number(item.InspectionPointID) === Number(pointId) &&
@@ -4467,7 +4489,7 @@ window.setBatchInspectionPointOption = async function (pointId, itemId, value, t
     if (!templateItem) throw new Error("Checklist OPTION tidak ditemukan pada template batch.");
 
     record.Points = Array.isArray(record.Points) ? record.Points : [];
-    const scheduleTime = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING"
+    const scheduleTime = isLightningInspectionRecord(record)
         ? String(inspectionPointNavigatorState.record === record ? inspectionPointNavigatorState.scheduleTime : (activeInspectionScheduleTime || record.ActiveScheduleTime || "")) : "";
     let point = record.Points.find(item =>
         Number(item.InspectionPointID) === Number(pointId) &&
@@ -4803,7 +4825,7 @@ window.submitInspectionBatch = async function () {
         return;
     }
 
-    const lightning = String(record.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const lightning = isLightningInspectionRecord(record);
     const schedules = lightning
         ? (Array.isArray(record.Schedules) ? record.Schedules.map(item => String(item.ScheduleTime || item).trim()).filter(Boolean) : [])
         : [""];
@@ -6282,17 +6304,17 @@ async function applyInspectionParameters() {
     }
 
     const record = currentInspectionRecord;
-    const inspectionMode = ["BATCH", "LIGHTNING"].includes(
-        String(type.InspectionMode || "STANDARD").trim().toUpperCase()
-    ) ? String(type.InspectionMode).trim().toUpperCase() : "STANDARD";
-    const inspectionLayoutCode = String(type.InspectionLayoutCode ||
-        (inspectionMode === "BATCH" || inspectionMode === "LIGHTNING" ? "MAP" : "STANDARD")).trim().toUpperCase();
-    const pointSource = String(type.PointSource || "MASTER").trim().toUpperCase();
-    const scheduleSelectionMode = String(type.ScheduleSelectionMode ||
-        (inspectionMode === "LIGHTNING" ? "AT_INSPECTION" : "PARAM")).trim().toUpperCase();
-    const approvalWorkflowCode = String(type.ApprovalWorkflowCode ||
-        (inspectionMode === "LIGHTNING" ? "LIGHTNING_4_STEP" :
-            inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD")).trim().toUpperCase();
+    const requestedMode = String(type.InspectionMode || "STANDARD").trim().toUpperCase();
+    const scheduleSelectionMode = String(type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
+    const isLightning = requestedMode === "LIGHTNING" ||
+        (requestedMode === "BATCH" && scheduleSelectionMode === "AT_INSPECTION");
+    const inspectionMode = isLightning ? "LIGHTNING" : (requestedMode === "BATCH" ? "BATCH" : "STANDARD");
+    const inspectionPointMode = String(type.InspectionPointMode || "").trim().toUpperCase();
+    const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
+        (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
+    const pointSource = getInspectionPointSource(type);
+    const approvalWorkflowCode = isLightning ? "LIGHTNING_4_STEP" :
+        (inspectionMode === "BATCH" ? "SPV_CHIEF_SEC" : "STANDARD");
     const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
     const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
     const selectedTenant = inspectionTenants.find(row =>
@@ -6303,6 +6325,7 @@ async function applyInspectionParameters() {
         String(record.TenantID || "") !== tenantId ||
         String(record.SuiteNo || "") !== suiteNo ||
         String(record.InspectionMode || "STANDARD").trim().toUpperCase() !== inspectionMode ||
+        String(record.InspectionPointMode || "").trim().toUpperCase() !== inspectionPointMode ||
         String(record.InspectionLayoutCode || "STANDARD").trim().toUpperCase() !== inspectionLayoutCode ||
         String(record.PointSource || "MASTER").trim().toUpperCase() !== pointSource ||
         String(record.ScheduleSelectionMode || "PARAM").trim().toUpperCase() !== scheduleSelectionMode ||
@@ -6340,6 +6363,7 @@ async function applyInspectionParameters() {
         InspectionTypeCode: type.InspectionTypeCode,
         InspectionTypeName: type.InspectionTypeName,
         InspectionMode: inspectionMode,
+        InspectionPointMode: inspectionPointMode,
         InspectionLayoutCode: inspectionLayoutCode,
         PointSource: pointSource,
         ScheduleSelectionMode: scheduleSelectionMode,
@@ -8526,7 +8550,7 @@ async function processInspectionApproval(action) {
         showToast("Approval memerlukan koneksi ke server. Hubungkan internet lalu coba lagi.", "warning");
         return;
     }
-    const isLightning = String(selectedInspectionApproval.InspectionMode || "").toUpperCase() === "LIGHTNING";
+    const isLightning = isLightningInspectionRecord(selectedInspectionApproval);
     const confirmed = await showConfirmation({
         title: isLightning ? "Approve Lightning Daily" : "Approve Inspeksi",
         message: isLightning
