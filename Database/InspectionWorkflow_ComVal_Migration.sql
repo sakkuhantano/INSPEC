@@ -19,6 +19,19 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 BEGIN TRANSACTION;
+
+/* Drop legacy presentation checks before converting LIGHTNING / AT_INSPECTION
+   records to the consolidated BATCH / INSPECT profile. */
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+             AND name='CK_PIP_M_InspectionType_ScheduleSelectionMode')
+    ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT CK_PIP_M_InspectionType_ScheduleSelectionMode;
+
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+             AND name='CK_PIP_M_InspectionType_PresentationCombination')
+    ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT CK_PIP_M_InspectionType_PresentationCombination;
+
 IF COL_LENGTH('dbo.PIP_M_InspectionType','InspectionPointMode') IS NULL
 BEGIN
     ALTER TABLE dbo.PIP_M_InspectionType
@@ -67,5 +80,50 @@ IF NOT EXISTS
    Legacy EMAIL;STANDARD/BATCH/LIGHTNING values are migrated by the
    dedicated ComVal migration script after review of the current settings.
 */
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name='CK_PIP_M_InspectionType_ScheduleSelectionMode'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
+        ADD CONSTRAINT CK_PIP_M_InspectionType_ScheduleSelectionMode
+        CHECK (ScheduleSelectionMode IN ('PARAM','INSPECT'));
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name='CK_PIP_M_InspectionType_PresentationCombination'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
+        ADD CONSTRAINT CK_PIP_M_InspectionType_PresentationCombination
+        CHECK
+        (
+            (InspectionMode='STANDARD'
+             AND InspectionLayoutCode='STANDARD'
+             AND PointSource='MASTER'
+             AND ScheduleSelectionMode='PARAM'
+             AND ApprovalWorkflowCode='STANDARD')
+            OR
+            (InspectionMode='BATCH'
+             AND InspectionLayoutCode='MAP'
+             AND PointSource='MASTER'
+             AND ScheduleSelectionMode='PARAM'
+             AND ApprovalWorkflowCode IN ('STANDARD','SPV_CHIEF_ENG'))
+            OR
+            (InspectionMode='BATCH'
+             AND InspectionLayoutCode='MAP'
+             AND PointSource='MASTER'
+             AND ScheduleSelectionMode='INSPECT'
+             AND ApprovalWorkflowCode IN ('STANDARD','LIGHTNING_4_STEP'))
+            OR
+            (InspectionMode='BATCH'
+             AND InspectionLayoutCode='DYNAMIC_LIST'
+             AND PointSource='DYNAMIC'
+             AND ScheduleSelectionMode='PARAM'
+             AND ApprovalWorkflowCode IN ('STANDARD','SPV_CHIEF_ENG'))
+        );
+
 COMMIT TRANSACTION;
 GO
