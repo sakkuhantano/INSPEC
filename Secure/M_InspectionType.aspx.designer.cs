@@ -111,10 +111,8 @@ namespace INSPEC.Secure {
         /// </remarks>
         protected global::System.Web.UI.WebControls.DropDownList ddlReportLayout;
         protected global::System.Web.UI.WebControls.DropDownList ddlInspectionMode;
-        protected global::System.Web.UI.WebControls.DropDownList ddlInspectionLayoutCode;
-        protected global::System.Web.UI.WebControls.DropDownList ddlPointSource;
+        protected global::System.Web.UI.WebControls.DropDownList ddlInspectionPointMode;
         protected global::System.Web.UI.WebControls.DropDownList ddlScheduleSelectionMode;
-        protected global::System.Web.UI.WebControls.DropDownList ddlApprovalWorkflowCode;
         
         /// <summary>
         /// ddlGroupingBy control.
