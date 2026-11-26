@@ -184,6 +184,18 @@ BEGIN
         (
             SELECT 1 FROM dbo.SysWebCommonValue C
             WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+              AND C.ID=@C+@L+';STANDARD'
+              AND (CHARINDEX('[SPV][TRUE]',UPPER(ISNULL(C.Description,'')))>0 OR CHARINDEX('[SPV][FALSE]',UPPER(ISNULL(C.Description,'')))>0)
+              AND (CHARINDEX('[CHIEF][TRUE]',UPPER(ISNULL(C.Description,'')))>0 OR CHARINDEX('[CHIEF][FALSE]',UPPER(ISNULL(C.Description,'')))>0)
+        )
+        BEGIN
+            RAISERROR('STANDARD workflow COMVAL must contain both [SPV][TRUE/FALSE] and [CHIEF][TRUE/FALSE].',16,1);
+        END;
+
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM dbo.SysWebCommonValue C
+            WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
               AND C.ID=@C+@L+';SPV;'+@S
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                           WHERE LTRIM(RTRIM(X.val))=@p_EmployeeID)
@@ -212,7 +224,36 @@ BEGIN
             RAISERROR('CHIEF approver configuration is missing for this Company/Location and ProfitCenterNo.',16,1);
         END;
 
+        IF EXISTS
+        (
+            SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
+            WHERE NOT EXISTS
+            (
+                SELECT 1 FROM dbo.M_HRD_Employee E
+                WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C
+                  AND E.ProfitCenterNo=@ProfitCenterNo AND ISNULL(E.TerminationDate,'')=''
+                  AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
+                    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') M WHERE M.MenuID='20022'))
+                  AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
+                    WHERE CL.UserID=E.EmployeeID AND CL.AppID='pip' AND CL.CompanyID=@C AND CL.LocationID=@L)
+                    OR EXISTS (SELECT 1 FROM dbo.F_SelectOneLogin('pip',E.EmployeeID,'') L WHERE L.CompanyID=@C AND L.LocationID=@L))
+            )
+        )
+        BEGIN
+            RAISERROR('One or more configured CHIEF approvers are inactive or lack approval access for this ProfitCenter.',16,1);
+        END;
+
         SET @EmailEnabled=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,'STANDARD','CHIEF');
+        IF @EmailEnabled=1 AND EXISTS
+        (
+            SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
+            WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E
+                              WHERE E.EmployeeID=LTRIM(RTRIM(X.val))
+                                AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')
+        )
+        BEGIN
+            RAISERROR('Every configured CHIEF approver needs an email address while CHIEF notification is enabled.',16,1);
+        END;
 
         INSERT dbo.PIP_T_Inspection_ApprovalBatch
         (
@@ -273,7 +314,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@ChiefRole VARCHAR(20),
-            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT;
+            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT,@ProfitCenterNo VARCHAR(20);
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -288,6 +329,9 @@ BEGIN
         IF @C<>@p_CompanyID OR @L<>@p_LocationID
             RAISERROR('Approval batch is outside the logged-in Company/Location.',16,1);
 
+        SELECT @ProfitCenterNo=UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,''))))
+        FROM dbo.PIP_M_Section S
+        WHERE S.CompanyID=@C AND S.LocationID=@L AND S.SectionID=@S;
         SET @ChiefRole=dbo.fnINSPEC_ChiefRoleForSection(@S);
         SELECT @Chief=NULLIF(LTRIM(RTRIM(C.Description)),'')
         FROM dbo.SysWebCommonValue C
@@ -304,6 +348,9 @@ BEGIN
               AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') M WHERE M.MenuID='20022')
               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@Chief,';') X
                           WHERE LTRIM(RTRIM(X.val))=@p_EmployeeID)
+              AND EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E
+                          WHERE E.EmployeeID=@p_EmployeeID AND E.CompanyID=@C
+                            AND E.ProfitCenterNo=@ProfitCenterNo AND ISNULL(E.TerminationDate,'')='')
               AND
               (
                   EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation C
