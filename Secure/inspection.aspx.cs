@@ -3155,11 +3155,13 @@ CROSS APPLY (SELECT
  CASE WHEN EXISTS(SELECT 1 FROM dbo.PIP_M_Section S WHERE S.SectionID=I.SectionID AND UPPER(ISNULL(S.ProfitCenterNo,''))='PENG') THEN 1 ELSE 0 END IsPENG
 ) R
 CROSS APPLY (SELECT
- CASE WHEN ISNULL(I.ReasonVoid,'')<>'' AND (ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='SPV' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidSPV,
- CASE WHEN ISNULL(I.ReasonVoid1,'')<>'' AND (ISNULL(I.Approved1Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCE,
- CASE WHEN ISNULL(I.ReasonVoid2,'')<>'' AND (ISNULL(I.Approved2Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='INSPECTION' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCS
+ CASE WHEN ISNULL(I.ReasonVoid,'')<>'' AND (ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='SPV' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidSPV,
+ CASE WHEN ISNULL(I.ReasonVoid1,'')<>'' AND (ISNULL(I.Approved1Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCE,
+ CASE WHEN ISNULL(I.ReasonVoid2,'')<>'' AND (ISNULL(I.Approved2Date,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidCS
 ) V
-WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
+WHERE (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
+        OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'))
+ AND I.InspectionMode='LIGHTNING'
  AND I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1
  AND EXISTS(SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (@IsAdministrator=1 OR EXISTS(SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')) AND (EXISTS(SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID) OR EXISTS(SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)))
  AND (
@@ -3173,12 +3175,16 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING'
   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND (
     (@IsAdministrator=1 AND (
       (ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
-      OR (ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru))
-      OR (ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru))
+      OR (ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru)
+       AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
+      OR (ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru)
+       AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
     ))
     OR (R.IsSPV=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
-    OR (R.IsCS=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru))
-    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru))
+    OR (R.IsCS=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru)
+      AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
+    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru)
+      AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
   ))
   OR
   (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0 AND ISNULL(I.IsApproved1,0)=0 AND ISNULL(I.IsApproved2,0)=0
