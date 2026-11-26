@@ -153,7 +153,7 @@ BEGIN
               AND I.ApprovalBatchID IS NULL
               AND I.InspectionDate IS NOT NULL
               AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
-              AND ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
+              AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
         )<>@SelectedCount
         BEGIN
             RAISERROR('Every selected inspection must be active, submitted, SPV-approved STANDARD, and not assigned to another batch.',16,1);
@@ -368,7 +368,7 @@ BEGIN
           AND I.CompanyID=@C AND I.LocationID=@L AND I.SectionID=@S
           AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
           AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
-          AND ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))='STANDARD'
+          AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
 
         IF ISNULL(@InspectionCount,0)=0
             RAISERROR('This batch contains no valid SPV-approved STANDARD inspections.',16,1);
@@ -382,7 +382,7 @@ BEGIN
               AND (I.CompanyID<>@C OR I.LocationID<>@L OR I.SectionID<>@S
                    OR ISNULL(I.IsActive,1)=0 OR I.Status<>'DONE'
                    OR ISNULL(I.IsSubmitted,0)=0 OR ISNULL(I.IsApproved,0)=0
-                   OR ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'))<>'STANDARD'
+                   OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD'
 
         )
             RAISERROR('Batch membership or SPV approval state is inconsistent. No approval was recorded.',16,1);
