@@ -14,7 +14,8 @@ if ([string]::IsNullOrWhiteSpace($secret) -or $secret.Length -lt 32) { throw 'De
 $uri = [Uri]$Url
 if ($uri.Scheme -ne 'https' -or $uri.Query -ne '?task=scheduledChiefBatch') { throw 'URL must be HTTPS and end with ?task=scheduledChiefBatch.' }
 $epoch = [DateTime]::SpecifyKind([DateTime]'1970-01-01T00:00:00', [DateTimeKind]::Utc)
-$timestamp = [string][Math]::Floor(([DateTime]::UtcNow - $epoch).TotalSeconds)
+$timestampValue = [long][Math]::Floor(([DateTime]::UtcNow - $epoch).TotalSeconds)
+$timestamp = $timestampValue.ToString([Globalization.CultureInfo]::InvariantCulture)
 $nonce = [Guid]::NewGuid().ToString('N')
 $lf = [string][char]10
 $canonical = 'POST' + $lf + $uri.AbsolutePath + '?task=scheduledChiefBatch' + $lf + $timestamp + $lf + $nonce
@@ -41,5 +42,5 @@ try {
         exit 1
     }
 }
-catch { Write-Error $_; exit 1 }
+catch { [Console]::Error.WriteLine($_.Exception.ToString()); exit 1 }
 finally { $secret = $null; $secureSecret = $null; $keyBytes = $null }
