@@ -70,6 +70,43 @@ IF EXISTS
 )
     DROP INDEX UX_PIP_T_InspectionPoint_Master ON dbo.PIP_T_InspectionPoint;
 
+/* Drop any additional legacy checks / indexes that include PointSource. */
+DECLARE @PointSourceCheck SYSNAME, @DropPointSourceCheckSql NVARCHAR(1000);
+DECLARE PointSourceChecks CURSOR LOCAL FAST_FORWARD FOR
+    SELECT name FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
+      AND definition LIKE '%PointSource%';
+OPEN PointSourceChecks;
+FETCH NEXT FROM PointSourceChecks INTO @PointSourceCheck;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @DropPointSourceCheckSql=N'ALTER TABLE dbo.PIP_T_InspectionPoint DROP CONSTRAINT '+QUOTENAME(@PointSourceCheck)+N';';
+    EXEC sp_executesql @DropPointSourceCheckSql;
+    FETCH NEXT FROM PointSourceChecks INTO @PointSourceCheck;
+END;
+CLOSE PointSourceChecks;
+DEALLOCATE PointSourceChecks;
+
+DECLARE @PointSourceIndex SYSNAME, @DropPointSourceIndexSql NVARCHAR(1000);
+DECLARE PointSourceIndexes CURSOR LOCAL FAST_FORWARD FOR
+    SELECT DISTINCT I.name
+    FROM sys.indexes I
+    JOIN sys.index_columns IC ON IC.object_id=I.object_id AND IC.index_id=I.index_id
+    JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
+    WHERE I.object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
+      AND I.is_primary_key=0 AND I.is_unique_constraint=0
+      AND C.name='PointSource';
+OPEN PointSourceIndexes;
+FETCH NEXT FROM PointSourceIndexes INTO @PointSourceIndex;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @DropPointSourceIndexSql=N'DROP INDEX '+QUOTENAME(@PointSourceIndex)+N' ON dbo.PIP_T_InspectionPoint;';
+    EXEC sp_executesql @DropPointSourceIndexSql;
+    FETCH NEXT FROM PointSourceIndexes INTO @PointSourceIndex;
+END;
+CLOSE PointSourceIndexes;
+DEALLOCATE PointSourceIndexes;
+
 DECLARE @PointSourceDefault SYSNAME, @DropDefaultSql NVARCHAR(1000);
 SELECT @PointSourceDefault=DC.name
 FROM sys.default_constraints DC
