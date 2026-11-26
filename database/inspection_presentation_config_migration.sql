@@ -8,7 +8,7 @@
     These columns describe independent configuration dimensions:
       InspectionLayoutCode  = STANDARD / MAP / DYNAMIC_LIST
       PointSource           = MASTER / DYNAMIC
-      ScheduleSelectionMode = PARAM / AT_INSPECTION
+      ScheduleSelectionMode = PARAM / INSPECT
       ApprovalWorkflowCode  = STANDARD / SPV_CHIEF_ENG / LIGHTNING_4_STEP
 
     Defaults preserve existing inspections. Existing BATCH remains MAP + MASTER
@@ -65,7 +65,7 @@ SET
     END,
     PointSource = 'MASTER',
     ScheduleSelectionMode = CASE
-        WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode, 'STANDARD')))) = 'LIGHTNING' THEN 'AT_INSPECTION'
+        WHEN UPPER(LTRIM(RTRIM(ISNULL(InspectionMode, 'STANDARD')))) = 'LIGHTNING' THEN 'INSPECT'
         ELSE 'PARAM'
     END,
     ApprovalWorkflowCode = CASE
@@ -100,7 +100,7 @@ IF NOT EXISTS (
 )
     ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
         ADD CONSTRAINT CK_PIP_M_InspectionType_ScheduleSelectionMode
-        CHECK (ScheduleSelectionMode IN ('PARAM', 'AT_INSPECTION'));
+        CHECK (ScheduleSelectionMode IN ('PARAM', 'INSPECT'));
 
 IF NOT EXISTS (
     SELECT 1 FROM sys.check_constraints
@@ -122,7 +122,7 @@ IF NOT EXISTS (
             (InspectionMode = 'LIGHTNING'
              AND InspectionLayoutCode = 'MAP'
              AND PointSource = 'MASTER'
-             AND ScheduleSelectionMode = 'AT_INSPECTION'
+             AND ScheduleSelectionMode = 'INSPECT'
              AND ApprovalWorkflowCode = 'LIGHTNING_4_STEP')
             OR
             (InspectionMode = 'BATCH'
