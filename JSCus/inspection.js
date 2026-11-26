@@ -363,6 +363,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             document.getElementById("inspectionApprovalPanel").classList.remove("d-none");
             wireInspectionApprovalEvents();
             await loadInspectionApprovalQueue();
+            await initializeChiefBatchApproval();
+            const approvalView = new URLSearchParams(window.location.search).get("view");
+            if (approvalView === "chiefbatch") showChiefBatchPanel();
             return;
         }
 
@@ -7220,6 +7223,9 @@ const INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE = 25;
 const INSPECTION_APPROVAL_PAGE_SIZE_KEY = "inspectionApprovalPageSize";
 let inspectionApprovalPage = 1;
 let inspectionApprovalPageSize = INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE;
+let currentChiefApprovalBatchID = 0;
+let currentChiefApprovalBatch = null;
+let chiefApprovalBatchRows = [];
 // Excel preview is generated server-side and opened with a short-lived Session token.
 
 function addInspectionApprovalListener(id, eventName, handler) {
@@ -7273,6 +7279,31 @@ function wireInspectionApprovalEvents() {
         }
     });
     addInspectionApprovalListener("btnInspectionApprovalPreview", "click", previewSelectedInspections);
+    addInspectionApprovalListener("btnCreateStandardApprovalBatch", "click", createStandardApprovalBatch);
+    addInspectionApprovalListener("btnOpenChiefBatchApproval", "click", showChiefBatchPanel);
+    addInspectionApprovalListener("btnBackToSpvApproval", "click", showSpvApprovalPanel);
+    addInspectionApprovalListener("btnRefreshChiefBatchQueue", "click", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("selChiefBatchSection", "change", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("txtChiefBatchDateFrom", "change", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("txtChiefBatchDateThru", "change", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("selChiefBatchStatus", "change", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("chiefBatchQueue", "click", function (event) {
+        const button = event.target.closest("[data-chief-batch-id]");
+        if (button) openChiefApprovalBatchDetail(Number(button.dataset.chiefBatchId));
+    });
+    addInspectionApprovalListener("chiefBatchInspectionRows", "click", function (event) {
+        const button = event.target.closest("[data-chief-inspection-id]");
+        if (button) openInspectionApprovalDetail(Number(button.dataset.chiefInspectionId));
+    });
+    addInspectionApprovalListener("btnBackToChiefBatchList", "click", function () {
+        currentChiefApprovalBatchID = 0;
+        currentChiefApprovalBatch = null;
+        document.getElementById("chiefBatchDetailView").classList.add("d-none");
+        document.getElementById("chiefBatchListView").classList.remove("d-none");
+        loadChiefApprovalBatchQueue();
+    });
+    addInspectionApprovalListener("btnPreviewChiefBatchReports", "click", previewChiefApprovalBatchReports);
+    addInspectionApprovalListener("btnApproveChiefBatch", "click", approveChiefApprovalBatch);
     addInspectionApprovalListener("inspectionApprovalChecklistTab", "shown.bs.tab", function () {
         const navHost = document.getElementById("inspectionApprovalSectionNavHost");
         if (navHost) navHost.classList.remove("d-none");
@@ -7679,6 +7710,14 @@ function updateInspectionApprovalSelectAll() {
     if (all) all.checked = boxes.length > 0 && selectedBoxes.length === boxes.length;
     const preview = document.getElementById("btnInspectionApprovalPreview");
     if (preview) preview.disabled = !["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) || selectedBoxes.length === 0;
+    const createBatch = document.getElementById("btnCreateStandardApprovalBatch");
+    if (createBatch) {
+        const selectedRows = getSelectedInspectionApprovalRows();
+        const canCreate = currentInspectionApprovalTab === "APPROVED" && selectedRows.length > 0 &&
+            selectedRows.every(row => String(row.InspectionMode || "STANDARD").toUpperCase() === "STANDARD" && !row.ApprovalBatchID);
+        createBatch.classList.toggle("d-none", currentInspectionApprovalTab !== "APPROVED");
+        createBatch.disabled = !canCreate;
+    }
 }
 
 async function previewSelectedInspections() {
@@ -7787,6 +7826,10 @@ function openInspectionApprovalDetail(inspectionId) {
     const listHeader = document.getElementById("inspectionApprovalListHeader");
     if (listView) listView.classList.add("d-none");
     if (listHeader) listHeader.classList.add("d-none");
+    if (currentChiefApprovalBatchID > 0) {
+        const chiefDetail = document.getElementById("chiefBatchDetailView");
+        if (chiefDetail) chiefDetail.classList.add("d-none");
+    }
     detailPanel.classList.remove("d-none");
     document.getElementById("btnBackToInspectionApprovalList").classList.remove("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
@@ -7804,6 +7847,16 @@ function openInspectionApprovalDetail(inspectionId) {
 function showInspectionApprovalQueueView() {
     const detailPanel = document.getElementById("inspectionApprovalDetailPanel");
     if (detailPanel) detailPanel.classList.add("d-none");
+    if (currentChiefApprovalBatchID > 0) {
+        const chiefPanel = document.getElementById("chiefBatchPanel");
+        const chiefList = document.getElementById("chiefBatchListView");
+        const chiefDetail = document.getElementById("chiefBatchDetailView");
+        if (chiefPanel) chiefPanel.classList.remove("d-none");
+        if (chiefList) chiefList.classList.add("d-none");
+        if (chiefDetail) chiefDetail.classList.remove("d-none");
+        updateInspectionScrollTools();
+        return;
+    }
     document.getElementById("btnBackToInspectionApprovalList").classList.add("d-none");
     document.getElementById("btnBackToInspectionRecords").classList.add("d-none");
     const listView = document.getElementById("inspectionApprovalListView");
@@ -8356,6 +8409,241 @@ async function renderInspectionApprovalBatchMap(maps, points, schedules, workflo
             if (canRenderMap) renderMap(selectedMap());
         }));
     if (canRenderMap) await renderMap(selectedMap());
+}
+
+
+async function initializeChiefBatchApproval() {
+    try {
+        const result = await inspectionApprovalPost("GetChiefApprovalBatchSections", {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        const rows = Array.isArray(result.data) ? result.data : [];
+        const select = document.getElementById("selChiefBatchSection");
+        if (select) {
+            select.innerHTML = '<option value="">All authorized sections</option>' +
+                rows.map(row => '<option value="' + escInspection(row.SectionID) + '">' +
+                    escInspection(row.SectionID + " (" + (row.ProfitCenterNo || "") + ")") + '</option>').join("");
+        }
+        const button = document.getElementById("btnOpenChiefBatchApproval");
+        if (button) button.classList.toggle("d-none", rows.length === 0);
+    } catch (error) {
+        console.warn("Chief batch approval is not available for this employee:", error);
+    }
+}
+
+function showChiefBatchPanel() {
+    currentChiefApprovalBatchID = 0;
+    currentChiefApprovalBatch = null;
+    const spvList = document.getElementById("inspectionApprovalListView");
+    const spvDetail = document.getElementById("inspectionApprovalDetailPanel");
+    const chiefPanel = document.getElementById("chiefBatchPanel");
+    if (spvList) spvList.classList.add("d-none");
+    if (spvDetail) spvDetail.classList.add("d-none");
+    if (chiefPanel) chiefPanel.classList.remove("d-none");
+    document.getElementById("chiefBatchListView").classList.remove("d-none");
+    document.getElementById("chiefBatchDetailView").classList.add("d-none");
+    loadChiefApprovalBatchQueue();
+}
+
+function showSpvApprovalPanel() {
+    currentChiefApprovalBatchID = 0;
+    currentChiefApprovalBatch = null;
+    const chiefPanel = document.getElementById("chiefBatchPanel");
+    if (chiefPanel) chiefPanel.classList.add("d-none");
+    const spvList = document.getElementById("inspectionApprovalListView");
+    if (spvList) spvList.classList.remove("d-none");
+    const spvHeader = document.getElementById("inspectionApprovalListHeader");
+    if (spvHeader) spvHeader.classList.remove("d-none");
+    loadInspectionApprovalQueue();
+}
+
+async function loadChiefApprovalBatchQueue() {
+    const host = document.getElementById("chiefBatchQueue");
+    if (!host) return;
+    host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Loading batches...</td></tr>';
+    currentChiefApprovalBatchID = 0;
+    currentChiefApprovalBatch = null;
+    const detail = document.getElementById("chiefBatchDetailView");
+    if (detail) detail.classList.add("d-none");
+    const list = document.getElementById("chiefBatchListView");
+    if (list) list.classList.remove("d-none");
+    if (!navigator.onLine) {
+        host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Internet connection is required.</td></tr>';
+        return;
+    }
+    try {
+        const result = await inspectionApprovalPost("GetChiefApprovalBatchQueue", {
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID,
+            sectionId: document.getElementById("selChiefBatchSection").value || "",
+            dateFrom: document.getElementById("txtChiefBatchDateFrom").value || "",
+            dateThru: document.getElementById("txtChiefBatchDateThru").value || "",
+            batchStatus: document.getElementById("selChiefBatchStatus").value || "PENDING"
+        });
+        const rows = Array.isArray(result.data) ? result.data : [];
+        if (!rows.length) {
+            host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">No approval batch found.</td></tr>';
+            return;
+        }
+        host.innerHTML = rows.map(row => {
+            const id = Number(row.ApprovalBatchID || 0);
+            const status = String(row.BatchStatus || "PENDING").toUpperCase();
+            const sent = row.SentDate ? formatInspectionDateDMY(row.SentDate) : "-";
+            return '<tr><td><button type="button" class="btn btn-link p-0 fw-semibold" data-chief-batch-id="' + id + '">#' + id + '</button></td>' +
+                '<td>' + escInspection(row.SectionID || "") + '</td>' +
+                '<td>' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
+                '<td class="text-end">' + escInspection(row.InspectionCount || 0) + '</td>' +
+                '<td class="text-end">' + escInspection(row.InspectionTypeCount || 0) + '</td>' +
+                '<td>' + escInspection(sent) + '</td>' +
+                '<td><span class="badge ' + (status === "APPROVED" ? "text-bg-success" : "text-bg-warning") + '">' + escInspection(status) + '</span>' +
+                (row.EmailStatus === "FAILED" ? '<div class="small text-danger">Email failed</div>' : '') + '</td></tr>';
+        }).join("");
+    } catch (error) {
+        host.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-3">' +
+            escInspection(error.message || "Failed to load Chief batches.") + '</td></tr>';
+    }
+}
+
+async function openChiefApprovalBatchDetail(batchId) {
+    if (!batchId) return;
+    const host = document.getElementById("chiefBatchInspectionRows");
+    host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Loading inspections...</td></tr>';
+    try {
+        const result = await inspectionApprovalPost("GetChiefApprovalBatchDetail", {
+            approvalBatchId: batchId,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        currentChiefApprovalBatchID = batchId;
+        currentChiefApprovalBatch = result.header || {};
+        chiefApprovalBatchRows = Array.isArray(result.inspections) ? result.inspections : [];
+        document.getElementById("chiefBatchListView").classList.add("d-none");
+        document.getElementById("chiefBatchDetailView").classList.remove("d-none");
+        document.getElementById("chiefBatchDetailTitle").textContent = "Approval Batch #" + batchId;
+        document.getElementById("chiefBatchDetailSubtitle").textContent =
+            "Section " + (currentChiefApprovalBatch.SectionID || "") + " • " +
+            formatInspectionDateDMY(currentChiefApprovalBatch.InspectionDate) + " • " +
+            chiefApprovalBatchRows.length + " inspections • " +
+            (currentChiefApprovalBatch.ChiefRole || "CHIEF");
+        const status = String(currentChiefApprovalBatch.BatchStatus || "PENDING").toUpperCase();
+        document.getElementById("btnApproveChiefBatch").classList.toggle("d-none", status !== "PENDING");
+        document.getElementById("chiefBatchReports").innerHTML = "";
+        if (!chiefApprovalBatchRows.length) {
+            host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">This batch has no inspections.</td></tr>';
+        } else {
+            host.innerHTML = chiefApprovalBatchRows.map((row, index) =>
+                '<tr><td>' + (index + 1) + '</td>' +
+                '<td><button type="button" class="btn btn-link p-0 fw-semibold" data-chief-inspection-id="' + Number(row.InspectionID) + '">' +
+                    escInspection(row.InspectionNo || ("#" + row.InspectionID)) + '</button></td>' +
+                '<td>' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
+                '<td>' + escInspection(row.InspectionTypeDetailName || row.InspectionTypeDetailCode || "") + '</td>' +
+                '<td>' + escInspection(row.TemplateNo || "") + '</td>' +
+                '<td>' + escInspection(formatInspectionEmployeeLabel(row.TechnicianName, row.OwnerEmployeeID)) + '</td>' +
+                '<td>' + escInspection(row.ApprovedBy || "") + '<div class="small text-muted">' +
+                    escInspection(formatInspectionDateDMY(row.ApprovedDate) || "") + '</div></td></tr>'
+            ).join("");
+        }
+        updateInspectionScrollTools();
+    } catch (error) {
+        showToast(error.message || "Gagal membuka detail approval batch.", "warning");
+    }
+}
+
+async function previewChiefApprovalBatchReports() {
+    if (!currentChiefApprovalBatchID) return;
+    const button = document.getElementById("btnPreviewChiefBatchReports");
+    if (button.dataset.processing === "1") return;
+    button.dataset.processing = "1";
+    button.disabled = true;
+    const original = button.innerHTML;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating...';
+    const host = document.getElementById("chiefBatchReports");
+    host.innerHTML = '<div class="small text-muted">Generating one XLSX per Inspection Type. Files will not open automatically.</div>';
+    try {
+        const result = await inspectionApprovalPost("GenerateChiefApprovalBatchReports", {
+            approvalBatchId: currentChiefApprovalBatchID,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        const reports = Array.isArray(result.reports) ? result.reports : [];
+        if (!reports.length) throw new Error("No report was generated for this batch.");
+        host.innerHTML = '<div class="border rounded p-3"><div class="fw-semibold mb-2">Generated reports (' +
+            reports.length + ')</div><div class="d-flex flex-column gap-2">' +
+            reports.map(report => '<div class="d-flex flex-wrap justify-content-between align-items-center gap-2">' +
+                '<span><strong>' + escInspection(report.InspectionTypeCode) + '</strong> · ' +
+                escInspection(report.FileName) + '</span><a class="btn btn-sm btn-outline-primary" href="' +
+                escInspection(report.DownloadUrl) + '"><i class="bi bi-download me-1"></i>Download XLSX</a></div>'
+            ).join("") + '</div></div>';
+    } catch (error) {
+        host.innerHTML = '<div class="alert alert-danger small mb-0">' +
+            escInspection(error.message || "Gagal membuat report batch.") + '</div>';
+    } finally {
+        delete button.dataset.processing;
+        button.disabled = false;
+        button.innerHTML = original;
+    }
+}
+
+async function approveChiefApprovalBatch() {
+    if (!currentChiefApprovalBatchID || !currentChiefApprovalBatch) return;
+    if (!window.confirm("Approve seluruh inspeksi dalam batch #" + currentChiefApprovalBatchID + "?")) return;
+    const button = document.getElementById("btnApproveChiefBatch");
+    button.disabled = true;
+    try {
+        const result = await inspectionApprovalPost("ApproveChiefApprovalBatch", {
+            approvalBatchId: currentChiefApprovalBatchID,
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        showToast("Batch #" + currentChiefApprovalBatchID + " berhasil di-approve (" +
+            Number(result.inspectionCount || chiefApprovalBatchRows.length) + " inspeksi).", "success");
+        currentChiefApprovalBatchID = 0;
+        currentChiefApprovalBatch = null;
+        loadChiefApprovalBatchQueue();
+    } catch (error) {
+        button.disabled = false;
+        showToast(error.message || "Gagal approve batch.", "warning");
+    }
+}
+
+async function createStandardApprovalBatch() {
+    const rows = getSelectedInspectionApprovalRows();
+    if (!rows.length) {
+        showToast("Pilih inspeksi yang sudah di-approve SPV terlebih dahulu.", "warning");
+        return;
+    }
+    if (rows.some(row => String(row.InspectionMode || "STANDARD").toUpperCase() !== "STANDARD")) {
+        showToast("Batch CHIEF ini hanya untuk STANDARD inspection. BATCH mobil/motor tetap menggunakan workflow yang sekarang.", "warning");
+        return;
+    }
+    if (!window.confirm("Kirim " + rows.length + " inspeksi STANDARD terpilih sebagai satu approval batch ke CHIEF?")) return;
+    const button = document.getElementById("btnCreateStandardApprovalBatch");
+    button.disabled = true;
+    try {
+        const result = await inspectionApprovalPost("CreateStandardApprovalBatch", {
+            inspectionIds: rows.map(row => Number(row.InspectionID)),
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID
+        });
+        if (result.emailStatus === "SENT")
+            showToast("Approval batch #" + result.approvalBatchId + " berhasil dikirim ke CHIEF.", "success");
+        else if (result.emailStatus === "FAILED")
+            showToast("Batch #" + result.approvalBatchId + " berhasil dibuat, tetapi email gagal dikirim. CHIEF tetap dapat approve melalui program. " +
+                (result.emailMessage || ""), "warning");
+        else
+            showToast("Approval batch #" + result.approvalBatchId + " berhasil dibuat. Email CHIEF tidak diaktifkan pada COMVAL.", "success");
+        await loadInspectionApprovalQueue();
+    } catch (error) {
+        showToast(error.message || "Gagal membuat approval batch.", "warning");
+        await loadInspectionApprovalQueue();
+    }
 }
 
 async function loadInspectionApprovalDetail(inspectionId) {
