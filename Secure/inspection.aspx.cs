@@ -1970,14 +1970,21 @@ new SqlParameter("@InspectionID", TokenInt(record, "ServerInspectionID")),
 SELECT IT.InspectionTypeCode, IT.InspectionTypeName, IT.SectionID
 FROM dbo.PIP_M_InspectionType IT
 WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
-  AND ISNULL(IT.InspectionMode,'STANDARD') IN ('BATCH','LIGHTNING')
+  AND
+  (
+      ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
+      OR
+      (ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+       AND ISNULL(IT.InspectionPointMode,'')='MAP'
+       AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')
+  )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)",
                     new SqlParameter[] {
                         new SqlParameter("@TypeCode", typeCode),
                         new SqlParameter("@SectionList", sectionList)
                     });
                 if (type == null || type.Rows.Count == 0)
-                    throw new HttpException(403, "Inspection Type is not configured for BATCH/LIGHTNING map inspection or not assigned to this inspector.");
+                    throw new HttpException(403, "Inspection Type is not configured for BATCH/MAP/INSPECT mode or not assigned to this inspector.");
 
                 DataTable detail = br.EQueryP(@"
 SELECT InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime
