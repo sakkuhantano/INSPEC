@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Configuration;
 using System.Globalization;
 using System.Linq;
 using System.IO;
@@ -3830,6 +3831,549 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
             }
         }
 
+
+
+        private static string GetStandardBatchSnapshotFolder(long approvalBatchId)
+        {
+            string root = GF.Path_FolerView();
+            if (String.IsNullOrWhiteSpace(root))
+                throw new InvalidOperationException("Folder report INSPEC belum dikonfigurasi.");
+            return Path.Combine(root, "InspectionApprovalBatch", approvalBatchId.ToString(CultureInfo.InvariantCulture));
+        }
+
+        private static string SafeBatchReportSegment(string value)
+        {
+            string clean = System.Text.RegularExpressions.Regex.Replace(
+                (value ?? "").Trim(), @"[\\/:*?""<>|\x00-\x1F]", "_").Trim().Trim('.');
+            return clean.Length == 0 ? "TYPE" : clean.Substring(0, Math.Min(40, clean.Length));
+        }
+
+        private static List<Dictionary<string, string>> GenerateStandardBatchReports(
+            long approvalBatchId, string employeeId, string companyId, string locationId, bool createSnapshot)
+        {
+            DataTable members;
+            using (var br = new WAL.BR.CF())
+            {
+                members = br.EQueryP(@"
+SELECT I.InspectionID,I.InspectionTypeCode,I.InspectionTypeName
+FROM dbo.PIP_T_Inspection_ApprovalBatch B
+JOIN dbo.PIP_T_Inspection I ON I.ApprovalBatchID=B.ApprovalBatchID
+WHERE B.ApprovalBatchID=@BatchID
+  AND B.CompanyID=@CompanyID AND B.LocationID=@LocationID
+ORDER BY I.InspectionTypeCode,I.InspectionID",
+                    new SqlParameter[] {
+                        new SqlParameter("@BatchID", approvalBatchId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId)
+                    });
+            }
+            if (members == null || members.Rows.Count == 0)
+                throw new InvalidOperationException("Batch tidak memiliki inspeksi yang dapat dibuatkan report.");
+
+            string snapshotFolder = GetStandardBatchSnapshotFolder(approvalBatchId);
+            if (createSnapshot && !Directory.Exists(snapshotFolder))
+                Directory.CreateDirectory(snapshotFolder);
+
+            var reports = new List<Dictionary<string, string>>();
+            var groups = members.AsEnumerable()
+                .GroupBy(row => Convert.ToString(row["InspectionTypeCode"]).Trim(),
+                    StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in groups)
+            {
+                string typeCode = group.Key;
+                if (String.IsNullOrWhiteSpace(typeCode))
+                    throw new InvalidOperationException("InspectionTypeCode kosong pada salah satu anggota batch.");
+
+                string existingSnapshot = null;
+                if (Directory.Exists(snapshotFolder))
+                {
+                    string prefix = "TYPE_" + SafeBatchReportSegment(typeCode) + "_";
+                    existingSnapshot = Directory.GetFiles(snapshotFolder, prefix + "*.xlsx")
+                        .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+                }
+
+                string reportPath = existingSnapshot;
+                string reportName = existingSnapshot == null ? "" : Path.GetFileName(existingSnapshot);
+
+                if (String.IsNullOrWhiteSpace(reportPath))
+                {
+                    DataTable selected = new DataTable();
+                    selected.Columns.Add("InspectionID", typeof(long));
+                    foreach (DataRow row in group)
+                        selected.Rows.Add(Convert.ToInt64(row["InspectionID"]));
+
+                    var report = R_Report.GenerateInspectionXlsx(
+                        selected, companyId, locationId, employeeId);
+                    if (report == null || !report.Success ||
+                        String.IsNullOrWhiteSpace(report.StoragePath) || !File.Exists(report.StoragePath))
+                        throw new InvalidOperationException(
+                            report != null && !String.IsNullOrWhiteSpace(report.Message)
+                                ? report.Message : "R_Report gagal membuat XLSX untuk InspectionTypeCode " + typeCode + ".");
+
+                    reportName = "TYPE_" + SafeBatchReportSegment(typeCode) + "_" +
+                        Path.GetFileName(report.FileName);
+                    reportPath = report.StoragePath;
+
+                    if (createSnapshot || Directory.Exists(snapshotFolder))
+                    {
+                        if (!Directory.Exists(snapshotFolder))
+                            Directory.CreateDirectory(snapshotFolder);
+                        string snapshotPath = Path.Combine(snapshotFolder, reportName);
+                        File.Copy(report.StoragePath, snapshotPath, true);
+                        reportPath = snapshotPath;
+                    }
+                }
+
+                reports.Add(new Dictionary<string, string>
+                {
+                    { "InspectionTypeCode", typeCode },
+                    { "FileName", reportName },
+                    { "StoragePath", reportPath }
+                });
+            }
+
+            if (createSnapshot)
+            {
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP(@"
+UPDATE dbo.PIP_T_Inspection_ApprovalBatch
+SET ReportSnapshotFolder=@Folder
+WHERE ApprovalBatchID=@BatchID AND CompanyID=@CompanyID AND LocationID=@LocationID",
+                        new SqlParameter[] {
+                            new SqlParameter("@Folder", snapshotFolder),
+                            new SqlParameter("@BatchID", approvalBatchId),
+                            new SqlParameter("@CompanyID", companyId),
+                            new SqlParameter("@LocationID", locationId)
+                        }, true, true);
+                }
+            }
+            return reports;
+        }
+
+        private static void SendStandardBatchEmail(
+            long approvalBatchId, string employeeId, string companyId, string locationId,
+            DataRow batch, IList<Dictionary<string, string>> reports)
+        {
+            string recipients = Convert.ToString(batch["ChiefRecipients"]);
+            DataTable recipientRows;
+            using (var br = new WAL.BR.CF())
+            {
+                recipientRows = br.EQueryP(@"
+SELECT DISTINCT LTRIM(RTRIM(E.emailaddress)) EmailAddress
+FROM dbo.SplitStringConvertToTable(@Recipients,';') X
+JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
+WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''",
+                    new SqlParameter[] { new SqlParameter("@Recipients", recipients ?? "") });
+            }
+            if (recipientRows == null || recipientRows.Rows.Count == 0)
+                throw new InvalidOperationException("Alamat email CHIEF belum tersedia di M_HRD_Employee.");
+
+            string fromAddress = "";
+            string fromName = employeeId;
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable sender = br.EQueryP(@"
+SELECT TOP 1 ISNULL(LTRIM(RTRIM(emailaddress)),'') EmailAddress,
+       ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@EmployeeID) EmployeeName
+FROM dbo.M_HRD_Employee
+WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
+  AND ISNULL(TerminationDate,'')=''",
+                    new SqlParameter[] {
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@CompanyID", companyId)
+                    });
+                if (sender != null && sender.Rows.Count > 0)
+                {
+                    fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
+                    fromName = Convert.ToString(sender.Rows[0]["EmployeeName"]).Trim();
+                }
+            }
+            if (String.IsNullOrWhiteSpace(fromAddress))
+                throw new InvalidOperationException("Email pengirim SPV tidak ditemukan di M_HRD_Employee.");
+
+            string host = ConfigurationManager.AppSettings["smtpHost"];
+            int port;
+            if (String.IsNullOrWhiteSpace(host) ||
+                !Int32.TryParse(ConfigurationManager.AppSettings["smtpPort"], out port) || port <= 0)
+                throw new InvalidOperationException("Konfigurasi SMTP aplikasi belum lengkap.");
+
+            string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
+            string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
+            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval&view=chiefbatch";
+            string sectionId = Convert.ToString(batch["SectionID"]);
+            string dateText = Convert.ToDateTime(batch["InspectionDate"]).ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
+
+            using (var message = new MailMessage())
+            {
+                message.From = new MailAddress(fromAddress, fromName);
+                foreach (DataRow recipient in recipientRows.Rows)
+                    message.To.Add(new MailAddress(Convert.ToString(recipient["EmailAddress"]).Trim()));
+                message.Subject = "INSPEC - STANDARD Inspection Approval Batch #" +
+                    approvalBatchId.ToString(CultureInfo.InvariantCulture);
+                var body = new StringBuilder();
+                body.Append("<p>Dear CHIEF,</p>")
+                    .Append("<p>STANDARD inspection approval batch menunggu pemeriksaan dan approval.</p>")
+                    .Append("<p><b>Batch:</b> ").Append(approvalBatchId)
+                    .Append("<br/><b>Section:</b> ").Append(HttpUtility.HtmlEncode(sectionId))
+                    .Append("<br/><b>Inspection Date:</b> ").Append(HttpUtility.HtmlEncode(dateText))
+                    .Append("<br/><b>Total report:</b> ").Append(reports.Count).Append("</p>")
+                    .Append("<p>Silakan login ke INSPEC untuk melihat detail checklist per inspeksi, membuka report, dan melakukan approval batch:</p>")
+                    .Append("<p><a href=\"").Append(HttpUtility.HtmlAttributeEncode(approvalUrl))
+                    .Append("\">Open INSPEC Chief Batch Approval</a></p>")
+                    .Append("<p>Approval hanya dapat dilakukan setelah login menggunakan akun CHIEF yang terdaftar pada workflow Company/Location dan ProfitCenter.</p>");
+                message.Body = body.ToString();
+                message.IsBodyHtml = true;
+
+                foreach (Dictionary<string, string> report in reports)
+                {
+                    string attachmentPath = report["StoragePath"];
+                    if (!File.Exists(attachmentPath))
+                        throw new FileNotFoundException("Snapshot report tidak ditemukan.", attachmentPath);
+                    message.Attachments.Add(new Attachment(attachmentPath));
+                }
+
+                using (var smtp = new SmtpClient(host, port))
+                {
+                    string smtpUser = ConfigurationManager.AppSettings["smtpUser"];
+                    string smtpPassword = ConfigurationManager.AppSettings["smtpPassword"];
+                    bool useSsl = String.Equals(ConfigurationManager.AppSettings["smtpUseSSL"], "true",
+                        StringComparison.OrdinalIgnoreCase);
+                    smtp.EnableSsl = useSsl;
+                    smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    smtp.Timeout = 60000;
+                    if (!String.IsNullOrWhiteSpace(smtpUser))
+                    {
+                        smtp.UseDefaultCredentials = false;
+                        smtp.Credentials = new System.Net.NetworkCredential(smtpUser, smtpPassword ?? "");
+                    }
+                    smtp.Send(message);
+                }
+            }
+        }
+
+        [WebMethod]
+        public static object GetChiefApprovalBatchSections(string employeeId, string companyId, string locationId)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT DISTINCT S.SectionID,S.ProfitCenterNo
+FROM dbo.PIP_M_Section S
+WHERE S.CompanyID=@CompanyID AND S.LocationID=@LocationID
+  AND (@IsAdministrator=1 OR EXISTS
+  (
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(S.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+  ))
+ORDER BY S.SectionID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0)
+                    });
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                    data.Add(new Dictionary<string, object> {
+                        { "SectionID", Convert.ToString(row["SectionID"]) },
+                        { "ProfitCenterNo", Convert.ToString(row["ProfitCenterNo"]) }
+                    });
+                return new { success = true, data = data };
+            }
+        }
+
+        [WebMethod]
+        public static object GetChiefApprovalBatchQueue(string employeeId, string companyId, string locationId,
+            string sectionId, string dateFrom, string dateThru, string batchStatus)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            batchStatus = String.Equals(batchStatus, "APPROVED", StringComparison.OrdinalIgnoreCase)
+                ? "APPROVED" : "PENDING";
+            DateTime fromDate, thruDate;
+            bool hasFrom = DateTime.TryParseExact(dateFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fromDate);
+            bool hasThru = DateTime.TryParseExact(dateThru, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out thruDate);
+            if (hasFrom && hasThru && fromDate > thruDate)
+                throw new HttpException(400, "Tanggal From tidak boleh melewati tanggal Thru.");
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
+       B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+       B.ApprovedBy,B.ApprovedDate,B.EmailStatus,
+       ISNULL(EC.Name,B.CreatedBy) CreatedByName,
+       ISNULL(EA.Name,B.ApprovedBy) ApprovedByName,
+       COUNT(I.InspectionID) InspectionCount,
+       COUNT(DISTINCT I.InspectionTypeCode) InspectionTypeCount
+FROM dbo.PIP_T_Inspection_ApprovalBatch B
+JOIN dbo.PIP_T_Inspection I ON I.ApprovalBatchID=B.ApprovalBatchID
+LEFT JOIN dbo.M_HRD_Employee EC ON EC.EmployeeID=B.CreatedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=B.ApprovedBy
+WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID
+  AND B.BatchStatus=@BatchStatus
+  AND (@SectionID='' OR B.SectionID=@SectionID)
+  AND (@HasFrom=0 OR B.InspectionDate>=@DateFrom)
+  AND (@HasThru=0 OR B.InspectionDate<DATEADD(DAY,1,@DateThru))
+  AND (@IsAdministrator=1 OR EXISTS
+  (
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+  ))
+GROUP BY B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
+         B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+         B.ApprovedBy,B.ApprovedDate,B.EmailStatus,EC.Name,EA.Name
+ORDER BY B.InspectionDate DESC,B.ApprovalBatchID DESC",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@SectionID", sectionId ?? ""),
+                        new SqlParameter("@HasFrom", hasFrom ? 1 : 0),
+                        new SqlParameter("@HasThru", hasThru ? 1 : 0),
+                        new SqlParameter("@DateFrom", hasFrom ? (object)fromDate : DBNull.Value),
+                        new SqlParameter("@DateThru", hasThru ? (object)thruDate : DBNull.Value),
+                        new SqlParameter("@BatchStatus", batchStatus),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0)
+                    });
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in rows.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    data.Add(item);
+                }
+                return new { success = true, data = data };
+            }
+        }
+
+        [WebMethod]
+        public static object GetChiefApprovalBatchDetail(long approvalBatchId, string employeeId,
+            string companyId, string locationId)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable header = br.EQueryP(@"
+SELECT B.*,dbo.fnINSPEC_ChiefRoleForSection(B.SectionID) ChiefRole,
+       ISNULL(EC.Name,B.CreatedBy) CreatedByName,
+       ISNULL(EA.Name,B.ApprovedBy) ApprovedByName
+FROM dbo.PIP_T_Inspection_ApprovalBatch B
+LEFT JOIN dbo.M_HRD_Employee EC ON EC.EmployeeID=B.CreatedBy
+LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=B.ApprovedBy
+WHERE B.ApprovalBatchID=@BatchID
+  AND B.CompanyID=@CompanyID AND B.LocationID=@LocationID
+  AND (@IsAdministrator=1 OR EXISTS
+  (
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+  ))",
+                    new SqlParameter[] {
+                        new SqlParameter("@BatchID", approvalBatchId),
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0)
+                    });
+                if (header == null || header.Rows.Count == 0)
+                    throw new HttpException(404, "Approval batch tidak ditemukan atau di luar kewenangan CHIEF.");
+                DataTable members = br.EQueryP(@"
+SELECT I.InspectionID,I.InspectionNo,I.SectionID,I.InspectionTypeCode,I.InspectionTypeName,
+       I.InspectionTypeDetailCode,I.InspectionTypeDetailName,I.InspectionDate,
+       I.TemplateNo,I.TemplateName,I.TemplateVersion,I.OwnerEmployeeID,
+       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.ApprovedBy,I.ApprovedDate
+FROM dbo.PIP_T_Inspection I
+LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
+WHERE I.ApprovalBatchID=@BatchID
+ORDER BY I.InspectionTypeCode,I.InspectionID",
+                    new SqlParameter[] { new SqlParameter("@BatchID", approvalBatchId) });
+                var items = new List<Dictionary<string, object>>();
+                foreach (DataRow row in members.Rows)
+                {
+                    var item = new Dictionary<string, object>();
+                    foreach (DataColumn col in members.Columns)
+                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
+                    items.Add(item);
+                }
+                var h = new Dictionary<string, object>();
+                foreach (DataColumn col in header.Columns)
+                    h[col.ColumnName] = header.Rows[0][col] == DBNull.Value ? null : header.Rows[0][col];
+                return new { success = true, header = h, inspections = items };
+            }
+        }
+
+        [WebMethod]
+        public static object ApproveChiefApprovalBatch(long approvalBatchId, string employeeId,
+            string companyId, string locationId)
+        {
+            RequireSameOriginPost();
+            employeeId = GFC.CurrentEmployeeID();
+            if (!IsInspectionAdministrator(employeeId))
+                employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_ApprovalBatch_Approve",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_ApprovalBatchID", approvalBatchId),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    }, true, true);
+                return new { success = true, approvalBatchId = approvalBatchId,
+                    approvedBy = employeeId,
+                    inspectionCount = saved != null && saved.Rows.Count > 0
+                        ? Convert.ToInt32(saved.Rows[0]["InspectionCount"]) : 0 };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        public static object GenerateChiefApprovalBatchReports(long approvalBatchId, string employeeId,
+            string companyId, string locationId)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            if (!IsInspectionAdministrator(employeeId))
+                employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            GetChiefApprovalBatchDetail(approvalBatchId, employeeId, companyId, locationId);
+            try
+            {
+                List<Dictionary<string, string>> reports = GenerateStandardBatchReports(
+                    approvalBatchId, employeeId, companyId, locationId, false);
+                var links = new List<Dictionary<string, string>>();
+                foreach (Dictionary<string, string> report in reports)
+                {
+                    string token = Guid.NewGuid().ToString("N");
+                    HttpContext.Current.Session["InspectionReport_" + token] = report["StoragePath"];
+                    HttpContext.Current.Session["InspectionReportName_" + token] = report["FileName"];
+                    links.Add(new Dictionary<string, string> {
+                        { "InspectionTypeCode", report["InspectionTypeCode"] },
+                        { "FileName", report["FileName"] },
+                        { "DownloadUrl", VirtualPathUtility.ToAbsolute("~/Secure/inspection.aspx?download=" + token) }
+                    });
+                }
+                return new { success = true, reports = links };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("GenerateChiefApprovalBatchReports: " + ex);
+                return new { success = false, message = HttpContext.Current.IsDebuggingEnabled
+                    ? ex.GetBaseException().Message : "Gagal membuat report batch CHIEF." };
+            }
+        }
+
+        [WebMethod]
+        public static object CreateStandardApprovalBatch(long[] inspectionIds, string employeeId,
+            string companyId, string locationId)
+        {
+            RequireSameOriginPost();
+            employeeId = GFC.CurrentEmployeeID();
+            if (!IsInspectionAdministrator(employeeId))
+                employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            if (inspectionIds == null || inspectionIds.Length == 0 || inspectionIds.Length > 200)
+                throw new HttpException(400, "Pilih 1 sampai 200 inspeksi untuk dibuatkan batch.");
+            long[] ids = inspectionIds.Where(id => id > 0).Distinct().ToArray();
+            if (ids.Length != inspectionIds.Length)
+                throw new HttpException(400, "Daftar inspeksi tidak valid atau mengandung duplikasi.");
+
+            DataTable created;
+            using (var br = new WAL.BR.CF())
+            {
+                created = br.EQueryP("spUTL_PIP_T_Inspection_ApprovalBatch_Create",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_InspectionIDs", String.Join(",", ids.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray())),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId)
+                    }, true, true);
+            }
+            if (created == null || created.Rows.Count == 0)
+                throw new InvalidOperationException("Batch berhasil diproses tetapi header batch tidak dikembalikan.");
+
+            long batchId = Convert.ToInt64(created.Rows[0]["ApprovalBatchID"]);
+            bool emailEnabled = created.Rows[0]["EmailEnabled"] != DBNull.Value &&
+                Convert.ToBoolean(created.Rows[0]["EmailEnabled"]);
+            string emailStatus = emailEnabled ? "FAILED" : "NOT_REQUIRED";
+            string emailMessage = "";
+
+            if (emailEnabled)
+            {
+                try
+                {
+                    List<Dictionary<string, string>> reports = GenerateStandardBatchReports(
+                        batchId, employeeId, companyId, locationId, true);
+                    SendStandardBatchEmail(batchId, employeeId, companyId, locationId,
+                        created.Rows[0], reports);
+                    emailStatus = "SENT";
+                    using (var br = new WAL.BR.CF())
+                    {
+                        br.EQueryP(@"
+UPDATE dbo.PIP_T_Inspection_ApprovalBatch
+SET EmailStatus='SENT',EmailError=N'',EmailTo=@EmailTo,EmailAttemptCount=EmailAttemptCount+1,
+    LastEmailAttemptDate=GETDATE(),SentDate=GETDATE()
+WHERE ApprovalBatchID=@BatchID",
+                            new SqlParameter[] {
+                                new SqlParameter("@EmailTo", String.Join(";", reports.Select(r => r["FileName"]).ToArray())),
+                                new SqlParameter("@BatchID", batchId)
+                            }, true, true);
+                    }
+                }
+                catch (Exception emailError)
+                {
+                    emailMessage = emailError.GetBaseException().Message;
+                    System.Diagnostics.Trace.TraceError("CreateStandardApprovalBatch email: " + emailError);
+                    using (var br = new WAL.BR.CF())
+                    {
+                        br.EQueryP(@"
+UPDATE dbo.PIP_T_Inspection_ApprovalBatch
+SET EmailStatus='FAILED',EmailError=@Error,EmailAttemptCount=EmailAttemptCount+1,
+    LastEmailAttemptDate=GETDATE(),SentDate=GETDATE()
+WHERE ApprovalBatchID=@BatchID",
+                            new SqlParameter[] {
+                                new SqlParameter("@Error", emailMessage),
+                                new SqlParameter("@BatchID", batchId)
+                            }, true, true);
+                    }
+                }
+            }
+            else
+            {
+                using (var br = new WAL.BR.CF())
+                {
+                    br.EQueryP("UPDATE dbo.PIP_T_Inspection_ApprovalBatch SET SentDate=GETDATE() WHERE ApprovalBatchID=@BatchID",
+                        new SqlParameter[] { new SqlParameter("@BatchID", batchId) }, true, true);
+                }
+            }
+
+            return new {
+                success = true, approvalBatchId = batchId,
+                inspectionCount = Convert.ToInt32(created.Rows[0]["InspectionCount"]),
+                emailStatus = emailStatus,
+                emailMessage = emailMessage
+            };
+        }
 
         [WebMethod(EnableSession = true)]
         public static object GenerateReport(
