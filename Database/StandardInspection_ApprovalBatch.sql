@@ -382,6 +382,7 @@ BEGIN
             JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
             WHERE I.ApprovalBatchID=@p_ApprovalBatchID
               AND (I.CompanyID<>@C OR I.LocationID<>@L OR I.SectionID<>@S
+                   OR I.InspectionDate IS NULL
                    OR CONVERT(VARCHAR(10),I.InspectionDate,120)<>CONVERT(VARCHAR(10),@InspectionDate,120)
                    OR ISNULL(I.IsActive,1)=0 OR I.Status<>'DONE'
                    OR ISNULL(I.IsSubmitted,0)=0 OR ISNULL(I.IsApproved,0)=0
