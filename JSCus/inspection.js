@@ -1875,7 +1875,7 @@ async function startNewInspection() {
     const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
         (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
     const approvalWorkflowCode = isLightning ? "LIGHTNING_4_STEP" :
-        (inspectionMode === "BATCH" ? "SPV_CHIEF_SEC" : "STANDARD");
+        (inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD");
     const scheduledTime = inspectionMode === "LIGHTNING"
         ? (configuredScheduleTimes[0] || "")
         : (document.getElementById("selInspectionScheduleTime").value || "");
@@ -6315,7 +6315,7 @@ async function applyInspectionParameters() {
         (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
     const pointSource = getInspectionPointSource(type);
     const approvalWorkflowCode = isLightning ? "LIGHTNING_4_STEP" :
-        (inspectionMode === "BATCH" ? "SPV_CHIEF_SEC" : "STANDARD");
+        (inspectionMode === "BATCH" ? "SPV_CHIEF_ENG" : "STANDARD");
     const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
     const suiteNo = isInspectionTenantDetail(detail) ? getSelectedInspectionSuiteNo() : "";
     const selectedTenant = inspectionTenants.find(row =>
