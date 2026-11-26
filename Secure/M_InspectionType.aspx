@@ -303,7 +303,7 @@
                 <div class="col-sm-8">
                     <asp:DropDownList ID="ddlScheduleSelectionMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
                         <asp:ListItem Text="At Param" Value="PARAM" Selected="True"></asp:ListItem>
-                        <asp:ListItem Text="At Inspection" Value="AT_INSPECTION"></asp:ListItem>
+                        <asp:ListItem Text="At Inspection" Value="INSPECT"></asp:ListItem>
                     </asp:DropDownList>
                 </div>
             </div>
