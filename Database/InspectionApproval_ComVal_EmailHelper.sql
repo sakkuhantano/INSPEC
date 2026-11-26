@@ -50,6 +50,8 @@ IF OBJECT_ID('dbo.fnINSPEC_ChiefRoleForSection','FN') IS NOT NULL
 GO
 CREATE FUNCTION dbo.fnINSPEC_ChiefRoleForSection
 (
+    @p_CompanyID VARCHAR(10),
+    @p_LocationID VARCHAR(3),
     @p_SectionID VARCHAR(10)
 )
 RETURNS VARCHAR(20)
@@ -58,7 +60,9 @@ BEGIN
     DECLARE @ProfitCenterNo VARCHAR(20);
     SELECT @ProfitCenterNo=UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,''))))
     FROM dbo.PIP_M_Section S
-    WHERE S.SectionID=@p_SectionID;
+    WHERE S.CompanyID=@p_CompanyID
+      AND S.LocationID=@p_LocationID
+      AND S.SectionID=@p_SectionID;
 
     RETURN CASE @ProfitCenterNo
         WHEN 'PENG' THEN 'CHIEF_ENG'
