@@ -102,7 +102,7 @@ function getInspectionPointSource(typeOrRecord) {
 }
 
 function isInspectionMapMode(mode) {
-    return ["BATCH", "LIGHTNING"].indexOf(String(mode || "").trim().toUpperCase()) >= 0;
+    return String(mode || "").trim().toUpperCase() === "BATCH";
 }
 
 function isInspectionTenantDetail(detail) {
