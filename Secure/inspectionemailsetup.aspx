@@ -136,7 +136,7 @@
           </div>
           <asp:HiddenField ID="hidChiefSecEmployees" runat="server" />
           <div id="divChiefSecEmployees" runat="server" class="employee-badges"></div>
-          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK, pisahkan dengan titik koma (;).</div>
+          <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK; boleh dikosongkan bila role ini tidak tersedia.</div>
         </div>
       </div>
     </div>
