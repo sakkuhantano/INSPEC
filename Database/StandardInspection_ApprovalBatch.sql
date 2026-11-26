@@ -315,13 +315,14 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@ChiefRole VARCHAR(20),
-            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT,@ProfitCenterNo VARCHAR(20);
+            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT,
+            @ProfitCenterNo VARCHAR(20),@InspectionDate DATETIME;
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@BatchStatus=BatchStatus,
-               @ProfitCenterNo=ProfitCenterNo
+               @ProfitCenterNo=ProfitCenterNo,@InspectionDate=InspectionDate
         FROM dbo.PIP_T_Inspection_ApprovalBatch WITH (UPDLOCK,HOLDLOCK)
         WHERE ApprovalBatchID=@p_ApprovalBatchID;
 
@@ -381,6 +382,7 @@ BEGIN
             JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
             WHERE I.ApprovalBatchID=@p_ApprovalBatchID
               AND (I.CompanyID<>@C OR I.LocationID<>@L OR I.SectionID<>@S
+                   OR CONVERT(VARCHAR(10),I.InspectionDate,120)<>CONVERT(VARCHAR(10),@InspectionDate,120)
                    OR ISNULL(I.IsActive,1)=0 OR I.Status<>'DONE'
                    OR ISNULL(I.IsSubmitted,0)=0 OR ISNULL(I.IsApproved,0)=0
                    OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD'
