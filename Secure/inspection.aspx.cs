@@ -4058,7 +4058,7 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
                     .Append("<p>Silakan login ke INSPEC untuk melihat detail checklist per inspeksi, membuka report, dan melakukan approval batch:</p>")
                     .Append("<p><a href=\"").Append(HttpUtility.HtmlAttributeEncode(approvalUrl))
                     .Append("\">Open INSPEC Chief Batch Approval</a></p>")
-                    .Append("<p>Approval hanya dapat dilakukan setelah login menggunakan akun CHIEF yang terdaftar pada workflow Company/Location dan ProfitCenter.</p>");
+                    .Append("<p>Approval hanya dapat dilakukan setelah login menggunakan NIK yang terdaftar pada konfigurasi CHIEF untuk Company/Location dan ProfitCenter Section tersebut.</p>");
                 message.Body = body.ToString();
                 message.IsBodyHtml = true;
 
