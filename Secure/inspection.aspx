@@ -398,7 +398,7 @@
         outline: 2px solid var(--bs-primary); outline-offset: 2px;
     }
     /* SPV approval grid: fit all columns, including Status, inside the desktop content area. */
-    #inspectionApprovalTable { width: 100%; font-size: .78rem; }
+    #inspectionApprovalTable { width: calc(100% - 4px); max-width: calc(100% - 4px); font-size: .78rem; box-sizing: border-box; }
     #inspectionApprovalTable > :not(caption) > * > * { padding: .35rem .45rem; }
     #inspectionApprovalTable thead th { font-size: .75rem; }
     @media (min-width: 576px) {
