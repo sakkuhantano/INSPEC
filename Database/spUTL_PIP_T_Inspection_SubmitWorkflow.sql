@@ -1,3 +1,4 @@
+/* LEGACY COPY — DO NOT DEPLOY. The active submit/approval procedures are deployed together from Database/InspectionApproval_Workflow_Procedures.sql. */
 /*
   Standard / Batch workflow:
   Technician -> configured SPV (Company + Location + Section).
