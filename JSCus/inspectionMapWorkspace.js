@@ -2049,7 +2049,7 @@
         }) || null;
 
         var dynamicListMode = String(record.InspectionLayoutCode || "").toUpperCase() === "DYNAMIC_LIST" &&
-            String(record.PointSource || "").toUpperCase() === "DYNAMIC";
+            String(record.InspectionPointMode || "").toUpperCase() === "DYNAMIC";
         if (activate && dynamicListMode) {
             workspace.classList.add("inspection-dynamic-list-mode");
             document.body.classList.add("inspection-map-tab-active");
@@ -2128,7 +2128,7 @@
         }
 
         // MAP activation changes the editor into a full-height flex layout.
-        // Refresh Approval Workflow after that transition so new LIGHTNING drafts
+        // Refresh Approval Workflow after that transition so new BATCH / INSPECT drafts
         // are visible even though none of the workflow stages has been submitted.
         if (typeof window.renderInspectionApprovalWorkflowCards === "function")
             window.renderInspectionApprovalWorkflowCards(record, record.InspectionMode);
@@ -2364,7 +2364,7 @@
         var checklistTab = document.getElementById("btnInspectionChecklistTab");
         if (checklistTab) checklistTab.addEventListener("click", function () {
             document.body.classList.remove("inspection-map-tab-active");
-            if (currentMapRecord && ["BATCH", "LIGHTNING"].indexOf(String(currentMapRecord.InspectionMode || "").toUpperCase()) >= 0 &&
+            if (currentMapRecord && String(currentMapRecord.InspectionMode || "").toUpperCase() === "BATCH" &&
                 !Number(currentMapRecord.ActiveInspectionPointID || 0)) {
                 if (typeof showToast === "function")
                     showToast("Pilih Inspection Point dari denah atau daftar terlebih dahulu.", "info");
