@@ -143,6 +143,28 @@ CLOSE LegacyMasterIndexes;
 DEALLOCATE LegacyMasterIndexes;
 GO
 
+/* Remove unique constraints that include deprecated master fields. */
+DECLARE @LegacyUniqueConstraint SYSNAME, @DropLegacyUniqueSql NVARCHAR(1000);
+DECLARE LegacyMasterUniqueConstraints CURSOR LOCAL FAST_FORWARD FOR
+    SELECT DISTINCT KC.name
+    FROM sys.key_constraints KC
+    JOIN sys.index_columns IC ON IC.object_id=KC.parent_object_id AND IC.index_id=KC.unique_index_id
+    JOIN sys.columns C ON C.object_id=IC.object_id AND C.column_id=IC.column_id
+    WHERE KC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND KC.type='U'
+      AND C.name IN ('PointSource','ApprovalWorkflowCode');
+OPEN LegacyMasterUniqueConstraints;
+FETCH NEXT FROM LegacyMasterUniqueConstraints INTO @LegacyUniqueConstraint;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @DropLegacyUniqueSql=N'ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT '+QUOTENAME(@LegacyUniqueConstraint)+N';';
+    EXEC sp_executesql @DropLegacyUniqueSql;
+    FETCH NEXT FROM LegacyMasterUniqueConstraints INTO @LegacyUniqueConstraint;
+END;
+CLOSE LegacyMasterUniqueConstraints;
+DEALLOCATE LegacyMasterUniqueConstraints;
+GO
+
 /* Remove defaults attached to deprecated master fields, then remove the fields.
    All required values have already been migrated into InspectionPointMode and
    the Company/Location COMVAL workflow. */
