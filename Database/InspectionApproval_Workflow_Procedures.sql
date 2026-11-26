@@ -39,7 +39,7 @@ BEGIN
 
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @WorkflowKey=CASE WHEN @Mode='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END;
- SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@C,@L,@S) ELSE '' END;
+ SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@S) ELSE '' END;
  SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN 1 ELSE 0 END;
  IF @IsChiefWorkflow=1 AND ISNULL(@ChiefRole,'')=''
  BEGIN RAISERROR('BATCH/PARAM Section has no supported ProfitCenterNo mapping (PENG/PSEC/PHKP).',16,1); RETURN; END;
@@ -213,7 +213,7 @@ BEGIN
 
  SET @ConfigScope=CONVERT(VARCHAR(30),@C)+CONVERT(VARCHAR(30),@L);
  SET @WorkflowKey=CASE WHEN @Mode='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END;
- SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@C,@L,@S) ELSE '' END;
+ SET @ChiefRole=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN dbo.fnINSPEC_ChiefRoleForSection(@S) ELSE '' END;
  SET @IsChiefWorkflow=CASE WHEN @Mode='BATCH' AND @ScheduleMode='PARAM' THEN 1 ELSE 0 END;
  IF @IsChiefWorkflow=1 AND ISNULL(@ChiefRole,'')=''
  BEGIN RAISERROR('BATCH/PARAM Section has no supported ProfitCenterNo mapping (PENG/PSEC/PHKP).',16,1); RETURN; END;
