@@ -8602,12 +8602,16 @@ async function openChiefApprovalBatchDetail(batchId) {
         document.getElementById("chiefBatchListView").classList.add("d-none");
         document.getElementById("chiefBatchDetailView").classList.remove("d-none");
         document.getElementById("chiefBatchDetailTitle").textContent = "Approval Batch #" + batchId;
+        const status = String(currentChiefApprovalBatch.BatchStatus || "PENDING").toUpperCase();
+        const approvedInfo = status === "APPROVED"
+            ? " • Approved by " + (currentChiefApprovalBatch.ApprovedByName || currentChiefApprovalBatch.ApprovedBy || "") +
+              " at " + (formatInspectionDateDMY(currentChiefApprovalBatch.ApprovedDate) || "")
+            : "";
         document.getElementById("chiefBatchDetailSubtitle").textContent =
             "Section " + (currentChiefApprovalBatch.SectionID || "") + " • " +
             formatInspectionDateDMY(currentChiefApprovalBatch.InspectionDate) + " • " +
             chiefApprovalBatchRows.length + " inspections • " +
-            (currentChiefApprovalBatch.ChiefRole || "CHIEF");
-        const status = String(currentChiefApprovalBatch.BatchStatus || "PENDING").toUpperCase();
+            (currentChiefApprovalBatch.ChiefRole || "CHIEF") + approvedInfo;
         document.getElementById("btnApproveChiefBatch").classList.toggle("d-none", status !== "PENDING");
         document.getElementById("chiefBatchReports").innerHTML = "";
         if (!chiefApprovalBatchRows.length) {
