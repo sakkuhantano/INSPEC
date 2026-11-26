@@ -2275,6 +2275,7 @@ CROSS APPLY (SELECT
 ) V
 WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,1)=1
  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING'
+ AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
  AND EXISTS(SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID AND ISNULL(T.TemplateType,'W')='I' AND (ISNULL(T.CompanyScope,'S')='A' OR (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+I.CompanyID+I.LocationID+';%')) AND (ISNULL(T.EmployeeList,'')='' OR (';'+ISNULL(T.EmployeeList,'')+';' LIKE '%;'+I.OwnerEmployeeID+';%')))
  AND EXISTS(SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1 AND (@IsAdministrator=1 OR EXISTS(SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')) AND (EXISTS(SELECT 1 FROM dbo.SysWebUserCompanyLocation C WHERE C.UserID=SU.EmployeeID AND C.AppID='pip' AND C.CompanyID=I.CompanyID AND C.LocationID=I.LocationID) OR EXISTS(SELECT 1 FROM dbo.F_SelectOneLogin('pip',SU.EmployeeID,'') L WHERE L.CompanyID=I.CompanyID AND L.LocationID=I.LocationID)))
  AND (
@@ -2446,7 +2447,7 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         I.CompanyID,
                         I.LocationID,
                         I.SectionID,
-                        ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD') AS InspectionMode,
+                        ISNULL(NULLIF(I.InspectionMode, ''), ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')) AS InspectionMode,
                         ISNULL(NULLIF(IT.ApprovalWorkflowCode, ''), 'STANDARD') AS ApprovalWorkflowCode
                     FROM dbo.PIP_T_Inspection I
                     LEFT JOIN dbo.PIP_M_InspectionType IT
@@ -3396,16 +3397,16 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
             {
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
-       I.InspectionTypeDetailName, ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
+       I.InspectionTypeDetailName, ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
        ISNULL(NULLIF(IT.InspectionLayoutCode,''),'STANDARD') AS InspectionLayoutCode,
        ISNULL(NULLIF(IT.PointSource,''),'MASTER') AS PointSource,
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
        ISNULL(NULLIF(IT.ApprovalWorkflowCode,''),'STANDARD') AS ApprovalWorkflowCode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
-            WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
+            WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGED' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
             WHEN I.IsApproved=1 THEN 'APPROVED' ELSE 'SUBMITTED' END WorkflowStatus,
-       CASE WHEN ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
+       CASE WHEN (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING' OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT')) THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' THEN CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END
             WHEN I.IsApproved=0 THEN 'SPV' ELSE 'COMPLETED' END CurrentStageCode,
        I.InspectionTypeCode, I.InspectionTypeDetailCode, I.ScheduledTime, I.IDTemplate, I.IDVersion, I.TemplateNo, I.TemplateVersion,
