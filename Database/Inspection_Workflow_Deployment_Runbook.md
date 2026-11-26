@@ -90,7 +90,7 @@ The base schema scripts are initial-install prerequisites, not part of this upgr
 ## Optional migrations — only when the condition applies
 
 - Database/InspectionEmailApproval_CommonValue_Migration.sql: run only if the old temporary PIP_M_InspectionEmailSetup* tables still exist and must be migrated. It drops those temporary tables after migration.
-- Database/InspectionApproval_ComValWorkflow_Migration.sql: run only if legacy Company/Location EMAIL switches exist and must be converted. Run after the previous optional migration when both apply. It never overwrites an already-configured workflow COMVAL.
+- Database/InspectionApproval_ComValWorkflow_Migration.sql: run when legacy Company/Location EMAIL switches must be converted, or when an existing STANDARD workflow row needs the missing [CHIEF] token appended. Run after the previous optional migration when both apply. It preserves existing [SPV] and [CHIEF] flags; when adding a missing STANDARD [CHIEF] token, it copies the existing [SPV] TRUE/FALSE value.
 - Database/InspectionPoint_RemoveCompanyLocation_Migration.sql: run only if PIP_M_InspectionPoint still has the old CompanyID / LocationID columns. Review its dependency report first; it stops if database modules still reference those columns.
 - Database/inspection_point_circle_geometry_backfill.sql: run after the SVG shape migration only if existing CIRCLE points need ShapeAttributes backfilled from MapX / MapY.
 - Database/THD_Tenant_Suite_Master_Reference.sql: if the THD tenant / agreement master tables are genuinely absent, run this before required step 12. These tables are owned by THD; do not create duplicate copies when they already exist.
@@ -131,7 +131,7 @@ Approver mappings:
 - Chief Security: <CompanyID><LocationID>;CHIEF_SEC → semicolon-separated EmployeeIDs.
 - Chief Housekeeping: <CompanyID><LocationID>;CHIEF_HK → semicolon-separated EmployeeIDs.
 
-Chief role for STANDARD approval batches and BATCH / PARAM is resolved from PIP_M_Section.ProfitCenterNo:
+Chief role for STANDARD approval batches and BATCH / PARAM is resolved from PIP_M_Section.ProfitCenterNo. STANDARD batch headers snapshot ProfitCenterNo at creation, and later CHIEF authorization uses that batch snapshot:
 
 | ProfitCenterNo | COMVAL mapping key |
 |---|---|
@@ -139,7 +139,7 @@ Chief role for STANDARD approval batches and BATCH / PARAM is resolved from PIP_
 | PSEC | CHIEF_SEC |
 | PHKP | CHIEF_HK |
 
-The Chief Description can contain multiple NIKs separated by semicolons, so an alternate / assistant can also receive approval. Every listed NIK must be an active employee in the matching Company, with INSPEC approval access for the Location.
+The Chief Description can contain multiple NIKs separated by semicolons, so an alternate / assistant can also receive approval. For STANDARD batches, every listed NIK must be an active employee in the same Company and have INSPEC approval-menu plus Company/Location access; the explicit NIK list is the authorization, so an alternate does not have to carry the Section's own ProfitCenterNo. The existing BATCH / PARAM workflow retains its existing ProfitCenterNo validation.
 
 Workflow email switches are scoped per Company + Location; Description contains stage tokens:
 
@@ -155,21 +155,26 @@ Email switches control notification only; they never bypass an approval stage. M
 
 ## Canonical workflow behavior
 
-- STANDARD: Technician → Section SPV.
+- STANDARD: Technician → Section SPV. If the inspection owner is themselves a configured SPV for that Section, sync automatically records the SPV self-approval; if the owner is a technician, the inspection waits for SPV approval.
+- STANDARD CHIEF batch: after SPV approval, the SPV manually selects approved STANDARD inspections from one Company, Location, Section, and InspectionDate. Different InspectionTypeCode values are allowed in the same batch. `ApprovalBatchID` is written directly to each member row in `PIP_T_Inspection`; there is no detail table. Each distinct InspectionTypeCode produces one XLSX report through the existing `R_Report.GenerateInspectionXlsx` mechanism, and those files are attached to one notification email when the `[CHIEF][TRUE]` flag is enabled.
+- STANDARD CHIEF approval is performed in the existing `Secure/inspection.aspx` approval page, not by clicking an email approval token. CHIEF must log in and pass current Company/Location + `CHIEF_xxx` COMVAL authorization. The page lists pending/approved batches, opens each inspection's checklist detail, previews the per-type XLSX files one at a time, and approves the entire batch transactionally. The batch header records CHIEF `ApprovedBy` / `ApprovedDate`; the inspection row's `ApprovedBy` / `ApprovedDate` remain the SPV approval audit.
 - BATCH / MAP / PARAM (Car Park): Technician → Section SPV → one Chief selected from the Section ProfitCenter.
 - BATCH / DYNAMIC / PARAM (Motor): Technician → Section SPV → one Chief selected from the Section ProfitCenter.
 - BATCH / MAP / INSPECT (Lightning daily): Technician → SPV → Chief Security → Chief Engineering.
 
 InspectionMode is only STANDARD or BATCH. ScheduleSelectionMode is PARAM or INSPECT. InspectionPointMode is MAP or DYNAMIC for BATCH types and NULL for STANDARD. There is no active master workflow-code field.
 
-Approval flags on PIP_T_Inspection:
+Approval flags and audit ownership:
 
-- STANDARD / BATCH-PARAM: IsApproved = SPV; IsApproved1 = Section Chief stage.
+- STANDARD: `PIP_T_Inspection.IsApproved`, `ApprovedBy`, and `ApprovedDate` record SPV approval. CHIEF batch approval is recorded only on `PIP_T_Inspection_ApprovalBatch.ApprovedBy` and `ApprovedDate`; it does not overwrite the SPV fields or use `IsApproved1`.
+- BATCH-PARAM: IsApproved = SPV; IsApproved1 = Section Chief stage.
 - BATCH-INSPECT: IsApproved = SPV; IsApproved1 = Chief Security; IsApproved2 = Chief Engineering.
 
 A missing optional Chief mapping skips that stage and records the skip. Email OFF does not skip an approver. VOID requires a reason and returns the transaction for technician correction; resubmission resets active approval flags but retains approval history.
 
 ## Application files
+
+For the STANDARD batch approval change, reuse the existing `Secure/inspection.aspx` page and its current XLSX generator. Do not create another ASPX page. `Secure/R_Report.aspx` and `Secure/R_Report.aspx.cs` are read-only for this change: do not modify them; the new code calls the existing `R_Report.GenerateInspectionXlsx` method and groups calls by InspectionTypeCode.
 
 Publish the whole feature/repeatable-inspection-integrated-ux branch with the SQL package. Do not cherry-pick only a subset into an older WebForms build. The following files are changed in this branch relative to main.
 
@@ -257,10 +262,11 @@ The current workflow finalization adds no new CSS files beyond the four CSS file
 2. Confirm Inspection Type values: STANDARD has no point mode and PARAM schedule; Car Park is BATCH / MAP / PARAM; Motor is BATCH / DYNAMIC / PARAM; Lightning is BATCH / MAP / INSPECT.
 3. Configure one SPV per test Section and the appropriate Chief mapping for its ProfitCenter. Test semicolon-separated alternate NIKs.
 4. Test STANDARD, Car Park, Motor, and Lightning sync. Confirm the saved Inspection header uses only STANDARD or BATCH.
-5. Test SPV approval, Chief approval, missing-Chief skip, VOID, correction, and resubmission for each applicable workflow.
-6. Test email flags ON and OFF independently. OFF must suppress notification only; it must not bypass approval.
-7. Confirm history StageCode values, actor NIKs, ApprovedBy / Approved1By / Approved2By, and outbox status.
-8. Test REPEAT items in template, STANDARD/BATCH Inspection entry, offline save/sync, approval read-only view, and Work Order if in scope.
-9. Build with VS2013 / .NET Framework 4.5 and test in IIS. Repository edits alone do not certify runtime behavior.
+5. Test STANDARD SPV self-approval at sync and technician-to-SPV approval. Create a batch with multiple InspectionTypeCode values but one Company/Location/Section/InspectionDate; verify one XLSX per type, snapshot reuse, email ON/OFF, and CHIEF program approval by primary and configured alternate NIKs.
+6. Test SPV approval, Chief approval, missing-Chief skip, VOID, correction, and resubmission for each applicable BATCH / Lightning workflow.
+7. Test email flags ON and OFF independently. OFF suppresses notification only; it does not bypass SPV or CHIEF batch approval.
+8. Confirm history StageCode values, actor NIKs, SPV ApprovedBy / ApprovedDate, CHIEF batch ApprovedBy / ApprovedDate, and outbox status.
+9. Test REPEAT items in template, STANDARD/BATCH Inspection entry, offline save/sync, approval read-only view, and Work Order if in scope.
+10. Build with VS2013 / .NET Framework 4.5 and test in IIS. Repository edits alone do not certify runtime behavior.
 
 Release status: this branch remains a test candidate until SQL deployment, VS2013 build, and non-production smoke tests pass.
