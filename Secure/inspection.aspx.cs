@@ -3888,10 +3888,10 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             string snapshotFolder = String.IsNullOrWhiteSpace(storedSnapshotFolder)
                 ? GetStandardBatchSnapshotFolder(approvalBatchId) : storedSnapshotFolder;
             bool emailAlreadySent = String.Equals(Convert.ToString(members.Rows[0]["EmailStatus"]), "SENT", StringComparison.OrdinalIgnoreCase);
-            if (createSnapshot && !Directory.Exists(snapshotFolder))
-                Directory.CreateDirectory(snapshotFolder);
             if (emailAlreadySent && !Directory.Exists(snapshotFolder))
                 throw new InvalidOperationException("Snapshot folder untuk report yang sudah dikirim tidak ditemukan. Report tidak akan digenerate ulang agar isi lampiran tetap konsisten.");
+            if (createSnapshot && !Directory.Exists(snapshotFolder))
+                Directory.CreateDirectory(snapshotFolder);
 
             var reports = new List<Dictionary<string, string>>();
             var groups = members.AsEnumerable()
@@ -3925,12 +3925,10 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                     foreach (DataRow row in group)
                         selected.Rows.Add(Convert.ToInt64(row["InspectionID"]));
 
-                    // Use a per-batch/per-type export folder so two different types with
-                    // the same report title and timestamp cannot overwrite one another.
-                    string reportUserFolder = employeeId + "_B" + approvalBatchId.ToString(CultureInfo.InvariantCulture) +
-                        "_T" + SafeBatchReportSegment(typeCode);
+                    // R_Report uses the authenticated employee folder. Each generated
+                    // file is copied immediately to a unique per-type batch snapshot path.
                     var report = R_Report.GenerateInspectionXlsx(
-                        selected, companyId, locationId, reportUserFolder);
+                        selected, companyId, locationId, employeeId);
                     if (report == null || !report.Success ||
                         String.IsNullOrWhiteSpace(report.StoragePath) || !File.Exists(report.StoragePath))
                         throw new InvalidOperationException(
@@ -4331,7 +4329,7 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             try
             {
                 List<Dictionary<string, string>> reports = GenerateStandardBatchReports(
-                    approvalBatchId, employeeId, companyId, locationId, false);
+                    approvalBatchId, employeeId, companyId, locationId, true);
                 var links = new List<Dictionary<string, string>>();
                 foreach (Dictionary<string, string> report in reports)
                 {
