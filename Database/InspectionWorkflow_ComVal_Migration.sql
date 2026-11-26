@@ -116,6 +116,33 @@ SET InspectionPointMode=
 EXEC sp_executesql @PointModeSql;
 GO
 
+/* Remove defaults attached to deprecated master fields, then remove the fields.
+   All required values have already been migrated into InspectionPointMode and
+   the Company/Location COMVAL workflow. */
+DECLARE @LegacyDefault SYSNAME, @DropLegacyDefaultSql NVARCHAR(1000);
+DECLARE LegacyMasterDefaults CURSOR LOCAL FAST_FORWARD FOR
+    SELECT DC.name
+    FROM sys.default_constraints DC
+    JOIN sys.columns C ON C.object_id=DC.parent_object_id AND C.column_id=DC.parent_column_id
+    WHERE DC.parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND C.name IN ('PointSource','ApprovalWorkflowCode');
+OPEN LegacyMasterDefaults;
+FETCH NEXT FROM LegacyMasterDefaults INTO @LegacyDefault;
+WHILE @@FETCH_STATUS=0
+BEGIN
+    SET @DropLegacyDefaultSql=N'ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT '+QUOTENAME(@LegacyDefault)+N';';
+    EXEC sp_executesql @DropLegacyDefaultSql;
+    FETCH NEXT FROM LegacyMasterDefaults INTO @LegacyDefault;
+END;
+CLOSE LegacyMasterDefaults;
+DEALLOCATE LegacyMasterDefaults;
+
+IF COL_LENGTH('dbo.PIP_M_InspectionType','PointSource') IS NOT NULL
+    ALTER TABLE dbo.PIP_M_InspectionType DROP COLUMN PointSource;
+IF COL_LENGTH('dbo.PIP_M_InspectionType','ApprovalWorkflowCode') IS NOT NULL
+    ALTER TABLE dbo.PIP_M_InspectionType DROP COLUMN ApprovalWorkflowCode;
+GO
+
 /* Standard inspections have no point mode. BATCH/INSPECT is always map-based;
    BATCH/PARAM may use MAP (Car Park) or DYNAMIC (Motor). */
 UPDATE dbo.PIP_M_InspectionType
