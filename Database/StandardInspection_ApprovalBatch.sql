@@ -146,6 +146,7 @@ BEGIN
 
         IF (SELECT COUNT(*) FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
             JOIN @Ids X ON X.InspectionID=I.InspectionID
+            JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
             WHERE I.CompanyID=@p_CompanyID AND I.LocationID=@p_LocationID
               AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
               AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
