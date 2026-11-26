@@ -4494,12 +4494,8 @@ WHERE ApprovalBatchID=@BatchID",
             DataTable lockResult;
             using (var br = new WAL.BR.CF())
             {
-                lockResult = br.EQueryP(@"
-UPDATE dbo.INSPEC_SchedulerLock WITH (UPDLOCK,ROWLOCK)
-SET LockToken=@RunID,LockUntil=DATEADD(MINUTE,360,GETDATE())
-WHERE LockID=1 AND (LockToken IS NULL OR LockUntil<GETDATE());
-SELECT @@ROWCOUNT AS Acquired",
-                    new SqlParameter[] { new SqlParameter("@RunID", runId) });
+                lockResult = br.EQueryP("spUTL_INSPEC_Scheduler_AcquireLock",
+                    new SqlParameter[] { new SqlParameter("@p_RunID", runId) }, true, true);
             }
             bool lockAcquired = lockResult != null && lockResult.Rows.Count > 0 && Convert.ToInt32(lockResult.Rows[0]["Acquired"]) == 1;
             if (!lockAcquired) throw new HttpException(409, "Scheduled Chief Batch sedang berjalan pada instance lain.");
@@ -4553,8 +4549,8 @@ ORDER BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.Inspe
                             {
                                 using (var br = new WAL.BR.CF())
                                 {
-                                    br.EQueryP(@"UPDATE dbo.INSPEC_SchedulerLock SET LockUntil=DATEADD(MINUTE,360,GETDATE()) WHERE LockID=1 AND LockToken=@RunID",
-                                        new SqlParameter[] { new SqlParameter("@RunID", runId) }, true, true);
+                                    br.EQueryP("spUTL_INSPEC_Scheduler_RenewLock",
+                                        new SqlParameter[] { new SqlParameter("@p_RunID", runId) }, true, true);
                                 }
                                 DataTable queued;
                                 using (var br = new WAL.BR.CF())
@@ -4661,8 +4657,8 @@ SET CompletedDate=GETDATE(),RunStatus=@RunStatus,SectionsProcessed=@SectionsProc
             {
                 using (var br = new WAL.BR.CF())
                 {
-                    br.EQueryP(@"UPDATE dbo.INSPEC_SchedulerLock SET LockToken=NULL,LockUntil=NULL WHERE LockID=1 AND LockToken=@RunID",
-                        new SqlParameter[] { new SqlParameter("@RunID", runId) }, true, true);
+                    br.EQueryP("spUTL_INSPEC_Scheduler_ReleaseLock",
+                        new SqlParameter[] { new SqlParameter("@p_RunID", runId) }, true, true);
                 }
             }
         }
