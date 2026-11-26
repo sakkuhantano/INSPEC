@@ -5,6 +5,7 @@
 Run the scripts below in SQL Server Management Studio against the target INSPEC database. Do not deploy the application code before the required procedures and tables exist.
 
 1. Existing prerequisites (only if not already applied):
+   - `InspectionWorkflow_ComVal_Migration.sql` (consolidates point mode and seeds BATCH workflow ComVal rules)
    - `inspection_mode_migration.sql`
    - `inspection_batch_transaction_migration.sql`
    - `InspectionMapGroup_Migration.sql`
