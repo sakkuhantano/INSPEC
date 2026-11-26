@@ -77,9 +77,6 @@ IF NOT EXISTS
         ON dbo.PIP_T_Inspection_ApprovalBatch(CompanyID,LocationID,BatchStatus,InspectionDate,SectionID);
 GO
 
-IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Create','P') IS NOT NULL
-    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Create;
-GO
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Create','P') IS NULL
     EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Create AS RETURN 0;');
 GO
@@ -292,9 +289,6 @@ BEGIN
 END;
 GO
 
-IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Approve','P') IS NOT NULL
-    DROP PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Approve;
-GO
 IF OBJECT_ID('dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Approve','P') IS NULL
     EXEC('CREATE PROCEDURE dbo.spUTL_PIP_T_Inspection_ApprovalBatch_Approve AS RETURN 0;');
 GO
