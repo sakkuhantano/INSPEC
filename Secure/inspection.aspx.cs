@@ -94,7 +94,7 @@ WHERE SU.EmployeeID=@UserID
                     if (inspectionMode == "") inspectionMode = "STANDARD";
                     string scheduleSelectionMode = TokenString(record, "ScheduleSelectionMode").Trim().ToUpperInvariant();
                     if (scheduleSelectionMode == "") scheduleSelectionMode = "PARAM";
-                    bool isLightningInspection = inspectionMode == "BATCH" && scheduleSelectionMode == "AT_INSPECTION";
+                    bool isLightningInspection = inspectionMode == "BATCH" && (scheduleSelectionMode == "INSPECT" || scheduleSelectionMode == "AT_INSPECTION");
                     bool isBatchInspection = inspectionMode == "BATCH";
                     string inspectionPointMode = TokenString(record, "InspectionPointMode").Trim().ToUpperInvariant();
                     string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" :
@@ -518,9 +518,9 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                         if (serverInspectionPointMode == "DYNAMIC" &&
                             (serverInspectionMode != "BATCH" || serverScheduleSelectionMode != "PARAM"))
                             throw new Exception("Dynamic Motor harus menggunakan BATCH / DYNAMIC / PARAM.");
-                        if (serverScheduleSelectionMode == "AT_INSPECTION" &&
+                        if ((serverScheduleSelectionMode == "INSPECT" || serverScheduleSelectionMode == "AT_INSPECTION") &&
                             (serverInspectionMode != "BATCH" || serverInspectionPointMode != "MAP"))
-                            throw new Exception("Lightning daily harus menggunakan BATCH / MAP / AT_INSPECTION.");
+                            throw new Exception("Lightning daily harus menggunakan BATCH / MAP / INSPECT.");
 
                         record["_ServerInspectionMode"] = serverInspectionMode;
                         record["_ServerInspectionPointMode"] = serverInspectionPointMode;
