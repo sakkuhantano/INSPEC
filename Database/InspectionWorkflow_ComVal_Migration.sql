@@ -173,6 +173,11 @@ GO
 /* Standard inspections have no point mode. BATCH/INSPECT is always map-based;
    BATCH/PARAM may use MAP (Car Park) or DYNAMIC (Motor). */
 UPDATE dbo.PIP_M_InspectionType
+SET ScheduleSelectionMode='PARAM'
+WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,'STANDARD'))))='STANDARD'
+  AND ScheduleSelectionMode<>'PARAM';
+
+UPDATE dbo.PIP_M_InspectionType
 SET InspectionPointMode=NULL
 WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,'STANDARD'))))='STANDARD';
 
