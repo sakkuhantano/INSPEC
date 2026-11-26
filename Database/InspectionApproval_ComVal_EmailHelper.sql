@@ -27,7 +27,7 @@ BEGIN
     SET @ComValID=LTRIM(RTRIM(ISNULL(@p_CompanyID,'')))+
                   LTRIM(RTRIM(ISNULL(@p_LocationID,'')))+';'+
                   LTRIM(RTRIM(ISNULL(@p_WorkflowKey,'')));
-    SET @Token='['+UPPER(LTRIM(RTRIM(ISNULL(@p_LevelCode,'')))+'][TRUE]';
+    SET @Token='['+UPPER(LTRIM(RTRIM(ISNULL(@p_LevelCode,''))))+'][TRUE]';
 
     SELECT TOP 1 @Description=UPPER(ISNULL(C.Description,''))
     FROM dbo.SysWebCommonValue C
