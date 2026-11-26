@@ -2698,7 +2698,6 @@ CROSS APPLY (SELECT
  CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS(SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) THEN 1 ELSE 0 END IsSPV,
  CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS(SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) THEN 1 ELSE 0 END IsCE,
  CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_SEC' AND EXISTS(SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) THEN 1 ELSE 0 END IsCS,
- CASE WHEN EXISTS(SELECT 1 FROM dbo.PIP_M_Section S WHERE S.SectionID=I.SectionID AND UPPER(ISNULL(S.ProfitCenterNo,''))='PENG') THEN 1 ELSE 0 END IsPENG
 ) R
 CROSS APPLY (SELECT
  CASE WHEN ISNULL(I.ReasonVoid,'')<>'' AND (ISNULL(I.ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112) OR EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='SPV' AND H.ActionCode='VOIDED' AND NOT EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X WHERE X.EntityType=H.EntityType AND X.EntityID=H.EntityID AND X.ActionCode IN ('SUBMITTED','RESUBMITTED') AND X.ActionDate>H.ActionDate))) THEN 1 ELSE 0 END VoidSPV,
@@ -2715,7 +2714,7 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
     (@IsAdministrator=1 AND ISNULL(I.IsApproved2,0)=0)
     OR (R.IsSPV=1 AND ISNULL(I.IsApproved,0)=0)
     OR (R.IsCS=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0)
-    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0)
+    OR (R.IsCE=1 AND ISNULL(I.IsApproved1,0)=1 AND ISNULL(I.IsApproved2,0)=0)
   ))
   OR
   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND (
@@ -2729,7 +2728,7 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
     OR (R.IsSPV=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru))
     OR (R.IsCS=1 AND ISNULL(I.IsApproved1,0)=1 AND I.Approved1Date>=@DateFrom AND I.Approved1Date<DATEADD(DAY,1,@DateThru)
       AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
-    OR (R.IsCE=1 AND R.IsPENG=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru)
+    OR (R.IsCE=1 AND ISNULL(I.IsApproved2,0)=1 AND I.Approved2Date>=@DateFrom AND I.Approved2Date<DATEADD(DAY,1,@DateThru)
       AND EXISTS(SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H WHERE H.EntityType='LIGHTNING' AND H.EntityID=I.InspectionID AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED' AND H.ActionDate>=@DateFrom AND H.ActionDate<DATEADD(DAY,1,@DateThru)))
   ))
   OR
@@ -2738,7 +2737,7 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
     AND ((@IsAdministrator=1 AND (V.VoidSPV=1 OR V.VoidCE=1 OR V.VoidCS=1))
       OR (R.IsSPV=1 AND V.VoidSPV=1)
       OR (R.IsCS=1 AND V.VoidCE=1)
-      OR (R.IsCE=1 AND R.IsPENG=1 AND V.VoidCS=1))
+      OR (R.IsCE=1 AND V.VoidCS=1))
   ))
  AND EXISTS(SELECT 1 FROM dbo.PIP_M_CheckListWOPM T WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID AND ISNULL(T.TemplateType,'W')='I' AND (ISNULL(T.CompanyScope,'S')='A' OR (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+I.CompanyID+I.LocationID+';%')) AND (ISNULL(T.EmployeeList,'')='' OR (';'+ISNULL(T.EmployeeList,'')+';' LIKE '%;'+I.OwnerEmployeeID+';%')))
  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
