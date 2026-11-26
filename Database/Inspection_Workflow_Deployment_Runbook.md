@@ -142,12 +142,14 @@ Workflow-related files changed in this finalization:
 
 - Secure/inspection.aspx.cs
 - Secure/dashboard.aspx.cs
+- Secure/inspectionmaster.aspx.cs
 - Secure/inspectionemailsetup.aspx
 - Secure/inspectionemailsetup.aspx.cs
 - Secure/inspectionemailsetup.aspx.designer.cs
 - JSCus/inspection.js
+- JSCus/inspectionMapWorkspace.js
 
-The integrated branch also includes the REPEAT, Map Workspace, Geofence, Inspection Master, template, and Work Order files documented in Database/REPEATABLE_INSPECTION_README.md and Database/INSPEC_Change_Scope.md. Deploy the matching branch as a whole rather than copying only the workflow files into an older build.
+No CSS file was changed in this workflow finalization. The integrated branch also includes the REPEAT, Map Workspace, Geofence, Inspection Master, template, and Work Order files documented in Database/REPEATABLE_INSPECTION_README.md and Database/INSPEC_Change_Scope.md. Deploy the matching branch as a whole rather than copying only the workflow files into an older build.
 
 ## Non-production smoke test
 
