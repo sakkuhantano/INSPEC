@@ -7331,6 +7331,8 @@ function wireInspectionApprovalEvents() {
     });
     ["selApprovalTemplate", "selApprovalScheduleTime", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
+    ["selApprovalBatchStatus", "txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"].forEach(id =>
+        addInspectionApprovalListener(id, "change", function () { inspectionApprovalPage = 1; renderInspectionApprovalQueue(); }));
     addInspectionApprovalListener("btnApprovalSelectAll", "click", function () {
         document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:not(:disabled)").forEach(box => { box.checked = true; });
         updateInspectionApprovalSelectAll();
@@ -7583,11 +7585,41 @@ function populateInspectionApprovalFilters(filterRows) {
     document.getElementById("selApprovalTemplate").disabled = !selectedType;
 }
 
+
+function getInspectionApprovalDateKey(value) {
+    if (value == null || value === "") return "";
+    let date;
+    if (typeof value === "string" && value.indexOf("/Date(") === 0) {
+        const milliseconds = Number(value.slice(6).split(")")[0]);
+        date = Number.isFinite(milliseconds) ? new Date(milliseconds) : null;
+    } else {
+        date = new Date(value);
+    }
+    if (!date || !Number.isFinite(date.getTime())) return "";
+    return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") +
+        "-" + String(date.getDate()).padStart(2, "0");
+}
+
+function matchesInspectionApprovalClientFilters(row) {
+    const section = document.getElementById("selApprovalSection");
+    if (section && section.value && String(row.SectionID || "") !== section.value) return false;
+
+    const batchStatus = document.getElementById("selApprovalBatchStatus");
+    const batchId = Number(row.ApprovalBatchID || 0);
+    if (batchStatus && batchStatus.value === "NOT_SENT" && batchId > 0) return false;
+    if (batchStatus && batchStatus.value === "SENT" && batchId <= 0) return false;
+
+    const from = (document.getElementById("txtApprovalInspectionDateFrom") || {}).value || "";
+    const thru = (document.getElementById("txtApprovalInspectionDateThru") || {}).value || "";
+    const inspectionDate = getInspectionApprovalDateKey(row.InspectionDate);
+    if (from && (!inspectionDate || inspectionDate < from)) return false;
+    if (thru && (!inspectionDate || inspectionDate > thru)) return false;
+    return true;
+}
+
 function getInspectionApprovalPageCount() {
-    const sectionFilter = document.getElementById("selApprovalSection");
-    const selectedSection = sectionFilter ? sectionFilter.value : "";
     const rows = inspectionApprovalRows.filter(row => {
-        if (selectedSection && String(row.SectionID || "") !== selectedSection) return false;
+        if (!matchesInspectionApprovalClientFilters(row)) return false;
         if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
@@ -7614,10 +7646,8 @@ function updateInspectionApprovalPager(totalRows, pageCount) {
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    const sectionFilter = document.getElementById("selApprovalSection");
-    const selectedSection = sectionFilter ? sectionFilter.value : "";
     const rows = inspectionApprovalRows.filter(row => {
-        if (selectedSection && String(row.SectionID || "") !== selectedSection) return false;
+        if (!matchesInspectionApprovalClientFilters(row)) return false;
         if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
