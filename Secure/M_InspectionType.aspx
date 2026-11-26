@@ -289,8 +289,6 @@
                 </div>
             </div>
             <div class="row mt-1">
-                <div class="col-sm-4 d-flex align-items-center">
-            <div class="row mt-1">
                 <div class="col-sm-4 d-flex align-items-center">Inspection Point Mode</div>
                 <div class="col-sm-8">
                     <asp:DropDownList ID="ddlInspectionPointMode" runat="server" CssClass="form-select form-select-sm rounded fz-custom1 mx-1" style="width:55%;">
