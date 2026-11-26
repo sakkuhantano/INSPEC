@@ -397,10 +397,34 @@
     #inspectionApprovalTable [data-approval-sort]:focus-visible, .inspection-record-table [data-inspection-sort]:focus-visible {
         outline: 2px solid var(--bs-primary); outline-offset: 2px;
     }
-    /* Compact SPV approval grid; keep each column label/value on one line. */
-    #inspectionApprovalTable { font-size: .78rem; white-space: nowrap; }
+    /* SPV approval grid: fit all columns, including Status, inside the desktop content area. */
+    #inspectionApprovalTable { width: 100%; font-size: .78rem; }
     #inspectionApprovalTable > :not(caption) > * > * { padding: .35rem .45rem; }
     #inspectionApprovalTable thead th { font-size: .75rem; }
+    @media (min-width: 576px) {
+        #inspectionApprovalListView > .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; }
+        #inspectionApprovalTable { table-layout: fixed; white-space: normal; }
+        #inspectionApprovalTable th:nth-child(1), #inspectionApprovalTable td:nth-child(1) { width: 4%; }
+        #inspectionApprovalTable th:nth-child(2), #inspectionApprovalTable td:nth-child(2) { width: 4%; }
+        #inspectionApprovalTable th:nth-child(3), #inspectionApprovalTable td:nth-child(3) { width: 12%; }
+        #inspectionApprovalTable th:nth-child(4), #inspectionApprovalTable td:nth-child(4) { width: 12%; }
+        #inspectionApprovalTable th:nth-child(5), #inspectionApprovalTable td:nth-child(5) { width: 17%; }
+        #inspectionApprovalTable th:nth-child(6), #inspectionApprovalTable td:nth-child(6) { width: 10%; }
+        #inspectionApprovalTable th:nth-child(7), #inspectionApprovalTable td:nth-child(7) { width: 8%; }
+        #inspectionApprovalTable th:nth-child(8), #inspectionApprovalTable td:nth-child(8) { width: 11%; }
+        #inspectionApprovalTable th:nth-child(9), #inspectionApprovalTable td:nth-child(9) { width: 14%; }
+        #inspectionApprovalTable th:nth-child(10), #inspectionApprovalTable td:nth-child(10) { width: 8%; }
+        #inspectionApprovalTable th:nth-child(4), #inspectionApprovalTable td:nth-child(4),
+        #inspectionApprovalTable th:nth-child(5), #inspectionApprovalTable td:nth-child(5),
+        #inspectionApprovalTable th:nth-child(9), #inspectionApprovalTable td:nth-child(9) {
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+        #inspectionApprovalTable th:nth-child(10), #inspectionApprovalTable td:nth-child(10) {
+            min-width: 76px;
+            white-space: nowrap;
+        }
+    }
     #inspectionApprovalStickyHeader .nav-link.active { font-weight: 700; }
     #inspectionApprovalSectionNavHost .inspection-section-nav { margin-bottom: 0 !important; }
     #inspectionEditorTabs { white-space: nowrap; }
