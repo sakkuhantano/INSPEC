@@ -61,6 +61,19 @@ UPDATE dbo.PIP_M_InspectionType
 SET ScheduleSelectionMode='INSPECT'
 WHERE UPPER(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))))='AT_INSPECTION';
 
+/* Approval workflow codes are normalized with the new master modes:
+   BATCH/PARAM always routes SPV -> optional Chief Engineering;
+   BATCH/INSPECT routes SPV -> Chief Security -> Chief Engineering. */
+UPDATE dbo.PIP_M_InspectionType
+SET ApprovalWorkflowCode='SPV_CHIEF_ENG'
+WHERE InspectionMode='BATCH' AND ScheduleSelectionMode='PARAM'
+  AND ISNULL(ApprovalWorkflowCode,'')<>'SPV_CHIEF_ENG';
+
+UPDATE dbo.PIP_M_InspectionType
+SET ApprovalWorkflowCode='LIGHTNING_4_STEP'
+WHERE InspectionMode='BATCH' AND ScheduleSelectionMode='INSPECT'
+  AND ISNULL(ApprovalWorkflowCode,'')<>'LIGHTNING_4_STEP';
+
 /* A Standard inspection has no point-mode setting. */
 UPDATE dbo.PIP_M_InspectionType
 SET InspectionPointMode=NULL
