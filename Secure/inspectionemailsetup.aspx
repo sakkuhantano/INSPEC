@@ -68,22 +68,50 @@
 <asp:ScriptManager runat="server" EnablePageMethods="true" />
 <asp:Panel ID="pnlSmtpWarning" runat="server" Visible="false" CssClass="alert alert-warning mb-3">SMTP belum siap. Periksa konfigurasi smtpHost.</asp:Panel>
   <div class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-body-tertiary fw-semibold py-2">Email Notification per Inspection Mode</div>
+    <div class="card-header bg-body-tertiary fw-semibold py-2">Email Notification per Approval Level</div>
     <div class="card-body pt-2">
       <div class="row g-3">
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailStandard" runat="server" CssClass="form-check-input" /> STANDARD
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">STANDARD</div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkStandardSPV" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkStandardSPV.ClientID %>">SPV</label>
+          </div>
+          <div class="form-text">ComVal: [SPV][TRUE/FALSE]</div>
         </div>
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailBatch" runat="server" CssClass="form-check-input" /> BATCH
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">BATCH / PARAM</div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkBatchParamSPV" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkBatchParamSPV.ClientID %>">SPV</label>
+          </div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkBatchParamChief" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkBatchParamChief.ClientID %>">Chief Engineering (CHIEF)</label>
+          </div>
+          <div class="form-text">ComVal: [SPV][TRUE/FALSE];[CHIEF][TRUE/FALSE]</div>
         </div>
-        <div class="col-md-4">
-          <asp:CheckBox ID="chkEmailLightning" runat="server" CssClass="form-check-input" /> LIGHTNING
+        <div class="col-lg-4">
+          <div class="fw-semibold mb-2">BATCH / INSPECT</div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkBatchInspectSPV" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkBatchInspectSPV.ClientID %>">SPV</label>
+          </div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkBatchInspectChiefSec" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkBatchInspectChiefSec.ClientID %>">Chief Security</label>
+          </div>
+          <div class="form-check">
+            <asp:CheckBox ID="chkBatchInspectChiefEng" runat="server" CssClass="form-check-input" />
+            <label class="form-check-label" for="<%= chkBatchInspectChiefEng.ClientID %>">Chief Engineering</label>
+          </div>
+          <div class="form-text">ComVal: [SPV][TRUE/FALSE];[CHIEF_SEC][TRUE/FALSE];[CHIEF_ENG][TRUE/FALSE]</div>
         </div>
         <div class="col-md-4">
           <asp:CheckBox ID="chkEmailWO" runat="server" CssClass="form-check-input" /> WORK ORDER
         </div>
       </div>
+      <div class="form-text mt-2">Jika ComVal workflow tidak ditemukan, notifikasi email untuk seluruh level dianggap OFF. Tahap approval tetap berjalan sesuai workflow.</div>
     </div>
   </div>
   <div class="card border-0 shadow-sm mb-3">
