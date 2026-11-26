@@ -209,7 +209,7 @@ BEGIN
         FROM dbo.PIP_M_Section S
         WHERE S.CompanyID=@C AND S.LocationID=@L AND S.SectionID=@S;
 
-        SET @ChiefRole=dbo.fnINSPEC_ChiefRoleForSection(@S);
+        SET @ChiefRole=CASE @ProfitCenterNo WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END;
         IF ISNULL(@ChiefRole,'')=''
         BEGIN
             RAISERROR('No CHIEF role is mapped to the Section ProfitCenterNo.',16,1);
@@ -315,12 +315,13 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@ChiefRole VARCHAR(20),
-            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT;
+            @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT,@ProfitCenterNo VARCHAR(20);
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@BatchStatus=BatchStatus
+        SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@BatchStatus=BatchStatus,
+               @ProfitCenterNo=ProfitCenterNo
         FROM dbo.PIP_T_Inspection_ApprovalBatch WITH (UPDLOCK,HOLDLOCK)
         WHERE ApprovalBatchID=@p_ApprovalBatchID;
 
@@ -330,7 +331,8 @@ BEGIN
         IF @C<>@p_CompanyID OR @L<>@p_LocationID
             RAISERROR('Approval batch is outside the logged-in Company/Location.',16,1);
 
-        SET @ChiefRole=dbo.fnINSPEC_ChiefRoleForSection(@S);
+        SET @ChiefRole=CASE UPPER(LTRIM(RTRIM(ISNULL(@ProfitCenterNo,''))))
+            WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END;
         SELECT @Chief=NULLIF(LTRIM(RTRIM(C.Description)),'')
         FROM dbo.SysWebCommonValue C
         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
