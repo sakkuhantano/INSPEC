@@ -4314,6 +4314,7 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
         public static object GenerateChiefApprovalBatchReports(long approvalBatchId, string employeeId,
             string companyId, string locationId)
         {
+            RequireSameOriginPost();
             employeeId = GFC.CurrentEmployeeID();
             if (!IsInspectionAdministrator(employeeId))
                 employeeId = GFC.RequireMenuEmployee("20022");
