@@ -259,7 +259,8 @@ BEGIN
  (
   SELECT 1 FROM dbo.SysWebUser SU
   WHERE SU.EmployeeID=@p_ActorEmployeeID AND SU.IsActive=1
-    AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022')
+    AND (EXISTS (SELECT 1 FROM dbo.SysWebUserUserGroup UG WHERE UG.UserID=SU.UserID AND UG.UserGroupID='administrator')
+         OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
     AND (EXISTS (SELECT 1 FROM dbo.SysWebUserUserGroup UG WHERE UG.UserID=SU.UserID AND UG.UserGroupID='administrator')
          OR EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(CASE WHEN @IsChiefStage=1 THEN @Chief ELSE @SPV END,';') X
                     WHERE LTRIM(RTRIM(X.val))=@p_ActorEmployeeID))
