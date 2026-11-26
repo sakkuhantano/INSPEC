@@ -184,7 +184,7 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
             else if (ddlReportLayout.SelectedValue == "") message = "Report Layout cannot be empty.";
             else if (!new[] { "STANDARD", "BATCH" }.Contains(ddlInspectionMode.SelectedValue)) message = "Inspection Mode is invalid.";
             else if (!new[] { "", "MAP", "DYNAMIC" }.Contains(ddlInspectionPointMode.SelectedValue)) message = "Inspection Point Mode is invalid.";
-            else if (!new[] { "PARAM", "AT_INSPECTION" }.Contains(ddlScheduleSelectionMode.SelectedValue)) message = "Schedule Selection is invalid.";
+            else if (!new[] { "PARAM", "INSPECT" }.Contains(ddlScheduleSelectionMode.SelectedValue)) message = "Schedule Selection is invalid.";
             else if (ddlInspectionMode.SelectedValue == "STANDARD" && ddlInspectionPointMode.SelectedValue != "")
                 message = "Standard inspection must leave Inspection Point Mode empty.";
             else if (ddlInspectionMode.SelectedValue == "BATCH" && ddlInspectionPointMode.SelectedValue == "")
@@ -192,9 +192,9 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
             else if (ddlInspectionPointMode.SelectedValue == "DYNAMIC" &&
                 (ddlInspectionMode.SelectedValue != "BATCH" || ddlScheduleSelectionMode.SelectedValue != "PARAM"))
                 message = "Dynamic points require BATCH mode and PARAM schedule selection.";
-            else if (ddlScheduleSelectionMode.SelectedValue == "AT_INSPECTION" &&
+            else if (ddlScheduleSelectionMode.SelectedValue == "INSPECT" &&
                 (ddlInspectionMode.SelectedValue != "BATCH" || ddlInspectionPointMode.SelectedValue != "MAP"))
-                message = "AT_INSPECTION is reserved for BATCH MAP inspections such as Lightning.";
+                message = "INSPECT is reserved for BATCH MAP inspections such as Lightning.";
             if (message != "") GF.MsgBox(this, message, "BS-5.3.0");
             return message == "";
         }
