@@ -1,3 +1,4 @@
+/* LEGACY DUPLICATE — DO NOT RUN. Use Database/inspection_point_svg_shape_migration.sql for the current geometry schema. */
 /*
     INSPEC - Inspection Point shape geometry columns
     Target: SQL Server 2008
