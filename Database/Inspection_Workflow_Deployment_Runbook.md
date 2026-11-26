@@ -16,9 +16,7 @@ Before proceeding, confirm the populated map schema already has the map-owned ty
 SELECT
     COL_LENGTH('dbo.PIP_M_InspectionMap','InspectionTypeCode') AS MapInspectionTypeCodeLength,
     COL_LENGTH('dbo.PIP_M_InspectionMap','InspectionTypeDetailCode') AS MapInspectionTypeDetailCodeLength,
-    COL_LENGTH('dbo.PIP_M_InspectionPoint','InspectionPointID') AS MasterPointIDLength,
-    COL_LENGTH('dbo.PIP_M_InspectionPoint','MapX') AS MapXLength,
-    COL_LENGTH('dbo.PIP_M_InspectionPoint','MapY') AS MapYLength;
+    COL_LENGTH('dbo.PIP_M_InspectionPoint','InspectionPointID') AS MasterPointIDLength;
 ```
 
 If either map-owned type column is NULL while PIP_M_InspectionPoint already contains data, stop. Do not run SQL/ALTER_PIP_M_InspectionMap_MoveInspectionType.sql against the populated database; that script intentionally refuses populated points. A separate data-preserving migration is required before application deployment.
