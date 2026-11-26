@@ -49,8 +49,7 @@ BEGIN
     FROM dbo.PIP_T_Inspection I
     JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
     WHERE I.InspectionID=@p_InspectionID
-      AND (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
-           OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'))
+      AND (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' AND ISNULL(IT.InspectionPointMode,'')='MAP')
       AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=0 AND ISNULL(I.IsApproved,0)=0;
 
     IF @V_CompanyID IS NULL
@@ -277,8 +276,7 @@ BEGIN
     FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
     JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
     WHERE I.InspectionID=@p_InspectionID
-      AND (ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
-           OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'))
+      AND (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' AND ISNULL(IT.InspectionPointMode,'')='MAP')
       AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved2,0)=0
       AND ISNULL(I.Status,'')='DONE';
 
