@@ -7841,7 +7841,11 @@ function openInspectionApprovalDetail(inspectionId) {
     if (listHeader) listHeader.classList.add("d-none");
     if (currentChiefApprovalBatchID > 0) {
         const chiefDetail = document.getElementById("chiefBatchDetailView");
+        const chiefPanel = document.getElementById("chiefBatchPanel");
+        const approvalPanel = document.getElementById("inspectionApprovalPanel");
         if (chiefDetail) chiefDetail.classList.add("d-none");
+        if (chiefPanel) chiefPanel.classList.add("d-none");
+        if (approvalPanel) approvalPanel.classList.remove("d-none");
     }
     detailPanel.classList.remove("d-none");
     document.getElementById("btnBackToInspectionApprovalList").classList.remove("d-none");
@@ -7862,8 +7866,10 @@ function showInspectionApprovalQueueView() {
     if (detailPanel) detailPanel.classList.add("d-none");
     if (currentChiefApprovalBatchID > 0) {
         const chiefPanel = document.getElementById("chiefBatchPanel");
+        const approvalPanel = document.getElementById("inspectionApprovalPanel");
         const chiefList = document.getElementById("chiefBatchListView");
         const chiefDetail = document.getElementById("chiefBatchDetailView");
+        if (approvalPanel) approvalPanel.classList.add("d-none");
         if (chiefPanel) chiefPanel.classList.remove("d-none");
         if (chiefList) chiefList.classList.add("d-none");
         if (chiefDetail) chiefDetail.classList.remove("d-none");
@@ -8475,6 +8481,8 @@ function showChiefBatchPanel() {
     const spvList = document.getElementById("inspectionApprovalListView");
     const spvDetail = document.getElementById("inspectionApprovalDetailPanel");
     const chiefPanel = document.getElementById("chiefBatchPanel");
+    const approvalPanel = document.getElementById("inspectionApprovalPanel");
+    if (approvalPanel) approvalPanel.classList.add("d-none");
     if (spvList) spvList.classList.add("d-none");
     if (spvDetail) spvDetail.classList.add("d-none");
     if (chiefPanel) chiefPanel.classList.remove("d-none");
@@ -8488,6 +8496,8 @@ function showSpvApprovalPanel() {
     currentChiefApprovalBatch = null;
     const chiefPanel = document.getElementById("chiefBatchPanel");
     if (chiefPanel) chiefPanel.classList.add("d-none");
+    const approvalPanel = document.getElementById("inspectionApprovalPanel");
+    if (approvalPanel) approvalPanel.classList.remove("d-none");
     const spvList = document.getElementById("inspectionApprovalListView");
     if (spvList) spvList.classList.remove("d-none");
     const spvHeader = document.getElementById("inspectionApprovalListHeader");
