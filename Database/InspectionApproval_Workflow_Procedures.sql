@@ -25,7 +25,7 @@ BEGIN
          @Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsChiefWorkflow BIT;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
-        @Mode=ISNULL(NULLIF(I.InspectionMode,''),'STANDARD'),
+        @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
         @ScheduleMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')
  FROM dbo.PIP_T_Inspection I
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
@@ -82,7 +82,7 @@ BEGIN
   (
    SELECT 1 FROM dbo.M_HRD_Employee E
    WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C
-     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo=(SELECT S.ProfitCenterNo FROM dbo.PIP_M_Section S WHERE S.SectionID=@S)
+     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo=(SELECT S.ProfitCenterNo FROM dbo.PIP_M_Section S WHERE S.CompanyID=@C AND S.LocationID=@L AND S.SectionID=@S)
      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
        AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
      AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
