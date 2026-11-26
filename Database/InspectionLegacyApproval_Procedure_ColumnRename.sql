@@ -1,3 +1,4 @@
+/* LEGACY RECOMPILE SCRIPT — DO NOT DEPLOY. The active follow-up authorization routine is Database/spUTL_PIP_T_Inspection_Approval.sql, and the active submit/approval procedures are deployed from Database/InspectionApproval_Workflow_Procedures.sql. */
 /*
   Recompile the existing Follow Up work-order approval routine after
   dbo.PIP_T_Inspection.IsApprove is renamed to IsApproved.
