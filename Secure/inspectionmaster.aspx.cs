@@ -196,7 +196,8 @@ SELECT IT.InspectionTypeCode, IT.InspectionTypeName
 FROM dbo.PIP_M_InspectionType IT
 INNER JOIN dbo.PIP_M_Section S ON S.SectionID=IT.SectionID
 WHERE IT.IsActive=1
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('BATCH')
+  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
+  AND ISNULL(IT.InspectionPointMode,'')='MAP'
   AND (@IsAdmin=1 OR S.ProfitCenterNo=@ProfitCenterNo)
 ORDER BY IT.InspectionTypeCode",
                     new SqlParameter[] {
