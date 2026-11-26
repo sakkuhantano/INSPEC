@@ -223,18 +223,16 @@ ScheduleTime, IsActive, ISNULL(IsTenantInspection,0) IsTenantInspection FROM dbo
             using (var br = new WAL.BR.CF())
                 br.EQueryP(@"UPDATE dbo.PIP_M_InspectionType
 SET GroupingBy=@GroupingBy, InspectionMode=@InspectionMode,
-    InspectionLayoutCode=@InspectionLayoutCode, PointSource=@PointSource,
-    ScheduleSelectionMode=@ScheduleSelectionMode, ApprovalWorkflowCode=@ApprovalWorkflowCode
+    InspectionPointMode=@InspectionPointMode,
+    ScheduleSelectionMode=@ScheduleSelectionMode
 WHERE InspectionTypeCode=@InspectionTypeCode
   AND CompanyID=@CompanyID
   AND LocationID=@LocationID",
                     new SqlParameter[] {
                         new SqlParameter("@GroupingBy", NormalizeGroupingBy(hidGroupingBy.Value)),
                         new SqlParameter("@InspectionMode", ddlInspectionMode.SelectedValue),
-                        new SqlParameter("@InspectionLayoutCode", ddlInspectionLayoutCode.SelectedValue),
-                        new SqlParameter("@PointSource", ddlPointSource.SelectedValue),
+                        new SqlParameter("@InspectionPointMode", String.IsNullOrWhiteSpace(ddlInspectionPointMode.SelectedValue) ? (object)DBNull.Value : ddlInspectionPointMode.SelectedValue),
                         new SqlParameter("@ScheduleSelectionMode", ddlScheduleSelectionMode.SelectedValue),
-                        new SqlParameter("@ApprovalWorkflowCode", ddlApprovalWorkflowCode.SelectedValue),
                         new SqlParameter("@InspectionTypeCode", txtInspectionTypeCode.Text.Trim().ToUpperInvariant()),
                         new SqlParameter("@CompanyID", Master.Mn_CompanyID),
                         new SqlParameter("@LocationID", Master.Mn_LocationID)
