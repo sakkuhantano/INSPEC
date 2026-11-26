@@ -1996,7 +1996,6 @@
                 return {
                     InspectionPointID: Number(transaction.InspectionPointID),
                     ClientPointID: transaction.ClientPointID,
-                    PointSource: "DYNAMIC",
                     PointCode: transaction.PointCode || ("M" + String(index + 1).padStart(3, "0")),
                     PointName: transaction.PointName || "",
                     Nopol: transaction.PointName || "",
