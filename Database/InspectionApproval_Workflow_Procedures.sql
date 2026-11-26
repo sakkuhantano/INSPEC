@@ -24,7 +24,7 @@ BEGIN
          @SPVEmail VARCHAR(4000),@TechEmail VARCHAR(320),@ChiefEmail VARCHAR(4000),
          @SPVName NVARCHAR(4000),@TechName NVARCHAR(200),@ChiefName NVARCHAR(200),
          @ConfigScope VARCHAR(30),@EmailSPV BIT,@EmailChief BIT,@OldStatus VARCHAR(30),
-         @Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsChiefWorkflow BIT;
+         @Action VARCHAR(20),@EventID BIGINT,@LastActionCode VARCHAR(20),@IsChiefWorkflow BIT,@IsActorSPV BIT=0;
  SELECT @C=I.CompanyID,@L=I.LocationID,@S=I.SectionID,@Owner=I.OwnerEmployeeID,@No=I.InspectionNo,
         @TypeName=I.InspectionTypeName,@DetailName=I.InspectionTypeDetailName,
         @Mode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
@@ -54,6 +54,11 @@ BEGIN
    AND C.ID=@ConfigScope+';SPV;'+@S;
  IF ISNULL(@SPV,'')=''
  BEGIN RAISERROR('SPV approver mapping is required for this Company, Location, and Section, regardless of email settings.',16,1); RETURN; END;
+ IF @Mode='STANDARD' AND EXISTS
+ (
+     SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
+     WHERE LTRIM(RTRIM(X.val))=@Owner
+ ) SET @IsActorSPV=1;
 
  IF EXISTS
  (
@@ -110,7 +115,7 @@ BEGIN
    FROM dbo.SplitStringConvertToTable(@Chief,';') X JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
    WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'' ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,1,''),'');
 
- IF @EmailSPV=1 AND (ISNULL(@TechEmail,'')='' OR EXISTS
+ IF @EmailSPV=1 AND @IsActorSPV=0 AND (ISNULL(@TechEmail,'')='' OR EXISTS
    (SELECT 1 FROM dbo.SplitStringConvertToTable(@SPV,';') X
     WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee E WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>'')))
  BEGIN RAISERROR('Technician and every configured SPV need email addresses while SPV notification is enabled.',16,1); RETURN; END;
@@ -132,7 +137,9 @@ BEGIN
  BEGIN TRY
   UPDATE dbo.PIP_T_Inspection
   SET Status='DONE',IsSubmitted=1,SubmittedBy=@p_ActorEmployeeID,SubmittedDate=GETDATE(),
-      IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
+      IsApproved=CASE WHEN @IsActorSPV=1 THEN 1 ELSE 0 END,
+      ApprovedBy=CASE WHEN @IsActorSPV=1 THEN @p_ActorEmployeeID ELSE '' END,
+      ApprovedDate=CASE WHEN @IsActorSPV=1 THEN GETDATE() ELSE CONVERT(DATETIME,'19000101',112) END,
       IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
       IsApproved2=0,Approved2By='',Approved2Date=CONVERT(DATETIME,'19000101',112),
       ApprovalRemark='',ReasonVoid='',ReasonVoid1='',ReasonVoid2='',
@@ -144,7 +151,16 @@ BEGIN
   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'TECHNICIAN',@Action,@p_ActorEmployeeID,GETDATE(),NULL);
   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
 
-  IF @EmailSPV=1
+  IF @IsActorSPV=1
+  BEGIN
+   INSERT dbo.PIP_T_InspectionApprovalHistory
+    (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
+   VALUES('INSPECTION',@p_InspectionID,@C,@L,@S,'SPV','APPROVED',@p_ActorEmployeeID,GETDATE(),
+          N'Auto-approved: inspection owner is a configured SPV.');
+   SET @EventID=CONVERT(BIGINT,SCOPE_IDENTITY());
+  END;
+
+  IF @EmailSPV=1 AND @IsActorSPV=0
   BEGIN
    INSERT dbo.PIP_T_InspectionEmailOutbox
    (NotificationKey,ApprovalEventID,EntityType,EntityID,RecipientType,RecipientEmployeeID,RecipientEmail,
