@@ -296,13 +296,13 @@ namespace INSPEC.Secure
         }
         protected void txtChiefEng_TextChanged(object sender, EventArgs e)
         {
-            try { ValidateEmployeeList(txtChiefEng, lblChiefEngName, "ProfitCenterNo='PENG'", "", true); }
+            try { ValidateEmployeeList(txtChiefEng, lblChiefEngName, "ProfitCenterNo='PENG'", "", false); }
             catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
         protected void txtChiefSec_TextChanged(object sender, EventArgs e)
         {
-            try { ValidateEmployeeList(txtChiefSec, lblChiefSecName, "ProfitCenterNo='PSEC'", "", true); }
+            try { ValidateEmployeeList(txtChiefSec, lblChiefSecName, "ProfitCenterNo='PSEC'", "", false); }
             catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
@@ -376,18 +376,21 @@ namespace INSPEC.Secure
                 EnsureAdministrator();
                 string ce = NormalizeEmployeeList(hidChiefEngEmployees.Value);
                 string chiefSec = NormalizeEmployeeList(hidChiefSecEmployees.Value);
-                if (ce == "" || chiefSec == "")
-                    throw new InvalidOperationException("Pilih minimal satu NIK Chief Engineering dan Chief Security.");
-
-                var ceSet = new System.Collections.Generic.HashSet<string>(ce.Split(';'), StringComparer.OrdinalIgnoreCase);
-                foreach (string id in chiefSec.Split(';'))
-                    if (ceSet.Contains(id))
-                        throw new InvalidOperationException("NIK tidak boleh terdaftar sebagai Chief Engineering dan Chief Security sekaligus: " + id);
+                /* Chief roles are optional. Approval procedures skip an unconfigured
+                   Chief stage and stamp the skipped approval field with the prior
+                   actual approver's EmployeeID. */
+                if (ce != "" && chiefSec != "")
+                {
+                    var ceSet = new System.Collections.Generic.HashSet<string>(ce.Split(';'), StringComparer.OrdinalIgnoreCase);
+                    foreach (string id in chiefSec.Split(';'))
+                        if (ceSet.Contains(id))
+                            throw new InvalidOperationException("NIK tidak boleh terdaftar sebagai Chief Engineering dan Chief Security sekaligus: " + id);
+                }
 
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(
-                        @"IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@E,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=X.val AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG')) RAISERROR('Chief Engineering wajib seluruhnya employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@S,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=X.val AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC')) RAISERROR('Chief Security wajib seluruhnya employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
+                        @"IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@E,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG')) RAISERROR('Setiap Chief Engineering yang diisi harus employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@S,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC')) RAISERROR('Setiap Chief Security yang diisi harus employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
                         new SqlParameter[] {
                             new SqlParameter("@E", ce),
                             new SqlParameter("@S", chiefSec),
