@@ -121,6 +121,17 @@ IF NOT EXISTS
 (
     SELECT 1 FROM sys.check_constraints
     WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name='CK_PIP_M_InspectionType_InspectionMode'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
+        ADD CONSTRAINT CK_PIP_M_InspectionType_InspectionMode
+        CHECK (InspectionMode IN ('STANDARD','BATCH'));
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
       AND name='CK_PIP_M_InspectionType_InspectionPointMode'
 )
     ALTER TABLE dbo.PIP_M_InspectionType WITH CHECK
