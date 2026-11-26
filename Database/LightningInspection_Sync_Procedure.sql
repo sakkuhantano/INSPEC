@@ -79,10 +79,12 @@ BEGIN
         WHERE IT.InspectionTypeCode=@p_InspectionTypeCode
           AND IT.SectionID=@p_SectionID
           AND IT.IsActive=1
-          AND ISNULL(IT.InspectionMode,'STANDARD')='LIGHTNING'
+          AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+          AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'
+          AND ISNULL(IT.InspectionPointMode,'')='MAP'
     )
     BEGIN
-        RAISERROR('Inspection Type is not configured for LIGHTNING mode.',16,1);
+        RAISERROR('Inspection Type is not configured for BATCH / MAP / INSPECT mode.',16,1);
         RETURN;
     END;
 
