@@ -3926,15 +3926,11 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                     foreach (DataRow row in group)
                         selected.Rows.Add(Convert.ToInt64(row["InspectionID"]));
 
-                    // R_Report uses its fourth argument as the export-folder segment.
-                    // Keep the authenticated employee ID in the folder name while isolating
-                    // each batch/type so equal report titles generated in the same second
-                    // cannot overwrite one another.
-                    string reportUserFolder = employeeId + "_B" +
-                        approvalBatchId.ToString(CultureInfo.InvariantCulture) + "_T" +
-                        SafeBatchReportSegment(typeCode);
+                    // Reuse the same authenticated employee export folder as the existing Preview.
+                    // The generated file is moved to a per-type batch snapshot immediately below,
+                    // freeing the original filename before the next InspectionTypeCode is generated.
                     var report = R_Report.GenerateInspectionXlsx(
-                        selected, companyId, locationId, reportUserFolder);
+                        selected, companyId, locationId, employeeId);
                     if (report == null || !report.Success ||
                         String.IsNullOrWhiteSpace(report.StoragePath) || !File.Exists(report.StoragePath))
                         throw new InvalidOperationException(
