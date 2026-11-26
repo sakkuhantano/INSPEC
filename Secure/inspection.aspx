@@ -2425,7 +2425,7 @@
                 <h5 class="mb-0">Inspection Approval</h5>
                 <div class="inspection-muted">Inspeksi Complete dari teknisi pada section yang menjadi tanggung jawab Anda.</div>
             </div>
-            <button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button>
+            <div class="d-flex gap-2 flex-wrap"><button type="button" id="btnOpenChiefBatchApproval" class="btn btn-sm btn-outline-success d-none"><i class="bi bi-shield-check me-1"></i>Chief Batch Approval</button><button type="button" id="btnRefreshInspectionApproval" class="btn btn-sm btn-outline-primary">Refresh</button></div>
         </div>
             <div class="inspection-approval-toolbar mb-3">
                 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
@@ -2470,6 +2470,7 @@
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
                 <button type="button" id="btnInspectionApprovalPreview" class="btn btn-sm btn-outline-primary" disabled title="Select all inspections to enable Preview"><i class="bi bi-file-earmark-excel me-1"></i>Preview</button>
+                <button type="button" id="btnCreateStandardApprovalBatch" class="btn btn-sm btn-outline-success d-none" disabled title="Select SPV-approved STANDARD inspections to send as one batch"><i class="bi bi-send me-1"></i>Send to CHIEF</button>
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
                 <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected inspections" aria-label="Approve selected inspections">Approve</button>
                 <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected inspections" aria-label="Void selected inspections">Void</button>
@@ -2559,6 +2560,73 @@
         </div>
     </div>
 </div>
+
+    <div id="chiefBatchPanel" class="inspection-card p-3 mb-3 d-none">
+        <div id="chiefBatchListView">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                    <div class="text-uppercase text-success fw-bold inspection-muted">CHIEF</div>
+                    <h5 class="mb-0">STANDARD Inspection Approval Batches</h5>
+                    <div class="inspection-muted">Review all inspections assigned to your ProfitCenter and approve each batch.</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" id="btnBackToSpvApproval" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>SPV Approval</button>
+                    <button type="button" id="btnRefreshChiefBatchQueue" class="btn btn-sm btn-outline-primary">Refresh</button>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <div class="inspection-filter-control">
+                    <label for="selChiefBatchSection" class="form-label small mb-1">Section</label>
+                    <select id="selChiefBatchSection" class="form-select form-select-sm"><option value="">All authorized sections</option></select>
+                </div>
+                <div class="inspection-date-control">
+                    <label for="txtChiefBatchDateFrom" class="form-label small mb-1">Inspection Date From</label>
+                    <input type="date" id="txtChiefBatchDateFrom" class="form-control form-control-sm" />
+                </div>
+                <div class="inspection-date-control">
+                    <label for="txtChiefBatchDateThru" class="form-label small mb-1">Inspection Date Thru</label>
+                    <input type="date" id="txtChiefBatchDateThru" class="form-control form-control-sm" />
+                </div>
+                <div class="inspection-filter-control">
+                    <label for="selChiefBatchStatus" class="form-label small mb-1">Status</label>
+                    <select id="selChiefBatchStatus" class="form-select form-select-sm">
+                        <option value="PENDING">Waiting Approval</option>
+                        <option value="APPROVED">Approved</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead><tr>
+                        <th>Batch</th><th>Section</th><th>Inspection Date</th><th class="text-end">Inspections</th>
+                        <th class="text-end">Report Types</th><th>Sent</th><th>Status</th>
+                    </tr></thead>
+                    <tbody id="chiefBatchQueue"><tr><td colspan="7" class="text-muted text-center py-3">Loading...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="chiefBatchDetailView" class="d-none">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <div>
+                    <div class="text-uppercase text-success fw-bold inspection-muted">CHIEF BATCH DETAIL</div>
+                    <h5 class="mb-1" id="chiefBatchDetailTitle">Approval Batch</h5>
+                    <div id="chiefBatchDetailSubtitle" class="inspection-muted"></div>
+                </div>
+                <button type="button" id="btnBackToChiefBatchList" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back to Batches</button>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button type="button" id="btnPreviewChiefBatchReports" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-excel me-1"></i>Preview Reports</button>
+                <button type="button" id="btnApproveChiefBatch" class="btn btn-sm btn-success"><i class="bi bi-check-circle me-1"></i>Approve Batch</button>
+            </div>
+            <div id="chiefBatchReports" class="mb-3"></div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead><tr><th>No.</th><th>Inspection No.</th><th>Inspection Type</th><th>Detail</th><th>Template</th><th>Technician</th><th>SPV Approved</th></tr></thead>
+                    <tbody id="chiefBatchInspectionRows"><tr><td colspan="7" class="text-muted text-center py-3">Select a batch.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <div class="modal fade" id="inspectionReasonCancelModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
