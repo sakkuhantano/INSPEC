@@ -597,6 +597,71 @@ FROM PIP_T_WO A WHERE A.KeyHD = @KeyHD AND A.IsDelete = 0
             Begintrans();
             try
             {
+                // Reject an already-occupied STANDARD inspection slot before generating an
+                // InspectionNo or writing any physical photo files. Keep the SQL procedure's
+                // duplicate check as the final concurrency guard.
+                if (String.Equals(procedureName, "spUTL_PIP_T_Inspection_Sync", StringComparison.OrdinalIgnoreCase))
+                {
+                    Func<string, object> getSyncParameter = delegate(string parameterName)
+                    {
+                        if (parameters != null)
+                        {
+                            foreach (SqlParameter parameter in parameters)
+                            {
+                                if (parameter != null &&
+                                    String.Equals(parameter.ParameterName, parameterName, StringComparison.OrdinalIgnoreCase))
+                                    return parameter.Value ?? DBNull.Value;
+                            }
+                        }
+                        throw new InvalidOperationException("Inspection sync is missing required parameter " + parameterName + ".");
+                    };
+
+                    string inspectionMode = Convert.ToString(getSyncParameter("@p_InspectionMode")).Trim();
+                    if (!String.Equals(inspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase))
+                    {
+                        DataTable duplicateInspection = null;
+                        using (WAL.BR.CF duplicateCommon = new WAL.BR.CF())
+                        {
+                            duplicateInspection = duplicateCommon.EQueryP(@"
+SELECT TOP 1 InspectionID, InspectionNo
+FROM dbo.PIP_T_Inspection WITH (UPDLOCK, HOLDLOCK)
+WHERE ClientInspectionID <> @p_ClientInspectionID
+  AND ISNULL(IsActive,1)=1
+  AND CompanyID=@p_CompanyID
+  AND LocationID=@p_LocationID
+  AND SectionID=@p_SectionID
+  AND InspectionTypeCode=@p_InspectionTypeCode
+  AND InspectionTypeDetailCode=@p_InspectionTypeDetailCode
+  AND ISNULL(ScheduledTime,'')=ISNULL(@p_ScheduledTime,'')
+  AND IDTemplate=@p_IDTemplate
+  AND ISNULL(TenantID,'')=ISNULL(@p_TenantID,'')
+  AND ISNULL(SuiteNo,'')=ISNULL(@p_SuiteNo,'')
+  AND InspectionDate>=CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120)
+  AND InspectionDate<DATEADD(DAY,1,CONVERT(DATETIME,CONVERT(VARCHAR(10),@p_InspectionDate,120),120));",
+                                new SqlParameter[]
+                                {
+                                    new SqlParameter("@p_ClientInspectionID", getSyncParameter("@p_ClientInspectionID")),
+                                    new SqlParameter("@p_CompanyID", getSyncParameter("@p_CompanyID")),
+                                    new SqlParameter("@p_LocationID", getSyncParameter("@p_LocationID")),
+                                    new SqlParameter("@p_SectionID", getSyncParameter("@p_SectionID")),
+                                    new SqlParameter("@p_InspectionTypeCode", getSyncParameter("@p_InspectionTypeCode")),
+                                    new SqlParameter("@p_InspectionTypeDetailCode", getSyncParameter("@p_InspectionTypeDetailCode")),
+                                    new SqlParameter("@p_ScheduledTime", getSyncParameter("@p_ScheduledTime")),
+                                    new SqlParameter("@p_IDTemplate", getSyncParameter("@p_IDTemplate")),
+                                    new SqlParameter("@p_TenantID", getSyncParameter("@p_TenantID")),
+                                    new SqlParameter("@p_SuiteNo", getSyncParameter("@p_SuiteNo")),
+                                    new SqlParameter("@p_InspectionDate", getSyncParameter("@p_InspectionDate"))
+                                }, false, ref _mainConnection, ref _transaction);
+                        }
+
+                        if (duplicateInspection != null && duplicateInspection.Rows.Count > 0)
+                        {
+                            throw new InvalidOperationException(
+                                "An inspection already exists for this date, company/location, section, type, detail, schedule, and template.");
+                        }
+                    }
+                }
+
                 if (String.IsNullOrWhiteSpace(inspectionNo))
                 {
                     using (WAL.BR.CF autoNumCommon = new WAL.BR.CF())
