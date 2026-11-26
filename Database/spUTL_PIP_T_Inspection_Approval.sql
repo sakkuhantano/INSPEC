@@ -125,7 +125,19 @@ BEGIN
            OR ISNULL(@V_ReasonVoid,'')<>''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
-        IF @p_Action = 'APPROVE' AND (@V_IsChiefEngStage=1 OR @V_ApprovalWorkflowCode<>'SPV_CHIEF_ENG')
+        IF @p_Action = 'APPROVE'
+           AND
+           (
+               @V_IsChiefEngStage=1
+               OR @V_ApprovalWorkflowCode<>'SPV_CHIEF_ENG'
+               OR NOT EXISTS
+               (
+                   SELECT 1 FROM dbo.SysWebCommonValue C
+                   WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                     AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';CHIEF_ENG'
+                     AND ISNULL(LTRIM(RTRIM(C.Description)),'')<>''
+               )
+           )
         BEGIN
             IF @V_FollowUp NOT IN ('No Follow Up','Recommend Follow Up')
                 RAISERROR('Inspection Follow Up selection is invalid.', 16, 1);
