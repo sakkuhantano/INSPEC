@@ -8,6 +8,13 @@
 */
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
+
+IF COL_LENGTH('dbo.PIP_T_InspectionPoint','ScheduleTime') IS NULL
+BEGIN
+    RAISERROR('Run Database/LightningInspection_Transaction_Migration.sql before this dynamic-point migration.',16,1);
+    RETURN;
+END;
+
 BEGIN TRANSACTION;
 
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointCode') IS NULL
