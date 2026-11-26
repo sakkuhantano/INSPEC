@@ -4406,7 +4406,7 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                         br.EQueryP(@"
 UPDATE dbo.PIP_T_Inspection_ApprovalBatch
 SET EmailStatus='SENT',EmailError=N'',EmailTo=@EmailTo,EmailAttemptCount=EmailAttemptCount+1,
-    LastEmailAttemptDate=GETDATE(),SentDate=GETDATE()
+    LastEmailAttemptDate=GETDATE(),SentDate=ISNULL(SentDate,GETDATE())
 WHERE ApprovalBatchID=@BatchID",
                             new SqlParameter[] {
                                 new SqlParameter("@EmailTo", emailTo),
@@ -4423,7 +4423,7 @@ WHERE ApprovalBatchID=@BatchID",
                         br.EQueryP(@"
 UPDATE dbo.PIP_T_Inspection_ApprovalBatch
 SET EmailStatus='FAILED',EmailError=@Error,EmailAttemptCount=EmailAttemptCount+1,
-    LastEmailAttemptDate=GETDATE(),SentDate=NULL
+    LastEmailAttemptDate=GETDATE(),SentDate=ISNULL(SentDate,GETDATE())
 WHERE ApprovalBatchID=@BatchID",
                             new SqlParameter[] {
                                 new SqlParameter("@Error", emailMessage),
