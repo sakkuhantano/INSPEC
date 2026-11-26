@@ -81,17 +81,28 @@ IF EXISTS
         DROP CONSTRAINT UQ_PIP_T_InspectionPoint_Master;
 GO
 
-IF NOT EXISTS
+IF EXISTS
 (
     SELECT 1 FROM sys.key_constraints
     WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
       AND name='UQ_PIP_T_InspectionPoint_Schedule_Master'
 )
-BEGIN
     ALTER TABLE dbo.PIP_T_InspectionPoint
-        ADD CONSTRAINT UQ_PIP_T_InspectionPoint_Schedule_Master
-        UNIQUE (InspectionID, ScheduleTime, InspectionPointID);
-END;
+        DROP CONSTRAINT UQ_PIP_T_InspectionPoint_Schedule_Master;
+GO
+
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
+      AND name='UX_PIP_T_InspectionPoint_Schedule_Master'
+)
+    DROP INDEX UX_PIP_T_InspectionPoint_Schedule_Master ON dbo.PIP_T_InspectionPoint;
+GO
+
+CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Schedule_Master
+    ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,InspectionPointID)
+    WHERE InspectionPointID IS NOT NULL;
 GO
 
 IF NOT EXISTS
