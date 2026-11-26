@@ -53,6 +53,13 @@ BEGIN
     SET @PresentationConfigAdded = 1;
 END;
 
+/* Normalize the renamed selector before enforcing the new CHECK constraint.
+   This also covers databases where the configuration columns already existed
+   from an earlier deployment and still contain AT_INSPECTION. */
+UPDATE dbo.PIP_M_InspectionType
+SET ScheduleSelectionMode='INSPECT'
+WHERE UPPER(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))))='AT_INSPECTION';
+
 /* Backfill existing behavior without changing any existing InspectionMode. */
 IF @PresentationConfigAdded = 1
 BEGIN
