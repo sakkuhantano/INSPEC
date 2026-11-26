@@ -666,6 +666,19 @@ document.addEventListener('click', function () {
     hideContextMenu();
 });
 
+// Keep the Section accordion state current so automatic page refresh/postback
+// can rebuild the explorer without collapsing the user's open Sections.
+document.addEventListener("shown.bs.collapse", function(event) {
+    if (event.target && event.target.closest("#explorerAccordion"))
+        persistExpandedTemplateSections();
+});
+document.addEventListener("hidden.bs.collapse", function(event) {
+    if (event.target && event.target.closest("#explorerAccordion"))
+        persistExpandedTemplateSections();
+});
+window.addEventListener("pagehide", persistExpandedTemplateSections);
+window.addEventListener("beforeunload", persistExpandedTemplateSections);
+
 document.addEventListener("input", function (event) {
     const target = event.target;
     if (target && target.closest && target.closest("#sectionsContainer, #panel-properties"))
@@ -1765,6 +1778,72 @@ async function refreshCurrentTemplateExplorer(
         }
     }
 }
+const TEMPLATE_EXPLORER_EXPANDED_KEY = "INSPEC_TEMPLATE_EXPLORER_EXPANDED_SECTIONS";
+
+function getExpandedTemplateSectionIds()
+{
+    return Array.from(document.querySelectorAll(
+        '#explorerAccordion .category-header[data-section-id]'
+    ))
+    .filter(function(button) {
+        const target = button.getAttribute("data-bs-target");
+        const collapse = target ? document.querySelector(target) : null;
+        return !!(collapse && collapse.classList.contains("show"));
+    })
+    .map(function(button) {
+        return String(button.getAttribute("data-section-id") || "");
+    })
+    .filter(Boolean);
+}
+
+function persistExpandedTemplateSections()
+{
+    try {
+        sessionStorage.setItem(
+            TEMPLATE_EXPLORER_EXPANDED_KEY,
+            JSON.stringify(getExpandedTemplateSectionIds())
+        );
+    } catch (ex) {
+        console.warn("[Template Explorer] Could not persist expanded Sections:", ex);
+    }
+}
+
+async function restoreExpandedTemplateSections()
+{
+    let expandedIds = [];
+    try {
+        expandedIds = JSON.parse(
+            sessionStorage.getItem(TEMPLATE_EXPLORER_EXPANDED_KEY) || "[]"
+        );
+    } catch (_) {
+        expandedIds = [];
+    }
+    if (!Array.isArray(expandedIds) || !expandedIds.length)
+        return;
+
+    for (const sectionId of expandedIds) {
+        const button = document.querySelector(
+            '#explorerAccordion .category-header[data-section-id="' +
+            String(sectionId).replace(/\\/g, "\\\\").replace(/"/g, '\\"') +
+            '"]'
+        );
+        if (!button) continue;
+
+        const target = button.getAttribute("data-bs-target");
+        const collapse = target ? document.querySelector(target) : null;
+        if (!collapse) continue;
+
+        // Load the section using the existing cache-first path before showing it.
+        await loadTemplatesBySection(sectionId, button);
+        if (window.bootstrap && bootstrap.Collapse) {
+            bootstrap.Collapse.getOrCreateInstance(
+                collapse,
+                { toggle: false }
+            ).show();
+        }
+    }
+}
+
 async function loadTemplateExplorer()
 {
     try
@@ -1782,6 +1861,7 @@ async function loadTemplateExplorer()
         explorerRoot = res || [];
 
         renderTemplateExplorerRoot(JSON.parse(explorerRoot));
+        await restoreExpandedTemplateSections();
     }
     catch (ex)
     {
@@ -1849,6 +1929,7 @@ function renderTemplateExplorerRoot(data)
                     <button
                         class="category-header w-100 accordion-button collapsed"
                         type="button" id="rootHeader_${root.SectionID}"
+                        data-section-id="${root.SectionID}"
                         data-bs-toggle="collapse"
                         data-bs-target="#root_${index}"
                         onclick="loadTemplatesBySection('${root.SectionID}', this)">
