@@ -2430,6 +2430,10 @@
             <div class="inspection-approval-toolbar mb-3">
                 <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
             <div class="inspection-filter-control">
+                <label for="selApprovalSection" class="form-label small mb-1">Section</label>
+                <select id="selApprovalSection" class="form-select form-select-sm"><option value="">All authorized sections</option></select>
+            </div>
+            <div class="inspection-filter-control">
                 <label for="selApprovalType" class="form-label small mb-1">Type</label>
                 <select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select>
             </div>
