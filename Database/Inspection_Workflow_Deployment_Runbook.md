@@ -9,7 +9,7 @@ Run these scripts in SQL Server Management Studio against a **non-production INS
 2. database/inspection_presentation_config_migration.sql
    - Adds presentation, point-source, schedule-selection, and workflow-code master fields. Run after step 1.
 3. Database/InspectionWorkflow_ComVal_Migration.sql
-   - Consolidates point mode, converts legacy Lightning master types to BATCH / MAP / INSPECT, and updates the related check constraints. Run after steps 1–2.
+   - Consolidates point mode, normalizes AT_INSPECTION to INSPECT, converts legacy Lightning master types to BATCH / MAP / INSPECT, sets BATCH/PARAM to SPV_CHIEF_ENG and BATCH/INSPECT to LIGHTNING_4_STEP, and updates the related check constraints. Run after steps 1–2.
 4. database/inspection_batch_transaction_migration.sql
 5. Database/InspectionMapGroup_Migration.sql
 6. Database/InspectionPoint_Coordinate_Consolidation.sql
