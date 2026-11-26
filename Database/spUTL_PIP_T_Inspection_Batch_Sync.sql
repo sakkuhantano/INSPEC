@@ -89,8 +89,8 @@ BEGIN
     END;
 
     DECLARE @V_InspectionPointMode VARCHAR(10), @V_IsDynamic BIT;
-    /* InspectionPointMode is the sole master setting: MAP is persisted as
-       MASTER on the transaction-point snapshot; DYNAMIC remains DYNAMIC. */
+    /* InspectionPointMode is the sole mode setting: MAP points retain a master
+       InspectionPointID; DYNAMIC points are identified by a NULL InspectionPointID. */
     SELECT @V_InspectionPointMode=UPPER(LTRIM(RTRIM(ISNULL(InspectionPointMode,''))))
     FROM dbo.PIP_M_InspectionType
     WHERE InspectionTypeCode=@p_InspectionTypeCode AND SectionID=@p_SectionID;
