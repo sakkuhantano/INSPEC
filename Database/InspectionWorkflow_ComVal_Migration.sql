@@ -55,6 +55,15 @@ CLOSE ObsoleteInspectionTypeChecks;
 DEALLOCATE ObsoleteInspectionTypeChecks;
 GO
 
+/* Normalize empty legacy values before enforcing the consolidated mode matrix. */
+UPDATE dbo.PIP_M_InspectionType
+SET InspectionMode='STANDARD'
+WHERE NULLIF(LTRIM(RTRIM(ISNULL(InspectionMode,''))),'') IS NULL;
+
+UPDATE dbo.PIP_M_InspectionType
+SET ScheduleSelectionMode='PARAM'
+WHERE NULLIF(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))),'') IS NULL;
+
 /* The old LIGHTNING mode is consolidated into BATCH + INSPECT. */
 UPDATE dbo.PIP_M_InspectionType
 SET InspectionMode='BATCH'
