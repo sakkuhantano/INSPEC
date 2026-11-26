@@ -318,10 +318,14 @@ BEGIN
         FROM dbo.SysWebUser SU
         WHERE SU.EmployeeID=@p_ActorEmployeeID
           AND SU.IsActive=1
-          AND EXISTS
+          AND
           (
-              SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
-              WHERE AM.MenuID='20022'
+              EXISTS (SELECT 1 FROM dbo.SysWebUserUserGroup UG WHERE UG.UserID=SU.UserID AND UG.UserGroupID='administrator')
+              OR EXISTS
+              (
+                  SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM
+                  WHERE AM.MenuID='20022'
+              )
           )
           AND
           (
