@@ -79,6 +79,8 @@ The base schema scripts are initial-install prerequisites, not part of this upgr
 - Database/InspectionEmailApproval_CommonValue_Migration.sql: run only if the old temporary PIP_M_InspectionEmailSetup* tables still exist and must be migrated. It drops those temporary tables after migration.
 - Database/InspectionApproval_ComValWorkflow_Migration.sql: run only if legacy Company/Location EMAIL switches exist and must be converted. Run after the previous optional migration when both apply. It never overwrites an already-configured workflow COMVAL.
 - Database/InspectionPoint_RemoveCompanyLocation_Migration.sql: run only if PIP_M_InspectionPoint still has the old CompanyID / LocationID columns. Review its dependency report first; it stops if database modules still reference those columns.
+- Database/inspection_point_circle_geometry_backfill.sql: run after the SVG shape migration only if existing CIRCLE points need ShapeAttributes backfilled from MapX / MapY.
+- Database/THD_Tenant_Suite_Master_Reference.sql: run only if the THD tenant / agreement master tables are genuinely absent. These tables are owned by THD; do not create duplicate copies when they already exist.
 - Database/InspectionPoint_Seed_MCDP.sql, Database/InspectionPoint_Seed_MCDP_Lighting_SplitMaps.sql, and Database/Import_INSPEC_Lighting_Parking_Maps_Points_FKFix.sql are data import / seed scripts only. Do not run if the required Map / Point master data is already present.
 
 ## Do NOT run these superseded scripts
@@ -87,9 +89,15 @@ These files are retained for reference or compatibility, but are not part of thi
 
 - database/inspection_mode_migration.sql
 - database/inspection_presentation_config_migration.sql
+- database/inspection_type_code_length_migration.sql (the final standard sync procedure already has the corrected parameter width)
+- Database/spPIP_Inspection_Query.sql (not called by the current WebForms call sites in this branch)
+- SQL/ALTER_PIP_M_InspectionMap_MoveInspectionType.sql (only for an empty initial database; it intentionally refuses to run when Inspection Points exist)
 - Database/InspectionLegacyApproval_Procedure_ColumnRename.sql
 - Database/InspectionPoint_ShapeGeometry_Migration.sql
 - Database/InspectionPoint_RemoveShapeTypeCheckConstraint.sql
+- database/inspection_location_map_schema.sql (initial map schema; do not rerun over existing map tables)
+- database/inspection_transaction_schema.sql (initial transaction schema; do not rerun over existing transaction tables)
+- database/master_template_inspection_schema.sql (initial template schema; do not rerun over existing template tables)
 - Database/spUTL_PIP_T_Inspection_SubmitWorkflow.sql
 - Database/spUTL_PIP_T_Inspection_ApprovalWorkflow.sql
 - Database/spUTL_PIP_T_Inspection_Approval_Execute.sql
