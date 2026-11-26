@@ -13,6 +13,11 @@ namespace INSPEC.Secure
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl divChiefSecEmployees;
         protected global::System.Web.UI.WebControls.LinkButton lBtnChiefSec;
         protected global::System.Web.UI.WebControls.Label lblChiefSecName;
+        protected global::System.Web.UI.WebControls.TextBox txtChiefHK;
+        protected global::System.Web.UI.WebControls.HiddenField hidChiefHKEmployees;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl divChiefHKEmployees;
+        protected global::System.Web.UI.WebControls.LinkButton lBtnChiefHK;
+        protected global::System.Web.UI.WebControls.Label lblChiefHKName;
         protected global::System.Web.UI.WebControls.Panel pnlSPVEditor;
         protected global::System.Web.UI.WebControls.HiddenField hidSPVOriginalSection;
         protected global::System.Web.UI.WebControls.DropDownList ddlSection;
