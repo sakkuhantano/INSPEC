@@ -27,10 +27,10 @@ Run each file in this order. Stop on the first SQL error.
    - Adds Map Group master and the scoped MapGroupID relationship on PIP_M_InspectionMap.
 6. database/inspection_batch_transaction_migration.sql
    - Adds the canonical BATCH point transaction / result / photo structure. Requires the existing base tables and TVPs.
-7. Database/inspection_dynamic_point_migration.sql
-   - Allows dynamic Motor point snapshots with NULL InspectionPointID and drops the deprecated PointSource transaction column. Master points retain a non-NULL InspectionPointID.
-8. Database/LightningInspection_Transaction_Migration.sql
-   - Adds per-schedule point transactions and normalizes old transaction header modes to BATCH.
+7. Database/LightningInspection_Transaction_Migration.sql
+   - Adds ScheduleTime per-point storage and normalizes old transaction header modes to BATCH.
+8. Database/inspection_dynamic_point_migration.sql
+   - Allows dynamic Motor point snapshots with NULL InspectionPointID, drops the deprecated PointSource transaction column, and creates schedule-scoped filtered indexes. Master points retain a non-NULL InspectionPointID.
 9. Database/Inspection_GPS_Transaction_Migration.sql
    - Adds technician GPS columns used by Inspection sync / geofence validation.
 10. Database/Inspection_Tenant_Suite_Migration.sql
