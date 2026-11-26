@@ -4070,6 +4070,45 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
             return emailTo;
         }
 
+
+        [WebMethod]
+        public static object GetSPVApprovalSections(string employeeId, string companyId, string locationId)
+        {
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable rows = br.EQueryP(@"
+SELECT DISTINCT S.SectionID,S.ProfitCenterNo
+FROM dbo.PIP_M_Section S
+WHERE S.CompanyID=@CompanyID AND S.LocationID=@LocationID
+  AND (@IsAdministrator=1 OR EXISTS
+  (
+      SELECT 1 FROM dbo.SysWebCommonValue C
+      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';SPV;'+S.SectionID
+        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+  ))
+ORDER BY S.SectionID",
+                    new SqlParameter[] {
+                        new SqlParameter("@CompanyID", companyId),
+                        new SqlParameter("@LocationID", locationId),
+                        new SqlParameter("@EmployeeID", employeeId),
+                        new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0)
+                    });
+                var data = new List<Dictionary<string, object>>();
+                foreach (DataRow row in rows.Rows)
+                    data.Add(new Dictionary<string, object> {
+                        { "SectionID", Convert.ToString(row["SectionID"]) },
+                        { "ProfitCenterNo", Convert.ToString(row["ProfitCenterNo"]) }
+                    });
+                return new { success = true, data = data };
+            }
+        }
+
         [WebMethod]
         public static object GetChiefApprovalBatchSections(string employeeId, string companyId, string locationId)
         {
