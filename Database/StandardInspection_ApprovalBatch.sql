@@ -372,7 +372,7 @@ BEGIN
           AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
           AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
           AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
-              AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+              AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD';
 
         IF ISNULL(@InspectionCount,0)=0
             RAISERROR('This batch contains no valid SPV-approved STANDARD inspections.',16,1);
