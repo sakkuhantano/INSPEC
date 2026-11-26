@@ -2413,8 +2413,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
         CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
-             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
-             WHEN ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
+             WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
+             WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
              WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
@@ -3551,7 +3551,7 @@ WHERE I.InspectionID=@InspectionID
            WHERE SU.EmployeeID=@EmployeeID AND SU.IsActive=1
              AND (@IsAdministrator=1 OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM WHERE AM.MenuID='20022'))
              AND (@IsAdministrator=1 OR (
-               (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'LIGHTNING' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT' AND EXISTS (
+               (ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT' AND EXISTS (
                    SELECT 1 FROM dbo.SysWebCommonValue C
                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
                      AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
@@ -3559,15 +3559,16 @@ WHERE I.InspectionID=@InspectionID
                ))
                OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
                    AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
-                   AND ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG'
+                   AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+                   AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
                    AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
                    AND EXISTS (
                        SELECT 1 FROM dbo.SysWebCommonValue C
                        WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+                         AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
                          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
                    ))
-               OR ((ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='LIGHTNING' OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='INSPECT')) AND (
+               OR ((ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='INSPECT') AND (
                    EXISTS (
                        SELECT 1 FROM dbo.SysWebCommonValue C
                        WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
@@ -4617,12 +4618,12 @@ WHERE I.InspectionID=@InspectionID
             AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
        )))
       OR
-      (ISNULL(IT.ApprovalWorkflowCode,'')='SPV_CHIEF_ENG'
+      (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
        AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
        AND (@IsAdministrator=1 OR EXISTS (
           SELECT 1 FROM dbo.SysWebCommonValue C
           WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
+            AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
             AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
        )))
   )
