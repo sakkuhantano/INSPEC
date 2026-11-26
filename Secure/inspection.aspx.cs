@@ -3937,8 +3937,9 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
                             report != null && !String.IsNullOrWhiteSpace(report.Message)
                                 ? report.Message : "R_Report gagal membuat XLSX untuk InspectionTypeCode " + typeCode + ".");
 
-                    reportName = "TYPE_" + SafeBatchReportSegment(typeCode) + "_" +
-                        Path.GetFileName(report.FileName);
+                    string generatedFileName = String.IsNullOrWhiteSpace(report.FileName)
+                        ? Path.GetFileName(report.StoragePath) : Path.GetFileName(report.FileName);
+                    reportName = "TYPE_" + SafeBatchReportSegment(typeCode) + "_" + generatedFileName;
                     reportPath = report.StoragePath;
 
                     if (createSnapshot || Directory.Exists(snapshotFolder))
