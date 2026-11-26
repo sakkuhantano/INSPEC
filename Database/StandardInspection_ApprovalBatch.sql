@@ -154,6 +154,7 @@ BEGIN
               AND I.InspectionDate IS NOT NULL
               AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
               AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+              AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
         )<>@SelectedCount
         BEGIN
             RAISERROR('Every selected inspection must be active, submitted, SPV-approved STANDARD, and not assigned to another batch.',16,1);
