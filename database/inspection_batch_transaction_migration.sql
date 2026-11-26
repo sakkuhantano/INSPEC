@@ -4,9 +4,9 @@
     Run after:
       1. inspection_transaction_schema.sql
       2. master_template_inspection_schema.sql
-      3. inspection_mode_migration.sql
+      3. Database/InspectionWorkflow_ComVal_Migration.sql
       4. the PIP_M_InspectionMap / PIP_M_InspectionPoint master schema
-      5. Database/InspectionApproval_Workflow_Procedures.sql
+      5. Database/InspectionEmailApproval_Schema.sql and approval header migrations
       6. inspection_parameter_change_migration.sql
     Batch submission now executes inside this same atomic SQL transaction after all
     point-level child rows and photos have been persisted.
