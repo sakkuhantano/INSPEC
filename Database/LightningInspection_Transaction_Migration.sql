@@ -21,9 +21,9 @@ SET XACT_ABORT ON;
 GO
 
 /*
-    Enable LIGHTNING as a first-class mode in both the inspection type master
-    and the canonical transaction header. Preserve existing STANDARD/BATCH/MAP
-    values; do not normalize existing data.
+    Normalize Lightning to the canonical BATCH + INSPECT mode in both the inspection
+    type master and transaction header. Lightning remains a workflow/entity type,
+    not a separate InspectionMode value.
 */
 IF COL_LENGTH('dbo.PIP_M_InspectionType','InspectionMode') IS NULL
     ALTER TABLE dbo.PIP_M_InspectionType ADD InspectionMode VARCHAR(10) NOT NULL
@@ -36,7 +36,7 @@ IF EXISTS (SELECT 1 FROM sys.check_constraints
 GO
 ALTER TABLE dbo.PIP_M_InspectionType
     ADD CONSTRAINT CK_PIP_M_InspectionType_InspectionMode
-    CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING'));
+    CHECK (InspectionMode IN ('STANDARD','BATCH'));
 GO
 
 IF COL_LENGTH('dbo.PIP_T_Inspection','InspectionMode') IS NULL
@@ -48,9 +48,14 @@ IF EXISTS (SELECT 1 FROM sys.check_constraints
              AND name='CK_PIP_T_Inspection_InspectionMode')
     ALTER TABLE dbo.PIP_T_Inspection DROP CONSTRAINT CK_PIP_T_Inspection_InspectionMode;
 GO
+/* Old daily Lightning / MAP header values are normalized to BATCH. */
+UPDATE dbo.PIP_T_Inspection
+SET InspectionMode='BATCH'
+WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,'')))) IN ('LIGHTNING','MAP');
+GO
 ALTER TABLE dbo.PIP_T_Inspection
     ADD CONSTRAINT CK_PIP_T_Inspection_InspectionMode
-    CHECK (InspectionMode IN ('STANDARD','BATCH','LIGHTNING','MAP'));
+    CHECK (InspectionMode IN ('STANDARD','BATCH'));
 GO
 
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','ScheduleTime') IS NULL
