@@ -70,7 +70,7 @@ BEGIN
             RAISERROR('Inspection was not found for this company/location.', 16, 1);
 
         SET @V_IsChiefWorkflow=CASE WHEN @V_InspectionMode='BATCH' AND @V_ScheduleSelectionMode='PARAM' THEN 1 ELSE 0 END;
-        SET @V_ChiefRole=CASE WHEN @V_IsChiefWorkflow=1 THEN dbo.fnINSPEC_ChiefRoleForSection(@V_SectionID) ELSE '' END;
+        SET @V_ChiefRole=CASE WHEN @V_IsChiefWorkflow=1 THEN dbo.fnINSPEC_ChiefRoleForSection(@p_CompanyID,@p_LocationID,@V_SectionID) ELSE '' END;
         SET @V_IsChiefStage=CASE WHEN @V_IsChiefWorkflow=1 AND ISNULL(@V_IsApprove,0)=1 AND ISNULL(@V_IsApproved1,0)=0 THEN 1 ELSE 0 END;
         SELECT @V_ChiefMapping=NULLIF(LTRIM(RTRIM(C.Description)),'')
         FROM dbo.SysWebCommonValue C
