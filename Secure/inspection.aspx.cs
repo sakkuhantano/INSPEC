@@ -3995,6 +3995,11 @@ WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''",
                 throw new InvalidOperationException("Alamat email CHIEF belum tersedia di M_HRD_Employee.");
             string emailTo = String.Join(";", recipientRows.AsEnumerable()
                 .Select(row => Convert.ToString(row["EmailAddress"]).Trim()).ToArray());
+            using (var br = new WAL.BR.CF())
+            {
+                br.EQueryP("UPDATE dbo.PIP_T_Inspection_ApprovalBatch SET EmailTo=@EmailTo WHERE ApprovalBatchID=@BatchID",
+                    new SqlParameter[] { new SqlParameter("@EmailTo", emailTo), new SqlParameter("@BatchID", approvalBatchId) }, true, true);
+            }
 
             string fromAddress = "";
             string fromName = employeeId;
