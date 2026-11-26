@@ -45,10 +45,14 @@ BEGIN
         DECLARE @V_InspectionNo VARCHAR(10);
         DECLARE @V_OwnerEmployeeID VARCHAR(50);
         DECLARE @V_IDTemplate INT;
-        DECLARE @V_ApprovalWorkflowCode VARCHAR(30), @V_IsApproved1 BIT, @V_IsChiefEngStage BIT=0;
+        DECLARE @V_InspectionMode VARCHAR(10), @V_ScheduleSelectionMode VARCHAR(10),
+                @V_ChiefRole VARCHAR(20), @V_ChiefMapping VARCHAR(4000),
+                @V_IsChiefWorkflow BIT=0, @V_IsApproved1 BIT, @V_IsChiefStage BIT=0;
 
         SELECT @V_IDTemplate=I.IDTemplate, @V_SectionID=I.SectionID, @V_Status=I.Status, @V_IsApprove=I.IsApproved,
-               @V_IsApproved1=I.IsApproved1, @V_ApprovalWorkflowCode=ISNULL(IT.ApprovalWorkflowCode,'STANDARD'),
+               @V_IsApproved1=I.IsApproved1,
+               @V_InspectionMode=ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD'),
+               @V_ScheduleSelectionMode=ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM'),
                @V_ApprovedBy=ApprovedBy, @V_ApprovedDate=ApprovedDate,
                @V_ApprovalRemark=ApprovalRemark, @V_ReasonVoid=ReasonVoid,
                @V_FollowUp=ISNULL(FollowUp,'No Follow Up'),
@@ -65,7 +69,13 @@ BEGIN
         IF @V_SectionID IS NULL
             RAISERROR('Inspection was not found for this company/location.', 16, 1);
 
-        SET @V_IsChiefEngStage=CASE WHEN @V_ApprovalWorkflowCode='SPV_CHIEF_ENG' AND ISNULL(@V_IsApprove,0)=1 AND ISNULL(@V_IsApproved1,0)=0 THEN 1 ELSE 0 END;
+        SET @V_IsChiefWorkflow=CASE WHEN @V_InspectionMode='BATCH' AND @V_ScheduleSelectionMode='PARAM' THEN 1 ELSE 0 END;
+        SET @V_ChiefRole=CASE WHEN @V_IsChiefWorkflow=1 THEN dbo.fnINSPEC_ChiefRoleForSection(@V_SectionID) ELSE '' END;
+        SET @V_IsChiefStage=CASE WHEN @V_IsChiefWorkflow=1 AND ISNULL(@V_IsApprove,0)=1 AND ISNULL(@V_IsApproved1,0)=0 THEN 1 ELSE 0 END;
+        SELECT @V_ChiefMapping=NULLIF(LTRIM(RTRIM(C.Description)),'')
+        FROM dbo.SysWebCommonValue C
+        WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+          AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';'+@V_ChiefRole;
 
         IF NOT EXISTS
         (
@@ -90,7 +100,7 @@ BEGIN
                       (
                           SELECT 1 FROM dbo.SysWebCommonValue C
                           WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                            AND C.ID=CASE WHEN @V_IsChiefEngStage=1 THEN CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';CHIEF_ENG' ELSE CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';SPV;'+@V_SectionID END
+                            AND C.ID=CASE WHEN @V_IsChiefStage=1 THEN CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';'+@V_ChiefRole ELSE CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';SPV;'+@V_SectionID END
                             AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                                         WHERE LTRIM(RTRIM(X.val))=@p_EmployeeID)
                       )
@@ -120,21 +130,21 @@ BEGIN
             RAISERROR('Supervisor is not authorized for this inspection template, technician, or company/location.', 16, 1);
 
         IF @V_Status <> 'DONE'
-           OR (@V_IsChiefEngStage=0 AND (ISNULL(@V_IsApprove,0)<>0 OR ISNULL(@V_ApprovedBy,'')<>'' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)))
-           OR (@V_IsChiefEngStage=1 AND (ISNULL(@V_IsApprove,0)<>1 OR ISNULL(@V_IsApproved1,0)<>0))
+           OR (@V_IsChiefStage=0 AND (ISNULL(@V_IsApprove,0)<>0 OR ISNULL(@V_ApprovedBy,'')<>'' OR ISNULL(@V_ApprovedDate,CONVERT(DATETIME,'19000101',112))>CONVERT(DATETIME,'19000101',112)))
+           OR (@V_IsChiefStage=1 AND (ISNULL(@V_IsApprove,0)<>1 OR ISNULL(@V_IsApproved1,0)<>0))
            OR ISNULL(@V_ReasonVoid,'')<>''
             RAISERROR('Only inspections awaiting approval can be processed.', 16, 1);
 
         IF @p_Action = 'APPROVE'
            AND
            (
-               @V_IsChiefEngStage=1
-               OR @V_ApprovalWorkflowCode<>'SPV_CHIEF_ENG'
+               @V_IsChiefStage=1
+               OR @V_IsChiefWorkflow=0
                OR NOT EXISTS
                (
                    SELECT 1 FROM dbo.SysWebCommonValue C
                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                     AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';CHIEF_ENG'
+                     AND C.ID=CONVERT(VARCHAR(30),@p_CompanyID)+CONVERT(VARCHAR(30),@p_LocationID)+';'+@V_ChiefRole
                      AND ISNULL(LTRIM(RTRIM(C.Description)),'')<>''
                )
            )
