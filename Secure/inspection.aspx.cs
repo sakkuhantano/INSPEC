@@ -4397,7 +4397,16 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             if (!IsInspectionAdministrator(employeeId))
                 employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
-            return CreateStandardApprovalBatchCore(inspectionIds, employeeId, companyId, locationId, false);
+            StandardBatchProcessResult result = CreateStandardApprovalBatchCore(
+                inspectionIds, employeeId, companyId, locationId, false);
+            // Preserve the exact public WebMethod response shape used by inspection.js.
+            return new {
+                success = result.success,
+                approvalBatchId = result.approvalBatchId,
+                inspectionCount = result.inspectionCount,
+                emailStatus = result.emailStatus,
+                emailMessage = result.emailMessage
+            };
         }
 
         // The manual SPV action and nightly scheduler share this single batch processor.
