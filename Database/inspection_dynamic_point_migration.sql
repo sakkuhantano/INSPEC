@@ -149,17 +149,7 @@ IF NOT EXISTS
         ADD CONSTRAINT CK_PIP_T_InspectionPoint_Code
         CHECK (LEN(LTRIM(RTRIM(PointCode)))>0 AND LEN(LTRIM(RTRIM(PointName)))>0);
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
-      AND name='UX_PIP_T_InspectionPoint_Master'
-)
-    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Master
-        ON dbo.PIP_T_InspectionPoint(InspectionID,InspectionPointID)
-        WHERE InspectionPointID IS NOT NULL;
-
-IF NOT EXISTS
+IF EXISTS
 (
     SELECT 1 FROM sys.indexes
     WHERE object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
