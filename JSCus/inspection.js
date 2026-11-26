@@ -8470,6 +8470,8 @@ async function initializeSpvApprovalSections() {
             locationId: inspectionLocationID
         });
         spvApprovalSections = Array.isArray(result.data) ? result.data : [];
+        const backButton = document.getElementById("btnBackToSpvApproval");
+        if (backButton) backButton.classList.toggle("d-none", spvApprovalSections.length === 0);
         const select = document.getElementById("selApprovalSection");
         if (select) {
             const previous = select.value;
