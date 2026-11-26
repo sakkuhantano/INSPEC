@@ -91,7 +91,7 @@ BEGIN
   (
    SELECT 1 FROM dbo.M_HRD_Employee E
    WHERE E.EmployeeID=LTRIM(RTRIM(X.val)) AND E.CompanyID=@C
-     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo=(SELECT S.ProfitCenterNo FROM dbo.PIP_M_Section S WHERE S.CompanyID=@C AND S.LocationID=@L AND S.SectionID=@S)
+     AND ISNULL(E.TerminationDate,'')='' AND E.ProfitCenterNo=(SELECT S.ProfitCenterNo FROM dbo.PIP_M_Section S WHERE S.SectionID=@S)
      AND EXISTS (SELECT 1 FROM dbo.SysWebUser SU WHERE SU.EmployeeID=E.EmployeeID AND SU.IsActive=1
        AND EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',SU.EmployeeID,'') AM WHERE AM.MenuID='20022'))
      AND (EXISTS (SELECT 1 FROM dbo.SysWebUserCompanyLocation CL
