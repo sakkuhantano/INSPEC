@@ -8577,7 +8577,7 @@ async function loadChiefApprovalBatchQueue() {
                 '<td class="text-end">' + escInspection(row.InspectionTypeCount || 0) + '</td>' +
                 '<td>' + escInspection(sent) + '</td>' +
                 '<td><span class="badge ' + (status === "APPROVED" ? "text-bg-success" : "text-bg-warning") + '">' + escInspection(status) + '</span>' +
-                (row.EmailStatus === "FAILED" ? '<div class="small text-danger">Email failed</div>' : '') + '</td></tr>';
+                (row.EmailStatus === "FAILED" ? '<div class="small text-danger">Report/email failed</div>' : '') + '</td></tr>';
         }).join("");
     } catch (error) {
         host.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-3">' +
@@ -8717,7 +8717,7 @@ async function createStandardApprovalBatch() {
         if (result.emailStatus === "SENT")
             showToast("Approval batch #" + result.approvalBatchId + " berhasil dikirim ke CHIEF.", "success");
         else if (result.emailStatus === "FAILED")
-            showToast("Batch #" + result.approvalBatchId + " berhasil dibuat, tetapi email gagal dikirim. CHIEF tetap dapat approve melalui program. " +
+            showToast("Batch #" + result.approvalBatchId + " berhasil dibuat, tetapi report/email gagal diproses. CHIEF tetap dapat approve melalui program. " +
                 (result.emailMessage || ""), "warning");
         else
             showToast("Approval batch #" + result.approvalBatchId + " berhasil dibuat. Email CHIEF tidak diaktifkan pada COMVAL.", "success");
