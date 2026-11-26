@@ -139,7 +139,7 @@ Chief role for STANDARD approval batches and BATCH / PARAM is resolved from PIP_
 | PSEC | CHIEF_SEC |
 | PHKP | CHIEF_HK |
 
-The Chief Description can contain multiple NIKs separated by semicolons, so an alternate / assistant can also receive approval. Every listed NIK must be an active employee in the matching Company and ProfitCenter.
+The Chief Description can contain multiple NIKs separated by semicolons, so an alternate / assistant can also receive approval. Every listed NIK must be an active employee in the matching Company, with INSPEC approval access for the Location.
 
 Workflow email switches are scoped per Company + Location; Description contains stage tokens:
 
