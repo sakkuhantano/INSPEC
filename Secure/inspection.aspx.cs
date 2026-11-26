@@ -2407,10 +2407,12 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
        I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
        I.IsApproved1,I.Approved1By,I.Approved1Date,
-       I.ApprovalRemark,I.ReasonVoid,
+       I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
-        CASE WHEN I.Status='DRAFT' AND ISNULL(I.ReasonVoid,'')<>'' THEN 'VOID'
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
+       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
+        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
