@@ -8569,7 +8569,10 @@ async function loadChiefApprovalBatchQueue() {
         host.innerHTML = rows.map(row => {
             const id = Number(row.ApprovalBatchID || 0);
             const status = String(row.BatchStatus || "PENDING").toUpperCase();
-            const sent = row.SentDate ? formatInspectionDateDMY(row.SentDate) : "-";
+            const emailStatus = String(row.EmailStatus || "").toUpperCase();
+            const sent = emailStatus === "NOT_REQUIRED" ? "Program only" :
+                (emailStatus === "SENT" && row.SentDate ? formatInspectionDateDMY(row.SentDate) :
+                    (emailStatus === "FAILED" ? "Failed" : "Pending"));
             return '<tr><td><button type="button" class="btn btn-link p-0 fw-semibold" data-chief-batch-id="' + id + '">#' + id + '</button></td>' +
                 '<td>' + escInspection(row.SectionID || "") + '</td>' +
                 '<td>' + escInspection(formatInspectionDateDMY(row.InspectionDate) || "") + '</td>' +
