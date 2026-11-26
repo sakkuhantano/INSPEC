@@ -150,7 +150,7 @@ BEGIN
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@V_OwnerEmployeeID;
     SELECT @V_ActorName=ISNULL(NULLIF(LTRIM(RTRIM(Name)),''),@p_ActorEmployeeID)
     FROM dbo.M_HRD_Employee WHERE EmployeeID=@p_ActorEmployeeID;
-    SELECT @V_SPVName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val))
+    SELECT @V_SPVName=ISNULL(STUFF((SELECT '; '+ISNULL(NULLIF(LTRIM(RTRIM(E.Name)),''),LTRIM(RTRIM(X.val)))
          FROM dbo.SplitStringConvertToTable(@V_SPVID,';') X
          LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=LTRIM(RTRIM(X.val))
          ORDER BY X.id FOR XML PATH(''),TYPE).value('.','NVARCHAR(MAX)'),1,2,''),@V_SPVID),
