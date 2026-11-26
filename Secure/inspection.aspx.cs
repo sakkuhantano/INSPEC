@@ -4015,7 +4015,7 @@ WHERE ISNULL(LTRIM(RTRIM(E.emailaddress)),'')<>''",
                 if (isScheduled)
                 {
                     sender = br.EQueryP(@"
-SELECT TOP 1 LTRIM(RTRIM(ISNULL(Description,''))) EmailAddress,
+SELECT LTRIM(RTRIM(ISNULL(Description,''))) EmailAddress,
        LTRIM(RTRIM(ISNULL(GroupDescription,''))) EmployeeName
 FROM dbo.SysWebCommonValue
 WHERE AppID='pip' AND CommonGroup='AutoEmail' AND IsDelete=0
@@ -4035,6 +4035,8 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
                             new SqlParameter("@CompanyID", companyId)
                         });
                 }
+                if (isScheduled && (sender == null || sender.Rows.Count != 1))
+                    throw new InvalidOperationException("AutoEmail harus memiliki tepat satu konfigurasi aktif untuk AppID=pip.");
                 if (sender != null && sender.Rows.Count > 0)
                 {
                     fromAddress = Convert.ToString(sender.Rows[0]["EmailAddress"]).Trim();
