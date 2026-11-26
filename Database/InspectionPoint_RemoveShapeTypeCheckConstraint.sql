@@ -1,3 +1,4 @@
+/* SUPERSEDED — DO NOT RUN. Database/inspection_point_svg_shape_migration.sql now creates the supported CIRCLE/RECTANGLE/PATH constraint directly. */
 /*
     Remove the ShapeType CHECK constraint from dbo.PIP_M_InspectionPoint.
 
