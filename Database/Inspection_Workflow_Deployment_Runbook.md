@@ -20,7 +20,7 @@ Run these scripts in SQL Server Management Studio against a **non-production INS
 9. Database/InspectionEmailApproval_Schema.sql
    - Creates/updates approval history and email outbox. It also permits the SKIPPED history action used when a Chief stage has no configured approver.
 10. Database/InspectionApproval_HeaderFields_Migration.sql
-    - Adds the three approval-stage actor/date fields. Review its existing-data assumptions and the obsolete IsApprovedFinal column removal before using it on any database containing important inspection history.
+    - Adds the three approval-stage actor/date fields. It retains legacy IsApprovedFinal columns for backward compatibility and does not drop historical approval data.
 11. Database/LightningInspection_Transaction_Migration.sql
 12. Database/InspectionLegacyApproval_Procedure_ColumnRename.sql
     - Recompiles the original Follow Up procedure after the IsApprove → IsApproved column rename.
