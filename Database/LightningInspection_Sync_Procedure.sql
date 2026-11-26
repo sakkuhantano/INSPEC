@@ -334,7 +334,7 @@ BEGIN
             @p_Photos=@V_EmptyPhotos,
             @p_Items=@V_EmptyItems,
             @p_ItemValues=@V_EmptyValues,
-            @p_InspectionMode='LIGHTNING';
+            @p_InspectionMode='BATCH';
 
         DECLARE @V_InspectionID BIGINT;
         SELECT @V_InspectionID=InspectionID
@@ -345,7 +345,7 @@ BEGIN
             RAISERROR('LIGHTNING header was not saved by the canonical Inspection sync procedure.',16,1);
 
         UPDATE dbo.PIP_T_Inspection
-        SET InspectionMode='LIGHTNING',Status='DONE',
+        SET InspectionMode='BATCH',Status='DONE',
             IsSubmitted=0,SubmittedBy='',SubmittedDate=CONVERT(DATETIME,'19000101',112),
             IsApproved=0,ApprovedBy='',ApprovedDate=CONVERT(DATETIME,'19000101',112),
             IsApproved1=0,Approved1By='',Approved1Date=CONVERT(DATETIME,'19000101',112),
@@ -357,9 +357,9 @@ BEGIN
         IF NOT EXISTS
         (
             SELECT 1 FROM dbo.PIP_T_Inspection
-            WHERE InspectionID=@V_InspectionID AND InspectionMode='LIGHTNING'
+            WHERE InspectionID=@V_InspectionID AND InspectionMode='BATCH'
         )
-            RAISERROR('The saved daily header is not configured as LIGHTNING mode.',16,1);
+            RAISERROR('The saved daily header is not configured as BATCH / INSPECT mode.',16,1);
 
         /* ScheduleTime is persisted on each PIP_T_InspectionPoint row below.
            The configured master schedule list is validated from @p_Schedules; no
