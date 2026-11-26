@@ -84,14 +84,14 @@ function isLightningInspectionType(type) {
     if (!type) return false;
     const mode = String(type.InspectionMode || "").trim().toUpperCase();
     const scheduleMode = String(type.ScheduleSelectionMode || "").trim().toUpperCase();
-    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "AT_INSPECTION");
+    return mode === "LIGHTNING" || (mode === "BATCH" && (scheduleMode === "INSPECT" || scheduleMode === "AT_INSPECTION"));
 }
 
 function isLightningInspectionRecord(record) {
     if (!record) return false;
     const mode = String(record.InspectionMode || "").trim().toUpperCase();
     const scheduleMode = String(record.ScheduleSelectionMode || "").trim().toUpperCase();
-    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "AT_INSPECTION");
+    return mode === "LIGHTNING" || (mode === "BATCH" && scheduleMode === "INSPECT");
 }
 
 function getInspectionPointSource(typeOrRecord) {
@@ -1868,7 +1868,7 @@ async function startNewInspection() {
     const requestedMode = String(type && type.InspectionMode || "STANDARD").trim().toUpperCase();
     const scheduleSelectionMode = String(type && type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
     const isLightning = requestedMode === "LIGHTNING" ||
-        (requestedMode === "BATCH" && scheduleSelectionMode === "AT_INSPECTION");
+        (requestedMode === "BATCH" && (scheduleSelectionMode === "INSPECT" || scheduleSelectionMode === "AT_INSPECTION"));
     const inspectionMode = isLightning ? "LIGHTNING" : (requestedMode === "BATCH" ? "BATCH" : "STANDARD");
     const inspectionPointMode = String(type && type.InspectionPointMode || "").trim().toUpperCase();
     const pointSource = getInspectionPointSource(type);
@@ -6307,7 +6307,7 @@ async function applyInspectionParameters() {
     const requestedMode = String(type.InspectionMode || "STANDARD").trim().toUpperCase();
     const scheduleSelectionMode = String(type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
     const isLightning = requestedMode === "LIGHTNING" ||
-        (requestedMode === "BATCH" && scheduleSelectionMode === "AT_INSPECTION");
+        (requestedMode === "BATCH" && scheduleSelectionMode === "INSPECT");
     const inspectionMode = isLightning ? "LIGHTNING" : (requestedMode === "BATCH" ? "BATCH" : "STANDARD");
     const inspectionPointMode = String(type.InspectionPointMode || "").trim().toUpperCase();
     const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
