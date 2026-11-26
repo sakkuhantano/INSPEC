@@ -97,19 +97,16 @@ WHERE SU.EmployeeID=@UserID
                     bool isLightningInspection = inspectionMode == "BATCH" && scheduleSelectionMode == "INSPECT";
                     bool isBatchInspection = inspectionMode == "BATCH";
                     string inspectionPointMode = TokenString(record, "InspectionPointMode").Trim().ToUpperInvariant();
-                    string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" : "MASTER";
-                    if (isLightningInspection) pointSource = "MASTER";
-                    if (inspectionPointMode == "" && isBatchInspection)
-                        inspectionPointMode = pointSource == "DYNAMIC" ? "DYNAMIC" : "MAP";
+                    bool isDynamicPoints = inspectionPointMode == "DYNAMIC";
                     if (inspectionMode != "STANDARD" && inspectionMode != "BATCH")
                         throw new Exception("InspectionMode must be STANDARD or BATCH.");
                     if (inspectionMode == "STANDARD" && inspectionPointMode != "")
                         throw new Exception("STANDARD inspection must not define InspectionPointMode.");
                     if (isBatchInspection && inspectionPointMode != "MAP" && inspectionPointMode != "DYNAMIC")
                         throw new Exception("BATCH inspection requires InspectionPointMode MAP or DYNAMIC.");
-                    if (pointSource != "MASTER" && pointSource != "DYNAMIC")
+                    if (inspectionPointMode != "MAP" && inspectionPointMode != "DYNAMIC")
                         throw new Exception("InspectionPointMode is invalid.");
-                    if (pointSource == "DYNAMIC" && (!isBatchInspection || scheduleSelectionMode != "PARAM"))
+                    if (isDynamicPoints && (!isBatchInspection || scheduleSelectionMode != "PARAM"))
                         throw new Exception("Dynamic inspection points require BATCH / PARAM.");
                     if (status != "DONE")
                         throw new Exception("Only completed inspections (DONE) can be synced to SQL Server.");
@@ -292,7 +289,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                             string pointScheduleTime = isLightningInspection ? TokenString(point, "ScheduleTime").Trim() : "";
                             string pointCode = Limit(TokenString(point, "PointCode").Trim(), 100);
                             string pointName = Limit(TokenString(point, "PointName").Trim(), 200);
-                            if (pointSource == "DYNAMIC")
+                            if (isDynamicPoints)
                             {
                                 dynamicPointSequence++;
                                 if (pointCode == "")
@@ -312,7 +309,7 @@ WHERE ClientInspectionID=@ClientInspectionID",
                                 if (pointCode == "") pointCode = "P" + masterPointID.ToString(CultureInfo.InvariantCulture);
                                 if (pointName == "") pointName = pointCode;
                             }
-                            bool duplicatePoint = pointSource == "DYNAMIC"
+                            bool duplicatePoint = isDynamicPoints
                                 ? (!dynamicPointCodes.Add(pointCode) || !dynamicPointNames.Add(pointName))
                                 : (isLightningInspection
                                     ? !schedulePointIDs.Add(pointScheduleTime + "|" + masterPointID.ToString(CultureInfo.InvariantCulture))
@@ -325,13 +322,13 @@ WHERE ClientInspectionID=@ClientInspectionID",
 
                             DataRow pointRow = batchPoints.NewRow();
                             pointRow["C1"] = clientPointID;
-                            pointRow["C2"] = pointSource == "MASTER" ? masterPointID.ToString(CultureInfo.InvariantCulture) : "";
+                            pointRow["C2"] = !isDynamicPoints ? masterPointID.ToString(CultureInfo.InvariantCulture) : "";
                             pointRow["C3"] = TokenString(point, "InspectionDateTime");
                             pointRow["C4"] = pointStatus;
                             pointRow["C5"] = DbString(Limit(TokenString(point, "AbnormalRemark").Trim(), 500));
                             pointRow["C6"] = TokenString(point, "PointCondition").ToUpperInvariant();
                             pointRow["C7"] = pointScheduleTime;
-                            pointRow["C8"] = pointSource;
+                            pointRow["C8"] = "";
                             pointRow["C9"] = pointCode;
                             pointRow["C10"] = pointName;
                             batchPoints.Rows.Add(pointRow);
@@ -727,7 +724,7 @@ ORDER BY F.IDItem,F.DisplayOrder",
                                             " tidak termasuk Master Checklist Version yang dipilih.");
                                 }
 
-                                if (pointSource == "DYNAMIC")
+                                if (isDynamicPoints)
                                 {
                                     string dynamicPointName = TokenString(versionPoint, "PointName").Trim();
                                     DataRow nopolTemplateItem = null;
@@ -975,7 +972,7 @@ ORDER BY F.IDItem,F.DisplayOrder",
 
                         if (isBatchInspection)
                         {
-                            if (pointSource == "MASTER")
+                            if (!isDynamicPoints)
                             {
                             syncStage = "validate batch map coverage";
                             JArray submittedPointArray = record["Points"] as JArray ?? new JArray();
@@ -3139,7 +3136,7 @@ new SqlParameter("@InspectionID", inspectionId) });
                 {
                     DataTable pointMasterRows = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
-       TP.PointSource,TP.PointCode,TP.PointName,
+       TP.PointCode,TP.PointName,
        TP.ScheduleTime, TP.InspectionDateTime, TP.Status, TP.AbnormalRemark,
        ISNULL(P.IsNormalAbnormalRequired,0) IsNormalAbnormalRequired,
        ISNULL(NULLIF(TP.PointCode,''),P.PointCode) AS ResolvedPointCode,
@@ -3216,8 +3213,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                         var pointData = new Dictionary<string, object> {
                             { "InspectionPointTransactionID", pointTransactionID },
                             { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
-                            { "PointSource", GF.GetString(pointRow["PointSource"]) },
-                            { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(returnedPointList.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
+                                        { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(returnedPointList.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
                             { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                             { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
                             { "Status", GF.GetString(pointRow["Status"]) },
@@ -3572,7 +3568,7 @@ new SqlParameter("@InspectionID", id) });
                     {
                         DataTable returnedPoints = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
-       TP.PointSource,TP.PointCode,TP.PointName,
+       TP.PointCode,TP.PointName,
        TP.ScheduleTime,TP.InspectionDateTime,TP.Status,TP.AbnormalRemark,ISNULL(P.IsNormalAbnormalRequired,0) IsNormalAbnormalRequired,
        P.PointObjectType,
        P.PointDescription,P.MapID,P.MapX,P.MapY,
@@ -3635,7 +3631,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             returnedPointList.Add(new Dictionary<string, object> {
                                 { "InspectionPointTransactionID", Convert.ToInt64(pointRow["InspectionPointTransactionID"]) },
                                 { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
-                                { "PointSource", GF.GetString(pointRow["PointSource"]) },
+                
                                 { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(returnedPointList.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
                                 { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                                 { "PointCode", GF.GetString(pointRow["PointCode"]) },
@@ -4179,7 +4175,7 @@ WHERE I.InspectionID=@InspectionID ORDER BY D.ScheduleTime",
                         schedules.Rows.Add("");
                     }
                     DataTable points = br.EQueryP(@"
-SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.PointSource,TP.Status,TP.AbnormalRemark,
+SELECT TP.ScheduleTime,TP.InspectionPointTransactionID,TP.Status,TP.AbnormalRemark,
        ISNULL(NULLIF(TP.PointCode,''),P.PointCode) PointCode,
        ISNULL(NULLIF(TP.PointName,''),P.PointName) PointName,
        P.MapID,P.MapX,P.MapY,P.DisplayOrder,
