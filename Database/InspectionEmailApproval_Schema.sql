@@ -3,13 +3,13 @@
     SQL Server 2008 compatible.
 
     Fixed workflow roles are intentionally represented as columns / StageCode values:
-      SPV, CHIEF_ENG, CHIEF_SEC.
+      SPV, CHIEF_ENG, CHIEF_SEC, CHIEF_HK.
     No role master table is introduced.
 
     Routing/configuration:
       - Stored in the existing dbo.SysWebCommonValue multi-setup table.
       - CommonGroup='EmailApproval'.
-      - Chief Engineering / Chief Security: <CompanyID><LocationID>;CHIEF_ENG / CHIEF_SEC.
+      - Chief Engineering / Chief Security / Chief Housekeeping: <CompanyID><LocationID>;CHIEF_ENG / CHIEF_SEC / CHIEF_HK.
       - SPV: <CompanyID><LocationID>;SPV;<SectionID>.
       - Workflow email flags: <CompanyID><LocationID>;STANDARD / BATCH;PARAM / BATCH;INSPECT.
       - Employee IDs are stored in Description; application resolves Name/emailaddress from M_HRD_Employee.
@@ -24,6 +24,7 @@ GO
    CommonGroup='EmailApproval':
      <CompanyID><LocationID>;CHIEF_ENG      -> Description=EmployeeID
      <CompanyID><LocationID>;CHIEF_SEC      -> Description=EmployeeID
+     <CompanyID><LocationID>;CHIEF_HK       -> Description=EmployeeID
      <CompanyID><LocationID>;SPV;<SectionID> -> Description=EmployeeID
      <CompanyID><LocationID>;STANDARD / BATCH;PARAM / BATCH;INSPECT -> per-stage [LEVEL][TRUE/FALSE] tokens
    No INSPEC-specific setup tables are required. */
@@ -52,6 +53,20 @@ BEGIN
             CHECK (ActionCode IN ('SUBMITTED', 'APPROVED', 'VOIDED', 'RESUBMITTED', 'SKIPPED'))
     );
 END;
+GO
+
+/* Permit the profit-center-derived Chief Housekeeping role in audit history. */
+IF EXISTS
+(
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionApprovalHistory')
+      AND name='CK_PIP_T_InspectionApprovalHistory_Stage'
+)
+    ALTER TABLE dbo.PIP_T_InspectionApprovalHistory DROP CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Stage;
+GO
+ALTER TABLE dbo.PIP_T_InspectionApprovalHistory WITH CHECK
+    ADD CONSTRAINT CK_PIP_T_InspectionApprovalHistory_Stage
+    CHECK (StageCode IN ('TECHNICIAN','SPV','CHIEF_ENG','CHIEF_SEC','CHIEF_HK'));
 GO
 
 /* SKIPPED records are emitted when a configured workflow role is absent.
