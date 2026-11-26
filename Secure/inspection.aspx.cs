@@ -3226,7 +3226,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                         var pointData = new Dictionary<string, object> {
                             { "InspectionPointTransactionID", pointTransactionID },
                             { "ClientPointID", GF.GetString(pointRow["ClientPointID"]) },
-                                        { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(returnedPointList.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
+                                        { "InspectionPointID", pointRow["InspectionPointID"] == DBNull.Value ? -(batchPointRows.Count + 1) : Convert.ToInt64(pointRow["InspectionPointID"]) },
                             { "ScheduleTime", GF.GetString(pointRow["ScheduleTime"]) },
                             { "InspectionDateTime", pointRow["InspectionDateTime"] == DBNull.Value ? "" : Convert.ToDateTime(pointRow["InspectionDateTime"]).ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture) },
                             { "Status", GF.GetString(pointRow["Status"]) },
