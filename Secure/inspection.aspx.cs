@@ -4423,7 +4423,7 @@ WHERE ApprovalBatchID=@BatchID",
                         br.EQueryP(@"
 UPDATE dbo.PIP_T_Inspection_ApprovalBatch
 SET EmailStatus='FAILED',EmailError=@Error,EmailAttemptCount=EmailAttemptCount+1,
-    LastEmailAttemptDate=GETDATE(),SentDate=ISNULL(SentDate,GETDATE())
+    LastEmailAttemptDate=GETDATE(),SentDate=NULL
 WHERE ApprovalBatchID=@BatchID",
                             new SqlParameter[] {
                                 new SqlParameter("@Error", emailMessage),
