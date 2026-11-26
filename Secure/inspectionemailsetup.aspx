@@ -138,6 +138,17 @@
           <div id="divChiefSecEmployees" runat="server" class="employee-badges"></div>
           <asp:Label ID="lblChiefSecName" runat="server" CssClass="form-text text-body-secondary" /><div class="form-text text-body-secondary">Bisa lebih dari satu NIK; boleh dikosongkan bila role ini tidak tersedia.</div>
         </div>
+        <div class="col-lg-6">
+          <label class="form-label fw-semibold">Chief Housekeeping <span class="badge text-bg-light">PHKP</span></label>
+          <div class="employee-search-row">
+            <asp:TextBox ID="txtChiefHK" runat="server" CssClass="form-control" ReadOnly="false" AutoPostBack="false" placeholder="Pilih employee via Search" />
+            <asp:LinkButton ID="lBtnChiefHK" runat="server" CausesValidation="false" CssClass="btn btn-sm CUS-btn-outline-PColor-1">Search</asp:LinkButton>
+          </div>
+          <asp:HiddenField ID="hidChiefHKEmployees" runat="server" />
+          <div id="divChiefHKEmployees" runat="server" class="employee-badges"></div>
+          <asp:Label ID="lblChiefHKName" runat="server" CssClass="form-text text-body-secondary" />
+          <div class="form-text text-body-secondary">Bisa lebih dari satu NIK; boleh dikosongkan bila role ini tidak tersedia.</div>
+        </div>
       </div>
     </div>
   </div>
