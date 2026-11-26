@@ -3130,8 +3130,9 @@ new SqlParameter("@InspectionID", inspectionId) });
                 var batchMapRows = new List<Dictionary<string, object>>();
                 var batchScheduleRows = new List<Dictionary<string, object>>();
                 string approvalInspectionMode = Convert.ToString(header.Rows[0]["InspectionMode"]);
-                if (String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) ||
-                    String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                string approvalScheduleMode = GF.GetString(header.Rows[0]["ScheduleSelectionMode"]).ToUpperInvariant();
+                bool isLightningApproval = String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase) && approvalScheduleMode == "INSPECT";
+                if (String.Equals(approvalInspectionMode, "BATCH", StringComparison.OrdinalIgnoreCase))
                 {
                     DataTable pointMasterRows = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID, TP.ClientPointID, TP.InspectionPointID,
@@ -3254,7 +3255,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                         }
                     }
 
-                    if (String.Equals(approvalInspectionMode, "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                    if (isLightningApproval)
                     {
                         DataTable scheduleRows = br.EQueryP(@"
 SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
@@ -3483,7 +3484,9 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.Status, I.Summary, I.OwnerEmployeeID,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2, I.UpdateDate,
-       ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode
+       ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
+       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 LEFT JOIN dbo.THD_M_GeneralInformation TG
@@ -3562,8 +3565,7 @@ new SqlParameter("@InspectionID", id) });
                         record[col.ColumnName] = header[col] == DBNull.Value ? null : header[col];
                     record["Items"] = grouped.Values.OrderBy(x => Convert.ToInt32(x["DisplayOrder"])).ToList();
 
-                    if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase) ||
-                        String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                    if (String.Equals(GF.GetString(header["InspectionMode"]), "BATCH", StringComparison.OrdinalIgnoreCase))
                     {
                         DataTable returnedPoints = br.EQueryP(@"
 SELECT TP.InspectionPointTransactionID,TP.ClientPointID,TP.InspectionPointID,
@@ -3653,7 +3655,7 @@ ORDER BY R.InspectionPointTransactionID,R.DisplayOrder,V.FieldName",
                             });
                         }
                         record["Points"] = returnedPointList;
-                        if (String.Equals(GF.GetString(header["InspectionMode"]), "LIGHTNING", StringComparison.OrdinalIgnoreCase))
+                        if (String.Equals(GF.GetString(header["ScheduleSelectionMode"]), "INSPECT", StringComparison.OrdinalIgnoreCase))
                         {
                             DataTable returnedSchedules = br.EQueryP(@"
 SELECT DISTINCT D.ScheduleTime,'SUBMITTED' ScheduleStatus,I.SubmittedDate
@@ -4141,7 +4143,8 @@ WHERE I.InspectionID=@InspectionID
                 {
                     DataTable header = br.EQueryP(@"
 SELECT I.CompanyID,I.LocationID,I.InspectionDate,I.InspectionNo,I.InspectionTypeName,I.InspectionTypeDetailName,
-       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) InspectionMode
+       I.OwnerEmployeeID,I.ScheduledTime,I.Summary,ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) InspectionMode,
+       ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
 WHERE I.InspectionID=@InspectionID",
@@ -4157,8 +4160,9 @@ WHERE I.InspectionID=@InspectionID",
                     DateTime inspectionDate = Convert.ToDateTime(header.Rows[0]["InspectionDate"]);
 
                     string inspectionMode = GF.GetString(header.Rows[0]["InspectionMode"]).ToUpperInvariant();
+                    bool isLightning = inspectionMode == "BATCH" && String.Equals(GF.GetString(header.Rows[0]["ScheduleSelectionMode"]), "INSPECT", StringComparison.OrdinalIgnoreCase);
                     DataTable schedules;
-                    if (inspectionMode == "LIGHTNING")
+                    if (isLightning)
                         schedules = br.EQueryP(@"
 SELECT DISTINCT D.ScheduleTime FROM dbo.PIP_T_Inspection I
 JOIN dbo.PIP_M_InspectionTypeDetail D ON D.InspectionTypeCode=I.InspectionTypeCode
@@ -4210,7 +4214,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                         new SqlParameter[] { new SqlParameter("@InspectionID", inspectionId) });
 
                     html.Append(baseHtml ?? "");
-                    html.Append("<hr/><h2>").Append(HttpUtility.HtmlEncode(inspectionMode == "LIGHTNING" ? "LIGHTNING DAILY INSPECTION REVIEW" :
+                    html.Append("<hr/><h2>").Append(HttpUtility.HtmlEncode(isLightning ? "LIGHTNING DAILY INSPECTION REVIEW" :
                         (inspectionMode == "BATCH" ? "BATCH INSPECTION REVIEW" : "STANDARD INSPECTION REVIEW"))).Append("</h2>");
                     html.Append("<p><strong>").Append(HttpUtility.HtmlEncode(inspectionNo))
                         .Append("</strong> · ").Append(HttpUtility.HtmlEncode(GF.GetString(header.Rows[0]["InspectionTypeName"])))
@@ -4267,7 +4271,7 @@ ORDER BY InspectionPointTransactionID,PhotoType,SeqNo",
                         DataRow[] schedulePoints = points.Select("ScheduleTime='" + scheduleTime.Replace("'", "''") + "'");
                         if (inspectionMode == "STANDARD") continue;
                         html.Append("<section style='margin:18px 0;padding:12px;border:1px solid #ddd;border-radius:8px'>")
-                            .Append("<h3>").Append(inspectionMode == "LIGHTNING" ? "Schedule " : "Batch · ")
+                            .Append("<h3>").Append(isLightning ? "Schedule " : "Batch · ")
                             .Append(HttpUtility.HtmlEncode(scheduleLabel)).Append("</h3>");
 
                         var mapGroups = schedulePoints.Where(row => row["MapID"] != DBNull.Value)
