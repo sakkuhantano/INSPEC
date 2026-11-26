@@ -3868,7 +3868,8 @@ ORDER BY F.IDItem,F.DisplayOrder,F.IDRepeat",
             using (var br = new WAL.BR.CF())
             {
                 members = br.EQueryP(@"
-SELECT I.InspectionID,I.InspectionTypeCode,I.InspectionTypeName
+SELECT I.InspectionID,I.InspectionTypeCode,I.InspectionTypeName,
+       B.ReportSnapshotFolder,B.EmailStatus
 FROM dbo.PIP_T_Inspection_ApprovalBatch B
 JOIN dbo.PIP_T_Inspection I ON I.ApprovalBatchID=B.ApprovalBatchID
 WHERE B.ApprovalBatchID=@BatchID
@@ -3883,9 +3884,14 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
             if (members == null || members.Rows.Count == 0)
                 throw new InvalidOperationException("Batch tidak memiliki inspeksi yang dapat dibuatkan report.");
 
-            string snapshotFolder = GetStandardBatchSnapshotFolder(approvalBatchId);
+            string storedSnapshotFolder = Convert.ToString(members.Rows[0]["ReportSnapshotFolder"]);
+            string snapshotFolder = String.IsNullOrWhiteSpace(storedSnapshotFolder)
+                ? GetStandardBatchSnapshotFolder(approvalBatchId) : storedSnapshotFolder;
+            bool emailAlreadySent = String.Equals(Convert.ToString(members.Rows[0]["EmailStatus"]), "SENT", StringComparison.OrdinalIgnoreCase);
             if (createSnapshot && !Directory.Exists(snapshotFolder))
                 Directory.CreateDirectory(snapshotFolder);
+            if (emailAlreadySent && !Directory.Exists(snapshotFolder))
+                throw new InvalidOperationException("Snapshot folder untuk report yang sudah dikirim tidak ditemukan. Report tidak akan digenerate ulang agar isi lampiran tetap konsisten.");
 
             var reports = new List<Dictionary<string, string>>();
             var groups = members.AsEnumerable()
@@ -3912,6 +3918,8 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
 
                 if (String.IsNullOrWhiteSpace(reportPath))
                 {
+                    if (emailAlreadySent)
+                        throw new InvalidOperationException("Snapshot XLSX untuk InspectionTypeCode " + typeCode + " tidak ditemukan. Report tidak akan digenerate ulang setelah email terkirim.");
                     DataTable selected = new DataTable();
                     selected.Columns.Add("InspectionID", typeof(long));
                     foreach (DataRow row in group)
