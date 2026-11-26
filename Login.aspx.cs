@@ -14,6 +14,9 @@ using System.Web.UI.HtmlControls;
 
 using System.Data.SqlClient;
 using System.Web.Services;
+using System.Security.Cryptography;
+using System.Text;
+using System.Web.Script.Serialization;
 
 namespace INSPEC
 {
@@ -22,6 +25,11 @@ namespace INSPEC
         #region Control Event
         protected void Page_Load(object sender, System.EventArgs e)
         {
+            if (String.Equals((Request.QueryString["task"] ?? String.Empty).Trim(), "scheduledChiefBatch", StringComparison.OrdinalIgnoreCase))
+            {
+                HandleScheduledChiefBatchRequest();
+                return;
+            }
             if (!IsPostBack)
             {
                 using (var ocf = new WAL.BR.CF())
@@ -48,6 +56,96 @@ namespace INSPEC
             //                                                "} " +
             //                                                "</script>");
             //}
+        }
+
+        private void HandleScheduledChiefBatchRequest()
+        {
+            HttpContext context = HttpContext.Current;
+            HttpResponse response = context.Response;
+            response.Clear();
+            response.ContentType = "application/json";
+            response.ContentEncoding = Encoding.UTF8;
+            response.TrySkipIisCustomErrors = true;
+            int statusCode = 200;
+            object payload;
+            try
+            {
+                ValidateScheduledChiefBatchRequest();
+                payload = new { success = true, result = Secure.inspection.RunScheduledChiefBatch() };
+            }
+            catch (HttpException ex)
+            {
+                statusCode = ex.GetHttpCode();
+                payload = new { success = false, message = ex.Message };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError("INSPEC scheduled Chief batch gateway: " + ex);
+                statusCode = 500;
+                payload = new { success = false, message = context.IsDebuggingEnabled ? ex.GetBaseException().Message : "Scheduled Chief Batch gagal. Periksa log aplikasi." };
+            }
+            JavaScriptSerializer serializer = new JavaScriptSerializer();
+            serializer.MaxJsonLength = Int32.MaxValue;
+            response.StatusCode = statusCode;
+            response.Write(serializer.Serialize(payload));
+            response.Flush();
+            response.SuppressContent = true;
+            context.ApplicationInstance.CompleteRequest();
+        }
+
+        private void ValidateScheduledChiefBatchRequest()
+        {
+            HttpRequest request = HttpContext.Current.Request;
+            if (!String.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+                throw new HttpException(405, "Scheduler endpoint hanya menerima HTTP POST.");
+            if (!request.IsSecureConnection)
+                throw new HttpException(403, "Scheduler endpoint wajib dipanggil melalui HTTPS.");
+            if (request.QueryString.Count != 1 || !String.Equals(request.QueryString["task"], "scheduledChiefBatch", StringComparison.Ordinal))
+                throw new HttpException(400, "Scheduler request tidak valid.");
+
+            string allowedIps = ConfigurationManager.AppSettings["INSPECSchedulerAllowedIPs"] ?? String.Empty;
+            if (!String.IsNullOrWhiteSpace(allowedIps))
+            {
+                string remoteIp = (request.UserHostAddress ?? String.Empty).Trim();
+                bool allowed = allowedIps.Split(new char[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(value => value.Trim()).Any(value => String.Equals(value, remoteIp, StringComparison.OrdinalIgnoreCase));
+                if (!allowed) throw new HttpException(403, "IP server scheduler tidak diizinkan.");
+            }
+
+            string secret = (ConfigurationManager.AppSettings["INSPECSchedulerHmacSecret"] ?? String.Empty).Trim();
+            if (secret.Length < 32) throw new HttpException(503, "Secret scheduler belum dikonfigurasi pada aplikasi INSPEC.");
+            string timestampText = (request.Headers["X-INSPEC-Timestamp"] ?? String.Empty).Trim();
+            string nonce = (request.Headers["X-INSPEC-Nonce"] ?? String.Empty).Trim();
+            string signature = (request.Headers["X-INSPEC-Signature"] ?? String.Empty).Trim();
+            long timestamp;
+            if (!Int64.TryParse(timestampText, NumberStyles.None, CultureInfo.InvariantCulture, out timestamp) ||
+                nonce.Length != 32 || !nonce.All(Uri.IsHexDigit) || signature.Length != 64 || !signature.All(Uri.IsHexDigit))
+                throw new HttpException(401, "Scheduler signature tidak valid.");
+
+            DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            long now = (long)(DateTime.UtcNow - epoch).TotalSeconds;
+            if (Math.Abs(now - timestamp) > 300) throw new HttpException(401, "Timestamp scheduler sudah kedaluwarsa.");
+            string canonical = "POST\n" + request.Url.AbsolutePath + "?task=scheduledChiefBatch\n" + timestampText + "\n" + nonce.ToLowerInvariant();
+            string expected;
+            using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
+                expected = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(canonical))).Replace("-", "").ToLowerInvariant();
+            if (!FixedTimeEquals(expected, signature.ToLowerInvariant())) throw new HttpException(401, "Scheduler signature tidak valid.");
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable registered = br.EQueryP("spUTL_INSPEC_Scheduler_RegisterNonce",
+                    new SqlParameter[] { new SqlParameter("@p_Nonce", nonce.ToLowerInvariant()) }, true, true);
+                if (registered == null || registered.Rows.Count == 0 || !Convert.ToBoolean(registered.Rows[0]["Accepted"]))
+                    throw new HttpException(401, "Scheduler request sudah pernah digunakan (replay ditolak).");
+            }
+        }
+
+        private static bool FixedTimeEquals(string left, string right)
+        {
+            if (left == null || right == null || left.Length != right.Length) return false;
+            int difference = 0;
+            for (int i = 0; i < left.Length; i++) difference |= left[i] ^ right[i];
+            return difference == 0;
         }
 
         #endregion
