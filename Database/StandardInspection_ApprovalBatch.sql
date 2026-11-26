@@ -386,8 +386,7 @@ BEGIN
                    OR CONVERT(VARCHAR(10),I.InspectionDate,120)<>CONVERT(VARCHAR(10),@InspectionDate,120)
                    OR ISNULL(I.IsActive,1)=0 OR I.Status<>'DONE'
                    OR ISNULL(I.IsSubmitted,0)=0 OR ISNULL(I.IsApproved,0)=0
-                   OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD'
-
+                   OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD')
         )
             RAISERROR('Batch membership or SPV approval state is inconsistent. No approval was recorded.',16,1);
 
