@@ -36,15 +36,19 @@ IF COL_LENGTH('dbo.PIP_M_InspectionPoint','StrokeWidth') IS NULL
             CONSTRAINT DF_PIP_M_InspectionPoint_StrokeWidth DEFAULT (1.50);
 GO
 
-IF NOT EXISTS
+IF EXISTS
 (
     SELECT 1 FROM sys.check_constraints
     WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionPoint')
       AND name='CK_PIP_M_InspectionPoint_ShapeType'
 )
     ALTER TABLE dbo.PIP_M_InspectionPoint
-        ADD CONSTRAINT CK_PIP_M_InspectionPoint_ShapeType
-        CHECK (ShapeType IN ('CIRCLE','PATH'));
+        DROP CONSTRAINT CK_PIP_M_InspectionPoint_ShapeType;
+GO
+
+ALTER TABLE dbo.PIP_M_InspectionPoint
+    ADD CONSTRAINT CK_PIP_M_InspectionPoint_ShapeType
+    CHECK (ShapeType IN ('CIRCLE','RECTANGLE','PATH'));
 GO
 
 IF NOT EXISTS
