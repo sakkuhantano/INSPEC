@@ -53,6 +53,23 @@ BEGIN
     SET @PresentationConfigAdded = 1;
 END;
 
+/* Drop the old selector/combination checks before changing AT_INSPECTION
+   to INSPECT. Existing databases may still have the previous CHECK definition,
+   which would reject the normalized value before the new CHECK is installed. */
+IF EXISTS (
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name='CK_PIP_M_InspectionType_ScheduleSelectionMode'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT CK_PIP_M_InspectionType_ScheduleSelectionMode;
+
+IF EXISTS (
+    SELECT 1 FROM sys.check_constraints
+    WHERE parent_object_id=OBJECT_ID('dbo.PIP_M_InspectionType')
+      AND name='CK_PIP_M_InspectionType_PresentationCombination'
+)
+    ALTER TABLE dbo.PIP_M_InspectionType DROP CONSTRAINT CK_PIP_M_InspectionType_PresentationCombination;
+
 /* Normalize the renamed selector before enforcing the new CHECK constraint.
    This also covers databases where the configuration columns already existed
    from an earlier deployment and still contain AT_INSPECTION. */
