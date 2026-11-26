@@ -1,3 +1,4 @@
+/* OPTIONAL LEGACY DATA MIGRATION ONLY. Do not run for a fresh COMVAL setup; the current per-company workflow values are configured in SysWebCommonValue. */
 /*
   INSPEC - Move approval routing from temporary dedicated setup tables
   into dbo.SysWebCommonValue, then remove those temporary tables.
