@@ -1,3 +1,4 @@
+/* OBSOLETE MIGRATION — DO NOT RUN. Superseded by Database/InspectionWorkflow_ComVal_Migration.sql; this file adds deprecated PointSource / ApprovalWorkflowCode fields. */
 /*
     Inspection presentation / point-source configuration.
     SQL Server 2008 compatible and safe to run more than once.
