@@ -1,4 +1,6 @@
 using System;
+using System.Configuration;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -124,7 +126,7 @@ namespace INSPEC
 
             DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             long now = (long)(DateTime.UtcNow - epoch).TotalSeconds;
-            if (Math.Abs(now - timestamp) > 300) throw new HttpException(401, "Timestamp scheduler sudah kedaluwarsa.");
+            if (timestamp < now - 300 || timestamp > now + 300) throw new HttpException(401, "Timestamp scheduler sudah kedaluwarsa.");
             string canonical = "POST\n" + request.Url.AbsolutePath + "?task=scheduledChiefBatch\n" + timestampText + "\n" + nonce.ToLowerInvariant();
             string expected;
             using (HMACSHA256 hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret)))
