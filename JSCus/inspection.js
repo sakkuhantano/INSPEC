@@ -8610,10 +8610,11 @@ async function openChiefApprovalBatchDetail(batchId) {
             ? " • Approved by " + (currentChiefApprovalBatch.ApprovedByName || currentChiefApprovalBatch.ApprovedBy || "") +
               " at " + (formatInspectionDateDMY(currentChiefApprovalBatch.ApprovedDate) || "")
             : "";
+        const reportTypeCount = new Set(chiefApprovalBatchRows.map(row => String(row.InspectionTypeCode || ""))).size;
         document.getElementById("chiefBatchDetailSubtitle").textContent =
             "Section " + (currentChiefApprovalBatch.SectionID || "") + " • " +
             formatInspectionDateDMY(currentChiefApprovalBatch.InspectionDate) + " • " +
-            chiefApprovalBatchRows.length + " inspections • " +
+            chiefApprovalBatchRows.length + " inspections • " + reportTypeCount + " report types • " +
             (currentChiefApprovalBatch.ChiefRole || "CHIEF") + approvedInfo;
         document.getElementById("btnApproveChiefBatch").classList.toggle("d-none", status !== "PENDING");
         document.getElementById("chiefBatchReports").innerHTML = "";
