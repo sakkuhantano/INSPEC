@@ -2831,7 +2831,9 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
             string companyId, string locationId, string remark, string approvalToken)
         {
             RequireSameOriginPost();
-            employeeId = GFC.RequireMenuEmployee("20022");
+            employeeId = GFC.CurrentEmployeeID();
+            bool isAdministrator = IsInspectionAdministrator(employeeId);
+            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Approver identity is required.");
