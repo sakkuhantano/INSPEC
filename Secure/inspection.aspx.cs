@@ -2411,7 +2411,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
         CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
-             WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'SENT TO CHIEF'
+             WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'BATCHED'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
              WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
