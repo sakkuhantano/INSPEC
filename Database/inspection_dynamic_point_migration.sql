@@ -48,7 +48,7 @@ END;
 IF EXISTS
 (
     SELECT 1 FROM dbo.PIP_T_InspectionPoint
-    GROUP BY InspectionID,PointCode
+    GROUP BY InspectionID,ScheduleTime,PointCode
     HAVING COUNT(1)>1
 )
 BEGIN
