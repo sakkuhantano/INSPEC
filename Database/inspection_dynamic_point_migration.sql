@@ -27,30 +27,44 @@ IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointName') IS NULL
 IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointSource') IS NOT NULL
     EXEC('UPDATE dbo.PIP_T_InspectionPoint SET InspectionPointID=NULL WHERE UPPER(LTRIM(RTRIM(ISNULL(PointSource,''MASTER''))))=''DYNAMIC'';');
 
-UPDATE T
-SET T.PointCode=ISNULL(NULLIF(T.PointCode,''),M.PointCode),
-    T.PointName=ISNULL(NULLIF(T.PointName,''),M.PointName)
-FROM dbo.PIP_T_InspectionPoint T
-LEFT JOIN dbo.PIP_M_InspectionPoint M ON M.InspectionPointID=T.InspectionPointID;
+/* Compile the statements that reference the newly-added columns only after
+   the ADD COLUMN statements have executed. This is required by SQL Server 2008. */
+DECLARE @MissingSnapshotPointData BIT, @DuplicateSnapshotPointCode BIT;
 
-IF EXISTS
-(
-    SELECT 1 FROM dbo.PIP_T_InspectionPoint
-    WHERE PointCode IS NULL OR LTRIM(RTRIM(PointCode))=''
-       OR PointName IS NULL OR LTRIM(RTRIM(PointName))=''
-)
+EXEC sp_executesql
+    N'
+    UPDATE T
+    SET T.PointCode=ISNULL(NULLIF(T.PointCode,''''),M.PointCode),
+        T.PointName=ISNULL(NULLIF(T.PointName,''''),M.PointName)
+    FROM dbo.PIP_T_InspectionPoint T
+    LEFT JOIN dbo.PIP_M_InspectionPoint M ON M.InspectionPointID=T.InspectionPointID;
+
+    SET @MissingData =
+        CASE WHEN EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_InspectionPoint
+            WHERE PointCode IS NULL OR LTRIM(RTRIM(PointCode))=''''
+               OR PointName IS NULL OR LTRIM(RTRIM(PointName))=''''
+        ) THEN 1 ELSE 0 END;
+
+    SET @DuplicateCode =
+        CASE WHEN EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_InspectionPoint
+            GROUP BY InspectionID,ScheduleTime,PointCode
+            HAVING COUNT(1)>1
+        ) THEN 1 ELSE 0 END;',
+    N'@MissingData BIT OUTPUT, @DuplicateCode BIT OUTPUT',
+    @MissingSnapshotPointData OUTPUT, @DuplicateSnapshotPointCode OUTPUT;
+
+IF @MissingSnapshotPointData=1
 BEGIN
     ROLLBACK TRANSACTION;
     RAISERROR('Cannot backfill PointCode/PointName for every inspection point snapshot. Resolve missing point data before rerunning.',16,1);
     RETURN;
 END;
 
-IF EXISTS
-(
-    SELECT 1 FROM dbo.PIP_T_InspectionPoint
-    GROUP BY InspectionID,ScheduleTime,PointCode
-    HAVING COUNT(1)>1
-)
+IF @DuplicateSnapshotPointCode=1
 BEGIN
     ROLLBACK TRANSACTION;
     RAISERROR('Duplicate PointCode exists within an Inspection. Resolve duplicates before creating the unique point-code index.',16,1);
@@ -143,18 +157,22 @@ IF COL_LENGTH('dbo.PIP_T_InspectionPoint','PointSource') IS NOT NULL
     ALTER TABLE dbo.PIP_T_InspectionPoint DROP COLUMN PointSource;
 
 ALTER TABLE dbo.PIP_T_InspectionPoint ALTER COLUMN InspectionPointID BIGINT NULL;
-ALTER TABLE dbo.PIP_T_InspectionPoint ALTER COLUMN PointCode VARCHAR(100) NOT NULL;
-ALTER TABLE dbo.PIP_T_InspectionPoint ALTER COLUMN PointName VARCHAR(200) NOT NULL;
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.check_constraints
-    WHERE parent_object_id=OBJECT_ID('dbo.PIP_T_InspectionPoint')
-      AND name='CK_PIP_T_InspectionPoint_Code'
-)
-    ALTER TABLE dbo.PIP_T_InspectionPoint WITH CHECK
-        ADD CONSTRAINT CK_PIP_T_InspectionPoint_Code
-        CHECK (LEN(LTRIM(RTRIM(PointCode)))>0 AND LEN(LTRIM(RTRIM(PointName)))>0);
+/* These column-dependent DDL statements are deferred until runtime so SQL
+   Server can see the columns added earlier in this same migration batch. */
+EXEC sp_executesql N'
+    ALTER TABLE dbo.PIP_T_InspectionPoint ALTER COLUMN PointCode VARCHAR(100) NOT NULL;
+    ALTER TABLE dbo.PIP_T_InspectionPoint ALTER COLUMN PointName VARCHAR(200) NOT NULL;
+
+    IF NOT EXISTS
+    (
+        SELECT 1 FROM sys.check_constraints
+        WHERE parent_object_id=OBJECT_ID(''dbo.PIP_T_InspectionPoint'')
+          AND name=''CK_PIP_T_InspectionPoint_Code''
+    )
+        ALTER TABLE dbo.PIP_T_InspectionPoint WITH CHECK
+            ADD CONSTRAINT CK_PIP_T_InspectionPoint_Code
+            CHECK (LEN(LTRIM(RTRIM(PointCode)))>0 AND LEN(LTRIM(RTRIM(PointName)))>0);';
 
 IF EXISTS
 (
@@ -164,12 +182,13 @@ IF EXISTS
 )
     DROP INDEX UX_PIP_T_InspectionPoint_Code ON dbo.PIP_T_InspectionPoint;
 
-CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Schedule_Master
-    ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,InspectionPointID)
-    WHERE InspectionPointID IS NOT NULL;
+EXEC sp_executesql N'
+    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Schedule_Master
+        ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,InspectionPointID)
+        WHERE InspectionPointID IS NOT NULL;
 
-CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Code
-    ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,PointCode);
+    CREATE UNIQUE NONCLUSTERED INDEX UX_PIP_T_InspectionPoint_Code
+        ON dbo.PIP_T_InspectionPoint(InspectionID,ScheduleTime,PointCode);';
 
 COMMIT TRANSACTION;
 GO
