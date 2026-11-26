@@ -323,12 +323,35 @@ namespace INSPEC.Secure
             lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Approver: " + chiefEngName;
             lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Approver: " + chiefSecName;
         }
+        private static bool HasWorkflowEmailFlag(string description, string level)
+        {
+            if (String.IsNullOrWhiteSpace(description) || String.IsNullOrWhiteSpace(level)) return false;
+            string token = "[" + level.Trim().ToUpperInvariant() + "][TRUE]";
+            return description.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string BuildWorkflowEmailDescription(params string[] levelFlags)
+        {
+            return String.Join(";", levelFlags ?? new string[0]);
+        }
+
+        private static string WorkflowEmailToken(string level, bool enabled)
+        {
+            return "[" + level.Trim().ToUpperInvariant() + "][" + (enabled ? "TRUE" : "FALSE") + "]";
+        }
+
         private void LoadEmailModeSettings()
         {
-            chkEmailStandard.Checked = GetCommonValue(Scope + ";EMAIL;STANDARD") == "1";
-            chkEmailBatch.Checked = GetCommonValue(Scope + ";EMAIL;BATCH") == "1";
-            string v = GetCommonValue(Scope + ";EMAIL;LIGHTNING");
-            chkEmailLightning.Checked = v == "" || v == "1";
+            string standard = GetCommonValue(Scope + ";STANDARD");
+            string batchParam = GetCommonValue(Scope + ";BATCH;PARAM");
+            string batchInspect = GetCommonValue(Scope + ";BATCH;INSPECT");
+
+            chkStandardSPV.Checked = HasWorkflowEmailFlag(standard, "SPV");
+            chkBatchParamSPV.Checked = HasWorkflowEmailFlag(batchParam, "SPV");
+            chkBatchParamChief.Checked = HasWorkflowEmailFlag(batchParam, "CHIEF");
+            chkBatchInspectSPV.Checked = HasWorkflowEmailFlag(batchInspect, "SPV");
+            chkBatchInspectChiefSec.Checked = HasWorkflowEmailFlag(batchInspect, "CHIEF_SEC");
+            chkBatchInspectChiefEng.Checked = HasWorkflowEmailFlag(batchInspect, "CHIEF_ENG");
             chkEmailWO.Checked = GetCommonValue(Scope + ";EMAIL;WO") == "1";
         }
         private void SaveCommonValue(string id, string val)
@@ -402,9 +425,17 @@ namespace INSPEC.Secure
 
                 SaveCommonValue(Scope + ";CHIEF_ENG", ce);
                 SaveCommonValue(Scope + ";CHIEF_SEC", chiefSec);
-                SaveCommonValue(Scope + ";EMAIL;STANDARD", chkEmailStandard.Checked ? "1" : "0");
-                SaveCommonValue(Scope + ";EMAIL;BATCH", chkEmailBatch.Checked ? "1" : "0");
-                SaveCommonValue(Scope + ";EMAIL;LIGHTNING", chkEmailLightning.Checked ? "1" : "0");
+                SaveCommonValue(Scope + ";STANDARD",
+                    BuildWorkflowEmailDescription(WorkflowEmailToken("SPV", chkStandardSPV.Checked)));
+                SaveCommonValue(Scope + ";BATCH;PARAM",
+                    BuildWorkflowEmailDescription(
+                        WorkflowEmailToken("SPV", chkBatchParamSPV.Checked),
+                        WorkflowEmailToken("CHIEF", chkBatchParamChief.Checked)));
+                SaveCommonValue(Scope + ";BATCH;INSPECT",
+                    BuildWorkflowEmailDescription(
+                        WorkflowEmailToken("SPV", chkBatchInspectSPV.Checked),
+                        WorkflowEmailToken("CHIEF_SEC", chkBatchInspectChiefSec.Checked),
+                        WorkflowEmailToken("CHIEF_ENG", chkBatchInspectChiefEng.Checked)));
                 SaveCommonValue(Scope + ";EMAIL;WO", chkEmailWO.Checked ? "1" : "0");
 
                 if (pnlSPVEditor.Visible)
