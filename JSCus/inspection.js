@@ -2403,7 +2403,7 @@ function applyInspectionPhotoRequirement(record) {
 }
 
 function getInspectionLightningWorkflowStatus(record) {
-    if (!record || String(record.InspectionMode || "").toUpperCase() !== "LIGHTNING") return "DRAFT";
+    if (!isLightningInspectionRecord(record)) return "DRAFT";
     if (isInspectionFlagEnabled(record.IsApproved2, false)) return "ACKNOWLEDGE 2";
     if (isInspectionFlagEnabled(record.IsApproved1, false)) return "ACKNOWLEDGE 1";
     if (isInspectionFlagEnabled(record.IsApproved, false)) return "VERIFIED";
@@ -2423,7 +2423,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
     const inspectionMode = recordMode || String(typeMaster && typeMaster.InspectionMode || "").trim().toUpperCase();
 
     const isBatchTwoStage = !!record && inspectionMode === "BATCH" &&
-        String(record.ApprovalWorkflowCode || (typeMaster && typeMaster.ApprovalWorkflowCode) || "").toUpperCase() === "SPV_CHIEF_ENG";
+        String(record.ApprovalWorkflowCode || (typeMaster && typeMaster.ApprovalWorkflowCode) || "").toUpperCase() === "SPV_CHIEF_SEC";
     if (!record || (inspectionMode !== "LIGHTNING" && !isBatchTwoStage)) {
         host.innerHTML = "";
         panel.classList.add("d-none");
@@ -2449,7 +2449,7 @@ function renderInspectionApprovalWorkflowCards(record, modeOverride) {
           date: record.SubmittedDate, color: "primary" },
         { label: "VERIFIED BY", role: "Supervisor (SPV)", flag: "IsApproved",
           by: record.ApprovedByName || record.ApprovedBy, date: record.ApprovedDate, color: "warning" },
-        { label: "ACKNOWLEDGED BY", role: "Chief Engineering", flag: "IsApproved1",
+        { label: "ACKNOWLEDGED BY", role: "Chief Security", flag: "IsApproved1",
           by: record.Approved1ByName || record.Approved1By, date: record.Approved1Date, color: "success" }
     ] : [
         { label: "CHECKED BY", role: "Technician / Submit", flag: "IsSubmitted",
@@ -4293,7 +4293,7 @@ async function openInspectionPointNavigatorTarget(pointId, openChecklist) {
 
     const sameDetail = String(baseRecord.InspectionTypeDetailCode || "").toUpperCase() ===
         String(state.detail.InspectionTypeDetailCode || "").toUpperCase();
-    const sameBatchSchedule = String(baseRecord.InspectionMode || "").toUpperCase() !== "LIGHTNING" &&
+    const sameBatchSchedule = !isLightningInspectionRecord(baseRecord) &&
         String(baseRecord.ScheduledTime || "") !== String(state.scheduleTime || "");
     const sameTransaction = sameDetail && !sameBatchSchedule;
     if (!sameTransaction) {
@@ -4784,7 +4784,7 @@ function showInspectionBatchValidationReport(errors) {
         const error = inspectionBatchValidationState.errors[index];
         if (!error) return;
         inspectionBatchValidationState.index = index;
-        if (error.ScheduleTime && String(currentInspectionRecord && currentInspectionRecord.InspectionMode || "").toUpperCase() === "LIGHTNING") {
+        if (error.ScheduleTime && isLightningInspectionRecord(currentInspectionRecord)) {
             activeInspectionScheduleTime = String(error.ScheduleTime);
             currentInspectionRecord.ActiveScheduleTime = activeInspectionScheduleTime;
             if (typeof window.setInspectionActiveScheduleTime === "function")
@@ -7411,7 +7411,7 @@ function updateInspectionApprovalCounts(counts) {
 function isInspectionApprovalApproved(row) {
     if (!row) return false;
     // Lightning has two approval stages; it is final only after Chief Engineering.
-    const value = String(row.InspectionMode || "").toUpperCase() === "LIGHTNING" ? row.IsApproved2 : row.IsApproved;
+    const value = isLightningInspectionRecord(row) ? row.IsApproved2 : row.IsApproved;
     return value === true || value === 1 || String(value).toLowerCase() === "true" || String(value) === "1";
 }
 
@@ -7904,7 +7904,7 @@ async function executeInspectionApprovalAction(ids, action, remark) {
     try {
         const lightningIds = ids.filter(id => {
             const row = inspectionApprovalRows.find(item => Number(item.InspectionID) === Number(id));
-            return row && String(row.InspectionMode || "").toUpperCase() === "LIGHTNING";
+            return row && isLightningInspectionRecord(row);
         });
         const standardIds = ids.filter(id => lightningIds.indexOf(id) < 0);
         const lightningResults = [];
@@ -8432,7 +8432,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const start = formatInspectionClock(h.StartDateTime);
         const end = formatInspectionClock(h.EndDateTime);
         const scheduleSummary = (result.schedules || []).map(item => String(item.ScheduleTime || item)).join(", ");
-        const scheduledLabel = String(h.InspectionMode || "").toUpperCase() === "LIGHTNING"
+        const scheduledLabel = isLightningInspectionRecord(h)
             ? (scheduleSummary || h.ScheduledTime || "") : (h.ScheduledTime || "");
         document.getElementById("inspectionApprovalDetailSubtitle").textContent =
             (h.InspectionNo || ("Inspection #" + h.InspectionID)) + " • " +
