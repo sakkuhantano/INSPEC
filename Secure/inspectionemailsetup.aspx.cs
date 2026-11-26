@@ -117,6 +117,20 @@ namespace INSPEC.Secure
                 true,
                 c + ";PSEC" + GF.Str + ";" + GF.Str 
             ) + ";return false;";
+            lBtnChiefHK.Attributes["onclick"] = GF.JSOpenSearchList_2(
+                "330",
+                "Chief Housekeeping",
+                txtChiefHK.ClientID,
+                false,
+                c + ";PHKP" + GF.Str + ";" + GF.Str
+            ) + ";return false;";
+            txtChiefHK.Attributes["onkeydown"] = GF.JSOpenSearchList_2(
+                "330",
+                "Chief Housekeeping",
+                txtChiefHK.ClientID,
+                true,
+                c + ";PHKP" + GF.Str + ";" + GF.Str
+            ) + ";return false;";
             lBtnSPV.Enabled = !String.IsNullOrWhiteSpace(ddlSection.SelectedValue);
             lBtnSPV.Attributes["onclick"] = GF.JSOpenSearchList_2(
                 "330",
@@ -207,6 +221,7 @@ namespace INSPEC.Secure
                 string filter;
                 if (role == "PENG") filter = "ProfitCenterNo='PENG'";
                 else if (role == "PSEC") filter = "ProfitCenterNo='PSEC'";
+                else if (role == "PHKP") filter = "ProfitCenterNo='PHKP'";
                 else if (role == "SPV") filter = "ProfitCenterNo IN (SELECT ProfitCenterNo FROM dbo.PIP_M_Section WHERE SectionID=@S)";
                 else throw new HttpException(400, "Invalid employee role.");
 
@@ -306,6 +321,12 @@ namespace INSPEC.Secure
             catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
             PrepareEmployeeSearch();
         }
+        protected void txtChiefHK_TextChanged(object sender, EventArgs e)
+        {
+            try { ValidateEmployeeList(txtChiefHK, lblChiefHKName, "ProfitCenterNo='PHKP'", "", false); }
+            catch (Exception ex) { GF.MsgBox(this, ex.Message, "BS-5.3.0"); }
+            PrepareEmployeeSearch();
+        }
         protected void txtSPV_TextChanged(object sender, EventArgs e)
         {
             try { ValidateEmployeeList(txtSPV, lblSPVName, "ProfitCenterNo IN (SELECT ProfitCenterNo FROM dbo.PIP_M_Section WHERE SectionID=@S)", ddlSection.SelectedValue, true); }
@@ -316,12 +337,16 @@ namespace INSPEC.Secure
         {
             hidChiefEngEmployees.Value = GetCommonValue(Scope + ";CHIEF_ENG");
             hidChiefSecEmployees.Value = GetCommonValue(Scope + ";CHIEF_SEC");
+            hidChiefHKEmployees.Value = GetCommonValue(Scope + ";CHIEF_HK");
             txtChiefEng.Text = "";
             txtChiefSec.Text = "";
+            txtChiefHK.Text = "";
             string chiefEngName = GetEmployeeNames(hidChiefEngEmployees.Value, "ProfitCenterNo='PENG'", "");
             string chiefSecName = GetEmployeeNames(hidChiefSecEmployees.Value, "ProfitCenterNo='PSEC'", "");
+            string chiefHKName = GetEmployeeNames(hidChiefHKEmployees.Value, "ProfitCenterNo='PHKP'", "");
             lblChiefEngName.Text = String.IsNullOrWhiteSpace(chiefEngName) ? "" : "Approver: " + chiefEngName;
             lblChiefSecName.Text = String.IsNullOrWhiteSpace(chiefSecName) ? "" : "Approver: " + chiefSecName;
+            lblChiefHKName.Text = String.IsNullOrWhiteSpace(chiefHKName) ? "" : "Approver: " + chiefHKName;
         }
         private static bool HasWorkflowEmailFlag(string description, string level)
         {
@@ -376,24 +401,31 @@ namespace INSPEC.Secure
                 EnsureAdministrator();
                 string ce = NormalizeEmployeeList(hidChiefEngEmployees.Value);
                 string chiefSec = NormalizeEmployeeList(hidChiefSecEmployees.Value);
+                string chiefHK = NormalizeEmployeeList(hidChiefHKEmployees.Value);
                 /* Chief roles are optional. Approval procedures skip an unconfigured
                    Chief stage and stamp the skipped approval field with the prior
                    actual approver's EmployeeID. */
-                if (ce != "" && chiefSec != "")
-                {
-                    var ceSet = new System.Collections.Generic.HashSet<string>(ce.Split(';'), StringComparer.OrdinalIgnoreCase);
-                    foreach (string id in chiefSec.Split(';'))
-                        if (ceSet.Contains(id))
-                            throw new InvalidOperationException("NIK tidak boleh terdaftar sebagai Chief Engineering dan Chief Security sekaligus: " + id);
-                }
+                var chiefRoleOwners = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                string[][] chiefRoleLists = new string[][] { ce.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries), chiefSec.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries), chiefHK.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries) };
+                string[] chiefRoleNames = new string[] { "Chief Engineering", "Chief Security", "Chief Housekeeping" };
+                for (int roleIndex = 0; roleIndex < chiefRoleLists.Length; roleIndex++)
+                    foreach (string chiefId in chiefRoleLists[roleIndex])
+                    {
+                        string normalizedId = chiefId.Trim();
+                        string existingRole;
+                        if (chiefRoleOwners.TryGetValue(normalizedId, out existingRole))
+                            throw new InvalidOperationException("NIK tidak boleh terdaftar pada dua role Chief sekaligus: " + normalizedId + " (" + existingRole + " / " + chiefRoleNames[roleIndex] + ").");
+                        chiefRoleOwners[normalizedId] = chiefRoleNames[roleIndex];
+                    }
 
                 using (var br = new WAL.BR.CF())
                 {
                     br.EQueryP(
-                        @"IF NULLIF(LTRIM(RTRIM(@E)),'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@E,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG')) RAISERROR('Setiap Chief Engineering yang diisi harus employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF NULLIF(LTRIM(RTRIM(@S)),'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@S,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC')) RAISERROR('Setiap Chief Security yang diisi harus employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1);",
+                        @"IF NULLIF(LTRIM(RTRIM(@E)),'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@E,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PENG')) RAISERROR('Setiap Chief Engineering yang diisi harus employee aktif Company ini dengan ProfitCenterNo PENG.',16,1); IF NULLIF(LTRIM(RTRIM(@S)),'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@S,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PSEC')) RAISERROR('Setiap Chief Security yang diisi harus employee aktif Company ini dengan ProfitCenterNo PSEC.',16,1); IF NULLIF(LTRIM(RTRIM(@H)),'') IS NOT NULL AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@H,';') X WHERE NOT EXISTS (SELECT 1 FROM dbo.M_HRD_Employee WHERE EmployeeID=LTRIM(RTRIM(X.val)) AND CompanyID=@C AND ISNULL(TerminationDate,'')='' AND ProfitCenterNo='PHKP')) RAISERROR('Setiap Chief Housekeeping yang diisi harus employee aktif Company ini dengan ProfitCenterNo PHKP.',16,1);",
                         new SqlParameter[] {
                             new SqlParameter("@E", ce),
                             new SqlParameter("@S", chiefSec),
+                            new SqlParameter("@H", chiefHK),
                             new SqlParameter("@C", Master.Mn_CompanyID)
                         }
                     );
@@ -428,6 +460,7 @@ namespace INSPEC.Secure
 
                 SaveCommonValue(Scope + ";CHIEF_ENG", ce);
                 SaveCommonValue(Scope + ";CHIEF_SEC", chiefSec);
+                SaveCommonValue(Scope + ";CHIEF_HK", chiefHK);
                 SaveCommonValue(Scope + ";STANDARD",
                     BuildWorkflowEmailDescription(WorkflowEmailToken("SPV", chkStandardSPV.Checked)));
                 SaveCommonValue(Scope + ";BATCH;PARAM",
