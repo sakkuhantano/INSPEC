@@ -93,8 +93,9 @@ WHERE SU.EmployeeID=@UserID
                     string inspectionMode = submittedMode == "LIGHTNING" ? "BATCH" : submittedMode;
                     if (inspectionMode == "") inspectionMode = "STANDARD";
                     string scheduleSelectionMode = TokenString(record, "ScheduleSelectionMode").Trim().ToUpperInvariant();
+                    if (scheduleSelectionMode == "AT_INSPECTION") scheduleSelectionMode = "INSPECT";
                     if (scheduleSelectionMode == "") scheduleSelectionMode = "PARAM";
-                    bool isLightningInspection = inspectionMode == "BATCH" && (scheduleSelectionMode == "INSPECT" || scheduleSelectionMode == "AT_INSPECTION");
+                    bool isLightningInspection = inspectionMode == "BATCH" && scheduleSelectionMode == "INSPECT";
                     bool isBatchInspection = inspectionMode == "BATCH";
                     string inspectionPointMode = TokenString(record, "InspectionPointMode").Trim().ToUpperInvariant();
                     string pointSource = inspectionPointMode == "DYNAMIC" ? "DYNAMIC" :
@@ -504,6 +505,7 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                         string serverInspectionMode = Convert.ToString(typeConfigRow["InspectionMode"]).Trim().ToUpperInvariant();
                         string serverInspectionPointMode = Convert.ToString(typeConfigRow["InspectionPointMode"]).Trim().ToUpperInvariant();
                         string serverScheduleSelectionMode = Convert.ToString(typeConfigRow["ScheduleSelectionMode"]).Trim().ToUpperInvariant();
+                        if (serverScheduleSelectionMode == "AT_INSPECTION") serverScheduleSelectionMode = "INSPECT";
 
                         if (serverInspectionMode != inspectionMode)
                             throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
@@ -518,7 +520,7 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                         if (serverInspectionPointMode == "DYNAMIC" &&
                             (serverInspectionMode != "BATCH" || serverScheduleSelectionMode != "PARAM"))
                             throw new Exception("Dynamic Motor harus menggunakan BATCH / DYNAMIC / PARAM.");
-                        if ((serverScheduleSelectionMode == "INSPECT" || serverScheduleSelectionMode == "AT_INSPECTION") &&
+                        if (serverScheduleSelectionMode == "INSPECT" &&
                             (serverInspectionMode != "BATCH" || serverInspectionPointMode != "MAP"))
                             throw new Exception("Lightning daily harus menggunakan BATCH / MAP / INSPECT.");
 
