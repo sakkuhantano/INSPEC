@@ -2402,7 +2402,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
        ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
        I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
-       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,
+       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,I.ApprovalBatchID,
        I.IsApproved1,I.Approved1By,I.Approved1Date,
        I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
@@ -2411,6 +2411,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
         CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
+             WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'SENT TO CHIEF'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
              WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
@@ -3029,6 +3030,18 @@ WHERE I.InspectionID=@InspectionID
                        WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
                          AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(I.SectionID)
                          AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                   ))
+               OR (ISNULL(IT.InspectionMode,'STANDARD')='STANDARD'
+                   AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NOT NULL
+                   AND EXISTS (
+                       SELECT 1 FROM dbo.PIP_T_Inspection_ApprovalBatch B
+                       WHERE B.ApprovalBatchID=I.ApprovalBatchID AND B.BatchStatus IN ('PENDING','APPROVED')
+                         AND EXISTS (
+                             SELECT 1 FROM dbo.SysWebCommonValue C
+                             WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                               AND C.ID=CONVERT(VARCHAR(30),B.CompanyID)+CONVERT(VARCHAR(30),B.LocationID)+';'+dbo.fnINSPEC_ChiefRoleForSection(B.SectionID)
+                               AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                         )
                    ))
                OR ((ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='INSPECT') AND (
                    EXISTS (
