@@ -51,9 +51,21 @@ SET InspectionPointMode =
 /* Lightning is a BATCH inspection; INSPECT distinguishes its daily scope. */
 UPDATE dbo.PIP_M_InspectionType
 SET InspectionMode='BATCH',
+    InspectionLayoutCode='MAP',
+    PointSource='MASTER',
     InspectionPointMode='MAP',
     ScheduleSelectionMode='INSPECT'
 WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='LIGHTNING';
+
+/* A previous partial migration may already have changed InspectionMode to
+   BATCH while leaving its old selector value. Normalize the whole inspect
+   profile so the new presentation-combination CHECK can be trusted. */
+UPDATE dbo.PIP_M_InspectionType
+SET InspectionLayoutCode='MAP',
+    PointSource='MASTER',
+    InspectionPointMode='MAP'
+WHERE UPPER(LTRIM(RTRIM(ISNULL(InspectionMode,''))))='BATCH'
+  AND UPPER(LTRIM(RTRIM(ISNULL(ScheduleSelectionMode,''))))='INSPECT';
 
 /* Normalize any remaining legacy schedule selector values, including records
    already stored as BATCH but still carrying AT_INSPECTION. */
