@@ -2464,625 +2464,90 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
 
                 DataTable rows = br.EQueryP(@"
                 DECLARE @Today DATETIME;
-                SET @Today = CONVERT(DATETIME, CONVERT(VARCHAR(10), GETDATE(), 120), 120);
+SET @Today=CONVERT(DATETIME,CONVERT(VARCHAR(10),GETDATE(),120),120);
+DECLARE @Tomorrow DATETIME;
+SET @Tomorrow=DATEADD(DAY,1,@Today);
 
-                DECLARE @IsSPV BIT;
-                DECLARE @IsChiefEngineer BIT;
-                DECLARE @IsChiefSecurity BIT;
-
-                SET @IsSPV = CASE WHEN EXISTS
-                (
-                    SELECT 1 FROM dbo.SysWebCommonValue C
-                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                      AND LEFT(C.ID, LEN(CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';SPV;'))
-                          = CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';SPV;'
-                      AND EXISTS
-                      (
-                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                      )
-                ) THEN 1 ELSE 0 END;
-
-                SET @IsChiefEngineer = CASE WHEN EXISTS
-                (
-                    SELECT 1 FROM dbo.SysWebCommonValue C
-                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                      AND C.ID=CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';CHIEF_ENG'
-                      AND EXISTS
-                      (
-                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                      )
-                ) THEN 1 ELSE 0 END;
-
-                SET @IsChiefSecurity = CASE WHEN EXISTS
-                (
-                    SELECT 1 FROM dbo.SysWebCommonValue C
-                    WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                      AND C.ID=CONVERT(VARCHAR(30), @CompanyID) + CONVERT(VARCHAR(30), @LocationID) + ';CHIEF_SEC'
-                      AND EXISTS
-                      (
-                          SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                          WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                      )
-                ) THEN 1 ELSE 0 END;
-
-                ;WITH InspectionData AS
-                (
-                    SELECT
-                        I.InspectionID,
-                        I.Status,
-                        I.IsSubmitted,
-                        I.IsApproved,
-                        I.IsApproved1,
-                        I.IsApproved2,
-                        I.IsApproved1,
-                        I.Approved1Date,
-                        I.ApprovedDate,
-                        I.Approved1Date,
-                        I.Approved2Date,
-                        I.ReasonVoid,
-                        I.ReasonVoid1,
-                        I.ReasonVoid2,
-                        I.CompanyID,
-                        I.LocationID,
-                        I.SectionID,
-                        ISNULL(NULLIF(I.InspectionMode, ''), ISNULL(NULLIF(IT.InspectionMode, ''), 'STANDARD')) AS InspectionMode,
-                        ISNULL(NULLIF(IT.ApprovalWorkflowCode, ''), 'STANDARD') AS ApprovalWorkflowCode
-                    FROM dbo.PIP_T_Inspection I
-                    LEFT JOIN dbo.PIP_M_InspectionType IT
-                        ON IT.InspectionTypeCode = I.InspectionTypeCode
-                    WHERE I.CompanyID = @CompanyID
-                      AND I.LocationID = @LocationID
-                      AND ISNULL(I.IsActive, 1) = 1
-
-                      AND EXISTS
-                      (
-                          SELECT 1
-                          FROM dbo.PIP_M_CheckListWOPM T
-                          WHERE T.IDTemplate = I.IDTemplate
-                            AND T.SectionID = I.SectionID
-                            AND ISNULL(T.TemplateType, 'W') = 'I'
-                            AND
-                            (
-                                ISNULL(T.CompanyScope, 'S') = 'A'
-                                OR
-                                (
-                                    ';' + ISNULL(T.CompanyLocationList, '') + ';'
-                                    LIKE '%;' + I.CompanyID + I.LocationID + ';%'
-                                )
-                            )
-                            AND
-                            (
-                                ISNULL(T.EmployeeList, '') = ''
-                                OR
-                                (
-                                    ';' + ISNULL(T.EmployeeList, '') + ';'
-                                    LIKE '%;' + I.OwnerEmployeeID + ';%'
-                                )
-                            )
-                      )
-
-                      AND EXISTS
-                      (
-                          SELECT 1
-                          FROM dbo.SysWebUser SU
-                          WHERE SU.EmployeeID = @EmployeeID
-                            AND SU.IsActive = 1
-
-                            AND (
-                                @IsAdministrator=1
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.F_SelectALLMenuAuthorization(
-                                        'inspecfo', @EmployeeID, ''
-                                    ) AM
-                                    WHERE AM.MenuID = '20022'
-                                )
-                            )
-
-                            AND
-                            (
-                                @IsAdministrator=1
-                                OR (
-                                EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';SPV;' + I.SectionID
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';CHIEF_ENG'
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebCommonValue C
-                                    WHERE C.AppID = 'INSPEC'
-                                      AND C.CommonGroup = 'EmailApproval'
-                                      AND C.IsDelete = 0
-                                      AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                      AND C.ID =
-                                          CONVERT(VARCHAR(30), I.CompanyID) +
-                                          CONVERT(VARCHAR(30), I.LocationID) +
-                                          ';CHIEF_SEC'
-                                )
-                            ))
-
-                            AND
-                            (
-                                EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.SysWebUserCompanyLocation C
-                                    WHERE C.UserID = SU.EmployeeID
-                                      AND C.AppID = 'pip'
-                                      AND C.CompanyID = I.CompanyID
-                                      AND C.LocationID = I.LocationID
-                                )
-                                OR EXISTS
-                                (
-                                    SELECT 1
-                                    FROM dbo.F_SelectOneLogin(
-                                        'pip', SU.EmployeeID, ''
-                                    ) L
-                                    WHERE L.CompanyID = I.CompanyID
-                                      AND L.LocationID = I.LocationID
-                                )
-                            )
-                      )
-                ),
-                ApprovalFlags AS
-                (
-                    SELECT
-                        I.*,
-                        CASE
-                            WHEN @IsAdministrator=1
-                                 AND I.InspectionMode<>'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted,0)=1
-                                 AND ISNULL(I.IsApproved,0)=0
-                            THEN 1
-
-                            WHEN @IsAdministrator=1 AND I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 1
-                                 AND ISNULL(I.IsApproved1, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_SEC'
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode = 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved1, 0) = 1
-                                 AND ISNULL(I.IsApproved2, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';CHIEF_ENG'
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                 AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                                       AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG'
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
-                                 )
-                            THEN 1
-
-                            WHEN I.InspectionMode <> 'LIGHTNING'
-                                 AND ISNULL(I.IsSubmitted, 0) = 1
-                                 AND ISNULL(I.IsApproved, 0) = 0
-                                 AND EXISTS
-                                 (
-                                     SELECT 1 FROM dbo.SysWebCommonValue C
-                                     WHERE C.AppID = 'INSPEC' AND C.CommonGroup = 'EmailApproval' AND C.IsDelete = 0
-                                       AND C.ID = CONVERT(VARCHAR(30), I.CompanyID) + CONVERT(VARCHAR(30), I.LocationID) + ';SPV;' + I.SectionID
-                                       AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X WHERE LTRIM(RTRIM(X.val)) = @EmployeeID)
-                                 )
-                            THEN 1
-
-                            ELSE 0
-                        END AS CanApprove
-                    FROM InspectionData I
-                )
-
-                , DashboardFlags AS
-                (
-                    SELECT
-                        CASE
-                            WHEN Status = 'DONE'
-                             AND ISNULL(IsSubmitted, 0) = 1
-                             AND
-                             (
-                                 /* SA administrator: count every approval stage in all sections
-                                    within the selected company/location. */
-                                 (
-                                     @IsAdministrator = 1
-                                     AND
-                                     (
-                                         (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApproved1,0)=1
-                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today)
-                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                       WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
-                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                         OR
-                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApproved,0)=1
-                                          AND ApprovedDate >= @Today AND ApprovedDate < DATEADD(DAY,1,@Today))
-                                         OR
-                                         (InspectionMode = 'LIGHTNING'
-                                          AND
-                                          (
-                                              (ISNULL(IsApproved, 0) = 1
-                                               AND ApprovedDate >= @Today
-                                               AND ApprovedDate < DATEADD(DAY, 1, @Today))
-                                              OR
-                                              (ISNULL(IsApproved1, 0) = 1
-                                               AND Approved1Date >= @Today
-                                               AND Approved1Date < DATEADD(DAY, 1, @Today)
-                                               AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                           WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                             AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED'
-                                                             AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                              OR
-                                              (ISNULL(IsApproved2, 0) = 1
-                                               AND Approved2Date >= @Today
-                                               AND Approved2Date < DATEADD(DAY, 1, @Today)
-                                               AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                           WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                             AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
-                                                             AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                          ))
-                                     )
-                                 )
-                                 OR
-                                 /* Chief Engineer: PENG profit center. For Lightning, the Chief Engineer
-                                    stage is IsApproved2 / Approved2Date. */
-                                 (
-                                     @IsChiefEngineer = 1
-                                     AND
-                                     (
-                                         AF.ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                         OR EXISTS
-                                         (
-                                             SELECT 1 FROM dbo.PIP_M_Section S
-                                             WHERE S.SectionID = AF.SectionID
-                                               AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
-                                         )
-                                     )
-                                     AND
-                                     (
-                                         (InspectionMode <> 'LIGHTNING' AND ApprovalWorkflowCode='SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApproved1,0)=1
-                                          AND Approved1Date >= @Today AND Approved1Date < DATEADD(DAY,1,@Today)
-                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                       WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
-                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                         OR
-                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApproved,0)=1
-                                          AND ApprovedDate >= @Today AND ApprovedDate < DATEADD(DAY,1,@Today))
-                                         OR
-                                         (InspectionMode = 'LIGHTNING'
-                                           AND ISNULL(IsApproved2, 0) = 1
-                                           AND Approved2Date >= @Today
-                                           AND Approved2Date < DATEADD(DAY, 1, @Today)
-                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                       WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                         AND H.StageCode='CHIEF_ENG' AND H.ActionCode='APPROVED'
-                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                     )
-                                 )
-                                 OR
-                                 /* Chief Security: own sections for standard inspections;
-                                    all company/location Lightning inspections at stage 1. */
-                                 (
-                                     @IsChiefSecurity = 1
-                                     AND
-                                     (
-                                         (InspectionMode <> 'LIGHTNING' AND ISNULL(ApprovalWorkflowCode,'STANDARD')<>'SPV_CHIEF_ENG'
-                                          AND ISNULL(IsApproved, 0) = 1
-                                          AND ApprovedDate >= @Today
-                                          AND ApprovedDate < DATEADD(DAY, 1, @Today)
-                                          AND EXISTS
-                                          (
-                                              SELECT 1
-                                              FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
-                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
-                                          ))
-                                         OR
-                                         (InspectionMode = 'LIGHTNING'
-                                           AND ISNULL(IsApproved1, 0) = 1
-                                           AND Approved1Date >= @Today
-                                           AND Approved1Date < DATEADD(DAY, 1, @Today)
-                                           AND EXISTS (SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                       WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                         AND H.StageCode='CHIEF_SEC' AND H.ActionCode='APPROVED'
-                                                         AND H.ActionDate >= @Today AND H.ActionDate < DATEADD(DAY,1,@Today)))
-                                     )
-                                 )
-                                 OR
-                                 /* SPV: only sections explicitly assigned to this SPV. */
-                                 (
-                                     @IsSPV = 1
-                                     AND ISNULL(IsApproved, 0) = 1
-                                     AND ApprovedDate >= @Today
-                                     AND ApprovedDate < DATEADD(DAY, 1, @Today)
-                                     AND EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.SysWebCommonValue C
-                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
-                                                  + CONVERT(VARCHAR(30), AF.LocationID)
-                                                  + ';SPV;' + AF.SectionID
-                                           AND EXISTS
-                                           (
-                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                                           )
-                                     )
-                                 )
-                             )
-                            THEN 1 ELSE 0
-                        END AS ApprovedTodayFlag,
-                        CASE
-                            WHEN AF.Status = 'DRAFT'
-                             AND ISNULL(AF.IsSubmitted, 0) = 0
-                             AND ISNULL(AF.IsApproved, 0) = 0
-                             AND ISNULL(AF.IsApproved1, 0) = 0
-                             AND ISNULL(AF.IsApproved2, 0) = 0
-                             AND
-                             (
-                                 ISNULL(AF.ReasonVoid, '') <> ''
-                                 OR ISNULL(AF.ReasonVoid1, '') <> ''
-                                 OR ISNULL(AF.ReasonVoid2, '') <> ''
-                             )
-                             AND
-                             (
-                                 (
-                                     @IsAdministrator = 1
-                                     AND
-                                     (
-                                         (ISNULL(AF.ReasonVoid, '') <> ''
-                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                         OR
-                                         (ISNULL(AF.ReasonVoid1, '') <> ''
-                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE ((H.EntityType='INSPECTION' AND H.StageCode='CHIEF_ENG') OR (H.EntityType='LIGHTNING' AND H.StageCode='CHIEF_SEC'))
-                                                   AND H.EntityID=AF.InspectionID AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                         OR
-                                         (ISNULL(AF.ReasonVoid2, '') <> ''
-                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     @IsSPV = 1
-                                     AND ISNULL(AF.ReasonVoid, '') <> ''
-                                     AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                          OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             ))
-                                     AND EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.SysWebCommonValue C
-                                         WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-                                           AND C.ID=CONVERT(VARCHAR(30), AF.CompanyID)
-                                                  + CONVERT(VARCHAR(30), AF.LocationID)
-                                                  + ';SPV;' + AF.SectionID
-                                           AND EXISTS
-                                           (
-                                               SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description, ';') X
-                                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID
-                                           )
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     @IsChiefEngineer = 1
-                                     AND EXISTS
-                                     (
-                                         SELECT 1 FROM dbo.PIP_M_Section S
-                                         WHERE S.SectionID = AF.SectionID
-                                           AND UPPER(ISNULL(S.ProfitCenterNo, '')) = 'PENG'
-                                     )
-                                     AND
-                                     (
-                                         (AF.InspectionMode <> 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid, '') <> ''
-                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                         OR
-                                         (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid2, '') <> ''
-                                          AND (ISNULL(AF.Approved2Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='CHIEF_ENG' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                     )
-                                 )
-                                 OR
-                                 (
-                                     @IsChiefSecurity = 1
-                                     AND
-                                     (
-                                         (AF.InspectionMode <> 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid, '') <> ''
-                                          AND (ISNULL(AF.ApprovedDate, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='INSPECTION' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='SPV' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             ))
-                                          AND EXISTS
-                                          (
-                                              SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList, ';') X
-                                              WHERE UPPER(LTRIM(RTRIM(X.val))) = UPPER(AF.SectionID)
-                                          ))
-                                         OR
-                                         (AF.InspectionMode = 'LIGHTNING'
-                                          AND ISNULL(AF.ReasonVoid1, '') <> ''
-                                          AND (ISNULL(AF.Approved1Date, CONVERT(DATETIME,'19000101',112)) > CONVERT(DATETIME,'19000101',112)
-                                               OR EXISTS
-                                             (
-                                                 SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory H
-                                                 WHERE H.EntityType='LIGHTNING' AND H.EntityID=AF.InspectionID
-                                                   AND H.StageCode='CHIEF_SEC' AND H.ActionCode='VOIDED'
-                                                   AND NOT EXISTS
-                                                   (
-                                                       SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory R
-                                                       WHERE R.EntityType=H.EntityType AND R.EntityID=H.EntityID
-                                                         AND R.ActionCode IN ('SUBMITTED','RESUBMITTED')
-                                                         AND R.ActionDate > H.ActionDate
-                                                   )
-                                             )))
-                                     )
-                                 )
-                             )
-                            THEN 1 ELSE 0
-                        END AS VoidCountFlag
-                    FROM ApprovalFlags AF
-                )
-                SELECT
-                    ISNULL(SUM(ApprovedTodayFlag), 0) AS ApprovedToday,
-                    CASE
-                        WHEN @IsAdministrator = 1
-                          OR EXISTS
-                          (
-                              SELECT 1
-                              FROM dbo.F_SelectALLMenuAuthorization('inspecfo', @EmployeeID, '') AM
-                              WHERE AM.MenuID='20022'
-                          )
-                        THEN 1 ELSE 0
-                    END AS ShowApprovalCards,
-                    ISNULL(SUM(VoidCountFlag), 0) AS VoidCount
-                FROM DashboardFlags;
-                ",
+;WITH ScopeInspection AS
+(
+    SELECT I.InspectionID,I.CompanyID,I.LocationID,I.SectionID,I.Status,
+           I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
+           IT.InspectionMode,IT.ScheduleSelectionMode,
+           dbo.fnINSPEC_ChiefRoleForSection(I.SectionID) AS ChiefRole
+    FROM dbo.PIP_T_Inspection I
+    LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+    WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID
+      AND ISNULL(I.IsActive,1)=1
+      AND EXISTS
+      (
+          SELECT 1 FROM dbo.PIP_M_CheckListWOPM T
+          WHERE T.IDTemplate=I.IDTemplate AND T.SectionID=I.SectionID
+            AND ISNULL(T.TemplateType,'W')='I'
+            AND (ISNULL(T.CompanyScope,'S')='A'
+                 OR (';'+ISNULL(T.CompanyLocationList,'')+';' LIKE '%;'+I.CompanyID+I.LocationID+';%'))
+            AND (ISNULL(T.EmployeeList,'')=''
+                 OR (';'+ISNULL(T.EmployeeList,'')+';' LIKE '%;'+I.OwnerEmployeeID+';%'))
+      )
+),
+ApprovalEvents AS
+(
+    SELECT H.EntityType,H.EntityID,H.StageCode,H.ActionCode,H.ActionDate,I.Status,
+           CASE
+             WHEN @IsAdministrator=1 THEN 1
+             WHEN H.StageCode='SPV' AND EXISTS
+             (
+                 SELECT 1 FROM dbo.SysWebCommonValue C
+                 WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                   AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID
+                   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                               WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+             ) THEN 1
+             WHEN H.EntityType='INSPECTION'
+                  AND ISNULL(I.InspectionMode,'STANDARD')='BATCH'
+                  AND ISNULL(I.ScheduleSelectionMode,'PARAM')='PARAM'
+                  AND H.StageCode=I.ChiefRole
+                  AND EXISTS
+                  (
+                      SELECT 1 FROM dbo.SysWebCommonValue C
+                      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+I.ChiefRole
+                        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                  ) THEN 1
+             WHEN H.EntityType='LIGHTNING' AND H.StageCode IN ('CHIEF_SEC','CHIEF_ENG')
+                  AND EXISTS
+                  (
+                      SELECT 1 FROM dbo.SysWebCommonValue C
+                      WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
+                        AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';'+H.StageCode
+                        AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
+                                    WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
+                  ) THEN 1
+             ELSE 0
+           END AS IsVisible
+    FROM dbo.PIP_T_InspectionApprovalHistory H
+    JOIN ScopeInspection I ON I.InspectionID=H.EntityID
+    WHERE H.EntityType IN ('INSPECTION','LIGHTNING')
+      AND H.ActionCode IN ('APPROVED','VOIDED')
+)
+SELECT
+    COUNT(DISTINCT CASE WHEN ActionCode='APPROVED' AND ActionDate>=@Today AND ActionDate<@Tomorrow
+                        AND IsVisible=1
+                        THEN EntityType+':'+CONVERT(VARCHAR(20),EntityID) END) AS ApprovedToday,
+    CASE WHEN @IsAdministrator=1
+           OR EXISTS (SELECT 1 FROM dbo.F_SelectALLMenuAuthorization('inspecfo',@EmployeeID,'') AM WHERE AM.MenuID='20022')
+         THEN 1 ELSE 0 END AS ShowApprovalCards,
+    COUNT(DISTINCT CASE WHEN ActionCode='VOIDED' AND IsVisible=1 AND Status='DRAFT'
+                        AND NOT EXISTS
+                        (
+                            SELECT 1 FROM dbo.PIP_T_InspectionApprovalHistory X
+                            WHERE X.EntityType=ApprovalEvents.EntityType
+                              AND X.EntityID=ApprovalEvents.EntityID
+                              AND X.ActionCode IN ('SUBMITTED','RESUBMITTED')
+                              AND X.ActionDate>ApprovalEvents.ActionDate
+                        )
+                        THEN EntityType+':'+CONVERT(VARCHAR(20),EntityID) END) AS VoidCount
+FROM ApprovalEvents;",
                                 new SqlParameter[]
                 {
                     new SqlParameter("@EmployeeID", employeeId),
