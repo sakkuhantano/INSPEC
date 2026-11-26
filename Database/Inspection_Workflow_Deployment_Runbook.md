@@ -5,7 +5,10 @@
 Run the scripts below in SQL Server Management Studio against the target INSPEC database. Do not deploy the application code before the required procedures and tables exist.
 
 1. Existing prerequisites (only if not already applied):
-   - `InspectionWorkflow_ComVal_Migration.sql` (consolidates point mode and seeds BATCH workflow ComVal rules)
+   - `InspectionWorkflow_ComVal_Migration.sql` (consolidates InspectionPointMode and renames schedule mode to INSPECT)
+   - `InspectionEmailApproval_CommonValue_Migration.sql` (only when temporary routing tables still exist)
+   - `InspectionApproval_ComValWorkflow_Migration.sql` (converts existing EMAIL mode flags into per-level workflow flags)
+   - `InspectionApproval_ComVal_EmailHelper.sql` (creates the per-level ComVal email flag lookup function)
    - `inspection_mode_migration.sql`
    - `inspection_batch_transaction_migration.sql`
    - `InspectionMapGroup_Migration.sql`
@@ -26,9 +29,9 @@ The schema script creates approval history and email outbox. Workflow state is s
 
 ## Application configuration
 
-- Configure approval routing from Inspection Master -> Inspection Email & Approval Routing. The page writes only to `dbo.SysWebCommonValue`.
-- Routing key format: `<CompanyID><LocationID>;CHIEF_ENG` / `CHIEF_SEC` with EmployeeID in Description; SPV uses `<CompanyID><LocationID>;SPV;<SectionID>`.
-- Email switches use `<CompanyID><LocationID>;EMAIL;STANDARD`, `BATCH`, and `LIGHTNING`, with Description `1` or `0`. Defaults are STANDARD=OFF, BATCH=OFF, LIGHTNING=ON.
+- Configure approval routing from Inspection Master -> Inspection Email & Approval Routing. Chief employee mappings, Section SPV mappings, and workflow email flags are stored in `dbo.SysWebCommonValue`.
+- Approver mappings remain `<CompanyID><LocationID>;CHIEF_ENG` / `;CHIEF_SEC` with EmployeeID in Description; SPV uses `<CompanyID><LocationID>;SPV;<SectionID>`. Workflow flags use the three keys above and one `[LEVEL][TRUE/FALSE]` token per stage.
+- Workflow email flags are stored per Company + Location: `<CompanyID><LocationID>;STANDARD`, `...;BATCH;PARAM`, and `...;BATCH;INSPECT`. Description tokens use `[LEVEL][TRUE/FALSE]`; a missing workflow ComVal or missing level token means email OFF for that level.
 - If a development database already contains the temporary `PIP_M_InspectionEmailSetup*` tables from the earlier patch, run `InspectionEmailApproval_CommonValue_Migration.sql` once before removing those tables.
 - Set `smtpFrom` in `Web.config` to a sender address authorized by the SMTP relay.
 - Current relay defaults remain `smtp.varnion.net:25`, SSL disabled, and blank credentials. Confirm the relay policy and configure credentials if required.
@@ -38,7 +41,7 @@ The schema script creates approval history and email outbox. Workflow state is s
 
 ## Workflow behavior
 
-- Standard / Batch: Technician submits -> configured Section SPV verifies -> Chief Engineering acknowledges for types configured with `SPV_CHIEF_ENG`. Car Park and Motor use this 3-card workflow (`CHECKED BY` -> `VERIFIED BY` -> `ACKNOWLEDGED BY`).
+- STANDARD: Technician submits -> configured Section SPV verifies. BATCH / PARAM: Technician submits -> configured Section SPV verifies -> Chief Engineering acknowledges. BATCH / INSPECT: Technician submits -> SPV verifies -> Chief Security acknowledges -> Chief Engineering acknowledges. Each stage's email notification is independently controlled by its ComVal `[LEVEL][TRUE/FALSE]` token.
 - Lightning: one daily InspectionID contains all 61 configured lamp points across the configured maps -> Technician submits -> SPV verifies (`CHECKED` -> `VERIFIED`) -> Chief Security acknowledges 1 -> Chief Engineering acknowledges 2 (`ACKNOWLEDGE 1` -> `ACKNOWLEDGE 2`).
 - A void requires a reason and returns the server record to the technician correction list. The authenticated correction email link opens that record.
 - Approval email links open the authenticated approval review; approval itself is only performed by an explicit same-origin POST action.
