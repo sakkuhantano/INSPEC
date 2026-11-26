@@ -4432,7 +4432,6 @@ WHERE ApprovalBatchID=@BatchID",
                     }
                 }
             }
-            }
 
             return new {
                 success = true, approvalBatchId = batchId,
