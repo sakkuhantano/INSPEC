@@ -8868,7 +8868,9 @@ function openChiefBatchVoidModal(inspectionIds) {
         showToast("Void hanya tersedia selama Batch Pending.", "warning");
         return;
     }
-    pendingChiefBatchVoidInspectionIDs = Array.isArray(inspectionIds) ? inspectionIds.slice() : [];
+    pendingChiefBatchVoidInspectionIDs = Array.isArray(inspectionIds)
+        ? inspectionIds.slice()
+        : chiefApprovalBatchRows.map(row => Number(row.InspectionID)).filter(id => id > 0);
     if (!pendingChiefBatchVoidInspectionIDs.length) {
         showToast("Tidak ada inspeksi yang dipilih untuk di-Void.", "warning");
         return;
