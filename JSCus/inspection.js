@@ -7250,7 +7250,7 @@ const INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE = 25;
 const INSPECTION_APPROVAL_PAGE_SIZE_KEY = "inspectionApprovalPageSize";
 let inspectionApprovalPage = 1;
 let inspectionApprovalPageSize = INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE;
-let currentChiefApprovalBatchID = 0;
+let currentChiefApprovalBatchID = 0;\nlet currentChiefBatchStatus = "PENDING";
 let spvApprovalSections = [];
 let currentChiefApprovalBatch = null;
 let chiefApprovalBatchRows = [];
@@ -7287,6 +7287,7 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnBackToInspectionApprovalList", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
+    addInspectionApprovalListener("btnInspectionApprovalBatchSubmitted", "click", () => setInspectionApprovalTab("BATCH_SUBMITTED"));
     addInspectionApprovalListener("btnInspectionApprovalVoid", "click", () => setInspectionApprovalTab("VOID"));
     addInspectionApprovalListener("inspectionApprovalQueue", "click", function (event) {
         const link = event.target.closest("[data-approval-id]");
@@ -7323,7 +7324,8 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("selChiefBatchSection", "change", loadChiefApprovalBatchQueue);
     addInspectionApprovalListener("txtChiefBatchDateFrom", "change", loadChiefApprovalBatchQueue);
     addInspectionApprovalListener("txtChiefBatchDateThru", "change", loadChiefApprovalBatchQueue);
-    addInspectionApprovalListener("selChiefBatchStatus", "change", loadChiefApprovalBatchQueue);
+    addInspectionApprovalListener("btnChiefBatchPending", "click", () => setChiefBatchStatus("PENDING"));
+    addInspectionApprovalListener("btnChiefBatchApproved", "click", () => setChiefBatchStatus("APPROVED"));
     addInspectionApprovalListener("chiefBatchQueue", "click", function (event) {
         const button = event.target.closest("[data-chief-batch-id]");
         if (button) openChiefApprovalBatchDetail(Number(button.dataset.chiefBatchId));
@@ -7452,15 +7454,17 @@ function wireInspectionApprovalEvents() {
 }
 
 function setInspectionApprovalTab(tab, reload) {
-    const nextTab = ["APPROVED", "VOID"].includes(tab) ? tab : "OUTSTANDING";
+    const nextTab = ["APPROVED", "BATCH_SUBMITTED", "VOID"].includes(tab) ? tab : "OUTSTANDING";
     if (nextTab !== currentInspectionApprovalTab) selectedInspectionApprovalIds.clear();
     currentInspectionApprovalTab = nextTab;
     const outstanding = currentInspectionApprovalTab === "OUTSTANDING";
     const approved = currentInspectionApprovalTab === "APPROVED";
+    const submitted = currentInspectionApprovalTab === "BATCH_SUBMITTED";
     const voided = currentInspectionApprovalTab === "VOID";
     [
         ["btnInspectionApprovalOutstanding", outstanding],
         ["btnInspectionApprovalApproved", approved],
+        ["btnInspectionApprovalBatchSubmitted", submitted],
         ["btnInspectionApprovalVoid", voided]
     ].forEach(pair => {
         const button = document.getElementById(pair[0]);
@@ -7479,6 +7483,21 @@ function setInspectionApprovalTab(tab, reload) {
     if (selectAllHeader) selectAllHeader.classList.toggle("d-none", voided);
     const dateFilters = document.getElementById("inspectionApprovalDateFilters");
     if (dateFilters) dateFilters.classList.toggle("d-none", !approved);
+    const filterVisibility = {
+        selApprovalSection: ["OUTSTANDING", "APPROVED", "BATCH_SUBMITTED", "VOID"],
+        selApprovalBatchStatus: ["APPROVED"],
+        selApprovalType: ["OUTSTANDING", "APPROVED"],
+        selApprovalDetail: ["OUTSTANDING", "APPROVED"],
+        selApprovalScheduleTime: ["OUTSTANDING", "APPROVED"],
+        selApprovalTemplate: ["OUTSTANDING", "APPROVED"],
+        txtApprovalInspectionDateFrom: ["OUTSTANDING", "APPROVED", "VOID"],
+        txtApprovalInspectionDateThru: ["OUTSTANDING", "APPROVED", "VOID"]
+    };
+    Object.keys(filterVisibility).forEach(id => {
+        const input = document.getElementById(id);
+        const wrapper = input && input.closest(".inspection-filter-control, .inspection-date-control");
+        if (wrapper) wrapper.classList.toggle("d-none", filterVisibility[id].indexOf(currentInspectionApprovalTab) < 0);
+    });
     if (reload === false) renderInspectionApprovalQueue();
     else loadInspectionApprovalQueue();
 }
@@ -7491,6 +7510,8 @@ function updateInspectionApprovalCounts(counts) {
     if (outstandingElement) outstandingElement.textContent = String(Number(counts.outstanding) || 0);
     if (approvedElement) approvedElement.textContent = String(Number(counts.approved) || 0);
     if (voidElement) voidElement.textContent = String(Number(counts.voided) || 0);
+    const submittedElement = document.getElementById("inspectionApprovalBatchSubmittedCount");
+    if (submittedElement) submittedElement.textContent = String(Number(counts.batchSubmitted) || 0);
 }
 
 function isInspectionApprovalApproved(row) {
@@ -7594,7 +7615,9 @@ async function loadInspectionApprovalQueue() {
         }
         const queueRequests = Promise.all([
             inspectionApprovalPost("GetInspectionApprovalQueue", queueParameters),
-            inspectionApprovalPost("GetLightningInspectionApprovalQueue", queueParameters)
+            currentInspectionApprovalTab === "BATCH_SUBMITTED"
+                ? Promise.resolve({ data: [], filters: [] })
+                : inspectionApprovalPost("GetLightningInspectionApprovalQueue", queueParameters)
         ]);
         const [queueResults, countResult] = await Promise.all([queueRequests, countRequest]);
         if (requestSequence !== inspectionApprovalLoadSequence) return;
@@ -7703,7 +7726,8 @@ function matchesInspectionApprovalClientFilters(row) {
 function getInspectionApprovalPageCount() {
     const rows = inspectionApprovalRows.filter(row => {
         if (!matchesInspectionApprovalClientFilters(row)) return false;
-        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
+        if (currentInspectionApprovalTab === "BATCH_SUBMITTED") return Number(row.ApprovalBatchID || 0) > 0 && String(row.BatchStatus || "PENDING").toUpperCase() === "PENDING";
+        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row) && Number(row.ApprovalBatchID || 0) <= 0;
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
     });
@@ -8633,6 +8657,18 @@ function showSpvApprovalPanel() {
     loadInspectionApprovalQueue();
 }
 
+function setChiefBatchStatus(status) {
+    currentChiefBatchStatus = String(status || "").toUpperCase() === "APPROVED" ? "APPROVED" : "PENDING";
+    [["btnChiefBatchPending", "PENDING"], ["btnChiefBatchApproved", "APPROVED"]].forEach(pair => {
+        const button = document.getElementById(pair[0]);
+        if (!button) return;
+        const active = currentChiefBatchStatus === pair[1];
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    loadChiefApprovalBatchQueue();
+}
+
 async function loadChiefApprovalBatchQueue() {
     const host = document.getElementById("chiefBatchQueue");
     if (!host) return;
@@ -8655,7 +8691,7 @@ async function loadChiefApprovalBatchQueue() {
             sectionId: document.getElementById("selChiefBatchSection").value || "",
             dateFrom: document.getElementById("txtChiefBatchDateFrom").value || "",
             dateThru: document.getElementById("txtChiefBatchDateThru").value || "",
-            batchStatus: document.getElementById("selChiefBatchStatus").value || "PENDING"
+            batchStatus: currentChiefBatchStatus
         });
         const rows = Array.isArray(result.data) ? result.data : [];
         if (!rows.length) {
