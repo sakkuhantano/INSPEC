@@ -2667,16 +2667,23 @@
             </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
                 <button type="button" id="btnPreviewChiefBatchReports" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-excel me-1"></i>Preview Reports</button>
-                <button type="button" id="btnVoidSelectedChiefBatch" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-x-circle me-1"></i>Void Selected</button>
-                <button type="button" id="btnVoidEntireChiefBatch" class="btn btn-sm btn-danger d-none"><i class="bi bi-trash3 me-1"></i>Void Entire Batch</button>
+                <button type="button" id="btnSelectAllChiefBatchInspections" class="btn btn-sm btn-outline-secondary d-none">Select All</button>
+                <button type="button" id="btnVoidChiefBatch" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-x-circle me-1"></i>Void</button>
                 <button type="button" id="btnApproveChiefBatch" class="btn btn-sm btn-success"><i class="bi bi-check-circle me-1"></i>Approve Batch</button>
             </div>
             <div id="chiefBatchReports" class="mb-3"></div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle">
-                    <thead><tr><th class="chief-batch-void-select-col"><input type="checkbox" id="chkSelectAllChiefBatchVoid" aria-label="Select all inspections for Void" /></th><th>No.</th><th>Inspection No.</th><th>Inspection Type</th><th>Detail</th><th>Template</th><th>Technician</th><th>SPV Approved</th></tr></thead>
+                    <thead><tr><th class="chief-batch-void-select-col"><input type="checkbox" id="chkSelectAllChiefBatchVoid" aria-label="Select all inspections on this page" /></th><th>No.</th><th>Inspection No.</th><th>Inspection Type</th><th>Detail</th><th>Template</th><th>Technician</th><th>SPV Approved</th></tr></thead>
                     <tbody id="chiefBatchInspectionRows"><tr><td colspan="8" class="text-muted text-center py-3">Select a batch.</td></tr></tbody>
                 </table>
+            </div>
+            <div id="chiefBatchInspectionPager" class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2">
+                <small id="chiefBatchInspectionPageInfo" class="text-muted">0 inspections</small>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Chief batch inspection pages">
+                    <button type="button" id="btnChiefBatchPrevPage" class="btn btn-outline-secondary" disabled>Previous</button>
+                    <button type="button" id="btnChiefBatchNextPage" class="btn btn-outline-secondary" disabled>Next</button>
+                </div>
             </div>
         </div>
     </div>
