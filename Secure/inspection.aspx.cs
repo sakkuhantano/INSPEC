@@ -2538,10 +2538,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
                 new SqlParameter("@DateThru", thruDate)
             };
 
-            string rowFromWhere = fromWhere.Replace(
-                "FROM dbo.PIP_T_Inspection I",
-                "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
-
             using (var br = new WAL.BR.CF())
             {
                 // Count requests must stay scalar. Previously countOnly still loaded every
@@ -2559,9 +2555,9 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.InspectionTypeCode, I.InspectionTypeName, I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
        I.TenantID, I.SuiteNo, I.IDTemplate, I.IDVersion, I.ScheduledTime, I.TemplateNo, I.TemplateName, I.TemplateVersion,
        I.InspectionDate, CONVERT(VARCHAR(23), I.StartDateTime, 126) AS StartDateTime, CONVERT(VARCHAR(23), I.EndDateTime, 126) AS EndDateTime, I.Summary, I.OwnerEmployeeID,
-       ISNULL(E.Name, I.OwnerEmployeeID) AS TechnicianName, I.Status,
-       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) AS SubmittedByName,I.SubmittedDate,
-       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) AS ApprovedByName,I.ApprovedDate,I.ApprovalBatchID,
+       CAST(NULL AS NVARCHAR(255)) AS TechnicianName, I.Status,
+       I.IsSubmitted,I.SubmittedBy,CAST(NULL AS NVARCHAR(255)) AS SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,CAST(NULL AS NVARCHAR(255)) AS ApprovedByName,I.ApprovedDate,I.ApprovalBatchID,
        I.IsApproved1,I.Approved1By,I.Approved1Date,
        I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
@@ -2577,12 +2573,19 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
              WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'BATCHED'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
-             WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + rowFromWhere + @"
+             WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus"
+INTO #InspectionApprovalQueue
+" + fromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
   AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
-ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
+ORDER BY I.InspectionDate DESC, I.InspectionID DESC";
+UPDATE Q SET Q.TechnicianName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.OwnerEmployeeID;
+UPDATE Q SET Q.SubmittedByName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.SubmittedBy;
+UPDATE Q SET Q.ApprovedByName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.ApprovedBy;
+SELECT * FROM #InspectionApprovalQueue ORDER BY InspectionDate DESC, InspectionID DESC;
+DROP TABLE #InspectionApprovalQueue",
                     new SqlParameter[] {
                         new SqlParameter("@EmployeeID", employeeId),
                         new SqlParameter("@IsAdministrator", isAdministrator ? 1 : 0),
@@ -2926,10 +2929,6 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
 
-                string rowScope = scope.Replace(
-                    "FROM dbo.PIP_T_Inspection I",
-                    "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
-
                 if (countOnly)
                 {
                     DataTable countRows = br.EQueryP("SELECT COUNT(1) AS TotalCount " + scope, createParameters(false));
@@ -2943,9 +2942,9 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        I.IDTemplate,I.IDVersion,I.ScheduledTime,I.TemplateNo,I.TemplateName,I.TemplateVersion,
        I.InspectionDate,CONVERT(VARCHAR(23),I.StartDateTime,126) StartDateTime,
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,I.Summary,I.OwnerEmployeeID,
-       ISNULL(E.Name,I.OwnerEmployeeID) TechnicianName,I.Status,
-       I.IsSubmitted,I.SubmittedBy,ISNULL(ES.Name,I.SubmittedBy) SubmittedByName,I.SubmittedDate,
-       I.IsApproved,I.ApprovedBy,ISNULL(EA.Name,I.ApprovedBy) ApprovedByName,I.ApprovedDate,
+       CAST(NULL AS NVARCHAR(255)) TechnicianName,I.Status,
+       I.IsSubmitted,I.SubmittedBy,CAST(NULL AS NVARCHAR(255)) SubmittedByName,I.SubmittedDate,
+       I.IsApproved,I.ApprovedBy,CAST(NULL AS NVARCHAR(255)) ApprovedByName,I.ApprovedDate,
        I.IsApproved1,I.Approved1By,I.Approved1Date,I.IsApproved2,I.Approved2By,I.Approved2Date,I.ApprovalRemark,I.ReasonVoid,I.ReasonVoid1,I.ReasonVoid2,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        'BATCH' InspectionMode,ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') ScheduleSelectionMode,
@@ -2953,8 +2952,15 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
             WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END CurrentStageCode
-" + rowScope + @"
-ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
+"
+INTO #LightningApprovalQueue
+" + scope + @"
+ORDER BY I.InspectionDate DESC, I.InspectionID DESC";
+UPDATE Q SET Q.TechnicianName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.OwnerEmployeeID;
+UPDATE Q SET Q.SubmittedByName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.SubmittedBy;
+UPDATE Q SET Q.ApprovedByName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.ApprovedBy;
+SELECT * FROM #LightningApprovalQueue ORDER BY InspectionDate DESC, InspectionID DESC;
+DROP TABLE #LightningApprovalQueue", createParameters(true));
                 var data = new List<Dictionary<string, object>>();
                 var filters = new List<Dictionary<string, object>>();
                 var filterKeys = new HashSet<string>(StringComparer.Ordinal);
