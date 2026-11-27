@@ -2544,20 +2544,14 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
 
             using (var br = new WAL.BR.CF())
             {
-                DataTable filterRows = br.EQueryP(@"
-SELECT DISTINCT I.InspectionTypeCode, I.InspectionTypeName,
-       I.InspectionTypeDetailCode, I.InspectionTypeDetailName,
-       I.IDTemplate, I.TemplateNo, I.ScheduledTime" + fromWhere + @"
-ORDER BY I.InspectionTypeName, I.InspectionTypeDetailName, I.TemplateNo, I.ScheduledTime",
-                    filterOptionParameters);
-
-                var filters = new List<Dictionary<string, object>>();
-                foreach (DataRow row in filterRows.Rows)
+                // Count requests must stay scalar. Previously countOnly still loaded every
+                // inspection row (and also ran the filter query) seven times for tab badges.
+                if (countOnly)
                 {
-                    var item = new Dictionary<string, object>();
-                    foreach (DataColumn col in filterRows.Columns)
-                        item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
-                    filters.Add(item);
+                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS TotalCount " + fromWhere,
+                        filterOptionParameters);
+                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["TotalCount"] == DBNull.Value
+                        ? 0 : Convert.ToInt32(countRows.Rows[0]["TotalCount"]);
                 }
 
                 DataTable rows = br.EQueryP(@"
@@ -2603,15 +2597,37 @@ ORDER BY I.InspectionDate DESC, I.InspectionID DESC",
                         new SqlParameter("@TemplateId", templateId ?? ""),
                         new SqlParameter("@ScheduleTime", scheduleTime ?? "")
                     });
-                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
-
                 var result = new List<Dictionary<string, object>>();
+                var filters = new List<Dictionary<string, object>>();
+                var filterKeys = new HashSet<string>(StringComparer.Ordinal);
                 foreach (DataRow row in rows.Rows)
                 {
                     var item = new Dictionary<string, object>();
                     foreach (DataColumn col in rows.Columns)
                         item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     result.Add(item);
+
+                    // Filter choices are projected from the queue result itself; a second
+                    // near-identical SQL scan used to run only to populate the four dropdowns.
+                    string filterKey = String.Join("\u001f", new string[] {
+                        Convert.ToString(item["InspectionTypeCode"]),
+                        Convert.ToString(item["InspectionTypeDetailCode"]),
+                        Convert.ToString(item["IDTemplate"]),
+                        Convert.ToString(item["ScheduledTime"])
+                    });
+                    if (filterKeys.Add(filterKey))
+                    {
+                        filters.Add(new Dictionary<string, object>
+                        {
+                            { "InspectionTypeCode", item["InspectionTypeCode"] },
+                            { "InspectionTypeName", item["InspectionTypeName"] },
+                            { "InspectionTypeDetailCode", item["InspectionTypeDetailCode"] },
+                            { "InspectionTypeDetailName", item["InspectionTypeDetailName"] },
+                            { "IDTemplate", item["IDTemplate"] },
+                            { "TemplateNo", item["TemplateNo"] },
+                            { "ScheduledTime", item["ScheduledTime"] }
+                        });
+                    }
                 }
                 return new { success = true, data = result, filters = filters };
             }
