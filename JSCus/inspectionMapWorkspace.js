@@ -775,7 +775,10 @@
             await persistInspectionRecord(record);
             renderList();
             updateSummary();
-            var nextCard = host.querySelector('[data-motor-point-id="' + CSS.escape(String(point.InspectionPointID)) + '"]');
+            var nextCard = Array.prototype.find.call(
+                host.querySelectorAll("[data-motor-point-id]"),
+                function (card) { return String(card.getAttribute("data-motor-point-id")) === String(point.InspectionPointID); }
+            );
             if (nextCard) nextCard.scrollIntoView({ behavior: "smooth", block: "center" });
         });
     }
