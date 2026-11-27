@@ -640,49 +640,6 @@ function wireInspectionEvents() {
     });
     document.getElementById("btnStartInspection").addEventListener("click", startNewInspection);
     document.getElementById("btnNewInspection").addEventListener("click", resetInspectionSelection);
-    const addDynamicPointButton = document.getElementById("btnAddInspectionDynamicPoint");
-    const dynamicPointNameInput = document.getElementById("txtInspectionDynamicPointName");
-    if (addDynamicPointButton && dynamicPointNameInput) {
-        const addDynamicPoint = async function () {
-            const record = currentInspectionRecord;
-            if (!record || !isDynamicInspectionType(record) ||
-                !isInspectionMapMode(record.InspectionMode) || record.Status === "DONE") return;
-            const plate = String(dynamicPointNameInput.value || "").trim().toUpperCase();
-            if (!plate) { showToast("Nomor Polisi wajib diisi.", "warning"); dynamicPointNameInput.focus(); return; }
-            const setup = record.BatchMapSetup || (record.BatchMapSetup = { success: true, maps: [], points: [] });
-            setup.points = Array.isArray(setup.points) ? setup.points : [];
-            if (setup.points.some(point => String(point.PointName || "").trim().toUpperCase() === plate)) {
-                showToast("Nopol " + plate + " sudah ada di daftar inspeksi ini.", "warning");
-                dynamicPointNameInput.focus();
-                return;
-            }
-            const sequence = setup.points.reduce((max, point) => Math.max(max, Number(String(point.PointCode || "").replace(/^M/i, "")) || 0), 0) + 1;
-            const point = {
-                InspectionPointID: -sequence,
-                ClientPointID: newInspectionId(),
-                
-                PointCode: "M" + String(sequence).padStart(3, "0"),
-                PointName: plate,
-                Nopol: plate,
-                DisplayOrder: sequence,
-                MapID: 0,
-                Status: "PENDING",
-                IsNormalAbnormalRequired: false
-            };
-            setup.points.push(point);
-            record.Points = record.Points || [];
-            await persistInspectionRecord(record);
-            dynamicPointNameInput.value = "";
-            if (typeof showInspectionMapWorkspace === "function")
-                showInspectionMapWorkspace(record, true);
-            await openBatchInspectionPointChecklist(point);
-            showToast("Motor " + plate + " ditambahkan. Lengkapi checklist dan foto kendaraan ini.", "success");
-        };
-        addDynamicPointButton.addEventListener("click", addDynamicPoint);
-        dynamicPointNameInput.addEventListener("keydown", event => {
-            if (event.key === "Enter") { event.preventDefault(); addDynamicPoint(); }
-        });
-    }
     document.getElementById("selSubmittedType").addEventListener("change", function () {
         document.getElementById("selSubmittedDetail").value = "";
         document.getElementById("selSubmittedScheduleTime").value = "";
