@@ -7234,6 +7234,7 @@ let inspectionApprovalPageSize = INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE;
 let currentChiefApprovalBatchID = 0;\nlet currentChiefBatchStatus = "PENDING";
 let spvApprovalSections = [];
 let currentChiefApprovalBatch = null;
+let pendingChiefBatchVoidInspectionIDs = null;
 let chiefApprovalBatchRows = [];
 // Excel preview is generated server-side and opened with a short-lived Session token.
 
@@ -7324,6 +7325,21 @@ function wireInspectionApprovalEvents() {
     });
     addInspectionApprovalListener("btnPreviewChiefBatchReports", "click", previewChiefApprovalBatchReports);
     addInspectionApprovalListener("btnApproveChiefBatch", "click", approveChiefApprovalBatch);
+    addInspectionApprovalListener("btnVoidSelectedChiefBatch", "click", function () {
+        const ids = Array.from(document.querySelectorAll("#chiefBatchInspectionRows [data-chief-batch-void-select]:checked"))
+            .map(input => Number(input.value)).filter(id => id > 0);
+        if (!ids.length) { showToast("Pilih minimal satu inspeksi untuk di-Void.", "warning"); return; }
+        openChiefBatchVoidModal(ids);
+    });
+    addInspectionApprovalListener("btnVoidEntireChiefBatch", "click", function () {
+        openChiefBatchVoidModal(null);
+    });
+    addInspectionApprovalListener("chkSelectAllChiefBatchVoid", "change", function (event) {
+        document.querySelectorAll("#chiefBatchInspectionRows [data-chief-batch-void-select]").forEach(input => {
+            input.checked = !!event.target.checked;
+        });
+    });
+    addInspectionApprovalListener("btnConfirmChiefBatchVoid", "click", confirmChiefBatchVoid);
     addInspectionApprovalListener("inspectionApprovalChecklistTab", "shown.bs.tab", function () {
         const navHost = document.getElementById("inspectionApprovalSectionNavHost");
         if (navHost) navHost.classList.remove("d-none");
@@ -8718,12 +8734,19 @@ async function openChiefApprovalBatchDetail(batchId) {
             chiefApprovalBatchRows.length + " inspections • " + reportTypeCount + " report types • " +
             (currentChiefApprovalBatch.ChiefRole || "CHIEF") + approvedInfo;
         document.getElementById("btnApproveChiefBatch").classList.toggle("d-none", status !== "PENDING");
+        document.getElementById("btnVoidSelectedChiefBatch").classList.toggle("d-none", status !== "PENDING");
+        document.getElementById("btnVoidEntireChiefBatch").classList.toggle("d-none", status !== "PENDING");
+        const selectAllVoid = document.getElementById("chkSelectAllChiefBatchVoid");
+        if (selectAllVoid) { selectAllVoid.checked = false; selectAllVoid.disabled = status !== "PENDING"; }
+        document.querySelectorAll(".chief-batch-void-select-col").forEach(cell => cell.classList.toggle("d-none", status !== "PENDING"));
         document.getElementById("chiefBatchReports").innerHTML = "";
         if (!chiefApprovalBatchRows.length) {
             host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">This batch has no inspections.</td></tr>';
         } else {
             host.innerHTML = chiefApprovalBatchRows.map((row, index) =>
-                '<tr><td>' + (index + 1) + '</td>' +
+                '<tr><td class="chief-batch-void-select-col">' +
+                    (status === "PENDING" ? '<input type="checkbox" data-chief-batch-void-select value="' + Number(row.InspectionID) + '" aria-label="Select ' + escInspection(row.InspectionNo || row.InspectionID) + ' for Void" />' : '') +
+                '</td><td>' + (index + 1) + '</td>' +
                 '<td><button type="button" class="btn btn-link p-0 fw-semibold" data-chief-inspection-id="' + Number(row.InspectionID) + '">' +
                     escInspection(row.InspectionNo || ("#" + row.InspectionID)) + '</button></td>' +
                 '<td>' + escInspection(row.InspectionTypeName || row.InspectionTypeCode || "") + '</td>' +
@@ -8798,6 +8821,72 @@ async function approveChiefApprovalBatch() {
     } catch (error) {
         button.disabled = false;
         showToast(error.message || "Gagal approve batch.", "warning");
+    }
+}
+
+function openChiefBatchVoidModal(inspectionIds) {
+    if (!currentChiefApprovalBatchID || !currentChiefApprovalBatch ||
+        String(currentChiefApprovalBatch.BatchStatus || "").toUpperCase() !== "PENDING") {
+        showToast("Void hanya tersedia selama Batch Pending.", "warning");
+        return;
+    }
+    pendingChiefBatchVoidInspectionIDs = Array.isArray(inspectionIds) ? inspectionIds.slice() : null;
+    const isFull = pendingChiefBatchVoidInspectionIDs === null;
+    document.getElementById("chiefBatchVoidTitle").textContent = isFull ? "Void Entire Batch" : "Void Selected Inspections";
+    document.getElementById("chiefBatchVoidDescription").textContent = isFull
+        ? "Seluruh " + chiefApprovalBatchRows.length + " inspeksi yang masih berada dalam batch #" + currentChiefApprovalBatchID + " akan dikembalikan ke Draft teknisi."
+        : String(pendingChiefBatchVoidInspectionIDs.length) + " inspeksi terpilih akan dikembalikan ke Draft teknisi. Inspeksi lain tetap berada di batch.";
+    document.getElementById("txtChiefBatchVoidRemark").value = "";
+    document.getElementById("chiefBatchVoidError").classList.add("d-none");
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("chiefBatchVoidModal")).show();
+}
+
+async function confirmChiefBatchVoid() {
+    if (!currentChiefApprovalBatchID || !currentChiefApprovalBatch ||
+        String(currentChiefApprovalBatch.BatchStatus || "").toUpperCase() !== "PENDING") {
+        showToast("Batch sudah tidak Pending. Void dibatalkan.", "warning");
+        return;
+    }
+    const remark = document.getElementById("txtChiefBatchVoidRemark").value.trim();
+    const errorHost = document.getElementById("chiefBatchVoidError");
+    if (!remark) {
+        errorHost.textContent = "Alasan Void wajib diisi.";
+        errorHost.classList.remove("d-none");
+        return;
+    }
+    if (!navigator.onLine) {
+        errorHost.textContent = "Void batch memerlukan koneksi ke server.";
+        errorHost.classList.remove("d-none");
+        return;
+    }
+    const button = document.getElementById("btnConfirmChiefBatchVoid");
+    button.disabled = true;
+    try {
+        const result = await inspectionApprovalPost("VoidChiefApprovalBatch", {
+            approvalBatchId: currentChiefApprovalBatchID,
+            inspectionIds: pendingChiefBatchVoidInspectionIDs || [],
+            employeeId: inspectionLogin.employeeid,
+            companyId: inspectionCompanyID,
+            locationId: inspectionLocationID,
+            remark: remark
+        });
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("chiefBatchVoidModal")).hide();
+        showToast(Number(result.voidCount || 0) + " inspeksi dikembalikan ke Draft teknisi. " +
+            (result.batchStatus === "VOID" ? "Batch berstatus VOID." :
+                Number(result.remainingCount || 0) + " inspeksi tetap menunggu approval Chief."), "success");
+        pendingChiefBatchVoidInspectionIDs = null;
+        if (result.batchStatus === "VOID") {
+            currentChiefApprovalBatchID = 0;
+            currentChiefApprovalBatch = null;
+            loadChiefApprovalBatchQueue();
+        } else {
+            await openChiefApprovalBatchDetail(Number(result.approvalBatchId || currentChiefApprovalBatchID));
+        }
+    } catch (err) {
+        errorHost.textContent = err.message || "Gagal melakukan Void batch.";
+        errorHost.classList.remove("d-none");
+    } finally {
+        button.disabled = false;
     }
 }
 
