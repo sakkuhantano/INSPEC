@@ -735,9 +735,29 @@
                 });
                 if (!point) return;
                 var nopol = String(card.querySelector("[data-motor-nopol]") && card.querySelector("[data-motor-nopol]").value || "").trim().toUpperCase();
-                if (nopol && nopol !== String(point.PointName || point.Nopol || "").trim().toUpperCase()) {
-                    card.querySelector("[data-save-motor]").click();
-                    return;
+                var currentNopol = String(point.PointName || point.Nopol || "").trim().toUpperCase();
+                if (nopol && nopol !== currentNopol) {
+                    var duplicate = visiblePoints.some(function (other) {
+                        return Number(other.InspectionPointID) !== Number(point.InspectionPointID) &&
+                            String(other.PointName || other.Nopol || "").trim().toUpperCase() === nopol;
+                    });
+                    if (duplicate) {
+                        showToast("Nopol " + nopol + " sudah ada di daftar inspeksi ini.", "warning");
+                        return;
+                    }
+                    ensurePlateAnswer(point);
+                    point.PointName = nopol;
+                    point.Nopol = nopol;
+                    var plateAnswer = point.Items.find(function (item) {
+                        return String(item.Type || item.ItemType || "").toUpperCase() === "TEXT" &&
+                            /(nopol|no\\s*pol|polisi|plat|nomor polisi|license)/i.test(String(item.ItemLabel || item.label || ""));
+                    });
+                    if (plateAnswer) plateAnswer.Value = nopol;
+                    point.UpdatedAt = new Date().toISOString();
+                    record.SyncStatus = "PENDING";
+                    record.UpdatedAt = new Date().toISOString();
+                    await persistInspectionRecord(record);
+                    renderList();
                 }
                 await openPoint(point.InspectionPointID);
             });
