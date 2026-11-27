@@ -39,7 +39,7 @@ BEGIN
     DECLARE @Ids TABLE (InspectionID BIGINT NOT NULL PRIMARY KEY);
     DECLARE @Raw TABLE (Value VARCHAR(50) NOT NULL);
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@PC VARCHAR(20),
-            @Role VARCHAR(20),@Chief VARCHAR(4000),@Status VARCHAR(20),
+            @Role VARCHAR(20),@Chief VARCHAR(4000),@Status VARCHAR(20),@WorkflowKey VARCHAR(30),
             @VoidCount INT,@Remaining INT;
 
     IF LTRIM(RTRIM(ISNULL(@p_InspectionIDs,'')))<>''
@@ -54,7 +54,7 @@ BEGIN
 
     BEGIN TRY
       BEGIN TRANSACTION;
-      SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@PC=ProfitCenterNo,@Status=BatchStatus
+      SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@PC=ProfitCenterNo,@Status=BatchStatus,@WorkflowKey=WorkflowKey
       FROM dbo.PIP_T_Inspection_ApprovalBatch WITH (UPDLOCK,HOLDLOCK)
       WHERE ApprovalBatchID=@p_ApprovalBatchID;
       IF @C IS NULL OR @Status<>'PENDING'
@@ -90,7 +90,10 @@ BEGIN
         WHERE I.ApprovalBatchID=@p_ApprovalBatchID
           AND (I.CompanyID<>@C OR I.LocationID<>@L OR I.SectionID<>@S OR ISNULL(I.IsActive,1)<>1
                OR I.Status<>'DONE' OR ISNULL(I.IsSubmitted,0)<>1 OR ISNULL(I.IsApproved,0)<>1
-               OR ISNULL(I.IsApproved1,0)=1 OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD')
+               OR (@WorkflowKey='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD')
+               OR (@WorkflowKey='BATCH;PARAM' AND (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'BATCH'
+                   OR ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'PARAM' OR ISNULL(I.IsApproved1,0)=1))
+               OR @WorkflowKey NOT IN ('STANDARD','BATCH;PARAM'))
       )
           RAISERROR('Batch contains an inspection that is not in the expected SPV-approved Pending state.',16,1);
 
@@ -102,7 +105,9 @@ BEGIN
         WHERE NOT EXISTS(SELECT 1 FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
                          WHERE I.InspectionID=X.InspectionID AND I.ApprovalBatchID=@p_ApprovalBatchID
                            AND I.CompanyID=@C AND I.LocationID=@L AND I.SectionID=@S
-                           AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0)
+                           AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
+                           AND ((@WorkflowKey='STANDARD' AND ISNULL(I.IsApproved1,0)=0)
+                             OR (@WorkflowKey='BATCH;PARAM' AND ISNULL(I.IsApproved1,0)=0)))
       )
           RAISERROR('One or more selected inspections are not active members of this Pending batch.',16,1);
 
