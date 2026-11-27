@@ -2857,10 +2857,6 @@ ORDER BY P.SeqNo",
                 thruDate = fromDate;
             if (fromDate > thruDate) throw new HttpException(400, "Approved From tidak boleh melewati Approved Thru.");
 
-            string rowScope = scope.Replace(
-                "FROM dbo.PIP_T_Inspection I",
-                "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
-
             using (var br = new WAL.BR.CF())
             {
                 Func<bool, SqlParameter[]> createParameters = includeScheduleTime => new SqlParameter[] {
@@ -2929,6 +2925,10 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
+
+                string rowScope = scope.Replace(
+                    "FROM dbo.PIP_T_Inspection I",
+                    "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
 
                 if (countOnly)
                 {
