@@ -8109,6 +8109,7 @@ async function executeInspectionApprovalAction(ids, action, remark) {
                 remark: remark
             });
         }
+        invalidateInspectionApprovalCountsCache();
         if (isSingleVoid) showInspectionApprovalQueueView();
         await loadInspectionApprovalQueue();
         const processedCount = (standardResult && standardResult.count) || (standardIds.length + lightningResults.length);
@@ -8822,6 +8823,7 @@ async function createStandardApprovalBatch() {
                 (result.emailMessage || ""), "warning");
         else
             showToast("Approval batch #" + result.approvalBatchId + " berhasil dibuat. Email CHIEF tidak diaktifkan pada COMVAL.", "success");
+        invalidateInspectionApprovalCountsCache();
         await loadInspectionApprovalQueue();
     } catch (error) {
         showToast(error.message || "Gagal membuat approval batch.", "warning");
