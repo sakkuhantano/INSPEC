@@ -2928,17 +2928,13 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
  AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
 
-                DataTable filtersTable = br.EQueryP(@"
-SELECT DISTINCT I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,
-       I.InspectionTypeDetailName,I.IDTemplate,I.TemplateNo,I.ScheduledTime " + scope + @"
-ORDER BY I.InspectionTypeName,I.InspectionTypeDetailName,I.TemplateNo,I.ScheduledTime", createParameters(false));
-                var filters = new List<Dictionary<string, object>>();
-                foreach (DataRow row in filtersTable.Rows)
+                if (countOnly)
                 {
-                    var item = new Dictionary<string, object>();
-                    foreach (DataColumn col in filtersTable.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
-                    filters.Add(item);
+                    DataTable countRows = br.EQueryP("SELECT COUNT(1) AS TotalCount " + scope, createParameters(false));
+                    return countRows == null || countRows.Rows.Count == 0 || countRows.Rows[0]["TotalCount"] == DBNull.Value
+                        ? 0 : Convert.ToInt32(countRows.Rows[0]["TotalCount"]);
                 }
+
                 DataTable rows = br.EQueryP(@"
 SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.LocationID,I.TenantID,I.SuiteNo,I.SectionID,
        I.InspectionTypeCode,I.InspectionTypeName,I.InspectionTypeDetailCode,I.InspectionTypeDetailName,
@@ -2957,14 +2953,34 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END CurrentStageCode
 " + scope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
-                if (countOnly) return rows == null ? 0 : rows.Rows.Count;
-
                 var data = new List<Dictionary<string, object>>();
+                var filters = new List<Dictionary<string, object>>();
+                var filterKeys = new HashSet<string>(StringComparer.Ordinal);
                 foreach (DataRow row in rows.Rows)
                 {
                     var item = new Dictionary<string, object>();
                     foreach (DataColumn col in rows.Columns) item[col.ColumnName] = row[col] == DBNull.Value ? null : row[col];
                     data.Add(item);
+
+                    string filterKey = String.Join("\u001f", new string[] {
+                        Convert.ToString(item["InspectionTypeCode"]),
+                        Convert.ToString(item["InspectionTypeDetailCode"]),
+                        Convert.ToString(item["IDTemplate"]),
+                        Convert.ToString(item["ScheduledTime"])
+                    });
+                    if (filterKeys.Add(filterKey))
+                    {
+                        filters.Add(new Dictionary<string, object>
+                        {
+                            { "InspectionTypeCode", item["InspectionTypeCode"] },
+                            { "InspectionTypeName", item["InspectionTypeName"] },
+                            { "InspectionTypeDetailCode", item["InspectionTypeDetailCode"] },
+                            { "InspectionTypeDetailName", item["InspectionTypeDetailName"] },
+                            { "IDTemplate", item["IDTemplate"] },
+                            { "TemplateNo", item["TemplateNo"] },
+                            { "ScheduledTime", item["ScheduledTime"] }
+                        });
+                    }
                 }
                 return new { data = data, filters = filters };
             }
