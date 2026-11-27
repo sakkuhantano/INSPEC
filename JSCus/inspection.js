@@ -7888,13 +7888,13 @@ function updateInspectionApprovalSelectAll() {
     const createBatch = document.getElementById("btnCreateStandardApprovalBatch");
     if (createBatch) {
         const selectedRows = selectedRowsForActions;
+        const selectedWorkflowModes = Array.from(new Set(selectedRows.map(row =>
+            String(row.InspectionMode || "STANDARD").toUpperCase() === "STANDARD" ? "STANDARD" :
+                (String(row.InspectionMode || "STANDARD").toUpperCase() === "BATCH" &&
+                 String(row.ScheduleSelectionMode || "PARAM").toUpperCase() === "PARAM" ? "BATCH;PARAM" : "UNSUPPORTED")));
         const canCreate = currentInspectionApprovalTab === "APPROVED" && selectedRows.length > 0 &&
-            selectedRows.every(row => {
-                const mode = String(row.InspectionMode || "STANDARD").toUpperCase();
-                const scheduleMode = String(row.ScheduleSelectionMode || "PARAM").toUpperCase();
-                return !row.ApprovalBatchID &&
-                    (mode === "STANDARD" || (mode === "BATCH" && scheduleMode === "PARAM"));
-            });
+            selectedWorkflowModes.length === 1 && selectedWorkflowModes[0] !== "UNSUPPORTED" &&
+            selectedRows.every(row => !row.ApprovalBatchID);
         createBatch.classList.toggle("d-none", currentInspectionApprovalTab !== "APPROVED");
         createBatch.disabled = !canCreate;
     }
