@@ -4462,7 +4462,7 @@ ORDER BY B.InspectionDate DESC,B.ApprovalBatchID DESC",
             {
                 DataTable header = br.EQueryP(@"
 SELECT B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
-       B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+       B.ProfitCenterNo,B.WorkflowKey,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
        B.ApprovedBy,B.ApprovedDate,B.EmailStatus,
        CASE UPPER(LTRIM(RTRIM(ISNULL(B.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END ChiefRole,
        ISNULL(EC.Name,B.CreatedBy) CreatedByName,
