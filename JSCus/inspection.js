@@ -7602,6 +7602,23 @@ async function loadInspectionApprovalQueue() {
             showToast("Tanggal From/Thru tidak valid. Periksa rentang tanggal yang dipilih.", "warning");
             return;
         }
+        const inspectionDateFromElement = document.getElementById("txtApprovalInspectionDateFrom");
+        const inspectionDateThruElement = document.getElementById("txtApprovalInspectionDateThru");
+        const usesInspectionDateFilter = ["OUTSTANDING", "APPROVED", "VOID"].includes(currentInspectionApprovalTab);
+        const inspectionDateFrom = usesInspectionDateFilter && inspectionDateFromElement
+            ? (parseInspectionDateFilter(inspectionDateFromElement.value) || "") : "";
+        const inspectionDateThru = usesInspectionDateFilter && inspectionDateThruElement
+            ? (parseInspectionDateFilter(inspectionDateThruElement.value) || "") : "";
+        if (usesInspectionDateFilter &&
+            ((inspectionDateFromElement && inspectionDateFromElement.value && !inspectionDateFrom) ||
+             (inspectionDateThruElement && inspectionDateThruElement.value && !inspectionDateThru))) {
+            showToast("Inspection Date From/Thru tidak valid.", "warning");
+            return;
+        }
+        if (inspectionDateFrom && inspectionDateThru && inspectionDateFrom > inspectionDateThru) {
+            showToast("Inspection Date From tidak boleh melewati Inspection Date Thru.", "warning");
+            return;
+        }
         const queueParameters = {
             employeeId: inspectionLogin.employeeid,
             companyId: inspectionCompanyID,
@@ -7616,7 +7633,9 @@ async function loadInspectionApprovalQueue() {
             inspectionTypeCode: "",
             inspectionTypeDetailCode: "",
             templateId: "",
-            scheduleTime: ""
+            scheduleTime: "",
+            inspectionDateFrom: inspectionDateFrom,
+            inspectionDateThru: inspectionDateThru
         };
         // Refresh all tab badges independently from the active grid tab.
         // Counts intentionally ignore Type/Detail/Template/Schedule filters so
