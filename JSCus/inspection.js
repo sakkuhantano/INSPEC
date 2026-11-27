@@ -7441,6 +7441,13 @@ function wireInspectionApprovalEvents() {
     addInspectionApprovalListener("btnApproveInspection", "click", () => processInspectionApproval("APPROVE"));
     addInspectionApprovalListener("btnVoidInspection", "click", () => openInspectionApprovalAction("VOID", false));
     addInspectionApprovalListener("btnConfirmInspectionApprovalAction", "click", confirmInspectionApprovalAction);
+    addInspectionApprovalListener("inspectionApprovalDetail", "click", function (event) {
+        const button = event.target.closest("[data-approval-dynamic-point-id]");
+        if (!button) return;
+        document.querySelectorAll("#inspectionApprovalDynamicPointList [data-approval-dynamic-point-id]").forEach(item => item.classList.toggle("active", item === button));
+        if (typeof window.renderInspectionApprovalSelectedPoint === "function")
+            window.renderInspectionApprovalSelectedPoint(button.dataset.approvalDynamicPointId);
+    });
 
     try {
         const savedPageSize = Number(localStorage.getItem(INSPECTION_APPROVAL_PAGE_SIZE_KEY));
@@ -8139,15 +8146,31 @@ async function processBatchInspectionApproval(action) {
     openInspectionApprovalAction(action, true);
 }
 
-function renderInspectionApprovalBatchPoints(template, points, photos) {
+function renderInspectionApprovalBatchPoints(template, points, photos, isDynamicList) {
     window._inspectionApprovalBatchData = {
         template: template,
         points: Array.isArray(points) ? points : [],
         photos: Array.isArray(photos) ? photos : []
     };
     if (!points || !points.length)
-        return '<div class="alert alert-warning small">Batch ini belum memiliki Inspection Point transaction.</div>';
-    return "";
+        return '<div class="alert alert-warning small">Inspeksi ini belum memiliki Inspection Point transaction.</div>';
+    if (!isDynamicList) return "";
+
+    const rows = points.map((point, index) => {
+        const id = String(point.InspectionPointTransactionID || "");
+        const status = String(point.Status || "PENDING").toUpperCase();
+        const abnormal = status === "ABNORMAL" || String(point.AbnormalRemark || "").trim() !== "" ||
+            (point.Items || []).some(item => item.IsAnomali === true || item.IsAnomali === 1 || String(item.IsAnomali || "") === "1");
+        const label = String(point.PointName || "").trim() || String(point.PointCode || ("Motor " + (index + 1)));
+        const statusText = abnormal ? "Perlu perhatian" : (status === "DONE" ? "Selesai" : status);
+        const statusClass = abnormal ? "text-bg-warning" : (status === "DONE" ? "text-bg-success" : "text-bg-secondary");
+        return '<button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2" data-approval-dynamic-point-id="' + escInspection(id) + '">' +
+            '<span class="min-w-0"><strong>' + escInspection(label) + '</strong><small class="d-block text-muted">' + escInspection(point.PointCode || ("Motor " + (index + 1))) + '</small></span>' +
+            '<span class="badge ' + statusClass + '">' + escInspection(statusText) + '</span></button>';
+    }).join("");
+    return '<div class="row g-3"><div class="col-12 col-lg-4"><div class="fw-bold mb-2">DAFTAR MOTOR (' + points.length + ')</div>' +
+        '<div class="list-group" id="inspectionApprovalDynamicPointList">' + rows + '</div></div>' +
+        '<div class="col-12 col-lg-8"><div id="inspectionApprovalSelectedPointHost"></div></div></div>';
 }
 
 window.renderInspectionApprovalSelectedPoint = function (pointId) {
@@ -8976,6 +8999,10 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const batchPoints = result.points || [];
         const batchMaps = result.maps || [];
         const isBatchApproval = isInspectionMapMode(h.InspectionMode);
+        const isDynamicMotorApproval = isBatchApproval &&
+            (String(h.InspectionPointMode || "").toUpperCase() === "DYNAMIC" ||
+             String(h.InspectionLayoutCode || "").toUpperCase() === "DYNAMIC_LIST");
+        const isBatchMapApproval = isBatchApproval && !isDynamicMotorApproval;
         const approvalTabButton = document.getElementById(isBatchApproval
             ? "inspectionApprovalChecklistTab" : "inspectionApprovalParamTab");
         if (approvalTabButton && window.bootstrap && bootstrap.Tab)
@@ -9049,7 +9076,7 @@ async function loadInspectionApprovalDetail(inspectionId) {
         const checklistHtml = !templateAvailable
             ? '<div class="alert alert-danger small">Struktur checklist untuk template versi ini tidak ditemukan di server. Checklist tidak ditampilkan dalam format cadangan agar hasil approval tidak salah format. Muat ulang detail atau hubungi administrator.</div>'
             : isBatchApproval
-                ? renderInspectionApprovalBatchPoints(template, batchPoints, photos)
+                ? renderInspectionApprovalBatchPoints(template, batchPoints, photos, isDynamicMotorApproval)
                 : renderInspectionSections(template, items, true, "inspectionApprovalSection");
         const followUpValue = String(h.FollowUp || "No Follow Up");
         const followUpWONo = String(h.FollowUpWONo || "").trim();
@@ -9078,9 +9105,17 @@ async function loadInspectionApprovalDetail(inspectionId) {
                 '<div class="accordion-body p-3"><textarea class="form-control bg-body-tertiary" rows="4" disabled>' + escInspection(h.ReasonVoid) + '</textarea></div>' +
               '</div>'
             : "";
-        checklistHost.innerHTML = (isBatchApproval ? '<div id="inspectionApprovalBatchMap"></div>' : beforePhotoHtml) +
-            checklistHtml + (isBatchApproval ? "" : afterPhotoHtml) + followUpHtml + summaryHtml + reasonVoidHtml;
-        if (isBatchApproval) renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h);
+        checklistHost.innerHTML = (isBatchMapApproval ? '<div id="inspectionApprovalBatchMap"></div>' :
+            (isDynamicMotorApproval ? "" : beforePhotoHtml)) +
+            checklistHtml + (isBatchMapApproval || isDynamicMotorApproval ? "" : afterPhotoHtml) + followUpHtml + summaryHtml + reasonVoidHtml;
+        if (isBatchMapApproval) {
+            renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h);
+        } else if (isDynamicMotorApproval && batchPoints.length) {
+            const firstPointId = String(batchPoints[0].InspectionPointTransactionID || "");
+            const firstButton = document.querySelector('#inspectionApprovalDynamicPointList [data-approval-dynamic-point-id="' + firstPointId.replace(/"/g, '\\"') + '"]');
+            if (firstButton) firstButton.classList.add("active");
+            window.renderInspectionApprovalSelectedPoint(firstPointId);
+        }
         document.getElementById("btnApproveInspection").disabled = isApproved ||
             (isBatchApproval && (!batchPoints.length || !templateAvailable));
         document.getElementById("btnVoidInspection").disabled = isApproved;
