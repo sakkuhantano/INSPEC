@@ -20,6 +20,17 @@ namespace INSPEC.Secure
         private static bool IsInspectionAdministrator(string employeeId)
         {
             if (String.IsNullOrWhiteSpace(employeeId)) return false;
+
+            // A WebForms request can call this check from Page_Load, multiple WebMethods,
+            // queue loaders and approval actions. Cache only for the lifetime of the
+            // current request: this removes repeated DB round-trips without allowing a
+            // role change to remain cached across requests.
+            HttpContext context = HttpContext.Current;
+            string cacheKey = "INSPEC.IsAdministrator." + employeeId.Trim();
+            if (context != null && context.Items.Contains(cacheKey))
+                return Convert.ToBoolean(context.Items[cacheKey]);
+
+            bool isAdministrator;
             using (var br = new WAL.BR.CF())
             {
                 DataTable admin = br.EQueryP(@"
@@ -30,8 +41,12 @@ WHERE SU.EmployeeID=@UserID
   AND SU.IsActive=1
   AND UG.UserGroupID='administrator'",
                     new SqlParameter[] { new SqlParameter("@UserID", employeeId) });
-                return admin != null && admin.Rows.Count > 0;
+                isAdministrator = admin != null && admin.Rows.Count > 0;
             }
+
+            if (context != null)
+                context.Items[cacheKey] = isAdministrator;
+            return isAdministrator;
         }
 
         protected void Page_Load(object sender, EventArgs e)
