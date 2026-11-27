@@ -2328,10 +2328,6 @@
                     return !!String(point.PointName || point.Nopol || "").trim();
                 });
                 entry.classList.toggle("d-none", dynamicReadOnly || !hasRegisteredMotor);
-                var plateInput = document.getElementById("txtInspectionDynamicPointName");
-                var addPlateButton = document.getElementById("btnAddInspectionDynamicPoint");
-                if (plateInput) plateInput.disabled = dynamicReadOnly;
-                if (addPlateButton) addPlateButton.disabled = dynamicReadOnly;
             }
             if (submitBar) submitBar.classList.toggle("d-none", String(record.Status || "").toUpperCase() === "DONE");
             if (summary) summary.classList.remove("d-none");
