@@ -2096,6 +2096,22 @@ const scheduledTime = isLightning
             showToast("Data Inspection Point untuk batch ini belum tersedia offline. Jalankan Sync saat online sebelum memulai batch.", "warning");
             return;
         }
+        // Dynamic Motor inspections start with one editable point automatically.
+        // The first vehicle's Nopol is entered in its own checklist; the
+        // separate "Tambah Motor" entry is revealed only after that Nopol is saved.
+        if (isDynamicPoints && batchMapSetup.points.length === 0) {
+            batchMapSetup.points.push({
+                InspectionPointID: -1,
+                ClientPointID: newInspectionId(),
+                PointCode: "M001",
+                PointName: "",
+                Nopol: "",
+                DisplayOrder: 1,
+                MapID: 0,
+                Status: "PENDING",
+                IsNormalAbnormalRequired: false
+            });
+        }
         if (!navigator.onLine && (batchMapSetup.maps || []).some(map =>
             map.MapUrl && (!(map.MapBlob || map.PdfBlob) || typeof (map.MapBlob || map.PdfBlob).arrayBuffer !== "function"))) {
             showToast("Denah belum tersimpan offline. Checklist tetap bisa dikerjakan melalui tampilan List; denah dapat dibuka saat online.", "warning");
@@ -2155,6 +2171,10 @@ const scheduledTime = isLightning
         // BATCH starts directly in the MAP workspace so the denah and point list
         // are immediately visible after the parameters are applied.
         showInspectionMapWorkspace(currentInspectionRecord, true);
+        // For Dynamic Motor, immediately mount the first point's full checklist.
+        if (isDynamicPoints && batchMapSetup && batchMapSetup.points.length) {
+            await openBatchInspectionPointChecklist(batchMapSetup.points[0]);
+        }
     } else if (mapWorkspace) {
         mapWorkspace.classList.add("d-none");
     }
