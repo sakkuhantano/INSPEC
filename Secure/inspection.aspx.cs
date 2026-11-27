@@ -2379,9 +2379,9 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
-            approvalTab = String.Equals(approvalTab, "APPROVED", StringComparison.OrdinalIgnoreCase)
-                ? "APPROVED"
-                : (String.Equals(approvalTab, "VOID", StringComparison.OrdinalIgnoreCase) ? "VOID" : "OUTSTANDING");
+            approvalTab = String.Equals(approvalTab, "APPROVED", StringComparison.OrdinalIgnoreCase) ? "APPROVED" :
+                (String.Equals(approvalTab, "BATCH_SUBMITTED", StringComparison.OrdinalIgnoreCase) ? "BATCH_SUBMITTED" :
+                (String.Equals(approvalTab, "VOID", StringComparison.OrdinalIgnoreCase) ? "VOID" : "OUTSTANDING"));
             DateTime fromDate;
             DateTime thruDate;
             if (!DateTime.TryParseExact(dateFrom, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out fromDate))
@@ -2495,6 +2495,13 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
       AND NOT (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM')
       AND ISNULL(I.IsApproved,0)=1
       AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru)
+      AND (@IsAdministrator=1 OR R.IsSPV=1))
+   OR
+   (@ApprovalTab='BATCH_SUBMITTED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+      AND ISNULL(IT.InspectionMode,'STANDARD')='STANDARD'
+      AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NOT NULL
+      AND EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_ApprovalBatch B
+                  WHERE B.ApprovalBatchID=I.ApprovalBatchID AND B.BatchStatus='PENDING')
       AND (@IsAdministrator=1 OR R.IsSPV=1))
    OR
    (@ApprovalTab='VOID' AND I.Status='DRAFT' AND ISNULL(I.IsSubmitted,0)=0
