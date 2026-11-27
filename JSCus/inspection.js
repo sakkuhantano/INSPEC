@@ -7891,7 +7891,7 @@ function updateInspectionApprovalSelectAll() {
         const selectedWorkflowModes = Array.from(new Set(selectedRows.map(row =>
             String(row.InspectionMode || "STANDARD").toUpperCase() === "STANDARD" ? "STANDARD" :
                 (String(row.InspectionMode || "STANDARD").toUpperCase() === "BATCH" &&
-                 String(row.ScheduleSelectionMode || "PARAM").toUpperCase() === "PARAM" ? "BATCH;PARAM" : "UNSUPPORTED")));
+                 String(row.ScheduleSelectionMode || "PARAM").toUpperCase() === "PARAM" ? "BATCH;PARAM" : "UNSUPPORTED"))));
         const canCreate = currentInspectionApprovalTab === "APPROVED" && selectedRows.length > 0 &&
             selectedWorkflowModes.length === 1 && selectedWorkflowModes[0] !== "UNSUPPORTED" &&
             selectedRows.every(row => !row.ApprovalBatchID);
