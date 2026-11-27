@@ -8195,6 +8195,7 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
         status === "DONE" ? "text-bg-success" :
         status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary";
     const pointPhotos = data.photos.filter(photo => String(photo.PointID || "") === id);
+    const photoRequirement = String(data.template && data.template.PhotoRequirement || "BOTH").toUpperCase();
     const photoStage = type => {
         const rows = pointPhotos.filter(photo => String(photo.Type || "").toUpperCase() === type);
         return '<div class="inspection-photo-panel mb-3"><div class="fw-bold mb-2"><i class="bi bi-camera-fill me-2"></i>FIELD DOCUMENTATION ' + type + '</div>' +
@@ -8205,14 +8206,16 @@ window.renderInspectionApprovalSelectedPoint = function (pointId) {
     const checklist = data.template && Array.isArray(data.template.sections) && data.template.sections.length
         ? renderInspectionSections(data.template, point.Items || [], true, "inspectionApprovalPoint_" + id.replace(/[^a-zA-Z0-9_-]/g, "_"))
         : '<div class="alert alert-danger small">Template version tidak tersedia.</div>';
+    const beforePhoto = (photoRequirement === "BEFORE" || photoRequirement === "BOTH") ? photoStage("BEFORE") : "";
+    const afterPhoto = (photoRequirement === "AFTER" || photoRequirement === "BOTH") ? photoStage("AFTER") : "";
     host.innerHTML = '<div class="card border mb-3" id="inspectionApprovalPoint_' + escInspection(id) + '">' +
         '<div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">' +
-            '<div><div class="fw-bold">' + escInspection(point.PointCode || "Inspection Point") + ' · ' + escInspection(point.PointName || "") + '</div>' +
-            '<small class="text-muted">' + escInspection(point.PointObjectType || "GENERAL") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
+            '<div><div class="fw-bold">' + escInspection(point.PointName || point.PointCode || "Inspection Point") + '</div>' +
+            '<small class="text-muted">' + escInspection(point.PointCode || "") + ' · ' + escInspection(point.InspectionDateTime || "") + '</small></div>' +
             '<span class="badge ' + statusClass + '">' + escInspection(statusLabel) + '</span>' +
         '</div><div class="card-body">' +
             (isAbnormal ? '<div class="alert alert-danger py-2 small"><strong>ABNORMAL REMARK</strong><div class="mt-1" style="white-space:pre-wrap">' + escInspection(point.AbnormalRemark) + '</div></div>' : '') +
-            photoStage("BEFORE") + checklist + photoStage("AFTER") + '</div></div>';
+            beforePhoto + checklist + afterPhoto + '</div></div>';
 };
 
 async function renderInspectionApprovalBatchMap(maps, points, schedules, workflowHeader) {
@@ -9112,7 +9115,8 @@ async function loadInspectionApprovalDetail(inspectionId) {
             renderInspectionApprovalBatchMap(batchMaps, batchPoints, result.schedules || [], h);
         } else if (isDynamicMotorApproval && batchPoints.length) {
             const firstPointId = String(batchPoints[0].InspectionPointTransactionID || "");
-            const firstButton = document.querySelector('#inspectionApprovalDynamicPointList [data-approval-dynamic-point-id="' + firstPointId.replace(/"/g, '\\"') + '"]');
+            const firstButton = Array.from(document.querySelectorAll("#inspectionApprovalDynamicPointList [data-approval-dynamic-point-id]"))
+                .find(button => String(button.dataset.approvalDynamicPointId || "") === firstPointId);
             if (firstButton) firstButton.classList.add("active");
             window.renderInspectionApprovalSelectedPoint(firstPointId);
         }
