@@ -4426,7 +4426,7 @@ WHERE B.CompanyID=@CompanyID AND B.LocationID=@LocationID
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))
 GROUP BY B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
-         B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+         B.ProfitCenterNo,B.WorkflowKey,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
          B.ApprovedBy,B.ApprovedDate,B.EmailStatus,EC.Name,EA.Name
 ORDER BY B.InspectionDate DESC,B.ApprovalBatchID DESC",
                     new SqlParameter[] {
