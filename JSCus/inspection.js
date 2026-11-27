@@ -7329,19 +7329,14 @@ function wireInspectionApprovalEvents() {
     });
     addInspectionApprovalListener("btnPreviewChiefBatchReports", "click", previewChiefApprovalBatchReports);
     addInspectionApprovalListener("btnApproveChiefBatch", "click", approveChiefApprovalBatch);
-    addInspectionApprovalListener("btnVoidChiefBatch", "click", function () {
+    addInspectionApprovalListener("btnVoidSelectedChiefBatch", "click", function () {
         const ids = Array.from(chiefBatchVoidSelectedIDs);
-        if (!ids.length) { showToast("Pilih inspeksi atau klik Select All terlebih dahulu.", "warning"); return; }
+        if (!ids.length) { showToast("Pilih minimal satu inspeksi untuk Void Selected.", "warning"); return; }
         openChiefBatchVoidModal(ids);
     });
-    addInspectionApprovalListener("btnSelectAllChiefBatchInspections", "click", function () {
-        if (!currentChiefApprovalBatch || String(currentChiefApprovalBatch.BatchStatus || "").toUpperCase() !== "PENDING") return;
-        chiefApprovalBatchRows.forEach(row => {
-            const id = Number(row.InspectionID);
-            if (id > 0) chiefBatchVoidSelectedIDs.add(id);
-        });
-        renderChiefBatchInspectionRows();
-        showToast(chiefBatchVoidSelectedIDs.size + " inspeksi dalam batch dipilih.", "info");
+    addInspectionApprovalListener("btnVoidAllChiefBatch", "click", function () {
+        if (!chiefApprovalBatchRows.length) { showToast("Batch tidak memiliki inspeksi.", "warning"); return; }
+        openChiefBatchVoidModal(null);
     });
     addInspectionApprovalListener("chkSelectAllChiefBatchVoid", "change", function (event) {
         const pageRows = getChiefBatchInspectionPageRows();
@@ -7883,6 +7878,8 @@ function updateInspectionApprovalSelectAll() {
     }
     const preview = document.getElementById("btnInspectionApprovalPreview");
     const selectedRowsForActions = getSelectedInspectionApprovalRows();
+    const selectedCounter = document.getElementById("inspectionApprovalSelectedCount");
+    if (selectedCounter) selectedCounter.textContent = String(selectedRowsForActions.length);
     if (preview) preview.disabled = !["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) || selectedRowsForActions.length === 0;
     const createBatch = document.getElementById("btnCreateStandardApprovalBatch");
     if (createBatch) {
@@ -8782,8 +8779,8 @@ async function openChiefApprovalBatchDetail(batchId) {
             chiefApprovalBatchRows.length + " inspections • " + reportTypeCount + " report types • " +
             (currentChiefApprovalBatch.ChiefRole || "CHIEF") + approvedInfo;
         document.getElementById("btnApproveChiefBatch").classList.toggle("d-none", status !== "PENDING");
-        document.getElementById("btnVoidChiefBatch").classList.toggle("d-none", status !== "PENDING");
-        document.getElementById("btnSelectAllChiefBatchInspections").classList.toggle("d-none", status !== "PENDING");
+        document.getElementById("btnVoidSelectedChiefBatch").classList.toggle("d-none", status !== "PENDING");
+        document.getElementById("btnVoidAllChiefBatch").classList.toggle("d-none", status !== "PENDING");
         const selectAllVoid = document.getElementById("chkSelectAllChiefBatchVoid");
         if (selectAllVoid) { selectAllVoid.checked = false; selectAllVoid.indeterminate = false; selectAllVoid.disabled = status !== "PENDING"; }
         document.querySelectorAll(".chief-batch-void-select-col").forEach(cell => cell.classList.toggle("d-none", status !== "PENDING"));
@@ -8920,9 +8917,8 @@ function renderChiefBatchInspectionRows() {
         selectAll.indeterminate = pageSelectedCount > 0 && pageSelectedCount < rows.length;
         selectAll.disabled = !pending || rows.length === 0;
     }
-    const selectAllButton = document.getElementById("btnSelectAllChiefBatchInspections");
-    if (selectAllButton) selectAllButton.textContent = selectedCount === chiefApprovalBatchRows.length && selectedCount > 0
-        ? "All Selected (" + selectedCount + ")" : "Select All (" + chiefApprovalBatchRows.length + ")";
+    const selectedCounter = document.getElementById("chiefBatchVoidSelectionCount");
+    if (selectedCounter) selectedCounter.textContent = String(selectedCount);
     const info = document.getElementById("chiefBatchInspectionPageInfo");
     if (info) info.textContent = (chiefApprovalBatchRows.length ? (start + 1) + "-" + Math.min(start + rows.length, chiefApprovalBatchRows.length) : 0) +
         " of " + chiefApprovalBatchRows.length + " inspections • " + selectedCount + " selected";
@@ -8932,8 +8928,10 @@ function renderChiefBatchInspectionRows() {
     if (next) next.disabled = chiefBatchInspectionPage >= pageCount;
     const pager = document.getElementById("chiefBatchInspectionPager");
     if (pager) pager.classList.toggle("d-none", chiefApprovalBatchRows.length <= CHIEF_BATCH_INSPECTION_PAGE_SIZE);
-    const voidButton = document.getElementById("btnVoidChiefBatch");
-    if (voidButton) voidButton.disabled = !pending || selectedCount === 0;
+    const voidSelectedButton = document.getElementById("btnVoidSelectedChiefBatch");
+    if (voidSelectedButton) voidSelectedButton.disabled = !pending || selectedCount === 0;
+    const voidAllButton = document.getElementById("btnVoidAllChiefBatch");
+    if (voidAllButton) voidAllButton.disabled = !pending || chiefApprovalBatchRows.length === 0;
 }
 
 async function confirmChiefBatchVoid() {
