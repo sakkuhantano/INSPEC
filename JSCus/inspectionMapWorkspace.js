@@ -2072,7 +2072,12 @@
             if (list) { list.classList.remove("d-none"); list.style.display = "block"; }
             if (entry) {
                 var dynamicReadOnly = !!currentInspectionReadOnly || String(record.Status || "").toUpperCase() === "DONE";
-                entry.classList.toggle("d-none", dynamicReadOnly);
+                // Do not ask for another motor before the automatically-created
+                // first motor has a Nopol. Its Nopol is entered in the checklist.
+                var hasRegisteredMotor = currentPoints.some(function (point) {
+                    return !!String(point.PointName || point.Nopol || "").trim();
+                });
+                entry.classList.toggle("d-none", dynamicReadOnly || !hasRegisteredMotor);
                 var plateInput = document.getElementById("txtInspectionDynamicPointName");
                 var addPlateButton = document.getElementById("btnAddInspectionDynamicPoint");
                 if (plateInput) plateInput.disabled = dynamicReadOnly;
