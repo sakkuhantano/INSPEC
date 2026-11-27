@@ -2403,9 +2403,6 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string fromWhere = @"
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
-LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
-LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
 CROSS APPLY (SELECT
  CASE WHEN EXISTS
  (
@@ -2541,6 +2538,10 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
                 new SqlParameter("@DateThru", thruDate)
             };
 
+            string rowFromWhere = fromWhere.Replace(
+                "FROM dbo.PIP_T_Inspection I",
+                "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
+
             using (var br = new WAL.BR.CF())
             {
                 // Count requests must stay scalar. Previously countOnly still loaded every
@@ -2576,7 +2577,7 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
              WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'BATCHED'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved,0)=1 THEN 'VERIFIED'
              WHEN ISNULL(I.IsApproved,0)=1 THEN 'SPV APPROVED'
-             WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + fromWhere + @"
+             WHEN ISNULL(I.IsSubmitted,0)=1 THEN 'PENDING SPV' ELSE I.Status END AS WorkflowStatus" + rowFromWhere + @"
   AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
@@ -2856,6 +2857,10 @@ ORDER BY P.SeqNo",
                 thruDate = fromDate;
             if (fromDate > thruDate) throw new HttpException(400, "Approved From tidak boleh melewati Approved Thru.");
 
+            string rowScope = scope.Replace(
+                "FROM dbo.PIP_T_Inspection I",
+                "FROM dbo.PIP_T_Inspection I\nLEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID\nLEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy\nLEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy");
+
             using (var br = new WAL.BR.CF())
             {
                 Func<bool, SqlParameter[]> createParameters = includeScheduleTime => new SqlParameter[] {
@@ -2874,9 +2879,6 @@ ORDER BY P.SeqNo",
                 const string scope = @"
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-LEFT JOIN dbo.M_HRD_Employee E ON E.EmployeeID=I.OwnerEmployeeID
-LEFT JOIN dbo.M_HRD_Employee ES ON ES.EmployeeID=I.SubmittedBy
-LEFT JOIN dbo.M_HRD_Employee EA ON EA.EmployeeID=I.ApprovedBy
 CROSS APPLY (SELECT
  CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';SPV;'+I.SectionID AND EXISTS(SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) THEN 1 ELSE 0 END IsSPV,
  CASE WHEN EXISTS(SELECT 1 FROM dbo.SysWebCommonValue C WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0 AND C.ID=CONVERT(VARCHAR(30),I.CompanyID)+CONVERT(VARCHAR(30),I.LocationID)+';CHIEF_ENG' AND EXISTS(SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X WHERE LTRIM(RTRIM(X.val))=@EmployeeID)) THEN 1 ELSE 0 END IsCE,
@@ -2951,7 +2953,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
             WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2'
             WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END WorkflowStatus,
        CASE WHEN I.IsApproved=0 THEN 'SPV' WHEN I.IsApproved1=0 THEN 'CHIEF_SEC' WHEN I.IsApproved2=0 THEN 'CHIEF_ENG' ELSE 'COMPLETED' END CurrentStageCode
-" + scope + @"
+" + rowScope + @"
 ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 var data = new List<Dictionary<string, object>>();
                 var filters = new List<Dictionary<string, object>>();
