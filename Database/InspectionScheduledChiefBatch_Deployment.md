@@ -5,7 +5,7 @@
 - STANDARD: SPV approval -> Chief batch approval. BATCH/PARAM: SPV approval -> Chief batch -> Chief stage (`IsApproved1`).
 - SQL Server Agent calls existing `Login.aspx?task=scheduledChiefBatch` via HTTPS POST. `Site1.Master` is untouched; Login.aspx has no Site1.Master.
 - HMAC-SHA256, a five-minute timestamp window, and a one-use 32-hex nonce authenticate the server request and reject replay.
-- Scheduler requires active INSPEC administrator NIK `sa`, scans all Company/Location/Section scopes containing eligible STANDARD inspections, and creates no browser session.
+- Scheduler requires active INSPEC administrator NIK `sa`, scans all Company/Location/Section scopes containing eligible STANDARD and BATCH/PARAM inspections, and creates no browser session.
 - Manual SPV and scheduled submission call one shared C# batch processor. The normal manual SPV authorization path remains in place.
 - Eligibility: active, DONE, submitted, SPV-approved, not void, and ApprovalBatchID is NULL. STANDARD rows are eligible directly after SPV approval; BATCH/PARAM rows are eligible only while `IsApproved1=0`. BATCH/INSPECT is excluded.
 - Existing SQL batch rules limit a batch to one workflow mode, InspectionDate, Company, Location, Section, and 200 inspections. Therefore scheduler processes Company + Location + Section + InspectionDate groups in chunks of 200. Each batch still produces one XLSX per InspectionTypeCode.
@@ -14,9 +14,10 @@
 
 ## Deployment order
 1. Deploy updated `Login.aspx.cs`, `Secure/inspection.aspx.cs`, and merge the scheduler appSettings from repository `Web.config` into live Web.config. Do not overwrite live database/SMTP settings.
-2. Run `Database/StandardInspection_ApprovalBatch.sql` (updated create procedure has @p_IsScheduled).
-3. Run `Database/StandardInspection_ApprovalBatch_Void.sql` to enable Chief partial/full Void for STANDARD and BATCH/PARAM while a batch is Pending. This adds the VOID batch state and the guarded `spUTL_PIP_T_Inspection_ApprovalBatch_Void` procedure.
-4. Run `Database/InspectionScheduledChiefBatch.sql` (nonce, lock and run log objects).
+2. Run `Database/StandardInspection_ApprovalBatch.sql` (adds WorkflowKey and updates shared STANDARD + BATCH/PARAM batch procedures).
+3. Re-run `Database/InspectionApproval_Workflow_Procedures.sql` so BATCH/PARAM Chief approval and notification use the batch workflow instead of per-inspection approval/email.
+4. Run `Database/StandardInspection_ApprovalBatch_Void.sql` to enable Chief partial/full Void for STANDARD and BATCH/PARAM while a batch is Pending. This adds the VOID batch state and the guarded `spUTL_PIP_T_Inspection_ApprovalBatch_Void` procedure.
+9. Run `Database/InspectionScheduledChiefBatch.sql` (nonce, lock and run log objects).
 5. Confirm NIK `sa` is active in SysWebUser and belongs to UserGroupID='administrator'.
 6. Confirm all target STANDARD workflow/Chief COMVALs and one global AutoEmail sender with valid From Name/From Email.
 7. Copy both PowerShell scripts to the SQL Agent host. Run Prepare script as SQL Agent service account/job proxy to create the DPAPI encrypted secret file. Copy the one-time printed key to live Web.config key INSPECSchedulerHmacSecret. Restrict ACLs.
