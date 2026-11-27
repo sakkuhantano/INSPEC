@@ -2580,7 +2580,7 @@ INTO #InspectionApprovalQueue
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
   AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
-ORDER BY I.InspectionDate DESC, I.InspectionID DESC";
+";
 UPDATE Q SET Q.TechnicianName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.OwnerEmployeeID;
 UPDATE Q SET Q.SubmittedByName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.SubmittedBy;
 UPDATE Q SET Q.ApprovedByName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.ApprovedBy;
@@ -2955,7 +2955,7 @@ SELECT I.InspectionID,I.ClientInspectionID,I.InspectionNo,I.CompanyID,I.Location
 "
 INTO #LightningApprovalQueue
 " + scope + @"
-ORDER BY I.InspectionDate DESC, I.InspectionID DESC";
+";
 UPDATE Q SET Q.TechnicianName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.OwnerEmployeeID;
 UPDATE Q SET Q.SubmittedByName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.SubmittedBy;
 UPDATE Q SET Q.ApprovedByName=E.Name FROM #LightningApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.ApprovedBy;
