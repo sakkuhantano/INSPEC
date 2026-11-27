@@ -2744,8 +2744,10 @@ function collectInspectionFollowUp() {
     };
 }
 
-function updateInspectionRemarkPanels() {
-    document.querySelectorAll("#inspectionChecklistHost .inspection-item[data-item-id]").forEach(function(container) {
+function updateInspectionRemarkPanels(rootElement) {
+    const root = rootElement || document.getElementById("inspectionChecklistHost");
+    if (!root) return;
+    root.querySelectorAll(".inspection-item[data-item-id]").forEach(function(container) {
         const options = String(container.dataset.remarkOptions || "").split(";").map(x => x.trim()).filter(Boolean);
         const selected = container.querySelector('[data-role="value"][type="radio"]:checked');
         const optionRequires = container.dataset.itemType === "OPTION" && !!selected && options.includes(String(selected.value).trim());
