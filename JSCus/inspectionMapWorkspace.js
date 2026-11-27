@@ -641,7 +641,7 @@
             point.Items = items;
             point.ValidationIssueCount = errors.length;
             if (["DONE", "ABNORMAL"].indexOf(String(point.Status || "").toUpperCase()) < 0)
-                point.Status = errors.length ? "INCOMPLETE" : "INCOMPLETE";
+                point.Status = "INCOMPLETE";
             point.UpdatedAt = new Date().toISOString();
             record.SyncStatus = "PENDING";
             record.UpdatedAt = new Date().toISOString();
