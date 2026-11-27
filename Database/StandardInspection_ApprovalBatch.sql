@@ -180,7 +180,7 @@ BEGIN
               AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
         )<>@SelectedCount
         BEGIN
-            RAISERROR('Every selected inspection must be active, submitted, SPV-approved STANDARD, and not assigned to another batch.',16,1);
+            RAISERROR('Every selected inspection must be active, submitted, SPV-approved STANDARD or BATCH/PARAM, and not assigned to another batch.',16,1);
         END;
 
         SELECT @C=MIN(I.CompanyID),@L=MIN(I.LocationID),@S=MIN(I.SectionID),
@@ -224,7 +224,7 @@ BEGIN
               AND (CHARINDEX('[CHIEF][TRUE]',UPPER(ISNULL(C.Description,'')))>0 OR CHARINDEX('[CHIEF][FALSE]',UPPER(ISNULL(C.Description,'')))>0)
         )
         BEGIN
-            RAISERROR('STANDARD workflow COMVAL must contain both [SPV][TRUE/FALSE] and [CHIEF][TRUE/FALSE].',16,1);
+            RAISERROR('Workflow COMVAL must contain both [SPV][TRUE/FALSE] and [CHIEF][TRUE/FALSE].',16,1);
         END;
 
         IF ISNULL(@p_IsScheduled,0)=0 AND NOT EXISTS
