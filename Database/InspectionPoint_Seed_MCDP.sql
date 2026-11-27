@@ -919,4 +919,5 @@ COMMIT TRANSACTION;
 
 SELECT M.MapCode,M.MapName,COUNT(P.InspectionPointID) AS PointCount
 FROM dbo.PIP_M_InspectionMap M LEFT JOIN dbo.PIP_M_InspectionPoint P ON P.MapID=M.MapID AND P.IsActive=1
+WHERE M.MapCode IN (N'MCDP-CAR-B1',N'MCDP-CAR-B2',N'MCDP-CAR-B3',N'MCDP-LT')
 GROUP BY M.MapCode,M.MapName ORDER BY M.MapCode;
