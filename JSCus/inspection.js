@@ -8775,7 +8775,7 @@ async function openChiefApprovalBatchDetail(batchId) {
         chiefBatchInspectionPage = 1;
         document.getElementById("chiefBatchListView").classList.add("d-none");
         document.getElementById("chiefBatchDetailView").classList.remove("d-none");
-        document.getElementById("chiefBatchDetailTitle").textContent = "Approval Batch #" + batchId;
+        document.getElementById("chiefBatchDetailTitle").textContent = "Approval Batch #" + batchId + " · " + (String(currentChiefApprovalBatch.WorkflowKey || "STANDARD").toUpperCase() === "BATCH;PARAM" ? "BATCH / PARAM" : "STANDARD");
         const status = String(currentChiefApprovalBatch.BatchStatus || "PENDING").toUpperCase();
         const approvedInfo = status === "APPROVED"
             ? " • Approved by " + (currentChiefApprovalBatch.ApprovedByName || currentChiefApprovalBatch.ApprovedBy || "") +
