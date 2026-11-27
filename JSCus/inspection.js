@@ -379,7 +379,11 @@ document.addEventListener("DOMContentLoaded", async function () {
             await initializeSpvApprovalSections();
             await initializeChiefBatchApproval();
             const approvalView = new URLSearchParams(window.location.search).get("view");
-            if (approvalView === "chiefbatch") showChiefBatchPanel();
+            if (approvalView === "chiefbatch") {
+                showChiefBatchPanel();
+                const linkedBatchId = Number(new URLSearchParams(window.location.search).get("batchId") || 0);
+                if (linkedBatchId > 0) openChiefApprovalBatchDetail(linkedBatchId);
+            }
             return;
         }
 
