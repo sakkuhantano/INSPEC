@@ -2461,14 +2461,12 @@
                 <label for="selApprovalBatchStatus" class="form-label small mb-1">Batch Status</label>
                 <select id="selApprovalBatchStatus" class="form-select form-select-sm"><option value="NOT_SENT" selected>Not yet sent</option><option value="SENT">In CHIEF batch</option><option value="">All</option></select>
             </div>
-            <div class="inspection-date-control"><label for="txtApprovalInspectionDateFrom" class="form-label small mb-1">Inspection Date From</label><input type="date" id="txtApprovalInspectionDateFrom" class="form-control form-control-sm" /></div>
-            <div class="inspection-date-control"><label for="txtApprovalInspectionDateThru" class="form-label small mb-1">Inspection Date Thru</label><input type="date" id="txtApprovalInspectionDateThru" class="form-control form-control-sm" /></div>
             <div class="inspection-filter-control">
-                <label for="selApprovalType" class="form-label small mb-1">Type</label>
+                <label for="selApprovalType" class="form-label small mb-1">Inspection Type Code</label>
                 <select id="selApprovalType" class="form-select form-select-sm"><option value="">All types</option></select>
             </div>
             <div class="inspection-filter-control">
-                <label for="selApprovalDetail" class="form-label small mb-1">Detail Code</label>
+                <label for="selApprovalDetail" class="form-label small mb-1">Inspection Detail Code</label>
                 <select id="selApprovalDetail" class="form-select form-select-sm"><option value="">All details</option></select>
             </div>
             <div class="inspection-filter-control">
@@ -2479,9 +2477,11 @@
                 <label for="selApprovalTemplate" class="form-label small mb-1">Template</label>
                 <select id="selApprovalTemplate" class="form-select form-select-sm"><option value="">All templates</option></select>
             </div>
+            <div class="inspection-date-control"><label for="txtApprovalInspectionDateFrom" class="form-label small mb-1">Inspection Date From</label><input type="date" id="txtApprovalInspectionDateFrom" class="form-control form-control-sm" /></div>
+            <div class="inspection-date-control"><label for="txtApprovalInspectionDateThru" class="form-label small mb-1">Inspection Date Thru</label><input type="date" id="txtApprovalInspectionDateThru" class="form-control form-control-sm" /></div>
             <div id="inspectionApprovalDateFilters" class="d-none align-items-end gap-2">
-                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date from" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateFrom" class="inspection-native-date-overlay" aria-label="Open approved date from calendar" /></span></div></div>
-                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date thru" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateThru" class="inspection-native-date-overlay" aria-label="Open approved date thru calendar" /></span></div></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateFrom" class="form-label small mb-1">From</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateFrom" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date from" title="Format: dd-MMM-yyyy" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateFrom" class="inspection-native-date-overlay" aria-label="Open approved date from calendar" /></span></div></div>
+                <div class="inspection-date-control"><label for="txtApprovalDateThru" class="form-label small mb-1">Thru</label><div class="input-group input-group-sm"><input type="text" id="txtApprovalDateThru" inputmode="text" placeholder="dd-MMM-yyyy" autocomplete="off" class="form-control" aria-label="Approved date thru" title="Format: dd-MMM-yyyy" /><span class="input-group-text inspection-date-picker-trigger"><i class="bi bi-calendar3" aria-hidden="true"></i><input type="date" id="pickerApprovalDateThru" class="inspection-native-date-overlay" aria-label="Open approved date thru calendar" /></span></div></div>
                 </div>
                 </div>
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
