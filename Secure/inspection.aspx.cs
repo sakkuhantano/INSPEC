@@ -504,6 +504,13 @@ WHERE IT.InspectionTypeCode=@InspectionTypeCode
                         string serverInspectionPointMode = Convert.ToString(typeConfigRow["InspectionPointMode"]).Trim().ToUpperInvariant();
                         string serverScheduleSelectionMode = Convert.ToString(typeConfigRow["ScheduleSelectionMode"]).Trim().ToUpperInvariant();
 
+                        // PIP_M_InspectionType is header-level, but CP contains both
+                        // MAP car details and the dynamic Motor detail. Keep the master
+                        // row unchanged and derive the effective point mode by detail.
+                        if (String.Equals(inspectionTypeCode, "CP", StringComparison.OrdinalIgnoreCase) &&
+                            String.Equals(inspectionTypeDetailCode, "MCDP-CP-MT", StringComparison.OrdinalIgnoreCase))
+                            serverInspectionPointMode = "DYNAMIC";
+
                         if (serverInspectionMode != inspectionMode)
                             throw new Exception("Inspection Mode pada perangkat tidak sesuai dengan konfigurasi Master Inspection Type.");
                         if (serverInspectionPointMode != inspectionPointMode)
