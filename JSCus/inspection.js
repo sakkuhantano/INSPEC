@@ -2153,12 +2153,15 @@ const scheduledTime = isLightning
     // A newly created inspection should open at FIELD DOCUMENTATION BEFORE,
     // not at a leftover scroll position from the previous screen.
     window.setTimeout(() => {
-        const beforePhotoPanel = document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
-        if (!beforePhotoPanel) return;
+        const requirement = getInspectionPhotoRequirement(currentInspectionRecord);
+        const targetPanel = requirement === "AFTER"
+            ? document.getElementById("inspectionAfterPhotoPanel")
+            : document.getElementById("btnAddInspectionBeforePhoto")?.closest(".inspection-photo-panel");
+        if (!targetPanel || targetPanel.classList.contains("d-none")) return;
         const stickyHeader = document.getElementById("inspectionEditorStickyHeader");
-        beforePhotoPanel.scrollIntoView({ behavior: "auto", block: "start" });
+        targetPanel.scrollIntoView({ behavior: "auto", block: "start" });
         if (stickyHeader && stickyHeader.getClientRects().length) {
-            const offset = beforePhotoPanel.getBoundingClientRect().top - stickyHeader.getBoundingClientRect().bottom - 8;
+            const offset = targetPanel.getBoundingClientRect().top - stickyHeader.getBoundingClientRect().bottom - 8;
             if (Math.abs(offset) > 2) window.scrollBy({ top: offset, behavior: "auto" });
         }
         updateInspectionScrollTools();
@@ -6925,12 +6928,14 @@ async function updateInspectionChecklistGate() {
     const beforeRequired = requirement === "BEFORE" || requirement === "BOTH";
     const afterRequired = requirement === "AFTER" || requirement === "BOTH";
     const before = photos.some(photo => String(photo.Type || "").toUpperCase() === "BEFORE");
+    // BEFORE is a real prerequisite only when the Template Version explicitly
+    // requires BEFORE/BOTH. For AFTER-only templates, the technician must be
+    // able to start the checklist immediately; AFTER remains the final photo gate.
     const checklistLocked = beforeRequired && !before;
     document.querySelectorAll("#inspectionChecklistHost input, #inspectionChecklistHost select, #inspectionChecklistHost textarea")
         .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
     document.querySelectorAll("#inspectionPointConditionPanel input, #inspectionPointConditionPanel textarea")
         .forEach(element => { element.disabled = currentInspectionReadOnly || checklistLocked; });
-    // Summary and Follow Up must follow the same BEFORE-photo prerequisite as checklist entry.
     document.getElementById("txtInspectionSummary").disabled = currentInspectionReadOnly || checklistLocked;
     document.getElementById("txtInspectionFollowUpRemark").disabled = currentInspectionReadOnly || checklistLocked;
     document.getElementById("inspectionFollowUpSection").disabled = currentInspectionReadOnly || checklistLocked;
