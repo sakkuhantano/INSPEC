@@ -9028,7 +9028,7 @@ async function createStandardApprovalBatch() {
         if (result.emailStatus === "SENT")
             showToast("Approval batch #" + result.approvalBatchId + " berhasil dikirim ke CHIEF.", "success");
         else if (result.emailStatus === "FAILED")
-            showToast("Batch #" + result.approvalBatchId + " berhasil dibuat, tetapi report/email gagal diproses. CHIEF tetap dapat approve melalui program. " +
+            showToast("Batch #" + result.approvalBatchId + " berhasil dibuat, tetapi report/email gagal diproses. CHIEF tetap dapat approve melalui INSPEC. " +
                 (result.emailMessage || ""), "warning");
         else
             showToast("Approval batch #" + result.approvalBatchId + " berhasil dibuat. Email CHIEF tidak diaktifkan pada COMVAL.", "success");
