@@ -2360,7 +2360,7 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
-            return GetInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, true);
+            return GetInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false);
         }
 
         private static object GetInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
@@ -2788,7 +2788,7 @@ ORDER BY P.SeqNo",
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime)
         {
-            return GetLightningInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, true);
+            return GetLightningInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false);
         }
 
         private static object GetLightningInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
