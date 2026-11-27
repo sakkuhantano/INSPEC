@@ -7889,7 +7889,12 @@ function updateInspectionApprovalSelectAll() {
     if (createBatch) {
         const selectedRows = selectedRowsForActions;
         const canCreate = currentInspectionApprovalTab === "APPROVED" && selectedRows.length > 0 &&
-            selectedRows.every(row => String(row.InspectionMode || "STANDARD").toUpperCase() === "STANDARD" && !row.ApprovalBatchID);
+            selectedRows.every(row => {
+                const mode = String(row.InspectionMode || "STANDARD").toUpperCase();
+                const scheduleMode = String(row.ScheduleSelectionMode || "PARAM").toUpperCase();
+                return !row.ApprovalBatchID &&
+                    (mode === "STANDARD" || (mode === "BATCH" && scheduleMode === "PARAM"));
+            });
         createBatch.classList.toggle("d-none", currentInspectionApprovalTab !== "APPROVED");
         createBatch.disabled = !canCreate;
     }
@@ -8994,11 +8999,21 @@ async function createStandardApprovalBatch() {
         showToast("Pilih inspeksi yang sudah di-approve SPV terlebih dahulu.", "warning");
         return;
     }
-    if (rows.some(row => String(row.InspectionMode || "STANDARD").toUpperCase() !== "STANDARD")) {
-        showToast("Batch CHIEF ini hanya untuk STANDARD inspection. BATCH mobil/motor tetap menggunakan workflow yang sekarang.", "warning");
+    if (rows.some(row => {
+        const mode = String(row.InspectionMode || "STANDARD").toUpperCase();
+        const scheduleMode = String(row.ScheduleSelectionMode || "PARAM").toUpperCase();
+        return !((mode === "STANDARD") || (mode === "BATCH" && scheduleMode === "PARAM")) || !!row.ApprovalBatchID;
+    })) {
+        showToast("Chief batch hanya mendukung STANDARD dan BATCH/PARAM. BATCH/INSPECT (Lightning) tetap memakai workflow tersendiri.", "warning");
         return;
     }
-    if (!window.confirm("Kirim " + rows.length + " inspeksi STANDARD terpilih sebagai satu approval batch ke CHIEF?")) return;
+    const workflowModes = Array.from(new Set(rows.map(row =>
+        String(row.InspectionMode || "STANDARD").toUpperCase() === "STANDARD" ? "STANDARD" : "BATCH/PARAM")));
+    if (workflowModes.length !== 1) {
+        showToast("Jangan campur STANDARD dan BATCH/PARAM dalam satu batch. Pilih satu workflow mode saja.", "warning");
+        return;
+    }
+    if (!window.confirm("Kirim " + rows.length + " inspeksi " + workflowModes[0] + " terpilih sebagai satu approval batch ke CHIEF?")) return;
     const button = document.getElementById("btnCreateStandardApprovalBatch");
     button.disabled = true;
     try {
