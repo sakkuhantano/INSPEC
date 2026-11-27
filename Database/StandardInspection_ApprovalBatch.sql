@@ -204,6 +204,17 @@ BEGIN
             RAISERROR('Selected inspections are outside the logged-in Company/Location.',16,1);
         END;
 
+        SELECT @WorkflowKey=CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END
+        FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
+        JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode;
+        IF EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
+            JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+            WHERE (CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END)<>@WorkflowKey
+               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'PARAM')
+        ) RAISERROR('One batch cannot mix STANDARD and BATCH/PARAM or include BATCH/INSPECT.',16,1);
+
         IF NOT EXISTS
         (
             SELECT 1 FROM dbo.SysWebCommonValue C
@@ -231,17 +242,6 @@ BEGIN
         SELECT @ProfitCenterNo=UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,''))))
         FROM dbo.PIP_M_Section S
         WHERE S.SectionID=@S;
-
-        SELECT @WorkflowKey=CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END
-        FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
-        JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode;
-        IF EXISTS
-        (
-            SELECT 1 FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
-            JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-            WHERE (CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END)<>@WorkflowKey
-               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'PARAM')
-        ) RAISERROR('One batch cannot mix STANDARD and BATCH/PARAM or include BATCH/INSPECT.',16,1);
 
         SET @ChiefRole=CASE @ProfitCenterNo WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END;
         IF ISNULL(@ChiefRole,'')=''
