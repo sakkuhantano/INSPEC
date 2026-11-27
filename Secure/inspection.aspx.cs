@@ -2367,14 +2367,16 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
         [WebMethod]
         public static object GetInspectionApprovalQueue(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId, string scheduleTime)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime,
+            string inspectionDateFrom, string inspectionDateThru)
         {
-            return GetInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false);
+            return GetInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false, inspectionDateFrom, inspectionDateThru);
         }
 
         private static object GetInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox,
+            string inspectionDateFrom = "", string inspectionDateThru = "")
         {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
@@ -2581,6 +2583,8 @@ INTO #InspectionApprovalQueue
   AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
   AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
   AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+  AND (@InspectionDateFrom='' OR I.InspectionDate>=CONVERT(DATETIME,@InspectionDateFrom,23))
+  AND (@InspectionDateThru='' OR I.InspectionDate<DATEADD(DAY,1,CONVERT(DATETIME,@InspectionDateThru,23)))
 ";
 UPDATE Q SET Q.TechnicianName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.OwnerEmployeeID;
 UPDATE Q SET Q.SubmittedByName=E.Name FROM #InspectionApprovalQueue Q INNER JOIN dbo.M_HRD_Employee E ON E.EmployeeID=Q.SubmittedBy;
@@ -2598,7 +2602,9 @@ DROP TABLE #InspectionApprovalQueue",
                         new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
                         new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
                         new SqlParameter("@TemplateId", templateId ?? ""),
-                        new SqlParameter("@ScheduleTime", scheduleTime ?? "")
+                        new SqlParameter("@ScheduleTime", scheduleTime ?? ""),
+                        new SqlParameter("@InspectionDateFrom", inspectionDateFrom ?? ""),
+                        new SqlParameter("@InspectionDateThru", inspectionDateThru ?? "")
                     });
                 var result = new List<Dictionary<string, object>>();
                 var filters = new List<Dictionary<string, object>>();
@@ -2831,14 +2837,16 @@ ORDER BY P.SeqNo",
         [WebMethod]
         public static object GetLightningInspectionApprovalQueue(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId, string scheduleTime)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime,
+            string inspectionDateFrom, string inspectionDateThru)
         {
-            return GetLightningInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false);
+            return GetLightningInspectionApprovalQueueInternal(employeeId, companyId, locationId, approvalTab, dateFrom, dateThru, inspectionTypeCode, inspectionTypeDetailCode, templateId, scheduleTime, false, false, inspectionDateFrom, inspectionDateThru);
         }
 
         private static object GetLightningInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
-            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox)
+            string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox,
+            string inspectionDateFrom = "", string inspectionDateThru = "")
         {
             employeeId = GFC.CurrentEmployeeID();
             bool isAdministrator = IsInspectionAdministrator(employeeId);
@@ -2874,7 +2882,9 @@ ORDER BY P.SeqNo",
                     new SqlParameter("@InspectionTypeCode", inspectionTypeCode ?? ""),
                     new SqlParameter("@InspectionTypeDetailCode", inspectionTypeDetailCode ?? ""),
                     new SqlParameter("@TemplateId", templateId ?? ""),
-                    new SqlParameter("@ScheduleTime", includeScheduleTime ? (scheduleTime ?? "") : "")
+                    new SqlParameter("@ScheduleTime", includeScheduleTime ? (scheduleTime ?? "") : ""),
+                    new SqlParameter("@InspectionDateFrom", inspectionDateFrom ?? ""),
+                    new SqlParameter("@InspectionDateThru", inspectionDateThru ?? "")
                 };
                 const string scope = @"
 FROM dbo.PIP_T_Inspection I
@@ -2928,7 +2938,9 @@ WHERE ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
  AND (@InspectionTypeCode='' OR I.InspectionTypeCode=@InspectionTypeCode)
  AND (@InspectionTypeDetailCode='' OR I.InspectionTypeDetailCode=@InspectionTypeDetailCode)
  AND (@TemplateId='' OR CONVERT(VARCHAR(20),I.IDTemplate)=@TemplateId)
- AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)";
+ AND (@ScheduleTime='' OR ISNULL(I.ScheduledTime,'')=@ScheduleTime)
+ AND (@InspectionDateFrom='' OR I.InspectionDate>=CONVERT(DATETIME,@InspectionDateFrom,23))
+ AND (@InspectionDateThru='' OR I.InspectionDate<DATEADD(DAY,1,CONVERT(DATETIME,@InspectionDateThru,23)))";
 
                 if (countOnly)
                 {
