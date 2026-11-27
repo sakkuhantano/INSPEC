@@ -7770,10 +7770,65 @@ function getFilteredInspectionApprovalRows() {
     });
 }
 
+let inspectionApprovalSortedRowsCache = { source: null, key: "", rows: [] };
+
+function getSortedInspectionApprovalRows() {
+    const filterIds = [
+        "selApprovalType", "selApprovalDetail", "selApprovalTemplate",
+        "selApprovalScheduleTime", "selApprovalSection", "selApprovalBatchStatus",
+        "txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"
+    ];
+    const filterValues = filterIds.map(id => {
+        const element = document.getElementById(id);
+        return element ? String(element.value || "") : "";
+    });
+    const key = [currentInspectionApprovalTab, inspectionApprovalSort.key,
+        inspectionApprovalSort.direction].concat(filterValues).join("\u001f");
+    if (inspectionApprovalSortedRowsCache.source === inspectionApprovalRows &&
+        inspectionApprovalSortedRowsCache.key === key) {
+        return inspectionApprovalSortedRowsCache.rows;
+    }
+
+    const rows = getFilteredInspectionApprovalRows();
+    rows.sort((left, right) => {
+        const sortKey = inspectionApprovalSort.key;
+        let a = left[sortKey], b = right[sortKey];
+        if (sortKey === "InspectionDate" || sortKey === "StartDateTime" || sortKey === "EndDateTime") {
+            const toSortTimestamp = value => {
+                if (value == null || value === "") return 0;
+                if (typeof value === "string" && value.indexOf("/Date(") === 0) {
+                    const milliseconds = Number(value.slice(6).split(")")[0]);
+                    if (Number.isFinite(milliseconds)) return milliseconds;
+                }
+                const parsed = new Date(value).getTime();
+                return Number.isFinite(parsed) ? parsed : 0;
+            };
+            a = toSortTimestamp(a);
+            b = toSortTimestamp(b);
+        } else if (sortKey === "ScheduledTime") {
+            a = String(a || "");
+            b = String(b || "");
+        } else {
+            a = String(a == null ? "" : a).toLocaleLowerCase();
+            b = String(b == null ? "" : b).toLocaleLowerCase();
+        }
+        const comparison = a < b ? -1 : (a > b ? 1 : 0);
+        return inspectionApprovalSort.direction === "asc" ? comparison : -comparison;
+    });
+
+    inspectionApprovalSortedRowsCache = {
+        source: inspectionApprovalRows,
+        key: key,
+        rows: rows
+    };
+    return rows;
+}
+
 function renderInspectionApprovalQueue() {
     const host = document.getElementById("inspectionApprovalQueue");
     if (!host) return;
-    const rows = getFilteredInspectionApprovalRows();
+    const sortedRows = getSortedInspectionApprovalRows();
+    const rows = sortedRows;
     const hasSelectionColumn = currentInspectionApprovalTab === "OUTSTANDING" || currentInspectionApprovalTab === "APPROVED";
     const pageCount = Math.max(1, Math.ceil(rows.length / inspectionApprovalPageSize));
     if (inspectionApprovalPage > pageCount) inspectionApprovalPage = pageCount;
@@ -7785,28 +7840,6 @@ function renderInspectionApprovalQueue() {
         updateInspectionApprovalSelectAll();
         return;
     }
-    const sortedRows = rows.slice().sort((left, right) => {
-        const key = inspectionApprovalSort.key;
-        let a = left[key], b = right[key];
-        if (key === "InspectionDate" || key === "StartDateTime" || key === "EndDateTime") {
-            const toSortTimestamp = value => {
-                if (value == null || value === "") return 0;
-                if (typeof value === "string") {
-                    if (value.indexOf("/Date(") === 0) {
-                        const milliseconds = Number(value.slice(6).split(")")[0]);
-                        if (Number.isFinite(milliseconds)) return milliseconds;
-                    }
-                }
-                const parsed = new Date(value).getTime();
-                return Number.isFinite(parsed) ? parsed : 0;
-            };
-            a = toSortTimestamp(a); b = toSortTimestamp(b);
-        } else if (key === "ScheduledTime") {
-            a = String(a || ""); b = String(b || "");
-        } else { a = String(a == null ? "" : a).toLocaleLowerCase(); b = String(b == null ? "" : b).toLocaleLowerCase(); }
-        const cmp = a < b ? -1 : (a > b ? 1 : 0);
-        return inspectionApprovalSort.direction === "asc" ? cmp : -cmp;
-    });
     document.querySelectorAll("#inspectionApprovalTable [data-approval-sort]").forEach(th => {
         const active = th.dataset.approvalSort === inspectionApprovalSort.key;
         const indicator = th.querySelector(".approval-sort-indicator");
