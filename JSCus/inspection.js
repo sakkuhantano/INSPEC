@@ -7377,12 +7377,19 @@ function wireInspectionApprovalEvents() {
             inspectionApprovalPage = 1;
             renderInspectionApprovalQueue();
         }));
-    // All approval date-range controls use the same grid reload path.
-    // Inspection Date remains a client-side row filter after the queue reload;
-    // Approved Date is applied by the server query for Approved history.
-    ["txtApprovalDateFrom", "txtApprovalDateThru",
-        "txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"].forEach(id =>
+    // Approved Date is a server-side filter, so it reloads the queue.
+    ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
+
+    // Inspection Date is already present in the loaded queue. Filter and repaint
+    // locally instead of repeating both queue queries and the count request.
+    ["txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"].forEach(id =>
+        addInspectionApprovalListener(id, "change", function () {
+            selectedInspectionApprovalIds.clear();
+            inspectionApprovalPage = 1;
+            renderInspectionApprovalQueue();
+        }));
+
     addInspectionApprovalListener("selApprovalBatchStatus", "change", function () {
         selectedInspectionApprovalIds.clear();
         inspectionApprovalPage = 1;
