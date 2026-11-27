@@ -2482,13 +2482,6 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
    (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
       AND ISNULL(I.IsApproved,0)=0 AND (@IsAdministrator=1 OR R.IsSPV=1))
    OR
-   (@ApprovalTab='OUTSTANDING' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
-      AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
-      AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
-      AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
-      AND I.ApprovalBatchID IS NULL
-      AND (@IsAdministrator=1 OR R.IsBatchChief=1))
-   OR
    (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
       AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
       AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
