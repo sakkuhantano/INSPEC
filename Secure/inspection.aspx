@@ -2497,6 +2497,11 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button type="button" class="nav-link" id="btnInspectionApprovalBatchSubmitted" role="tab" aria-selected="false">
+                        Batch Submitted <span id="inspectionApprovalBatchSubmittedCount" class="badge text-bg-secondary ms-1">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button type="button" class="nav-link" id="btnInspectionApprovalVoid" role="tab" aria-selected="false">
                         Void <span id="inspectionApprovalVoidCount" class="badge text-bg-secondary ms-1">0</span>
                     </button>
@@ -2621,12 +2626,11 @@
                     <label for="txtChiefBatchDateThru" class="form-label small mb-1">Inspection Date Thru</label>
                     <input type="date" id="txtChiefBatchDateThru" class="form-control form-control-sm" />
                 </div>
-                <div class="inspection-filter-control">
-                    <label for="selChiefBatchStatus" class="form-label small mb-1">Status</label>
-                    <select id="selChiefBatchStatus" class="form-select form-select-sm">
-                        <option value="PENDING">Waiting Approval</option>
-                        <option value="APPROVED">Approved</option>
-                    </select>
+                <div class="d-flex align-items-end">
+                    <ul class="nav nav-tabs mb-0" id="chiefBatchStatusTabs" role="tablist">
+                        <li class="nav-item"><button type="button" class="nav-link active" id="btnChiefBatchPending" aria-selected="true">Batch Pending</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link" id="btnChiefBatchApproved" aria-selected="false">Batch Approved</button></li>
+                    </ul>
                 </div>
             </div>
             <div class="table-responsive">
