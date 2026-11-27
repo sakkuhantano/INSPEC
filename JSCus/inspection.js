@@ -7374,9 +7374,10 @@ function wireInspectionApprovalEvents() {
         renderInspectionApprovalQueue();
     });
     addInspectionApprovalListener("chkAllInspectionApproval", "change", function () {
-        getFilteredInspectionApprovalRows().forEach(row => {
-            const id = Number(row.InspectionID);
-            if (id <= 0 || Number(row.ApprovalBatchID || 0) > 0) return;
+        // Header checkbox affects only selectable rows rendered on the active page.
+        document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:not(:disabled)").forEach(box => {
+            const id = Number(box.value);
+            if (id <= 0) return;
             if (this.checked) selectedInspectionApprovalIds.add(id);
             else selectedInspectionApprovalIds.delete(id);
         });
