@@ -7241,6 +7241,10 @@ let inspectionApprovalRows = [];
 let selectedInspectionApprovalIds = new Set();
 let currentInspectionApprovalTab = "OUTSTANDING";
 let inspectionApprovalLoadSequence = 0;
+let inspectionApprovalCountsCache = { key: "", timestamp: 0, value: null };
+function invalidateInspectionApprovalCountsCache() {
+    inspectionApprovalCountsCache = { key: "", timestamp: 0, value: null };
+}
 let inspectionApprovalSort = { key: "InspectionDate", direction: "asc" };
 const INSPECTION_APPROVAL_DEFAULT_PAGE_SIZE = 25;
 const INSPECTION_APPROVAL_PAGE_SIZE_KEY = "inspectionApprovalPageSize";
@@ -7276,7 +7280,10 @@ function wireInspectionApprovalEvents() {
             openInspectionPhotoViewerFromData(type, stagePhotos, index);
         });
     }
-    addInspectionApprovalListener("btnRefreshInspectionApproval", "click", loadInspectionApprovalQueue);
+    addInspectionApprovalListener("btnRefreshInspectionApproval", "click", function () {
+        invalidateInspectionApprovalCountsCache();
+        loadInspectionApprovalQueue();
+    });
     addInspectionApprovalListener("btnBackToInspectionApprovalList", "click", showInspectionApprovalQueueView);
     addInspectionApprovalListener("btnInspectionApprovalOutstanding", "click", () => setInspectionApprovalTab("OUTSTANDING"));
     addInspectionApprovalListener("btnInspectionApprovalApproved", "click", () => setInspectionApprovalTab("APPROVED"));
@@ -7351,14 +7358,24 @@ function wireInspectionApprovalEvents() {
         document.getElementById("selApprovalDetail").value = "";
         document.getElementById("selApprovalTemplate").value = "";
         document.getElementById("selApprovalScheduleTime").value = "";
-        loadInspectionApprovalQueue();
+        selectedInspectionApprovalIds.clear();
+        inspectionApprovalPage = 1;
+        renderInspectionApprovalQueue();
     });
     addInspectionApprovalListener("selApprovalDetail", "change", function () {
         document.getElementById("selApprovalTemplate").value = "";
         document.getElementById("selApprovalScheduleTime").value = "";
-        loadInspectionApprovalQueue();
+        selectedInspectionApprovalIds.clear();
+        inspectionApprovalPage = 1;
+        renderInspectionApprovalQueue();
     });
-    ["selApprovalTemplate", "selApprovalScheduleTime", "txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
+    ["selApprovalTemplate", "selApprovalScheduleTime"].forEach(id =>
+        addInspectionApprovalListener(id, "change", function () {
+            selectedInspectionApprovalIds.clear();
+            inspectionApprovalPage = 1;
+            renderInspectionApprovalQueue();
+        }));
+    ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
     ["selApprovalBatchStatus", "txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", function () {
@@ -7542,10 +7559,10 @@ async function loadInspectionApprovalQueue() {
                 ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
             dateThru: currentInspectionApprovalTab === "APPROVED" && dateThru
                 ? (parseInspectionDateFilter(dateThru.value) || "") : "",
-            inspectionTypeCode: document.getElementById("selApprovalType").value,
-            inspectionTypeDetailCode: document.getElementById("selApprovalDetail").value,
-            templateId: document.getElementById("selApprovalTemplate").value,
-            scheduleTime: document.getElementById("selApprovalScheduleTime").value
+            inspectionTypeCode: "",
+            inspectionTypeDetailCode: "",
+            templateId: "",
+            scheduleTime: ""
         };
         // Refresh all tab badges independently from the active grid tab.
         // Counts intentionally ignore Type/Detail/Template/Schedule filters so
@@ -7557,11 +7574,24 @@ async function loadInspectionApprovalQueue() {
             dateFrom: dateFrom ? (parseInspectionDateFilter(dateFrom.value) || "") : "",
             dateThru: dateThru ? (parseInspectionDateFilter(dateThru.value) || "") : ""
         };
-        const countRequest = inspectionApprovalPost("GetInspectionApprovalCounts", countParameters)
-            .catch(countError => {
-                console.warn("Unable to refresh Inspection approval tab counts:", countError);
-                return null;
-            });
+        const countKey = [countParameters.employeeId, countParameters.companyId,
+            countParameters.locationId, countParameters.dateFrom, countParameters.dateThru].join("|");
+        let countRequest;
+        if (inspectionApprovalCountsCache.value &&
+            inspectionApprovalCountsCache.key === countKey &&
+            (Date.now() - inspectionApprovalCountsCache.timestamp) < 30000) {
+            countRequest = Promise.resolve(inspectionApprovalCountsCache.value);
+        } else {
+            countRequest = inspectionApprovalPost("GetInspectionApprovalCounts", countParameters)
+                .then(value => {
+                    inspectionApprovalCountsCache = { key: countKey, timestamp: Date.now(), value: value };
+                    return value;
+                })
+                .catch(countError => {
+                    console.warn("Unable to refresh Inspection approval tab counts:", countError);
+                    return null;
+                });
+        }
         const queueRequests = Promise.all([
             inspectionApprovalPost("GetInspectionApprovalQueue", queueParameters),
             inspectionApprovalPost("GetLightningInspectionApprovalQueue", queueParameters)
@@ -7646,6 +7676,14 @@ function getInspectionApprovalDateKey(value) {
 }
 
 function matchesInspectionApprovalClientFilters(row) {
+    const type = document.getElementById("selApprovalType");
+    if (type && type.value && String(row.InspectionTypeCode || "") !== type.value) return false;
+    const detail = document.getElementById("selApprovalDetail");
+    if (detail && detail.value && String(row.InspectionTypeDetailCode || "") !== detail.value) return false;
+    const template = document.getElementById("selApprovalTemplate");
+    if (template && template.value && String(row.IDTemplate == null ? "" : row.IDTemplate) !== template.value) return false;
+    const schedule = document.getElementById("selApprovalScheduleTime");
+    if (schedule && schedule.value && String(row.ScheduledTime || "") !== schedule.value) return false;
     const section = document.getElementById("selApprovalSection");
     if (section && section.value && String(row.SectionID || "") !== section.value) return false;
 
