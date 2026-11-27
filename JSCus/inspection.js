@@ -7374,13 +7374,13 @@ function wireInspectionApprovalEvents() {
         renderInspectionApprovalQueue();
     });
     addInspectionApprovalListener("chkAllInspectionApproval", "change", function () {
-        document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:not(:disabled)").forEach(box => {
-            const id = Number(box.value);
-            if (!id) return;
+        getFilteredInspectionApprovalRows().forEach(row => {
+            const id = Number(row.InspectionID);
+            if (id <= 0 || Number(row.ApprovalBatchID || 0) > 0) return;
             if (this.checked) selectedInspectionApprovalIds.add(id);
             else selectedInspectionApprovalIds.delete(id);
         });
-        updateInspectionApprovalSelectAll();
+        renderInspectionApprovalQueue();
     });
     ["inspectionApprovalPageSize", "inspectionApprovalPageSizeTop"].forEach(id =>
         addInspectionApprovalListener(id, "change", function () {
@@ -7797,10 +7797,15 @@ function validateSelectedInspectionApprovalType(rows) {
 }
 
 function updateInspectionApprovalSelectAll() {
-    const boxes = Array.from(document.querySelectorAll("#inspectionApprovalQueue [data-approval-select]:not(:disabled)"));
-    const selectedBoxes = boxes.filter(box => selectedInspectionApprovalIds.has(Number(box.value)));
+    const selectableRows = getFilteredInspectionApprovalRows()
+        .filter(row => Number(row.ApprovalBatchID || 0) <= 0);
+    const selectedCount = selectableRows.filter(row =>
+        selectedInspectionApprovalIds.has(Number(row.InspectionID))).length;
     const all = document.getElementById("chkAllInspectionApproval");
-    if (all) all.checked = boxes.length > 0 && selectedBoxes.length === boxes.length;
+    if (all) {
+        all.checked = selectableRows.length > 0 && selectedCount === selectableRows.length;
+        all.indeterminate = selectedCount > 0 && selectedCount < selectableRows.length;
+    }
     const preview = document.getElementById("btnInspectionApprovalPreview");
     const selectedRowsForActions = getSelectedInspectionApprovalRows();
     if (preview) preview.disabled = !["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) || selectedRowsForActions.length === 0;
