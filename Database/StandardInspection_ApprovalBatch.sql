@@ -17,6 +17,7 @@ BEGIN
         SectionID VARCHAR(10) NOT NULL,
         InspectionDate DATETIME NOT NULL,
         ProfitCenterNo VARCHAR(20) NOT NULL,
+        WorkflowKey VARCHAR(30) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovalBatch_WorkflowKey DEFAULT ('STANDARD'),
         CreatedBy VARCHAR(50) NOT NULL,
         CreatedDate DATETIME NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovalBatch_CreatedDate DEFAULT (GETDATE()),
         SentDate DATETIME NULL,
@@ -37,6 +38,10 @@ BEGIN
             CHECK (EmailStatus IN ('NOT_REQUIRED','PENDING','SENT','FAILED'))
     );
 END;
+GO
+
+IF COL_LENGTH('dbo.PIP_T_Inspection_ApprovalBatch','WorkflowKey') IS NULL
+    ALTER TABLE dbo.PIP_T_Inspection_ApprovalBatch ADD WorkflowKey VARCHAR(30) NOT NULL CONSTRAINT DF_PIP_T_Inspection_ApprovalBatch_WorkflowKey DEFAULT ('STANDARD');
 GO
 
 IF COL_LENGTH('dbo.PIP_T_Inspection','ApprovalBatchID') IS NULL
