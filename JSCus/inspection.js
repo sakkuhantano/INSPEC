@@ -7474,7 +7474,7 @@ function setInspectionApprovalTab(tab, reload) {
         }
     });
     const batchActions = document.getElementById("inspectionApprovalBatchActions");
-    if (batchActions) batchActions.classList.toggle("d-none", voided);
+    if (batchActions) batchActions.classList.toggle("d-none", voided || submitted);
     ["btnBatchApproveInspection", "btnBatchVoidInspection"].forEach(id => {
         const button = document.getElementById(id);
         if (button) button.classList.toggle("d-none", !outstanding);
@@ -7700,54 +7700,29 @@ function getInspectionApprovalDateKey(value) {
 
 function matchesInspectionApprovalClientFilters(row) {
     const type = document.getElementById("selApprovalType");
-    if (type && type.value && String(row.InspectionTypeCode || "") !== type.value) return false;
+    if (["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) && type && type.value && String(row.InspectionTypeCode || "") !== type.value) return false;
     const detail = document.getElementById("selApprovalDetail");
-    if (detail && detail.value && String(row.InspectionTypeDetailCode || "") !== detail.value) return false;
+    if (["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) && detail && detail.value && String(row.InspectionTypeDetailCode || "") !== detail.value) return false;
     const template = document.getElementById("selApprovalTemplate");
-    if (template && template.value && String(row.IDTemplate == null ? "" : row.IDTemplate) !== template.value) return false;
+    if (["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) && template && template.value && String(row.IDTemplate == null ? "" : row.IDTemplate) !== template.value) return false;
     const schedule = document.getElementById("selApprovalScheduleTime");
-    if (schedule && schedule.value && String(row.ScheduledTime || "") !== schedule.value) return false;
+    if (["OUTSTANDING", "APPROVED"].includes(currentInspectionApprovalTab) && schedule && schedule.value && String(row.ScheduledTime || "") !== schedule.value) return false;
     const section = document.getElementById("selApprovalSection");
     if (section && section.value && String(row.SectionID || "") !== section.value) return false;
 
     const batchStatus = document.getElementById("selApprovalBatchStatus");
     const batchId = Number(row.ApprovalBatchID || 0);
-    if (batchStatus && batchStatus.value === "NOT_SENT" && batchId > 0) return false;
-    if (batchStatus && batchStatus.value === "SENT" && batchId <= 0) return false;
+    if (currentInspectionApprovalTab === "APPROVED" && batchStatus && batchStatus.value === "NOT_SENT" && batchId > 0) return false;
+    if (currentInspectionApprovalTab === "BATCH_SUBMITTED" && batchId <= 0) return false;
 
-    const from = (document.getElementById("txtApprovalInspectionDateFrom") || {}).value || "";
-    const thru = (document.getElementById("txtApprovalInspectionDateThru") || {}).value || "";
-    const inspectionDate = getInspectionApprovalDateKey(row.InspectionDate);
-    if (from && (!inspectionDate || inspectionDate < from)) return false;
-    if (thru && (!inspectionDate || inspectionDate > thru)) return false;
+    if (["OUTSTANDING", "APPROVED", "VOID"].includes(currentInspectionApprovalTab)) {
+        const from = (document.getElementById("txtApprovalInspectionDateFrom") || {}).value || "";
+        const thru = (document.getElementById("txtApprovalInspectionDateThru") || {}).value || "";
+        const inspectionDate = getInspectionApprovalDateKey(row.InspectionDate);
+        if (from && (!inspectionDate || inspectionDate < from)) return false;
+        if (thru && (!inspectionDate || inspectionDate > thru)) return false;
+    }
     return true;
-}
-
-function getInspectionApprovalPageCount() {
-    const rows = inspectionApprovalRows.filter(row => {
-        if (!matchesInspectionApprovalClientFilters(row)) return false;
-        if (currentInspectionApprovalTab === "BATCH_SUBMITTED") return Number(row.ApprovalBatchID || 0) > 0 && String(row.BatchStatus || "PENDING").toUpperCase() === "PENDING";
-        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row) && Number(row.ApprovalBatchID || 0) <= 0;
-        if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
-        return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
-    });
-    return Math.max(1, Math.ceil(rows.length / inspectionApprovalPageSize));
-}
-
-function updateInspectionApprovalPager(totalRows, pageCount) {
-    [
-        ["inspectionApprovalPageInfo", "inspectionApprovalPrevPage", "inspectionApprovalNextPage", "inspectionApprovalTotalRows"],
-        ["inspectionApprovalPageInfoTop", "inspectionApprovalPrevPageTop", "inspectionApprovalNextPageTop", "inspectionApprovalTotalRowsTop"]
-    ].forEach(ids => {
-        const info = document.getElementById(ids[0]);
-        const prev = document.getElementById(ids[1]);
-        const next = document.getElementById(ids[2]);
-        const total = document.getElementById(ids[3]);
-        if (info) info.textContent = totalRows ? ("Page " + inspectionApprovalPage + " of " + pageCount) : "Page 1 of 1";
-        if (total) total.textContent = totalRows + " record" + (totalRows === 1 ? "" : "s");
-        if (prev) prev.disabled = inspectionApprovalPage <= 1 || totalRows === 0;
-        if (next) next.disabled = inspectionApprovalPage >= pageCount || totalRows === 0;
-    });
 }
 
 function getFilteredInspectionApprovalRows() {
