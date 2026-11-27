@@ -13,12 +13,13 @@
 ## Deployment order
 1. Deploy updated `Login.aspx.cs`, `Secure/inspection.aspx.cs`, and merge the scheduler appSettings from repository `Web.config` into live Web.config. Do not overwrite live database/SMTP settings.
 2. Run `Database/StandardInspection_ApprovalBatch.sql` (updated create procedure has @p_IsScheduled).
-3. Run `Database/InspectionScheduledChiefBatch.sql` (nonce, lock and run log objects).
-4. Confirm NIK `sa` is active in SysWebUser and belongs to UserGroupID='administrator'.
-5. Confirm all target STANDARD workflow/Chief COMVALs and one global AutoEmail sender with valid From Name/From Email.
-6. Copy both PowerShell scripts to the SQL Agent host. Run Prepare script as SQL Agent service account/job proxy to create the DPAPI encrypted secret file. Copy the one-time printed key to live Web.config key INSPECSchedulerHmacSecret. Restrict ACLs.
-7. Set INSPECSchedulerAllowedIPs to the SQL Agent IP where stable/visible to IIS. Empty disables IP filtering but HMAC remains mandatory.
-8. Edit HTTPS URL and file paths in Create_INSPEC_ScheduledChiefBatch_AgentJob.sql and execute in msdb. SQL Agent uses server-local time; ensure host timezone is WIB (UTC+7).
+3. Run `Database/StandardInspection_ApprovalBatch_Void.sql` to enable Chief partial/full Void while a batch is Pending. This adds the VOID batch state and the guarded `spUTL_PIP_T_Inspection_ApprovalBatch_Void` procedure.
+4. Run `Database/InspectionScheduledChiefBatch.sql` (nonce, lock and run log objects).
+5. Confirm NIK `sa` is active in SysWebUser and belongs to UserGroupID='administrator'.
+6. Confirm all target STANDARD workflow/Chief COMVALs and one global AutoEmail sender with valid From Name/From Email.
+7. Copy both PowerShell scripts to the SQL Agent host. Run Prepare script as SQL Agent service account/job proxy to create the DPAPI encrypted secret file. Copy the one-time printed key to live Web.config key INSPECSchedulerHmacSecret. Restrict ACLs.
+8. Set INSPECSchedulerAllowedIPs to the SQL Agent IP where stable/visible to IIS. Empty disables IP filtering but HMAC remains mandatory.
+9. Edit HTTPS URL and file paths in Create_INSPEC_ScheduledChiefBatch_AgentJob.sql and execute in msdb. SQL Agent uses server-local time; ensure host timezone is WIB (UTC+7).
 
 ## Validation
 - Invalid/missing HMAC and replayed nonce are rejected; GET is 405 and HTTP is 403.
