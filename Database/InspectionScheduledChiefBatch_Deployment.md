@@ -26,3 +26,7 @@
 - Review INSPEC_SchedulerRunLog and INSPEC_SchedulerSectionLog after test.
 - Verify unapproved rows are not assigned, mixed InspectionTypeCode reports are separate XLSX files, and Chief recipients follow existing ProfitCenter/COMVAL.
 - Verify manual SPV Submit Batch still works through normal login and SPV COMVAL.
+- In a Pending batch, test Void Selected for one and multiple inspections; confirm only selected members return as technician DRAFT and remaining members stay Pending.
+- Test Void Entire Batch; confirm all members return as technician DRAFT and the batch status becomes VOID.
+- Approve a test batch, then verify the Void UI is hidden and the SQL procedure rejects any Void attempt against the Approved batch.
+- Sync a returned DRAFT as its technician, correct checklist data, submit again, and verify it re-enters SPV approval and can be batched again.
