@@ -785,6 +785,12 @@
         if (!host) return;
 
         var all = getVisiblePoints();
+        if (currentMapRecord &&
+            String(currentMapRecord.InspectionLayoutCode || "").toUpperCase() === "DYNAMIC_LIST" &&
+            String(currentMapRecord.InspectionPointMode || "").toUpperCase() === "DYNAMIC") {
+            renderDynamicMotorList(host, all);
+            return;
+        }
         var keyword = String(listKeyword || "").trim().toLowerCase();
         var searchMatches = keyword ? all.filter(function (point) {
             return String(point.PointCode || "").toLowerCase().indexOf(keyword) >= 0 ||
