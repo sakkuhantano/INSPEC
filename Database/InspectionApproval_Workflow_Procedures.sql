@@ -224,6 +224,7 @@ BEGIN
  FROM dbo.PIP_T_Inspection I WITH (UPDLOCK,HOLDLOCK)
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID
+   AND I.ApprovalBatchID IS NULL
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
    AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
    AND ISNULL(I.IsSubmitted,0)=1
