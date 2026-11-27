@@ -2125,7 +2125,7 @@ WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
                         new SqlParameter("@SectionList", sectionList)
                     });
                 if (type == null || type.Rows.Count == 0)
-                    throw new HttpException(403, "Inspection Type is not configured for BATCH/MAP/INSPECT mode or not assigned to this inspector.");
+                    throw new HttpException(403, "Inspection Type is not configured for BATCH/MAP with PARAM or INSPECT schedule, or not assigned to this inspector.");
 
                 DataTable detail = br.EQueryP(@"
 SELECT InspectionTypeDetailCode, InspectionTypeDetailName, ScheduleTime
