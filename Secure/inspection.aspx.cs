@@ -2565,7 +2565,11 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.FollowUp, I.FollowUpSection, I.FollowUpRemark, I.FollowUpWONo,
        ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') AS InspectionMode,
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
-       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
+       CASE
+           WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
+           WHEN I.InspectionTypeCode='CP' AND I.InspectionTypeDetailCode='MCDP-CP-MT' THEN 'DYNAMIC'
+           ELSE ISNULL(NULLIF(IT.InspectionPointMode,''),'')
+       END AS InspectionPointMode,
         CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
              WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=1 THEN 'ACKNOWLEDGED'
              WHEN ISNULL(I.ApprovalBatchID,0)>0 THEN 'BATCHED'
@@ -3103,9 +3107,24 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 DataTable header = br.EQueryP(@"
 SELECT I.InspectionID, I.InspectionNo, I.CompanyID, I.LocationID, I.SectionID, I.Status, I.InspectionTypeName,
        I.InspectionTypeDetailName, ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
-       CASE WHEN ISNULL(NULLIF(IT.InspectionPointMode,''),'')='DYNAMIC' THEN 'DYNAMIC_LIST'
-            WHEN ISNULL(NULLIF(IT.InspectionPointMode,''),'')='MAP' THEN 'MAP' ELSE 'STANDARD' END AS InspectionLayoutCode,
-       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
+       CASE
+            WHEN CASE
+                  WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
+                  WHEN I.InspectionTypeCode='CP' AND I.InspectionTypeDetailCode='MCDP-CP-MT' THEN 'DYNAMIC'
+                  ELSE ISNULL(NULLIF(IT.InspectionPointMode,''),'')
+              END='DYNAMIC' THEN 'DYNAMIC_LIST'
+            WHEN CASE
+                  WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
+                  WHEN I.InspectionTypeCode='CP' AND I.InspectionTypeDetailCode='MCDP-CP-MT' THEN 'DYNAMIC'
+                  ELSE ISNULL(NULLIF(IT.InspectionPointMode,''),'')
+              END='MAP' THEN 'MAP'
+            ELSE 'STANDARD'
+       END AS InspectionLayoutCode,
+       CASE
+           WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
+           WHEN I.InspectionTypeCode='CP' AND I.InspectionTypeDetailCode='MCDP-CP-MT' THEN 'DYNAMIC'
+           ELSE ISNULL(NULLIF(IT.InspectionPointMode,''),'')
+       END AS InspectionPointMode,
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode,
        CASE WHEN I.Status='DRAFT' AND (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'') THEN 'VOID'
             WHEN ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT' THEN CASE WHEN I.IsApproved2=1 THEN 'ACKNOWLEDGE 2' WHEN I.IsApproved1=1 THEN 'ACKNOWLEDGE 1' WHEN I.IsApproved=1 THEN 'VERIFIED' ELSE 'CHECKED' END
@@ -3662,7 +3681,11 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
        I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2, I.UpdateDate,
        ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
-       ISNULL(NULLIF(IT.InspectionPointMode,''),'') AS InspectionPointMode,
+       CASE
+           WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
+           WHEN I.InspectionTypeCode='CP' AND I.InspectionTypeDetailCode='MCDP-CP-MT' THEN 'DYNAMIC'
+           ELSE ISNULL(NULLIF(IT.InspectionPointMode,''),'')
+       END AS InspectionPointMode,
        ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM') AS ScheduleSelectionMode
 FROM dbo.PIP_T_Inspection I
 LEFT JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
