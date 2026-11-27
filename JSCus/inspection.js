@@ -7397,13 +7397,13 @@ function wireInspectionApprovalEvents() {
     ["txtApprovalDateFrom", "txtApprovalDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", loadInspectionApprovalQueue));
 
-    // Inspection Date is already present in the loaded queue. Filter and repaint
-    // locally instead of repeating both queue queries and the count request.
+    // Inspection Date is filtered by SQL before queue rows are transferred.
+    // Reload only when this filter changes; badge counts remain independently cached.
     ["txtApprovalInspectionDateFrom", "txtApprovalInspectionDateThru"].forEach(id =>
         addInspectionApprovalListener(id, "change", function () {
             selectedInspectionApprovalIds.clear();
             inspectionApprovalPage = 1;
-            renderInspectionApprovalQueue();
+            loadInspectionApprovalQueue();
         }));
 
     addInspectionApprovalListener("selApprovalBatchStatus", "change", function () {
