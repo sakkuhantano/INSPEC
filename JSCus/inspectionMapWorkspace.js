@@ -635,19 +635,13 @@
                 : [];
             var errors = typeof window.validateInspectionItemsAll === "function"
                 ? window.validateInspectionItemsAll(items) : [];
-            if (errors.length) {
-                point.ValidationIssueCount = errors.length;
-                showToast(point.PointCode + ": " + errors.slice(0, 2).map(function (error) { return error.message; }).join(" · ") +
-                    (errors.length > 2 ? " · +" + (errors.length - 2) + " lainnya." : ""), "warning");
-                return;
-            }
 
             point.PointName = plate;
             point.Nopol = plate;
             point.Items = items;
-            point.ValidationIssueCount = 0;
+            point.ValidationIssueCount = errors.length;
             if (["DONE", "ABNORMAL"].indexOf(String(point.Status || "").toUpperCase()) < 0)
-                point.Status = "INCOMPLETE";
+                point.Status = errors.length ? "INCOMPLETE" : "INCOMPLETE";
             point.UpdatedAt = new Date().toISOString();
             record.SyncStatus = "PENDING";
             record.UpdatedAt = new Date().toISOString();
