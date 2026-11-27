@@ -225,6 +225,9 @@ BEGIN
  JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
  WHERE I.InspectionID=@p_InspectionID
    AND I.ApprovalBatchID IS NULL
+   AND NOT (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
+            AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM'
+            AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0)
    AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD') IN ('STANDARD','BATCH')
    AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'INSPECT'
    AND ISNULL(I.IsSubmitted,0)=1
@@ -242,8 +245,8 @@ BEGIN
  SET @StageCode=CASE WHEN @IsChiefStage=1 THEN @ChiefRole ELSE 'SPV' END;
  SET @EmailStage=CASE WHEN @IsChiefStage=1 THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF')
                        ELSE dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'SPV') END;
- SET @EmailNext=CASE WHEN @IsChiefStage=0 AND @IsChiefWorkflow=1
-                      THEN dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF') ELSE 0 END;
+ /* BATCH/PARAM Chief notifications are sent once per Chief batch, not per inspection. */
+ SET @EmailNext=0;
 
  SELECT @SPV=NULLIF(LTRIM(RTRIM(C.Description)),'')
  FROM dbo.SysWebCommonValue C
