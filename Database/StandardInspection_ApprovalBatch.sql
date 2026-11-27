@@ -122,7 +122,7 @@ BEGIN
 
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@InspectionDate DATETIME,
             @ProfitCenterNo VARCHAR(20),@ChiefRole VARCHAR(20),@Chief VARCHAR(4000),
-            @EmailEnabled BIT,@BatchID BIGINT,@SelectedCount INT;
+            @EmailEnabled BIT,@BatchID BIGINT,@SelectedCount INT,@WorkflowKey VARCHAR(30);
 
     SELECT @SelectedCount=COUNT(*) FROM @Ids;
     IF ISNULL(@p_IsScheduled,0)=0
@@ -174,8 +174,9 @@ BEGIN
               AND I.ApprovalBatchID IS NULL
               AND I.InspectionDate IS NOT NULL
               AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
-              AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
-              AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+              AND ((ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD')
+                   OR (ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
+                       AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=0))
               AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
         )<>@SelectedCount
         BEGIN
@@ -207,7 +208,7 @@ BEGIN
         (
             SELECT 1 FROM dbo.SysWebCommonValue C
             WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-              AND C.ID=@C+@L+';STANDARD'
+              AND C.ID=@C+@L+';'+@WorkflowKey
               AND (CHARINDEX('[SPV][TRUE]',UPPER(ISNULL(C.Description,'')))>0 OR CHARINDEX('[SPV][FALSE]',UPPER(ISNULL(C.Description,'')))>0)
               AND (CHARINDEX('[CHIEF][TRUE]',UPPER(ISNULL(C.Description,'')))>0 OR CHARINDEX('[CHIEF][FALSE]',UPPER(ISNULL(C.Description,'')))>0)
         )
@@ -230,6 +231,17 @@ BEGIN
         SELECT @ProfitCenterNo=UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,''))))
         FROM dbo.PIP_M_Section S
         WHERE S.SectionID=@S;
+
+        SELECT @WorkflowKey=CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END
+        FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
+        JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode;
+        IF EXISTS
+        (
+            SELECT 1 FROM dbo.PIP_T_Inspection I JOIN @Ids X ON X.InspectionID=I.InspectionID
+            JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
+            WHERE (CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END)<>@WorkflowKey
+               OR (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'PARAM')
+        ) RAISERROR('One batch cannot mix STANDARD and BATCH/PARAM or include BATCH/INSPECT.',16,1);
 
         SET @ChiefRole=CASE @ProfitCenterNo WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END;
         IF ISNULL(@ChiefRole,'')=''
@@ -266,19 +278,19 @@ BEGIN
             RAISERROR('One or more configured CHIEF approvers are inactive or lack approval access for this ProfitCenter.',16,1);
         END;
 
-        SET @EmailEnabled=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,'STANDARD','CHIEF');
+        SET @EmailEnabled=dbo.fnINSPEC_ApprovalEmailEnabled(@C,@L,@WorkflowKey,'CHIEF');
         /* Email is notification only. Missing recipient addresses must not block batch
            creation; the sender records EmailStatus='FAILED' and CHIEF can still approve
            the batch in the application. */
 
         INSERT dbo.PIP_T_Inspection_ApprovalBatch
         (
-            CompanyID,LocationID,SectionID,InspectionDate,ProfitCenterNo,
+            CompanyID,LocationID,SectionID,InspectionDate,ProfitCenterNo,WorkflowKey,
             CreatedBy,CreatedDate,SentDate,BatchStatus,EmailStatus,ChiefRecipients
         )
         VALUES
         (
-            @C,@L,@S,@InspectionDate,@ProfitCenterNo,
+            @C,@L,@S,@InspectionDate,@ProfitCenterNo,@WorkflowKey,
             @p_EmployeeID,GETDATE(),NULL,'PENDING',
             CASE WHEN ISNULL(@EmailEnabled,0)=1 THEN 'PENDING' ELSE 'NOT_REQUIRED' END,
             @Chief
@@ -299,7 +311,7 @@ BEGIN
 
         SELECT @BatchID AS ApprovalBatchID,@C AS CompanyID,@L AS LocationID,
                @S AS SectionID,@InspectionDate AS InspectionDate,
-               @ProfitCenterNo AS ProfitCenterNo,@ChiefRole AS ChiefRole,
+               @ProfitCenterNo AS ProfitCenterNo,@WorkflowKey AS WorkflowKey,@ChiefRole AS ChiefRole,
                @Chief AS ChiefRecipients,@EmailEnabled AS EmailEnabled,
                @SelectedCount AS InspectionCount;
     END TRY
@@ -328,13 +340,13 @@ BEGIN
 
     DECLARE @C VARCHAR(10),@L VARCHAR(3),@S VARCHAR(10),@ChiefRole VARCHAR(20),
             @Chief VARCHAR(4000),@BatchStatus VARCHAR(20),@InspectionCount INT,
-            @ProfitCenterNo VARCHAR(20),@InspectionDate DATETIME;
+            @ProfitCenterNo VARCHAR(20),@InspectionDate DATETIME,@WorkflowKey VARCHAR(30);
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         SELECT @C=CompanyID,@L=LocationID,@S=SectionID,@BatchStatus=BatchStatus,
-               @ProfitCenterNo=ProfitCenterNo,@InspectionDate=InspectionDate
+               @ProfitCenterNo=ProfitCenterNo,@InspectionDate=InspectionDate,@WorkflowKey=WorkflowKey
         FROM dbo.PIP_T_Inspection_ApprovalBatch WITH (UPDLOCK,HOLDLOCK)
         WHERE ApprovalBatchID=@p_ApprovalBatchID;
 
@@ -382,11 +394,13 @@ BEGIN
           AND I.CompanyID=@C AND I.LocationID=@L AND I.SectionID=@S
           AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
           AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
-          AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
-              AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD';
+          AND ((@WorkflowKey='STANDARD' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD')
+               OR (@WorkflowKey='BATCH;PARAM' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='BATCH'
+                   AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM'
+                   AND ISNULL(I.IsApproved1,0)=0));
 
         IF ISNULL(@InspectionCount,0)=0
-            RAISERROR('This batch contains no valid SPV-approved STANDARD inspections.',16,1);
+            RAISERROR('This batch contains no valid SPV-approved STANDARD or BATCH/PARAM inspections.',16,1);
 
         IF EXISTS
         (
@@ -399,8 +413,10 @@ BEGIN
                    OR CONVERT(VARCHAR(10),I.InspectionDate,120)<>CONVERT(VARCHAR(10),@InspectionDate,120)
                    OR ISNULL(I.IsActive,1)=0 OR I.Status<>'DONE'
                    OR ISNULL(I.IsSubmitted,0)=0 OR ISNULL(I.IsApproved,0)=0
-                   OR ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')<>'STANDARD'
-                   OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD')
+                   OR NOT ((@WorkflowKey='STANDARD' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD')
+                       OR (@WorkflowKey='BATCH;PARAM' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='BATCH'
+                           AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM'
+                           AND ISNULL(I.IsApproved1,0)=0)))
         )
             RAISERROR('Batch membership or SPV approval state is inconsistent. No approval was recorded.',16,1);
 
