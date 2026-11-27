@@ -7753,7 +7753,10 @@ function updateInspectionApprovalPager(totalRows, pageCount) {
 function getFilteredInspectionApprovalRows() {
     return inspectionApprovalRows.filter(row => {
         if (!matchesInspectionApprovalClientFilters(row)) return false;
-        if (currentInspectionApprovalTab === "APPROVED") return isInspectionApprovalApproved(row);
+        if (currentInspectionApprovalTab === "BATCH_SUBMITTED")
+            return Number(row.ApprovalBatchID || 0) > 0 && String(row.BatchStatus || "PENDING").toUpperCase() === "PENDING";
+        if (currentInspectionApprovalTab === "APPROVED")
+            return isInspectionApprovalApproved(row) && Number(row.ApprovalBatchID || 0) <= 0;
         if (currentInspectionApprovalTab === "VOID") return isInspectionApprovalVoided(row);
         return !isInspectionApprovalApproved(row) && !isInspectionApprovalVoided(row);
     });
