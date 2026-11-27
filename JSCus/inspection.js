@@ -3141,9 +3141,11 @@ function renderInspectionItem(item, savedItems, readOnly, idPrefix) {
         control + remark1 + remark2 + '</div>';
 }
 
-function collectInspectionItems() {
+function collectInspectionItems(hostElement) {
     const result = [];
-    document.querySelectorAll("#inspectionChecklistHost .inspection-item[data-item-id]").forEach((container, index) => {
+    const host = hostElement || document.getElementById("inspectionChecklistHost");
+    if (!host) return result;
+    host.querySelectorAll(".inspection-item[data-item-id]").forEach((container, index) => {
         const itemId = Number(container.dataset.itemId);
         const type = container.dataset.itemType;
         const valueElement = type === "OPTION" ? container.querySelector('[data-role="value"]:checked') : container.querySelector('[data-role="value"]');
