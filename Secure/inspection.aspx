@@ -2523,7 +2523,7 @@
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
                 <span class="small text-muted align-self-center me-1">Selected: <strong id="inspectionApprovalSelectedCount">0</strong></span>
                 <button type="button" id="btnInspectionApprovalPreview" class="btn btn-sm btn-outline-primary" disabled title="Select inspections to enable Preview"><i class="bi bi-file-earmark-excel me-1"></i>Preview</button>
-                <button type="button" id="btnCreateStandardApprovalBatch" class="btn btn-sm btn-outline-success d-none" disabled title="Select SPV-approved STANDARD inspections to send as one batch"><i class="bi bi-send me-1"></i>Send to CHIEF</button>
+                <button type="button" id="btnCreateStandardApprovalBatch" class="btn btn-sm btn-outline-success d-none" disabled title="Select SPV-approved STANDARD or BATCH/PARAM inspections in one workflow mode"><i class="bi bi-send me-1"></i>Send to CHIEF</button>
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
                 <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected inspections" aria-label="Approve selected inspections">Approve</button>
                 <button type="button" id="btnBatchVoidInspection" class="btn btn-sm btn-outline-danger" title="Void selected inspections" aria-label="Void selected inspections">Void</button>
