@@ -420,6 +420,24 @@ BEGIN
         )
             RAISERROR('Batch membership or SPV approval state is inconsistent. No approval was recorded.',16,1);
 
+        IF @WorkflowKey='BATCH;PARAM'
+        BEGIN
+            INSERT dbo.PIP_T_InspectionApprovalHistory
+                (EntityType,EntityID,CompanyID,LocationID,SectionID,StageCode,ActionCode,ActorEmployeeID,ActionDate,Remark)
+            SELECT 'INSPECTION',I.InspectionID,@C,@L,@S,@ChiefRole,'APPROVED',@p_EmployeeID,GETDATE(),N'Chief batch approval'
+            FROM dbo.PIP_T_Inspection I
+            WHERE I.ApprovalBatchID=@p_ApprovalBatchID
+              AND ISNULL(I.IsApproved1,0)=0;
+
+            UPDATE dbo.PIP_T_Inspection
+            SET IsApproved1=1,Approved1By=@p_EmployeeID,Approved1Date=GETDATE(),
+                ApprovalRemark='Chief batch approval',ReasonVoid1='',
+                UpdateUser=@p_EmployeeID,UpdateDate=GETDATE()
+            WHERE ApprovalBatchID=@p_ApprovalBatchID AND ISNULL(IsApproved1,0)=0;
+            IF @@ROWCOUNT<>@InspectionCount
+                RAISERROR('Not all BATCH/PARAM inspections could be approved. No batch approval was committed.',16,1);
+        END;
+
         UPDATE dbo.PIP_T_Inspection_ApprovalBatch
         SET BatchStatus='APPROVED',ApprovedBy=@p_EmployeeID,ApprovedDate=GETDATE()
         WHERE ApprovalBatchID=@p_ApprovalBatchID AND BatchStatus='PENDING';
