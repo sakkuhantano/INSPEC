@@ -1327,10 +1327,42 @@ WHERE InspectionID=@InspectionID",
             else if (value is DataTable)
             {
                 DataTable table = (DataTable)value;
-                formatted = String.Format(CultureInfo.InvariantCulture,
+                var tableLog = new StringBuilder();
+                tableLog.AppendFormat(CultureInfo.InvariantCulture,
                     "[TABLE rows={0}, columns={1}: {2}]",
                     table.Rows.Count, table.Columns.Count,
                     String.Join(",", table.Columns.Cast<DataColumn>().Select(column => column.ColumnName).ToArray()));
+                int loggedRows = Math.Min(table.Rows.Count, 100);
+                for (int rowIndex = 0; rowIndex < loggedRows; rowIndex++)
+                {
+                    tableLog.AppendLine();
+                    tableLog.Append("  Row ").Append(rowIndex.ToString(CultureInfo.InvariantCulture)).Append(": ");
+                    for (int columnIndex = 0; columnIndex < table.Columns.Count; columnIndex++)
+                    {
+                        if (columnIndex > 0) tableLog.Append(" | ");
+                        string columnName = table.Columns[columnIndex].ColumnName ?? "";
+                        string columnLower = columnName.ToLowerInvariant();
+                        object cell = table.Rows[rowIndex][columnIndex];
+                        string cellText = cell == null || cell == DBNull.Value
+                            ? "NULL" : Convert.ToString(cell, CultureInfo.InvariantCulture);
+                        if (columnLower.Contains("password") || columnLower.Contains("secret") ||
+                            columnLower.Contains("token") || columnLower.Contains("photo") ||
+                            columnLower.Contains("image") || columnLower.Contains("binary"))
+                            cellText = "[REDACTED]";
+                        cellText = (cellText ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+                        if (cellText.Length > 300) cellText = cellText.Substring(0, 300) + "...[TRUNCATED]";
+                        tableLog.Append(columnName).Append("=").Append(cellText);
+                    }
+                    if (tableLog.Length > 18000)
+                    {
+                        tableLog.AppendLine().Append("  [TABLE LOG TRUNCATED]");
+                        break;
+                    }
+                }
+                if (table.Rows.Count > loggedRows)
+                    tableLog.AppendLine().Append("  [").Append((table.Rows.Count - loggedRows).ToString(CultureInfo.InvariantCulture))
+                        .Append(" additional rows omitted]");
+                formatted = tableLog.ToString();
             }
             else if (value is byte[])
                 formatted = "[BINARY length=" + ((byte[])value).Length.ToString(CultureInfo.InvariantCulture) + "]";
