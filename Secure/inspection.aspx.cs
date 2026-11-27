@@ -1054,7 +1054,7 @@ WHERE M.CompanyID=@CompanyID AND M.LocationID=@LocationID
                         syncStage = "preflight existing inspection";
                         DataTable existingRows = br.EQueryP(@"
 SELECT InspectionID, InspectionNo, InspectionDate, CompanyID, LocationID,
-       StartDateTime, EndDateTime, ReasonVoid, IsSubmitted
+       StartDateTime, EndDateTime, ReasonVoid, ReasonVoid1, ReasonVoid2, IsSubmitted
 FROM dbo.PIP_T_Inspection
 WHERE ClientInspectionID=@ClientInspectionID",
                             new SqlParameter[] { new SqlParameter("@ClientInspectionID", Limit(clientId, 36)) });
