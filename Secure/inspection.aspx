@@ -2922,9 +2922,6 @@
                     <strong class="text-body">Daftar Motor</strong>
                     <span class="ms-1">Isi Nopol langsung pada baris kendaraan. Setiap motor memiliki checklist dan foto sendiri.</span>
                 </div>
-                <button type="button" id="btnAddInspectionDynamicPoint" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-circle me-1"></i>Tambah Motor
-                </button>
             </div>
         </div>
         <div id="inspectionMapSummaryHost" class="px-3 pb-2 d-none"></div>
