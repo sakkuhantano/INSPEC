@@ -2537,7 +2537,8 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
                 new SqlParameter("@CompanyID", companyId),
                 new SqlParameter("@LocationID", locationId),
                 new SqlParameter("@DateFrom", fromDate),
-                new SqlParameter("@DateThru", thruDate)
+                new SqlParameter("@DateThru", thruDate),
+                new SqlParameter("@SectionFilter", "")
             };
 
             using (var br = new WAL.BR.CF())
