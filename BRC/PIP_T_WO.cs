@@ -836,10 +836,20 @@ WHERE InspectionID=@InspectionID",
                         catch { }
                     }
                 }
-                if (rollbackError != null)
-                    throw new Exception("Inspection sync failed and SQL rollback could not be confirmed. Photo files were retained for safety. Original error: " +
-                        ex.Message, rollbackError);
-                throw;
+
+                if (rollbackError == null)
+                {
+                    ex.Data["InspectionTransactionStatus"] = commitAttempted
+                        ? "COMMIT_FAILED_ROLLBACK_CONFIRMED"
+                        : "ROLLED_BACK";
+                    throw;
+                }
+
+                var transactionError = new Exception(
+                    "Inspection sync failed and SQL rollback could not be confirmed. Photo files were retained for safety.",
+                    new AggregateException(ex, rollbackError));
+                transactionError.Data["InspectionTransactionStatus"] = "ROLLBACK_UNCONFIRMED";
+                throw transactionError;
             }
             finally
             {
