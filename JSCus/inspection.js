@@ -7367,10 +7367,11 @@ function wireInspectionApprovalEvents() {
         const navHost = document.getElementById("inspectionApprovalSectionNavHost");
         if (navHost) navHost.classList.add("d-none");
     });
+    // Section is a SQL-side filter to avoid transferring other sections' rows.
     addInspectionApprovalListener("selApprovalSection", "change", function () {
         selectedInspectionApprovalIds.clear();
         inspectionApprovalPage = 1;
-        renderInspectionApprovalQueue();
+        loadInspectionApprovalQueue();
     });
     addInspectionApprovalListener("selApprovalType", "change", function () {
         document.getElementById("selApprovalDetail").value = "";
@@ -7635,7 +7636,8 @@ async function loadInspectionApprovalQueue() {
             templateId: "",
             scheduleTime: "",
             inspectionDateFrom: inspectionDateFrom,
-            inspectionDateThru: inspectionDateThru
+            inspectionDateThru: inspectionDateThru,
+            sectionId: (document.getElementById("selApprovalSection") || {}).value || ""
         };
         // Refresh all tab badges independently from the active grid tab.
         // Counts intentionally ignore Type/Detail/Template/Schedule filters so
