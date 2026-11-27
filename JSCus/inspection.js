@@ -1840,7 +1840,7 @@ async function startNewInspection() {
     const scheduleSelectionMode = String(type && type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
     const isLightning = requestedMode === "BATCH" && scheduleSelectionMode === "INSPECT";
     const inspectionMode = requestedMode === "BATCH" ? "BATCH" : "STANDARD";
-    const inspectionPointMode = String(type && type.InspectionPointMode || "").trim().toUpperCase();
+    const inspectionPointMode = getEffectiveInspectionPointMode(type, detail && detail.InspectionTypeDetailCode);
     const isDynamicPoints = inspectionPointMode === "DYNAMIC";
     const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
         (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
