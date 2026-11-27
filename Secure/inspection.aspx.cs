@@ -77,6 +77,8 @@ WHERE SU.EmployeeID=@UserID
             }
             catch (Exception ex)
             {
+                WriteInspectionSyncError("deserialize inspection sync request", "", userId, null, ex,
+                    "", null, "NOT_STARTED");
                 return new { success = false, message = ex.Message, results = outcomes };
             }
 
@@ -84,6 +86,9 @@ WHERE SU.EmployeeID=@UserID
             {
                 string clientId = TokenString(record, "ClientInspectionID");
                 string syncStage = "validate request";
+                string attemptedProcedureName = "";
+                SqlParameter[] attemptedSyncParameters = null;
+                string transactionStatus = "NOT_STARTED";
                 try
                 {
                     if (String.IsNullOrWhiteSpace(clientId))
@@ -1146,6 +1151,8 @@ WHERE InspectionID=@InspectionID",
                             syncParameters.Add(new SqlParameter("@p_ApprovalUrl", inspectionApprovalUrl));
                         }
 
+                        attemptedProcedureName = procedureName;
+                        attemptedSyncParameters = syncParameters.ToArray();
                         syncStage = "save inspection and photos in one BRC transaction";
                         DataTable saved;
                         string requestedInspectionNo = inspectionNo;
@@ -1161,6 +1168,7 @@ WHERE InspectionID=@InspectionID",
                             incomingPhotos,
                             incomingBatchPhotos,
                             out inspectionNo);
+                        transactionStatus = "COMMITTED";
                         syncStage = "read saved inspection identifiers";
                         long inspectionId = Convert.ToInt64(saved.Rows[0]["InspectionID"]);
 
@@ -1206,7 +1214,10 @@ WHERE InspectionID=@InspectionID",
                 }
                 catch (Exception ex)
                 {
-                    WriteInspectionSyncError(syncStage, clientId, userId, record, ex);
+                    if (ex.Data.Contains("InspectionTransactionStatus"))
+                        transactionStatus = Convert.ToString(ex.Data["InspectionTransactionStatus"]);
+                    WriteInspectionSyncError(syncStage, clientId, userId, record, ex,
+                        attemptedProcedureName, attemptedSyncParameters, transactionStatus);
                     System.Diagnostics.Trace.TraceError("SyncInspections failed at stage '{0}' for ClientInspectionID={1}, userId={2}: {3}",
                         syncStage, clientId, userId, ex.ToString());
                     // Keep technical diagnostics in App_Data/server logs only.
@@ -1230,7 +1241,12 @@ WHERE InspectionID=@InspectionID",
                 .FirstOrDefault(value => !String.IsNullOrWhiteSpace(value)) ?? "";
             object emailDispatch;
             try { emailDispatch = DispatchInspectionEmailOutbox(20, userId, emailCompanyId); }
-            catch (Exception emailError) { emailDispatch = new { configured = false, error = emailError.Message }; }
+            catch (Exception emailError)
+            {
+                WriteInspectionSyncError("dispatch inspection email outbox", "", userId, null, emailError,
+                    "", null, "NOT_APPLICABLE");
+                emailDispatch = new { configured = false, error = emailError.Message };
+            }
             return new { success = allSuccess, results = outcomes, emailDispatch = emailDispatch };
         }
 
@@ -1283,7 +1299,89 @@ WHERE InspectionID=@InspectionID",
             return Limit(value, maxLength);
         }
 
-        private static void WriteInspectionSyncError(string stage, string clientInspectionId, string userId, JObject record, Exception error)
+        private static string GetInspectionSyncErrorCategory(string stage, Exception error)
+        {
+            string message = error == null ? "" : error.ToString();
+            string normalized = message.ToLowerInvariant();
+            string stageText = (stage ?? "").ToLowerInvariant();
+            if (normalized.Contains("already exists for this date") ||
+                (normalized.Contains("duplicate") && normalized.Contains("inspection")))
+                return "DUPLICATE";
+            if (error is SqlException || (error != null && error.GetBaseException() is SqlException))
+                return "SQL";
+            if (stageText.Contains("photo") || normalized.Contains("photo"))
+                return "PHOTO";
+            if (stageText.Contains("transaction") || normalized.Contains("rollback") ||
+                normalized.Contains("commit"))
+                return "TRANSACTION";
+            return "VALIDATION_OR_APPLICATION";
+        }
+
+        private static string FormatInspectionSyncParameter(SqlParameter parameter)
+        {
+            if (parameter == null) return "(null parameter)";
+            object value = parameter.Value;
+            string formatted;
+            if (value == null || value == DBNull.Value)
+                formatted = "NULL";
+            else if (value is DataTable)
+            {
+                DataTable table = (DataTable)value;
+                formatted = String.Format(CultureInfo.InvariantCulture,
+                    "[TABLE rows={0}, columns={1}: {2}]",
+                    table.Rows.Count, table.Columns.Count,
+                    String.Join(",", table.Columns.Cast<DataColumn>().Select(column => column.ColumnName).ToArray()));
+            }
+            else if (value is byte[])
+                formatted = "[BINARY length=" + ((byte[])value).Length.ToString(CultureInfo.InvariantCulture) + "]";
+            else
+                formatted = Convert.ToString(value, CultureInfo.InvariantCulture) ?? "";
+
+            // Do not write credentials, tokens, or binary/photo payloads to the diagnostic log.
+            string parameterName = parameter.ParameterName ?? "";
+            string lowerName = parameterName.ToLowerInvariant();
+            if (lowerName.Contains("password") || lowerName.Contains("secret") ||
+                lowerName.Contains("token") || lowerName.Contains("authorization"))
+                formatted = "[REDACTED]";
+            formatted = formatted.Replace("\r", " ").Replace("\n", " ").Trim();
+            if (formatted.Length > 2000) formatted = formatted.Substring(0, 2000) + "...[TRUNCATED]";
+            return String.Format(CultureInfo.InvariantCulture, "{0} ({1}) = {2}",
+                parameterName, parameter.SqlDbType, formatted);
+        }
+
+        private static string GetInspectionSqlErrorDetails(Exception error)
+        {
+            var details = new StringBuilder();
+            Exception current = error;
+            int depth = 0;
+            while (current != null && depth < 12)
+            {
+                SqlException sql = current as SqlException;
+                if (sql != null)
+                {
+                    foreach (SqlError item in sql.Errors)
+                    {
+                        details.AppendFormat(CultureInfo.InvariantCulture,
+                            "SQL Number: {0}; State: {1}; Class: {2}; Procedure: {3}; Line: {4}; Message: {5}{6}",
+                            item.Number, item.State, item.Class, item.Procedure, item.LineNumber,
+                            item.Message, Environment.NewLine);
+                    }
+                }
+                current = current.InnerException;
+                depth++;
+            }
+            return details.ToString();
+        }
+
+        private static void WriteInspectionSyncError(
+            string stage,
+            string clientInspectionId,
+            string userId,
+            JObject record,
+            Exception error,
+            string procedureName,
+            SqlParameter[] parameters,
+            string transactionStatus)
         {
             try
             {
@@ -1296,10 +1394,10 @@ WHERE InspectionID=@InspectionID",
                     return;
 
                 Directory.CreateDirectory(appDataPath);
-                string logPath = Path.Combine(appDataPath, "InspectionSyncErrors.log");
+                string logPath = Path.Combine(appDataPath, "submit.log");
                 string recordContext = String.Format(
                     CultureInfo.InvariantCulture,
-                    "CompanyID: {0}{10}LocationID: {1}{10}SectionID: {2}{10}InspectionTypeCode: {3}{10}InspectionTypeDetailCode: {4}{10}TenantID: {5}{10}SuiteNo: {6}{10}ScheduledTime: {7}{10}IDTemplate: {8}{10}InspectionDate: {9}{10}ServerDatabaseName: {11}{10}ServerIsTenantInspection: {12}",
+                    "CompanyID: {0}{10}LocationID: {1}{10}SectionID: {2}{10}InspectionTypeCode: {3}{10}InspectionTypeDetailCode: {4}{10}TenantID: {5}{10}SuiteNo: {6}{10}ScheduledTime: {7}{10}IDTemplate: {8}{10}InspectionDate: {9}{10}InspectionMode: {11}{10}ScheduleSelectionMode: {12}{10}InspectionPointMode: {13}{10}ServerDatabaseName: {14}{10}ServerIsTenantInspection: {15}",
                     GetInspectionSyncLogField(record, "CompanyID", 10),
                     GetInspectionSyncLogField(record, "LocationID", 3),
                     GetInspectionSyncLogField(record, "SectionID", 10),
@@ -1311,6 +1409,9 @@ WHERE InspectionID=@InspectionID",
                     GetInspectionSyncLogField(record, "IDTemplate", 20),
                     GetInspectionSyncLogField(record, "InspectionDate", 30),
                     Environment.NewLine,
+                    GetInspectionSyncLogField(record, "InspectionMode", 20),
+                    GetInspectionSyncLogField(record, "ScheduleSelectionMode", 20),
+                    GetInspectionSyncLogField(record, "InspectionPointMode", 20),
                     GetInspectionSyncLogField(record, "_ServerDatabaseName", 128),
                     GetInspectionSyncLogField(record, "_ServerIsTenantInspection", 1));
 
@@ -1318,15 +1419,25 @@ WHERE InspectionID=@InspectionID",
                     DateTime.UtcNow,
                     TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
 
+                string parameterDetails = parameters == null || parameters.Length == 0
+                    ? "(No stored-procedure parameters captured.)"
+                    : String.Join(Environment.NewLine,
+                        parameters.Select(FormatInspectionSyncParameter).ToArray());
+                string sqlDetails = GetInspectionSqlErrorDetails(error);
                 string entry = String.Format(
                     CultureInfo.InvariantCulture,
-                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} WIB (Asia/Jakarta) ====={1}Stage: {2}{1}ClientInspectionID: {3}{1}UserID: {4}{1}Record Context:{1}{5}{1}{6}{1}{1}",
+                    "===== {0:yyyy-MM-dd HH:mm:ss.fff} WIB (Asia/Jakarta) ====={1}Category: {2}{1}Stage: {3}{1}ClientInspectionID: {4}{1}UserID: {5}{1}Procedure: {6}{1}TransactionStatus: {7}{1}Record Context:{1}{8}{1}Stored Procedure Parameters:{1}{9}{1}{10}Exception:{1}{11}{1}{1}",
                     jakartaNow,
                     Environment.NewLine,
+                    GetInspectionSyncErrorCategory(stage, error),
                     stage ?? "",
                     clientInspectionId ?? "",
                     userId ?? "",
+                    procedureName ?? "",
+                    transactionStatus ?? "UNKNOWN",
                     recordContext,
+                    parameterDetails,
+                    String.IsNullOrWhiteSpace(sqlDetails) ? "" : "SQL Server Errors:" + Environment.NewLine + sqlDetails,
                     error == null ? "(no exception details)" : error.ToString());
 
                 lock (typeof(inspection))
@@ -1337,7 +1448,7 @@ WHERE InspectionID=@InspectionID",
             catch (Exception logError)
             {
                 System.Diagnostics.Trace.TraceError(
-                    "Unable to write InspectionSyncErrors.log: {0}",
+                    "Unable to write App_Data/submit.log: {0}",
                     logError.ToString());
             }
         }
