@@ -8734,7 +8734,7 @@ async function loadChiefApprovalBatchQueue() {
 async function openChiefApprovalBatchDetail(batchId) {
     if (!batchId) return;
     const host = document.getElementById("chiefBatchInspectionRows");
-    host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">Loading inspections...</td></tr>';
+    host.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">Loading inspections...</td></tr>';
     try {
         const result = await inspectionApprovalPost("GetChiefApprovalBatchDetail", {
             approvalBatchId: batchId,
@@ -8767,7 +8767,7 @@ async function openChiefApprovalBatchDetail(batchId) {
         document.querySelectorAll(".chief-batch-void-select-col").forEach(cell => cell.classList.toggle("d-none", status !== "PENDING"));
         document.getElementById("chiefBatchReports").innerHTML = "";
         if (!chiefApprovalBatchRows.length) {
-            host.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-3">This batch has no inspections.</td></tr>';
+            host.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">This batch has no inspections.</td></tr>';
         } else {
             host.innerHTML = chiefApprovalBatchRows.map((row, index) =>
                 '<tr><td class="chief-batch-void-select-col">' +
