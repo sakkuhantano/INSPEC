@@ -4322,12 +4322,13 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
                 DataTable rows = br.EQueryP(@"
 SELECT DISTINCT S.SectionID,S.ProfitCenterNo
 FROM dbo.PIP_M_Section S
-WHERE S.CompanyID=@CompanyID AND S.LocationID=@LocationID
+WHERE EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection I
+              WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND I.SectionID=S.SectionID)
   AND (@IsAdministrator=1 OR EXISTS
   (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';SPV;'+S.SectionID
+        AND C.ID=CONVERT(VARCHAR(30),@CompanyID)+CONVERT(VARCHAR(30),@LocationID)+';SPV;'+S.SectionID
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))
@@ -4360,12 +4361,13 @@ ORDER BY S.SectionID",
                 DataTable rows = br.EQueryP(@"
 SELECT DISTINCT S.SectionID,S.ProfitCenterNo
 FROM dbo.PIP_M_Section S
-WHERE S.CompanyID=@CompanyID AND S.LocationID=@LocationID
+WHERE EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection I
+              WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND I.SectionID=S.SectionID)
   AND (@IsAdministrator=1 OR EXISTS
   (
       SELECT 1 FROM dbo.SysWebCommonValue C
       WHERE C.AppID='INSPEC' AND C.CommonGroup='EmailApproval' AND C.IsDelete=0
-        AND C.ID=CONVERT(VARCHAR(30),S.CompanyID)+CONVERT(VARCHAR(30),S.LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
+        AND C.ID=CONVERT(VARCHAR(30),@CompanyID)+CONVERT(VARCHAR(30),@LocationID)+';'+CASE UPPER(LTRIM(RTRIM(ISNULL(S.ProfitCenterNo,'')))) WHEN 'PENG' THEN 'CHIEF_ENG' WHEN 'PSEC' THEN 'CHIEF_SEC' WHEN 'PHKP' THEN 'CHIEF_HK' ELSE '' END
         AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(C.Description,';') X
                     WHERE LTRIM(RTRIM(X.val))=@EmployeeID)
   ))
@@ -4778,7 +4780,7 @@ SELECT I.CompanyID,I.LocationID,I.SectionID,
        DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0) InspectionDate
 FROM dbo.PIP_T_Inspection I
 JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
-JOIN dbo.PIP_M_Section S ON S.CompanyID=I.CompanyID AND S.LocationID=I.LocationID AND S.SectionID=I.SectionID
+JOIN dbo.PIP_M_Section S ON S.SectionID=I.SectionID
 WHERE ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
   AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
   AND I.ApprovalBatchID IS NULL AND I.InspectionDate IS NOT NULL
