@@ -4509,6 +4509,53 @@ ORDER BY I.InspectionTypeCode,I.InspectionID",
         }
 
         [WebMethod]
+        public static object VoidChiefApprovalBatch(long approvalBatchId, long[] inspectionIds,
+            string employeeId, string companyId, string locationId, string remark)
+        {
+            RequireSameOriginPost();
+            employeeId = GFC.CurrentEmployeeID();
+            if (!IsInspectionAdministrator(employeeId))
+                employeeId = GFC.RequireMenuEmployee("20022");
+            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            remark = (remark ?? String.Empty).Trim();
+            if (String.IsNullOrWhiteSpace(remark))
+                throw new HttpException(400, "Reason Void wajib diisi.");
+            if (remark.Length > 500)
+                throw new HttpException(400, "Reason Void maksimal 500 karakter.");
+
+            string selectedIds = String.Empty;
+            if (inspectionIds != null && inspectionIds.Length > 0)
+            {
+                if (inspectionIds.Length > 200 || inspectionIds.Any(id => id <= 0) ||
+                    inspectionIds.Distinct().Count() != inspectionIds.Length)
+                    throw new HttpException(400, "Daftar inspeksi untuk Void tidak valid.");
+                selectedIds = String.Join(",", inspectionIds.Select(id => id.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            using (var br = new WAL.BR.CF())
+            {
+                DataTable saved = br.EQueryP("spUTL_PIP_T_Inspection_ApprovalBatch_Void",
+                    new SqlParameter[] {
+                        new SqlParameter("@p_ApprovalBatchID", approvalBatchId),
+                        new SqlParameter("@p_InspectionIDs", selectedIds),
+                        new SqlParameter("@p_EmployeeID", employeeId),
+                        new SqlParameter("@p_CompanyID", companyId),
+                        new SqlParameter("@p_LocationID", locationId),
+                        new SqlParameter("@p_Remark", remark)
+                    }, true, true);
+                if (saved == null || saved.Rows.Count == 0)
+                    throw new HttpException(500, "Void batch tidak mengembalikan status hasil.");
+                return new {
+                    success = true,
+                    approvalBatchId = approvalBatchId,
+                    voidCount = Convert.ToInt32(saved.Rows[0]["VoidCount"]),
+                    remainingCount = Convert.ToInt32(saved.Rows[0]["RemainingCount"]),
+                    batchStatus = Convert.ToString(saved.Rows[0]["BatchStatus"])
+                };
+            }
+        }
+
+        [WebMethod]
         public static object ApproveChiefApprovalBatch(long approvalBatchId, string employeeId,
             string companyId, string locationId)
         {
