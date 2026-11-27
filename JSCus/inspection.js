@@ -8771,7 +8771,7 @@ async function openChiefApprovalBatchDetail(batchId) {
             host.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-3">This batch has no inspections.</td></tr>';
         } else {
             host.innerHTML = chiefApprovalBatchRows.map((row, index) =>
-                '<tr><td class="chief-batch-void-select-col">' +
+                '<tr><td class="chief-batch-void-select-col' + (status === "PENDING" ? "" : " d-none") + '">' +
                     (status === "PENDING" ? '<input type="checkbox" data-chief-batch-void-select value="' + Number(row.InspectionID) + '" aria-label="Select ' + escInspection(row.InspectionNo || row.InspectionID) + ' for Void" />' : '') +
                 '</td><td>' + (index + 1) + '</td>' +
                 '<td><button type="button" class="btn btn-link p-0 fw-semibold" data-chief-inspection-id="' + Number(row.InspectionID) + '">' +
@@ -9028,14 +9028,14 @@ async function loadInspectionApprovalDetail(inspectionId) {
             String(h.GPSLongitude == null ? "" : h.GPSLongitude).trim() !== "" &&
             Number.isFinite(gpsLatitude) && Number.isFinite(gpsLongitude) && Math.abs(gpsLatitude) <= 90 && Math.abs(gpsLongitude) <= 180;
         const gpsQuery = hasGps ? gpsLatitude.toFixed(7) + "," + gpsLongitude.toFixed(7) : "";
-        const gpsMapHtml = hasGps && navigator.onLine
+        const gpsMapHtml = !isDynamicMotorApproval && hasGps && navigator.onLine
             ? '<div class="mt-2"><iframe title="Inspection GPS location" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:190px;border:0;border-radius:.5rem" src="https://maps.google.com/maps?q=' + encodeURIComponent(gpsQuery) + '&z=16&output=embed"></iframe></div>'
-            : (hasGps ? '<div class="small text-muted mt-2">Peta disembunyikan karena perangkat sedang offline.</div>' : '<div class="small text-muted mt-2">Koordinat GPS tidak tersedia.</div>');
+            : (isDynamicMotorApproval ? '' : (hasGps ? '<div class="small text-muted mt-2">Peta disembunyikan karena perangkat sedang offline.</div>' : '<div class="small text-muted mt-2">Koordinat GPS tidak tersedia.</div>'));
         const gpsCardHtml = '<div class="border rounded p-3 mt-3"><div class="fw-semibold mb-2"><i class="bi bi-geo-alt me-1"></i>GPS Capture</div>' +
             '<div><strong>Latitude / Longitude:</strong> ' + (hasGps ? escInspection(gpsQuery) : "-") + '</div>' +
             '<div><strong>Accuracy:</strong> ' + (h.GPSAccuracy != null ? escInspection(h.GPSAccuracy + " m") : "-") + '</div>' +
             '<div><strong>Captured:</strong> ' + (h.GPSCapturedAt ? escInspection(formatInspectionDateDMY(h.GPSCapturedAt) + " " + formatInspectionClock(h.GPSCapturedAt)) : "-") + '</div>' +
-            (hasGps && navigator.onLine ? '<a class="btn btn-sm btn-outline-primary mt-2" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsQuery) + '" target="_blank" rel="noopener">Buka di Google Maps</a>' : '') +
+            (!isDynamicMotorApproval && hasGps && navigator.onLine ? '<a class="btn btn-sm btn-outline-primary mt-2" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(gpsQuery) + '" target="_blank" rel="noopener">Buka di Google Maps</a>' : '') +
             gpsMapHtml + '</div>';
         document.getElementById("inspectionApprovalParameters").innerHTML =
             '<div class="row g-3">' +
