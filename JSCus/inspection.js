@@ -94,8 +94,21 @@ function isLightningInspectionRecord(record) {
     return mode === "BATCH" && scheduleMode === "INSPECT";
 }
 
-function isDynamicInspectionType(typeOrRecord) {
-    return String(typeOrRecord && typeOrRecord.InspectionPointMode || "").trim().toUpperCase() === "DYNAMIC";
+function getEffectiveInspectionPointMode(typeOrRecord, detailCode) {
+    const storedMode = String(typeOrRecord && typeOrRecord.InspectionPointMode || "").trim().toUpperCase();
+    const typeCode = String(typeOrRecord && typeOrRecord.InspectionTypeCode || "").trim().toUpperCase();
+    const effectiveDetailCode = String(detailCode || (typeOrRecord && typeOrRecord.InspectionTypeDetailCode) || "").trim().toUpperCase();
+
+    // PIP_M_InspectionType is header-level, while CP has both MAP car details
+    // and the dynamic Motor detail. Keep the master column unchanged and derive
+    // the effective layout for this one detail at runtime.
+    if (typeCode === "CP" && effectiveDetailCode === "MCDP-CP-MT")
+        return "DYNAMIC";
+    return storedMode;
+}
+
+function isDynamicInspectionType(typeOrRecord, detailCode) {
+    return getEffectiveInspectionPointMode(typeOrRecord, detailCode) === "DYNAMIC";
 }
 
 function isInspectionMapMode(mode) {
@@ -6286,7 +6299,7 @@ async function applyInspectionParameters() {
     const scheduleSelectionMode = String(type.ScheduleSelectionMode || "PARAM").trim().toUpperCase();
     const isLightning = requestedMode === "BATCH" && scheduleSelectionMode === "INSPECT";
     const inspectionMode = requestedMode === "BATCH" ? "BATCH" : "STANDARD";
-    const inspectionPointMode = String(type.InspectionPointMode || "").trim().toUpperCase();
+    const inspectionPointMode = getEffectiveInspectionPointMode(type, detail.InspectionTypeDetailCode);
     const inspectionLayoutCode = inspectionMode === "STANDARD" ? "STANDARD" :
         (inspectionPointMode === "DYNAMIC" ? "DYNAMIC_LIST" : "MAP");
 const tenantId = isInspectionTenantDetail(detail) ? getSelectedInspectionTenantID() : "";
