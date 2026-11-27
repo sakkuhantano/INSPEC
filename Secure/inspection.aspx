@@ -2667,14 +2667,38 @@
             </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
                 <button type="button" id="btnPreviewChiefBatchReports" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-excel me-1"></i>Preview Reports</button>
+                <button type="button" id="btnVoidSelectedChiefBatch" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-x-circle me-1"></i>Void Selected</button>
+                <button type="button" id="btnVoidEntireChiefBatch" class="btn btn-sm btn-danger d-none"><i class="bi bi-trash3 me-1"></i>Void Entire Batch</button>
                 <button type="button" id="btnApproveChiefBatch" class="btn btn-sm btn-success"><i class="bi bi-check-circle me-1"></i>Approve Batch</button>
             </div>
             <div id="chiefBatchReports" class="mb-3"></div>
             <div class="table-responsive">
                 <table class="table table-sm table-hover align-middle">
-                    <thead><tr><th>No.</th><th>Inspection No.</th><th>Inspection Type</th><th>Detail</th><th>Template</th><th>Technician</th><th>SPV Approved</th></tr></thead>
-                    <tbody id="chiefBatchInspectionRows"><tr><td colspan="7" class="text-muted text-center py-3">Select a batch.</td></tr></tbody>
+                    <thead><tr><th class="chief-batch-void-select-col"><input type="checkbox" id="chkSelectAllChiefBatchVoid" aria-label="Select all inspections for Void" /></th><th>No.</th><th>Inspection No.</th><th>Inspection Type</th><th>Detail</th><th>Template</th><th>Technician</th><th>SPV Approved</th></tr></thead>
+                    <tbody id="chiefBatchInspectionRows"><tr><td colspan="8" class="text-muted text-center py-3">Select a batch.</td></tr></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="chiefBatchVoidModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="chiefBatchVoidTitle">Void Inspeksi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="chiefBatchVoidDescription" class="small text-muted mb-3"></div>
+                    <label for="txtChiefBatchVoidRemark" class="form-label">Alasan Void (wajib)</label>
+                    <textarea id="txtChiefBatchVoidRemark" class="form-control" rows="4" maxlength="500" placeholder="Masukkan alasan pengembalian ke Staff..."></textarea>
+                    <div id="chiefBatchVoidError" class="text-danger small mt-2 d-none"></div>
+                    <div class="form-text">Inspeksi akan kembali menjadi DRAFT milik teknisi. Batch yang sudah Approved tidak dapat di-Void.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" id="btnConfirmChiefBatchVoid" class="btn btn-danger">Konfirmasi Void</button>
+                </div>
             </div>
         </div>
     </div>
