@@ -559,6 +559,227 @@
         return values.join(" ");
     }
 
+    function renderDynamicMotorList(host, points) {
+        var record = currentMapRecord;
+        var readOnly = !!currentInspectionReadOnly || String(record && record.Status || "").toUpperCase() === "DONE";
+        var template = record && record.TemplateSnapshot;
+        var visiblePoints = Array.isArray(points) ? points : [];
+        var allRegistered = visiblePoints.length > 0 && visiblePoints.every(function (point) {
+            return !!String(point.PointName || point.Nopol || "").trim();
+        });
+
+        function ensurePlateAnswer(point) {
+            point.Items = Array.isArray(point.Items) ? point.Items : [];
+            var sections = template && Array.isArray(template.sections) ? template.sections : [];
+            var plateTemplate = null;
+            sections.forEach(function (section) {
+                (section.items || []).forEach(function (item) {
+                    if (!plateTemplate &&
+                        String(item.type || item.ItemType || "").toUpperCase() === "TEXT" &&
+                        /(nopol|no\\s*pol|polisi|plat|nomor polisi|license)/i.test(String(item.label || item.ItemLabel || item.name || ""))) {
+                        plateTemplate = item;
+                    }
+                });
+            });
+            if (!plateTemplate) return;
+            var plateId = Number(plateTemplate.idItem || plateTemplate.IDItem);
+            var answer = point.Items.find(function (item) { return Number(item.IDItem) === plateId; });
+            if (!answer) {
+                point.Items.unshift({
+                    IDItem: plateId,
+                    ItemLabel: String(plateTemplate.label || plateTemplate.ItemLabel || "Nopol"),
+                    Type: "TEXT",
+                    Value: String(point.PointName || point.Nopol || ""),
+                    Remark1: "",
+                    Remark2: "",
+                    IsAnomali: false
+                });
+            } else if (!String(answer.Value || "").trim() && String(point.PointName || point.Nopol || "").trim()) {
+                answer.Value = String(point.PointName || point.Nopol || "");
+            }
+        }
+
+        function cardId(point) {
+            return "motorPoint_" + String(point.InspectionPointID).replace(/[^0-9A-Za-z_-]/g, "_");
+        }
+
+        function saveMotorPoint(point, card) {
+            if (!record || readOnly) return;
+            var plateInput = card.querySelector("[data-motor-nopol]");
+            var plate = String(plateInput && plateInput.value || "").trim().toUpperCase();
+            if (!plate) {
+                showToast("Nopol wajib diisi untuk " + point.PointCode + ".", "warning");
+                if (plateInput) plateInput.focus();
+                return;
+            }
+            var duplicate = visiblePoints.some(function (other) {
+                return Number(other.InspectionPointID) !== Number(point.InspectionPointID) &&
+                    String(other.PointName || other.Nopol || "").trim().toUpperCase() === plate;
+            });
+            if (duplicate) {
+                showToast("Nopol " + plate + " sudah ada di daftar inspeksi ini.", "warning");
+                if (plateInput) plateInput.focus();
+                return;
+            }
+
+            ensurePlateAnswer(point);
+            var plateAnswer = point.Items.find(function (item) {
+                return String(item.Type || item.ItemType || "").toUpperCase() === "TEXT" &&
+                    /(nopol|no\\s*pol|polisi|plat|nomor polisi|license)/i.test(String(item.ItemLabel || item.label || ""));
+            });
+            if (plateAnswer) plateAnswer.Value = plate;
+
+            var checklistHost = card.querySelector("[data-motor-checklist-host]");
+            var items = typeof window.collectInspectionItems === "function"
+                ? window.collectInspectionItems(checklistHost)
+                : [];
+            var errors = typeof window.validateInspectionItemsAll === "function"
+                ? window.validateInspectionItemsAll(items) : [];
+            if (errors.length) {
+                point.ValidationIssueCount = errors.length;
+                showToast(point.PointCode + ": " + errors.slice(0, 2).map(function (error) { return error.message; }).join(" · ") +
+                    (errors.length > 2 ? " · +" + (errors.length - 2) + " lainnya." : ""), "warning");
+                return;
+            }
+
+            point.PointName = plate;
+            point.Nopol = plate;
+            point.Items = items;
+            point.ValidationIssueCount = 0;
+            if (["DONE", "ABNORMAL"].indexOf(String(point.Status || "").toUpperCase()) < 0)
+                point.Status = "INCOMPLETE";
+            point.UpdatedAt = new Date().toISOString();
+            record.SyncStatus = "PENDING";
+            record.UpdatedAt = new Date().toISOString();
+            persistInspectionRecord(record).then(function () {
+                showToast(point.PointCode + " · " + plate + " tersimpan.", "success");
+                renderList();
+                updateSummary();
+            }).catch(function (error) {
+                console.error("Unable to save Motor point:", error);
+                showToast(error.message || "Gagal menyimpan Motor.", "warning");
+            });
+        }
+
+        host.innerHTML =
+            '<div class="inspection-motor-list-intro small text-muted mb-2">' +
+                '<i class="bi bi-info-circle me-1"></i>' +
+                'Motor pertama sudah tersedia. Isi Nopol dan checklist pada barisnya. ' +
+                'Motor berikutnya ditambahkan dengan tombol <strong>Tambah Motor</strong>.' +
+            '</div>' +
+            visiblePoints.map(function (point, index) {
+                ensurePlateAnswer(point);
+                var status = getPointVisualStatus(point);
+                var pointId = String(point.InspectionPointID);
+                var checklistHostId = cardId(point) + "_checklist";
+                var checklistHtml = typeof window.renderInspectionSections === "function"
+                    ? window.renderInspectionSections(template, point.Items || [], readOnly, "motor_" + String(point.InspectionPointID).replace(/[^0-9A-Za-z_-]/g, "_"))
+                    : '<div class="alert alert-warning small">Checklist template tidak tersedia.</div>';
+                return '<div class="inspection-motor-card border rounded-3 p-3 mb-3" data-motor-point-id="' + esc(pointId) + '">' +
+                    '<div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">' +
+                        '<div><div class="small text-primary fw-bold">' + esc(point.PointCode || ("M" + String(index + 1).padStart(3, "0"))) + '</div>' +
+                        '<div class="fw-bold">Motor ' + (index + 1) + '</div></div>' +
+                        '<span class="badge ' + (status === "DONE" ? "text-bg-success" : status === "ABNORMAL" ? "text-bg-danger" : status === "INCOMPLETE" ? "text-bg-warning" : "text-bg-secondary") + '">' +
+                            esc(statusLabel(status, point)) + '</span>' +
+                    '</div>' +
+                    '<div class="row g-2 align-items-end mb-3">' +
+                        '<div class="col-12 col-md-5"><label class="form-label small fw-semibold mb-1">Nomor Polisi / Nopol</label>' +
+                            '<input type="text" class="form-control text-uppercase" maxlength="30" autocomplete="off" placeholder="Contoh: B 1234 XYZ" data-motor-nopol value="' + esc(point.PointName || point.Nopol || "") + '"' + (readOnly ? " disabled" : "") + '></div>' +
+                        '<div class="col-12 col-md-auto d-flex flex-wrap gap-2">' +
+                            '<button type="button" class="btn btn-primary btn-sm" data-save-motor' + (readOnly ? " disabled" : "") + '><i class="bi bi-save me-1"></i>Simpan Motor</button>' +
+                            '<button type="button" class="btn btn-outline-secondary btn-sm" data-open-motor-detail><i class="bi bi-camera me-1"></i>Checklist & Foto</button>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="inspection-motor-checklist" data-motor-checklist-host id="' + esc(checklistHostId) + '">' +
+                        checklistHtml +
+                    '</div>' +
+                '</div>';
+            }).join("") +
+            (!visiblePoints.length ? '<div class="text-muted small text-center py-4">Belum ada Motor.</div>' : '') +
+            '<div class="d-flex justify-content-center mt-2">' +
+                '<button type="button" id="btnAddInspectionDynamicPointInline" class="btn btn-outline-primary btn-sm"' +
+                    (readOnly || !allRegistered ? " disabled" : "") + '>' +
+                    '<i class="bi bi-plus-circle me-1"></i>Tambah Motor' +
+                '</button>' +
+            '</div>';
+
+        if (typeof window.updateInspectionRemarkPanels === "function")
+            host.querySelectorAll("[data-motor-checklist-host]").forEach(function (checklist) {
+                window.updateInspectionRemarkPanels(checklist);
+            });
+
+        host.querySelectorAll("[data-motor-nopol]").forEach(function (input) {
+            input.addEventListener("input", function () {
+                this.value = String(this.value || "").toUpperCase();
+            });
+        });
+
+        host.querySelectorAll("[data-save-motor]").forEach(function (button) {
+            button.addEventListener("click", function (event) {
+                event.preventDefault();
+                var card = button.closest("[data-motor-point-id]");
+                if (!card) return;
+                var point = visiblePoints.find(function (item) {
+                    return String(item.InspectionPointID) === String(card.getAttribute("data-motor-point-id"));
+                });
+                if (point) saveMotorPoint(point, card);
+            });
+        });
+
+        host.querySelectorAll("[data-open-motor-detail]").forEach(function (button) {
+            button.addEventListener("click", async function () {
+                var card = button.closest("[data-motor-point-id]");
+                if (!card) return;
+                var point = visiblePoints.find(function (item) {
+                    return String(item.InspectionPointID) === String(card.getAttribute("data-motor-point-id"));
+                });
+                if (!point) return;
+                var nopol = String(card.querySelector("[data-motor-nopol]") && card.querySelector("[data-motor-nopol]").value || "").trim().toUpperCase();
+                if (nopol && nopol !== String(point.PointName || point.Nopol || "").trim().toUpperCase()) {
+                    card.querySelector("[data-save-motor]").click();
+                    return;
+                }
+                await openPoint(point.InspectionPointID);
+            });
+        });
+
+        host.querySelectorAll("[data-motor-checklist-host]").forEach(function (checklist) {
+            checklist.addEventListener("change", function () {
+                if (typeof window.updateInspectionRemarkPanels === "function")
+                    window.updateInspectionRemarkPanels(checklist);
+            });
+        });
+
+        var addButton = document.getElementById("btnAddInspectionDynamicPointInline");
+        if (addButton) addButton.addEventListener("click", async function () {
+            if (readOnly || !allRegistered || !record) return;
+            var setup = record.BatchMapSetup || (record.BatchMapSetup = { success: true, maps: [], points: [] });
+            setup.points = Array.isArray(setup.points) ? setup.points : visiblePoints;
+            var sequence = setup.points.reduce(function (max, item) {
+                return Math.max(max, Number(String(item.PointCode || "").replace(/^M/i, "")) || 0);
+            }, 0) + 1;
+            var point = {
+                InspectionPointID: -sequence,
+                ClientPointID: newInspectionId(),
+                PointCode: "M" + String(sequence).padStart(3, "0"),
+                PointName: "",
+                Nopol: "",
+                DisplayOrder: sequence,
+                MapID: 0,
+                Status: "PENDING",
+                IsNormalAbnormalRequired: false,
+                Items: []
+            };
+            setup.points.push(point);
+            record.Points = record.Points || [];
+            await persistInspectionRecord(record);
+            renderList();
+            updateSummary();
+            var nextCard = host.querySelector('[data-motor-point-id="' + CSS.escape(String(point.InspectionPointID)) + '"]');
+            if (nextCard) nextCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    }
+
     function renderList() {
         var host = document.getElementById("inspectionPointList");
         if (!host) return;
