@@ -2521,7 +2521,8 @@
                 </li>
             </ul>
             <div id="inspectionApprovalBatchActions" class="d-flex flex-wrap align-items-center gap-1">
-                <button type="button" id="btnInspectionApprovalPreview" class="btn btn-sm btn-outline-primary" disabled title="Select all inspections to enable Preview"><i class="bi bi-file-earmark-excel me-1"></i>Preview</button>
+                <span class="small text-muted align-self-center me-1">Selected: <strong id="inspectionApprovalSelectedCount">0</strong></span>
+                <button type="button" id="btnInspectionApprovalPreview" class="btn btn-sm btn-outline-primary" disabled title="Select inspections to enable Preview"><i class="bi bi-file-earmark-excel me-1"></i>Preview</button>
                 <button type="button" id="btnCreateStandardApprovalBatch" class="btn btn-sm btn-outline-success d-none" disabled title="Select SPV-approved STANDARD inspections to send as one batch"><i class="bi bi-send me-1"></i>Send to CHIEF</button>
                 <button type="button" id="btnApprovalSelectAll" class="btn btn-sm btn-outline-secondary" title="Select all filtered inspections" aria-label="Select all filtered inspections">Select All</button>
                 <button type="button" id="btnBatchApproveInspection" class="btn btn-sm btn-success" title="Approve selected inspections" aria-label="Approve selected inspections">Approve</button>
@@ -2667,8 +2668,9 @@
             </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
                 <button type="button" id="btnPreviewChiefBatchReports" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-excel me-1"></i>Preview Reports</button>
-                <button type="button" id="btnSelectAllChiefBatchInspections" class="btn btn-sm btn-outline-secondary d-none">Select All</button>
-                <button type="button" id="btnVoidChiefBatch" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-x-circle me-1"></i>Void</button>
+                <span class="small text-muted align-self-center">Selected: <strong id="chiefBatchVoidSelectionCount">0</strong></span>
+                <button type="button" id="btnVoidSelectedChiefBatch" class="btn btn-sm btn-outline-danger d-none"><i class="bi bi-x-circle me-1"></i>Void Selected</button>
+                <button type="button" id="btnVoidAllChiefBatch" class="btn btn-sm btn-danger d-none"><i class="bi bi-trash3 me-1"></i>Void All</button>
                 <button type="button" id="btnApproveChiefBatch" class="btn btn-sm btn-success"><i class="bi bi-check-circle me-1"></i>Approve Batch</button>
             </div>
             <div id="chiefBatchReports" class="mb-3"></div>
