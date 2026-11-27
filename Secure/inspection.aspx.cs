@@ -2117,7 +2117,7 @@ WHERE IT.InspectionTypeCode=@TypeCode AND IT.IsActive=1
   (
       ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
       AND ISNULL(IT.InspectionPointMode,'')='MAP'
-      AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='INSPECT'
+      AND ISNULL(IT.ScheduleSelectionMode,'PARAM') IN ('PARAM','INSPECT')
   )
   AND EXISTS (SELECT 1 FROM dbo.SplitStringConvertToTable(@SectionList,';') S WHERE S.val=IT.SectionID)",
                     new SqlParameter[] {
