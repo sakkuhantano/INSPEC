@@ -2486,7 +2486,16 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
       AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
       AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
       AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
+      AND I.ApprovalBatchID IS NULL
       AND (@IsAdministrator=1 OR R.IsBatchChief=1))
+   OR
+   (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
+      AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
+      AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'
+      AND ISNULL(I.IsApproved,0)=1 AND ISNULL(I.IsApproved1,0)=0
+      AND I.ApprovalBatchID IS NULL
+      AND I.ApprovedDate>=@DateFrom AND I.ApprovedDate<DATEADD(DAY,1,@DateThru)
+      AND (@IsAdministrator=1 OR R.IsSPV=1))
    OR
    (@ApprovalTab='APPROVED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
       AND ISNULL(IT.InspectionMode,'STANDARD')='BATCH'
@@ -2507,7 +2516,8 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND ISNULL(I.IsActive,
       AND (@IsAdministrator=1 OR R.IsSPV=1))
    OR
    (@ApprovalTab='BATCH_SUBMITTED' AND I.Status='DONE' AND ISNULL(I.IsSubmitted,0)=1
-      AND ISNULL(IT.InspectionMode,'STANDARD')='STANDARD'
+      AND ((ISNULL(IT.InspectionMode,'STANDARD')='STANDARD')
+           OR (ISNULL(IT.InspectionMode,'STANDARD')='BATCH' AND ISNULL(IT.ScheduleSelectionMode,'PARAM')='PARAM'))
       AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NOT NULL
       AND EXISTS (SELECT 1 FROM dbo.PIP_T_Inspection_ApprovalBatch B
                   WHERE B.ApprovalBatchID=I.ApprovalBatchID AND B.BatchStatus='PENDING')
