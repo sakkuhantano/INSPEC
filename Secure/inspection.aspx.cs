@@ -2965,12 +2965,15 @@ ORDER BY I.InspectionDate DESC,I.InspectionID DESC", createParameters(true));
                 employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
             int voidLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
                 employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
+            int batchSubmittedStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
+                employeeId, companyId, locationId, "BATCH_SUBMITTED", "", "", "", "", "", "", true, false));
 
             return new
             {
                 success = true,
                 outstanding = outstandingStandard + outstandingLightning,
                 approved = approvedStandard + approvedLightning,
+                batchSubmitted = batchSubmittedStandard,
                 voided = voidStandard + voidLightning
             };
         }
