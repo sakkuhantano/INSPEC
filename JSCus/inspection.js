@@ -931,6 +931,8 @@ async function cacheInspectionMapSetupsForOfflineUse() {
         for (const detail of details) {
             const key = String(detail.InspectionTypeDetailCode || "").toUpperCase();
             if (!key) continue;
+            if (String(type.InspectionTypeCode || "").toUpperCase() === "CP" && key === "MCDP-CP-MT")
+                continue; // Motor is DYNAMIC/PARAM and must never be cached as a static map.
             try {
                 const response = await fetch("inspection.aspx/GetBatchInspectionMap", {
                     method: "POST",
