@@ -4248,7 +4248,9 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
 
             string appRoot = (HttpContext.Current.Request.ApplicationPath ?? "").TrimEnd('/');
             string origin = HttpContext.Current.Request.Url.GetLeftPart(UriPartial.Authority);
-            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval&view=chiefbatch";
+            string approvalUrl = origin + appRoot + "/Secure/inspection.aspx?type=approval&view=chiefbatch&batchId=" + approvalBatchId.ToString(CultureInfo.InvariantCulture);
+            string workflowLabel = String.Equals(Convert.ToString(batch["WorkflowKey"]), "BATCH;PARAM", StringComparison.OrdinalIgnoreCase)
+                ? "BATCH / PARAM" : "STANDARD";
             string sectionId = Convert.ToString(batch["SectionID"]);
             string dateText = Convert.ToDateTime(batch["InspectionDate"]).ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
 
@@ -4257,11 +4259,11 @@ WHERE EmployeeID=@EmployeeID AND CompanyID=@CompanyID
                 message.From = new MailAddress(fromAddress, fromName);
                 foreach (DataRow recipient in recipientRows.Rows)
                     message.To.Add(new MailAddress(Convert.ToString(recipient["EmailAddress"]).Trim()));
-                message.Subject = "INSPEC - STANDARD Inspection Approval Batch #" +
+                message.Subject = "INSPEC - " + workflowLabel + " Inspection Approval Batch #" +
                     approvalBatchId.ToString(CultureInfo.InvariantCulture);
                 var body = new StringBuilder();
                 body.Append("<p>Dear CHIEF,</p>")
-                    .Append("<p>STANDARD inspection approval batch menunggu pemeriksaan dan approval.</p>")
+                    .Append("<p>").Append(HttpUtility.HtmlEncode(workflowLabel)).Append(" inspection approval batch menunggu pemeriksaan dan approval.</p>")
                     .Append("<p><b>Batch:</b> ").Append(approvalBatchId)
                     .Append("<br/><b>Section:</b> ").Append(HttpUtility.HtmlEncode(sectionId))
                     .Append("<br/><b>Inspection Date:</b> ").Append(HttpUtility.HtmlEncode(dateText))
@@ -4397,7 +4399,7 @@ ORDER BY S.SectionID",
             {
                 DataTable rows = br.EQueryP(@"
 SELECT B.ApprovalBatchID,B.CompanyID,B.LocationID,B.SectionID,B.InspectionDate,
-       B.ProfitCenterNo,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
+       B.ProfitCenterNo,B.WorkflowKey,B.CreatedBy,B.CreatedDate,B.SentDate,B.BatchStatus,
        B.ApprovedBy,B.ApprovedDate,B.EmailStatus,
        ISNULL(EC.Name,B.CreatedBy) CreatedByName,
        ISNULL(EA.Name,B.ApprovedBy) ApprovedByName,
@@ -4766,6 +4768,7 @@ VALUES (@RunID,GETDATE(),'RUNNING',0,0,0,0,0,0,N'',N'')",
                 {
                     sections = br.EQueryP(@"
 SELECT I.CompanyID,I.LocationID,I.SectionID,
+       CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END WorkflowKey,
        DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0) InspectionDate
 FROM dbo.PIP_T_Inspection I
 JOIN dbo.PIP_M_InspectionType IT ON IT.InspectionTypeCode=I.InspectionTypeCode
@@ -4774,11 +4777,14 @@ WHERE ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
   AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1
   AND I.ApprovalBatchID IS NULL AND I.InspectionDate IS NOT NULL
   AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
-  AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ((ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD')
+       OR (ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH'
+           AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM' AND ISNULL(I.IsApproved1,0)=0))
   AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
-GROUP BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)
-ORDER BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)",
+GROUP BY I.CompanyID,I.LocationID,I.SectionID,
+       CASE WHEN ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD' THEN 'STANDARD' ELSE 'BATCH;PARAM' END,
+       DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)
+ORDER BY I.CompanyID,I.LocationID,I.SectionID,WorkflowKey,DATEADD(DAY,DATEDIFF(DAY,0,I.InspectionDate),0)",
                         new SqlParameter[] { });
                 }
 
@@ -4790,6 +4796,7 @@ ORDER BY I.CompanyID,I.LocationID,I.SectionID,DATEADD(DAY,DATEDIFF(DAY,0,I.Inspe
                         string locationId = Convert.ToString(section["LocationID"]).Trim();
                         string sectionId = Convert.ToString(section["SectionID"]).Trim();
                         DateTime inspectionDate = Convert.ToDateTime(section["InspectionDate"]);
+                        string workflowKey = Convert.ToString(section["WorkflowKey"]);
                         int sectionBatches = 0, sectionInspections = 0, sectionEmails = 0, sectionEmailFailed = 0;
                         string sectionStatus = "SUCCESS", sectionError = "";
                         sectionsProcessed++;
@@ -4814,14 +4821,17 @@ WHERE I.CompanyID=@CompanyID AND I.LocationID=@LocationID AND I.SectionID=@Secti
   AND ISNULL(I.IsActive,1)=1 AND I.Status='DONE'
   AND ISNULL(I.IsSubmitted,0)=1 AND ISNULL(I.IsApproved,0)=1 AND I.ApprovalBatchID IS NULL
   AND NOT (ISNULL(I.ReasonVoid,'')<>'' OR ISNULL(I.ReasonVoid1,'')<>'' OR ISNULL(I.ReasonVoid2,'')<>'')
-  AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD'
-  AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD'
+  AND ((@WorkflowKey='STANDARD' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='STANDARD')
+       OR (@WorkflowKey='BATCH;PARAM' AND ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')='BATCH'
+           AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')='BATCH' AND ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')='PARAM'
+           AND ISNULL(I.IsApproved1,0)=0))
   AND ISNULL(LTRIM(RTRIM(I.InspectionTypeCode)),'')<>''
 ORDER BY I.InspectionID",
                                         new SqlParameter[] {
                                             new SqlParameter("@CompanyID", companyId),
                                             new SqlParameter("@LocationID", locationId),
                                             new SqlParameter("@SectionID", sectionId),
+                                            new SqlParameter("@WorkflowKey", workflowKey),
                                             new SqlParameter("@InspectionDate", inspectionDate)
                                         });
                                 }
