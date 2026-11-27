@@ -2,6 +2,19 @@
 <%@ MasterType VirtualPath="~/MasterPages/Site1.Master" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
 <style>
+    .inspection-motor-list-intro{padding:.2rem .1rem}
+    .inspection-motor-card{background:var(--bs-body-bg);border-color:var(--bs-border-color)!important;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    .inspection-motor-card .inspection-motor-checklist{border-top:1px solid var(--bs-border-color);padding-top:.75rem}
+    .inspection-motor-card .inspection-section-nav{position:sticky;top:0;z-index:2}
+    .inspection-motor-card .inspection-checklist-section{margin-bottom:.7rem!important}
+    .inspection-motor-card .inspection-item{padding:.65rem!important;margin-bottom:.5rem!important}
+    .inspection-motor-card .inspection-option-choice{min-height:38px;padding:.4rem .7rem;font-size:.78rem}
+    .inspection-motor-card .inspection-item-label{font-size:.78rem}
+    @media(max-width:575.98px){
+        .inspection-motor-card{padding:.75rem!important}
+        .inspection-motor-card .inspection-section-nav-tabs{overflow-x:auto}
+        .inspection-motor-card .inspection-section-nav-tabs .d-inline-flex{min-width:max-content}
+    }
     .inspection-map-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:.55rem}
     .inspection-map-choice-card{display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;width:100%;min-width:0;padding:.7rem .8rem;border:1px solid var(--bs-border-color);border-radius:.65rem;background:var(--bs-body-bg);color:var(--bs-body-color);text-align:left}
     .inspection-map-choice-card.active{border-color:var(--bs-primary);box-shadow:0 0 0 .15rem rgba(var(--bs-primary-rgb),.12);background:var(--bs-primary-bg-subtle)}
