@@ -90,8 +90,8 @@ BEGIN
         WHERE I.ApprovalBatchID=@p_ApprovalBatchID
           AND (I.CompanyID<>@C OR I.LocationID<>@L OR I.SectionID<>@S OR ISNULL(I.IsActive,1)<>1
                OR I.Status<>'DONE' OR ISNULL(I.IsSubmitted,0)<>1 OR ISNULL(I.IsApproved,0)<>1
-               OR (@WorkflowKey='STANDARD' AND ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD')
-               OR (@WorkflowKey='BATCH;PARAM' AND (ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'BATCH'
+               OR (@WorkflowKey='STANDARD' AND (ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')<>'STANDARD' OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'STANDARD'))
+               OR (@WorkflowKey='BATCH;PARAM' AND (ISNULL(NULLIF(I.InspectionMode,''),'STANDARD')<>'BATCH' OR ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')<>'BATCH'
                    OR ISNULL(NULLIF(IT.ScheduleSelectionMode,''),'PARAM')<>'PARAM' OR ISNULL(I.IsApproved1,0)=1))
                OR @WorkflowKey NOT IN ('STANDARD','BATCH;PARAM'))
       )
