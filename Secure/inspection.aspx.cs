@@ -1074,7 +1074,9 @@ WHERE ClientInspectionID=@ClientInspectionID",
 
                             // A voided inspection returns to DRAFT for correction, but its original
                             // work timestamps are historical data and must not be reset/overwritten.
-                            if (!String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid"])))
+                            if (!String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid"])) ||
+                                !String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid1"])) ||
+                                !String.IsNullOrWhiteSpace(Convert.ToString(existing["ReasonVoid2"])))
                             {
                                 if (existing["StartDateTime"] == DBNull.Value)
                                     record["StartDateTime"] = null;
@@ -3680,7 +3682,8 @@ SELECT I.InspectionID, I.ClientInspectionID, I.InspectionNo, I.CompanyID, I.Loca
        CONVERT(VARCHAR(23),I.EndDateTime,126) EndDateTime,
        I.Status, I.Summary, I.OwnerEmployeeID,
        I.FollowUp,I.FollowUpSection,I.FollowUpRemark,I.FollowUpWONo,
-       I.ReasonVoid, I.ReasonVoid1, I.ReasonVoid2, I.UpdateDate,
+       ISNULL(NULLIF(I.ReasonVoid,''),ISNULL(NULLIF(I.ReasonVoid1,''),ISNULL(I.ReasonVoid2,''))) AS ReasonVoid,
+       I.ReasonVoid1, I.ReasonVoid2, I.UpdateDate,
        ISNULL(NULLIF(I.InspectionMode,''),ISNULL(NULLIF(IT.InspectionMode,''),'STANDARD')) AS InspectionMode,
        CASE
            WHEN ISNULL(NULLIF(I.InspectionPointMode,''),'')<>'' THEN ISNULL(NULLIF(I.InspectionPointMode,''),'')
