@@ -2869,11 +2869,17 @@ ORDER BY P.SeqNo",
         private static object GetLightningInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox,
-            string inspectionDateFrom = "", string inspectionDateThru = "", string sectionId = "")
+            string inspectionDateFrom = "", string inspectionDateThru = "", string sectionId = "",
+            bool authorizationValidated = false)
         {
-            employeeId = GFC.CurrentEmployeeID();
+            if (!authorizationValidated)
+            {
+                employeeId = GFC.CurrentEmployeeID();
+                bool isAdministratorForRequest = IsInspectionAdministrator(employeeId);
+                if (!isAdministratorForRequest) employeeId = GFC.RequireMenuEmployee("20022");
+                GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            }
             bool isAdministrator = IsInspectionAdministrator(employeeId);
-            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             if (dispatchOutbox)
             {
                 try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
