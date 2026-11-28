@@ -2391,17 +2391,22 @@ ORDER BY I.ApprovedDate DESC, I.EndDateTime DESC, I.StartDateTime DESC, I.Inspec
         private static object GetInspectionApprovalQueueInternal(string employeeId, string companyId, string locationId,
             string approvalTab, string dateFrom, string dateThru, string inspectionTypeCode,
             string inspectionTypeDetailCode, string templateId, string scheduleTime, bool countOnly, bool dispatchOutbox,
-            string inspectionDateFrom = "", string inspectionDateThru = "", string sectionId = "")
+            string inspectionDateFrom = "", string inspectionDateThru = "", string sectionId = "",
+            bool authorizationValidated = false)
         {
-            employeeId = GFC.CurrentEmployeeID();
+            if (!authorizationValidated)
+            {
+                employeeId = GFC.CurrentEmployeeID();
+                bool isAdministratorForRequest = IsInspectionAdministrator(employeeId);
+                if (!isAdministratorForRequest) employeeId = GFC.RequireMenuEmployee("20022");
+                GFC.RequireCompanyLocation(employeeId, companyId, locationId);
+            }
             bool isAdministrator = IsInspectionAdministrator(employeeId);
-            if (!isAdministrator) employeeId = GFC.RequireMenuEmployee("20022");
             if (dispatchOutbox)
             {
                 try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
                 catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             }
-            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Supervisor identity is required.");
 
@@ -2874,7 +2879,6 @@ ORDER BY P.SeqNo",
                 try { DispatchInspectionEmailOutbox(10, employeeId, companyId); }
                 catch (Exception dispatchError) { System.Diagnostics.Trace.TraceWarning("Inspection email outbox retry failed: {0}", dispatchError.Message); }
             }
-            GFC.RequireCompanyLocation(employeeId, companyId, locationId);
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Chief Engineering / Chief Security identity is required.");
 
@@ -3039,25 +3043,26 @@ DROP TABLE #LightningApprovalQueue", createParameters(true));
             if (String.IsNullOrWhiteSpace(employeeId))
                 throw new HttpException(403, "Approver identity is required.");
 
-            // Use the same queue queries as the dashboard, in count-only mode.
+            // Authorization and company/location scope are validated once at this WebMethod boundary.
+            // Count-only queue scans reuse that validated identity rather than repeating authorization lookups.
             // No email dispatch and no type/template/schedule filters are applied.
             int outstandingStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false, "", "", "", true));
             int outstandingLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false));
+                employeeId, companyId, locationId, "OUTSTANDING", "", "", "", "", "", "", true, false, "", "", "", true));
 
             // Approved follows the date range shown by the Approved tab (default: today).
             int approvedStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false));
+                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false, "", "", "", true));
             int approvedLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false));
+                employeeId, companyId, locationId, "APPROVED", dateFrom, dateThru, "", "", "", "", true, false, "", "", "", true));
 
             int voidStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
+                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false, "", "", "", true));
             int voidLightning = Convert.ToInt32(GetLightningInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false));
+                employeeId, companyId, locationId, "VOID", "", "", "", "", "", "", true, false, "", "", "", true));
             int batchSubmittedStandard = Convert.ToInt32(GetInspectionApprovalQueueInternal(
-                employeeId, companyId, locationId, "BATCH_SUBMITTED", "", "", "", "", "", "", true, false));
+                employeeId, companyId, locationId, "BATCH_SUBMITTED", "", "", "", "", "", "", true, false, "", "", "", true));
 
             return new
             {
